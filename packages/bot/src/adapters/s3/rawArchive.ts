@@ -1,6 +1,7 @@
-import { PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
 import type { ConversationRef } from "../../core/domain/conversation.js";
 import { conversationKey } from "../../core/domain/conversation.js";
+import type { MediaReader } from "../../core/ports/mediaReader.js";
 import type { RawArchive } from "../../core/ports/persistence.js";
 
 function datePath(date: Date): string {
@@ -24,8 +25,9 @@ function extensionFor(contentType: string): string {
   return map[contentType] ?? "";
 }
 
-/** Archives every raw webhook event to S3 as immutable JSON (audit log / future training data). */
-export class S3RawArchive implements RawArchive {
+/** Archives every raw webhook event to S3 as immutable JSON (audit log / future training data), and
+ * reads media back for the ingestion sweep (the write and read sides of the same bucket). */
+export class S3RawArchive implements RawArchive, MediaReader {
   constructor(
     private readonly client: S3Client,
     private readonly bucket: string,
@@ -60,6 +62,16 @@ export class S3RawArchive implements RawArchive {
       }),
     );
     return key;
+  }
+
+  async getMedia(s3Key: string): Promise<Buffer> {
+    const result = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }),
+    );
+    if (result.Body === undefined) {
+      throw new Error(`S3 object has no body: ${s3Key}`);
+    }
+    return Buffer.from(await result.Body.transformToByteArray());
   }
 }
 

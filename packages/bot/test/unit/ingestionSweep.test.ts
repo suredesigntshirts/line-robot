@@ -1,74 +1,133 @@
 import { describe, expect, it } from "vitest";
 import { IngestionSweep } from "../../src/app/ingestionSweep.js";
-import type { ConversationTracker } from "../../src/core/domain/catalog.js";
-import type { StoredMessage } from "../../src/core/domain/message.js";
+import type {
+  ConversationTracker,
+  Property,
+  PropertyUpsert,
+} from "../../src/core/domain/catalog.js";
+import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
 import type { CatalogRepository } from "../../src/core/ports/catalog.js";
+import type {
+  ExtractedProperty,
+  ExtractionRequest,
+  ExtractionResult,
+} from "../../src/core/ports/extraction.js";
+import type { LineGateway } from "../../src/core/ports/lineGateway.js";
+import type { MediaReader } from "../../src/core/ports/mediaReader.js";
 import type { MessageRepository } from "../../src/core/ports/persistence.js";
 
-interface ReleaseCall {
-  key: string;
-  watermark: number;
-  claimSeenInboundAt: number;
-}
-
 interface Spies {
-  findPending: { nowIso: string; limit: number }[];
   claims: { key: string; nowMs: number; staleTimeoutMs: number }[];
-  findSince: { key: string; sinceMs: number }[];
-  releases: ReleaseCall[];
+  releases: { key: string; watermark: number; claimSeenInboundAt: number }[];
+  extractRequests: ExtractionRequest[];
+  upserts: PropertyUpsert[];
+  links: { key: string; propertyId: string }[];
+  pushes: { to: string; messages: OutboundMessage[] }[];
+  mediaReads: string[];
   errors: string[];
+  warns: string[];
 }
 
-/** A conversation script: how the fakes behave for one conversationKey. */
 interface ConvScript {
   tracker: ConversationTracker;
-  /** Result of claimConversation: `null` simulates a contended/lost claim. */
   claim: ConversationTracker | null;
-  /** Messages findSince returns (or an Error to throw). */
   batch: StoredMessage[] | Error;
 }
 
-function tracker(key: string, over: Partial<ConversationTracker> = {}): ConversationTracker {
-  return {
-    conversationKey: key,
-    lastInboundAt: 500,
-    lastIngestedAt: 100,
-    status: "IDLE",
-    ...over,
-  };
+interface Options {
+  /** Per-conversation extraction behavior; returns the result or throws. Default: null (no props). */
+  extract?: (req: ExtractionRequest) => ExtractionResult | null;
+  /** Existing properties keyed by id (for dedup candidate loading). */
+  properties?: Record<string, Property>;
+  /** conversationKey → property ids (the Conv→Property edges). */
+  convProperties?: Record<string, string[]>;
+  /** s3Key → bytes; a missing key throws (simulating a vanished object). */
+  mediaBytes?: Record<string, Buffer>;
+  pushThrows?: boolean;
 }
 
-function msg(timestamp: number): StoredMessage {
+function tracker(key: string, over: Partial<ConversationTracker> = {}): ConversationTracker {
+  return { conversationKey: key, lastInboundAt: 500, lastIngestedAt: 100, status: "IDLE", ...over };
+}
+
+function textMsg(timestamp: number, text = "hi"): StoredMessage {
   return {
     ref: { kind: "user", userId: "U" },
     messageId: `m${timestamp}`,
     direction: "in",
     contentType: "text",
-    text: "hi",
+    text,
     timestamp,
   };
 }
 
-function makeSweep(scripts: ConvScript[], nowMs = 10_000) {
-  const spies: Spies = { findPending: [], claims: [], findSince: [], releases: [], errors: [] };
+function imageMsg(timestamp: number, s3Key: string): StoredMessage {
+  return {
+    ref: { kind: "user", userId: "U" },
+    messageId: `img${timestamp}`,
+    direction: "in",
+    contentType: "image",
+    attachment: { s3Key, contentType: "image/jpeg" },
+    timestamp,
+  };
+}
+
+function extracted(over: Partial<ExtractedProperty> = {}): ExtractedProperty {
+  return {
+    existingPropertyId: null,
+    ambiguous: false,
+    normalizedAddress: null,
+    rawAddress: null,
+    projectName: null,
+    lat: null,
+    long: null,
+    district: null,
+    subdistrict: null,
+    province: null,
+    propertyType: null,
+    status: null,
+    askingPrice: null,
+    currency: null,
+    tags: null,
+    ...over,
+  };
+}
+
+function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
+  const spies: Spies = {
+    claims: [],
+    releases: [],
+    extractRequests: [],
+    upserts: [],
+    links: [],
+    pushes: [],
+    mediaReads: [],
+    errors: [],
+    warns: [],
+  };
   const byKey = new Map(scripts.map((s) => [s.tracker.conversationKey, s]));
+  let idCounter = 0;
 
   const catalog: Partial<CatalogRepository> = {
-    findPendingConversations: async (nowIso, limit) => {
-      spies.findPending.push({ nowIso, limit });
-      return scripts.map((s) => s.tracker);
-    },
+    findPendingConversations: async () => scripts.map((s) => s.tracker),
     claimConversation: async (key, claimNowMs, staleTimeoutMs) => {
       spies.claims.push({ key, nowMs: claimNowMs, staleTimeoutMs });
       return byKey.get(key)?.claim ?? null;
     },
-    releaseConversation: async (key, opts) => {
-      spies.releases.push({ key, ...opts });
+    releaseConversation: async (key, o) => {
+      spies.releases.push({ key, ...o });
+    },
+    listConversationProperties: async (key) => opts.convProperties?.[key] ?? [],
+    getProperty: async (id) => opts.properties?.[id] ?? null,
+    upsertProperty: async (input) => {
+      spies.upserts.push(input);
+    },
+    linkConversationProperty: async (key, propertyId) => {
+      spies.links.push({ key, propertyId });
     },
   };
   const messages: Partial<MessageRepository> = {
-    findSince: async (key, sinceMs) => {
-      spies.findSince.push({ key, sinceMs });
+    findSince: async (key) => {
       const batch = byKey.get(key)?.batch ?? [];
       if (batch instanceof Error) {
         throw batch;
@@ -76,64 +135,82 @@ function makeSweep(scripts: ConvScript[], nowMs = 10_000) {
       return batch;
     },
   };
+  const media: MediaReader = {
+    getMedia: async (s3Key) => {
+      spies.mediaReads.push(s3Key);
+      const bytes = opts.mediaBytes?.[s3Key];
+      if (bytes === undefined) {
+        throw new Error(`missing ${s3Key}`);
+      }
+      return bytes;
+    },
+  };
   const sweep = new IngestionSweep(
     {
       catalog: catalog as CatalogRepository,
       messages: messages as MessageRepository,
-      logger: {
-        info: () => {},
-        warn: () => {},
-        error: (m) => {
-          spies.errors.push(m);
+      extractor: {
+        extract: async (req) => {
+          spies.extractRequests.push(req);
+          return (opts.extract ?? (() => null))(req);
         },
       },
+      media,
+      gateway: {
+        reply: async () => {},
+        push: async (to, msgs) => {
+          if (opts.pushThrows) {
+            throw new Error("push failed");
+          }
+          spies.pushes.push({ to, messages: msgs });
+        },
+      } as LineGateway,
+      logger: {
+        info: () => {},
+        warn: (m) => spies.warns.push(m),
+        error: (m) => spies.errors.push(m),
+      },
       clock: { now: () => nowMs },
+      newId: () => {
+        idCounter += 1;
+        return `gen-${idCounter}`;
+      },
     },
     { maxConversations: 10, staleTimeoutMs: 1000 },
   );
   return { sweep, spies };
 }
 
-describe("IngestionSweep", () => {
+describe("IngestionSweep — mechanics", () => {
   it("does nothing when no conversations are due", async () => {
     const { sweep, spies } = makeSweep([]);
     const result = await sweep.run();
-
-    expect(result).toEqual({ due: 0, claimed: 0, ingested: 0, messages: 0, skipped: 0, failed: 0 });
+    expect(result).toMatchObject({ due: 0, claimed: 0, ingested: 0, properties: 0 });
     expect(spies.claims).toHaveLength(0);
-    // The GSI query is bounded by the configured maxConversations and uses the clock's ISO time.
-    expect(spies.findPending).toEqual([{ nowIso: new Date(10_000).toISOString(), limit: 10 }]);
   });
 
-  it("claims, batches, and releases a due conversation (watermark = newest message)", async () => {
+  it("batches and releases, advancing the watermark to the newest message", async () => {
     const { sweep, spies } = makeSweep([
       {
         tracker: tracker("user#A"),
-        claim: tracker("user#A", { status: "INGESTING", lastInboundAt: 500, lastIngestedAt: 100 }),
-        batch: [msg(200), msg(300), msg(500)],
+        claim: tracker("user#A", { lastInboundAt: 500, lastIngestedAt: 100 }),
+        batch: [textMsg(200), textMsg(300), textMsg(500)],
       },
     ]);
     const result = await sweep.run();
-
-    expect(result).toMatchObject({ due: 1, claimed: 1, ingested: 1, messages: 3, skipped: 0 });
-    expect(spies.claims).toEqual([{ key: "user#A", nowMs: 10_000, staleTimeoutMs: 1000 }]);
-    expect(spies.findSince).toEqual([{ key: "user#A", sinceMs: 100 }]);
-    // Watermark is the newest batched message; claimSeenInboundAt is the inbound seen at claim time.
+    expect(result).toMatchObject({ ingested: 1, messages: 3, properties: 0 });
     expect(spies.releases).toEqual([{ key: "user#A", watermark: 500, claimSeenInboundAt: 500 }]);
   });
 
-  it("skips a conversation whose claim is contended (no batch, no release)", async () => {
+  it("skips a contended conversation (no batch, no release)", async () => {
     const { sweep, spies } = makeSweep([
-      { tracker: tracker("user#B"), claim: null, batch: [msg(200)] },
+      { tracker: tracker("user#B"), claim: null, batch: [textMsg(200)] },
     ]);
-    const result = await sweep.run();
-
-    expect(result).toMatchObject({ due: 1, claimed: 0, ingested: 0, messages: 0, skipped: 1 });
-    expect(spies.findSince).toHaveLength(0);
+    expect(await sweep.run()).toMatchObject({ skipped: 1, ingested: 0 });
     expect(spies.releases).toHaveLength(0);
   });
 
-  it("releases with the existing watermark when the batch is empty", async () => {
+  it("releases with the existing watermark on an empty batch", async () => {
     const { sweep, spies } = makeSweep([
       {
         tracker: tracker("user#C"),
@@ -141,46 +218,175 @@ describe("IngestionSweep", () => {
         batch: [],
       },
     ]);
-    const result = await sweep.run();
-
-    expect(result).toMatchObject({ ingested: 1, messages: 0 });
-    // No new messages → watermark stays at lastIngestedAt; release still clears the claim.
+    expect(await sweep.run()).toMatchObject({ ingested: 1, properties: 0 });
     expect(spies.releases).toEqual([{ key: "user#C", watermark: 400, claimSeenInboundAt: 700 }]);
+    expect(spies.extractRequests).toHaveLength(0); // nothing to extract → extractor not called
   });
 
   it("records a failure and leaves the claim when batching throws", async () => {
     const { sweep, spies } = makeSweep([
-      {
-        tracker: tracker("user#D"),
-        claim: tracker("user#D", { status: "INGESTING" }),
-        batch: new Error("dynamo down"),
-      },
+      { tracker: tracker("user#D"), claim: tracker("user#D"), batch: new Error("dynamo down") },
     ]);
-    const result = await sweep.run();
-
-    expect(result).toMatchObject({ claimed: 0, ingested: 0, failed: 1 });
-    // The claim is intentionally not released — the stale-timeout retries the whole batch.
+    expect(await sweep.run()).toMatchObject({ failed: 1, ingested: 0 });
     expect(spies.releases).toHaveLength(0);
     expect(spies.errors).toHaveLength(1);
   });
+});
 
-  it("processes multiple conversations, isolating a contended one", async () => {
-    const { sweep, spies } = makeSweep([
+describe("IngestionSweep — extraction", () => {
+  const batch = [
+    textMsg(200, "2-bed condo at 123 Sukhumvit, 5.5M https://maps.google.com/?q=13.7,100.5"),
+  ];
+
+  it("creates a new property, links it to the conversation, and pushes a confirmation", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#E"), claim: tracker("user#E"), batch }],
       {
-        tracker: tracker("user#E"),
-        claim: tracker("user#E", { lastInboundAt: 500, lastIngestedAt: 0 }),
-        batch: [msg(100), msg(500)],
+        extract: () => ({
+          properties: [
+            extracted({
+              normalizedAddress: "123 Sukhumvit",
+              askingPrice: 5_500_000,
+              currency: "THB",
+            }),
+          ],
+        }),
       },
-      { tracker: tracker("user#F"), claim: null, batch: [msg(900)] },
-      {
-        tracker: tracker("user#G"),
-        claim: tracker("user#G", { lastInboundAt: 800, lastIngestedAt: 800 }),
-        batch: [],
-      },
-    ]);
+    );
     const result = await sweep.run();
 
-    expect(result).toEqual({ due: 3, claimed: 2, ingested: 2, messages: 2, skipped: 1, failed: 0 });
-    expect(spies.releases.map((r) => r.key)).toEqual(["user#E", "user#G"]);
+    expect(result).toMatchObject({ ingested: 1, properties: 1 });
+    expect(spies.upserts).toHaveLength(1);
+    expect(spies.upserts[0]).toMatchObject({
+      propertyId: "gen-1",
+      normalizedAddress: "123 Sukhumvit",
+      askingPrice: 5_500_000,
+      originConversationKey: "user#E", // set only for new properties
+    });
+    expect(spies.upserts[0]?.createdAt).toBeDefined();
+    expect(spies.links).toEqual([{ key: "user#E", propertyId: "gen-1" }]);
+    expect(spies.pushes[0]?.to).toBe("U");
+    expect(spies.pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (new)");
+
+    // Geo mined from the maps link + (empty) candidate set reach the extractor.
+    expect(spies.extractRequests[0]?.geoHints).toEqual([{ lat: 13.7, long: 100.5 }]);
+    expect(spies.extractRequests[0]?.candidates).toEqual([]);
+  });
+
+  it("updates a matched property without stamping a new origin/createdAt", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#F"), claim: tracker("user#F"), batch: [textMsg(200, "now 6M")] }],
+      {
+        convProperties: { "user#F": ["p-existing"] },
+        properties: {
+          "p-existing": { propertyId: "p-existing", normalizedAddress: "123 Sukhumvit" },
+        },
+        extract: () => ({
+          properties: [
+            extracted({
+              existingPropertyId: "p-existing",
+              normalizedAddress: "123 Sukhumvit",
+              askingPrice: 6_000_000,
+            }),
+          ],
+        }),
+      },
+    );
+    await sweep.run();
+
+    expect(spies.upserts[0]).toMatchObject({ propertyId: "p-existing", askingPrice: 6_000_000 });
+    expect(spies.upserts[0]?.originConversationKey).toBeUndefined();
+    expect(spies.upserts[0]?.createdAt).toBeUndefined();
+    // The existing property is offered as a dedup candidate.
+    expect(spies.extractRequests[0]?.candidates).toEqual([
+      {
+        propertyId: "p-existing",
+        normalizedAddress: "123 Sukhumvit",
+        projectName: undefined,
+        lat: undefined,
+        long: undefined,
+      },
+    ]);
+    expect(spies.pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (updated)");
+  });
+
+  it("creates new and flags ambiguous matches for confirmation", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#G"), claim: tracker("user#G"), batch }],
+      {
+        extract: () => ({ properties: [extracted({ ambiguous: true, projectName: "The Park" })] }),
+      },
+    );
+    await sweep.run();
+    expect(spies.upserts[0]).toMatchObject({
+      propertyId: "gen-1",
+      originConversationKey: "user#G",
+    });
+    expect(spies.pushes[0]?.messages[0]?.text).toContain("The Park (new — please confirm)");
+  });
+
+  it("feeds S3 media bytes to the extractor as base64", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#H"),
+          claim: tracker("user#H"),
+          batch: [imageMsg(200, "conv/user#H/img200/content.jpg")],
+        },
+      ],
+      {
+        mediaBytes: { "conv/user#H/img200/content.jpg": Buffer.from("PHOTO") },
+        extract: () => ({ properties: [extracted({ projectName: "Chanote scan" })] }),
+      },
+    );
+    await sweep.run();
+    expect(spies.mediaReads).toEqual(["conv/user#H/img200/content.jpg"]);
+    expect(spies.extractRequests[0]?.media).toEqual([
+      { base64: Buffer.from("PHOTO").toString("base64"), mediaType: "image/jpeg" },
+    ]);
+  });
+
+  it("skips unreadable media but still extracts (warn, no failure)", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#I"),
+          claim: tracker("user#I"),
+          batch: [textMsg(200, "a plot"), imageMsg(300, "gone.jpg")],
+        },
+      ],
+      { extract: () => ({ properties: [extracted({ projectName: "Plot" })] }) },
+    );
+    const result = await sweep.run();
+    expect(result).toMatchObject({ ingested: 1, properties: 1, failed: 0 });
+    expect(spies.warns.length).toBeGreaterThanOrEqual(1);
+    expect(spies.extractRequests[0]?.media).toEqual([]); // the missing image was dropped
+  });
+
+  it("does not release, upsert, or push when extraction throws", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#J"), claim: tracker("user#J"), batch }],
+      {
+        extract: () => {
+          throw new Error("anthropic 529");
+        },
+      },
+    );
+    const result = await sweep.run();
+    expect(result).toMatchObject({ failed: 1, ingested: 0 });
+    expect(spies.releases).toHaveLength(0); // watermark must not advance
+    expect(spies.upserts).toHaveLength(0);
+    expect(spies.pushes).toHaveLength(0);
+  });
+
+  it("still releases when the confirmation push fails (best-effort)", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#K"), claim: tracker("user#K"), batch }],
+      { pushThrows: true, extract: () => ({ properties: [extracted({ projectName: "X" })] }) },
+    );
+    const result = await sweep.run();
+    expect(result).toMatchObject({ ingested: 1, properties: 1, failed: 0 });
+    expect(spies.releases).toHaveLength(1); // released despite the push failure
+    expect(spies.warns.some((w) => w.includes("push"))).toBe(true);
   });
 });

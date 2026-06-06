@@ -1,33 +1,45 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { ScheduledHandler } from "aws-lambda";
-import { loadEnv } from "../adapters/config/config.js";
+import { createClaudeExtractor } from "../adapters/anthropic/claudeExtractor.js";
+import { loadAnthropicApiKey, loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
+import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
+import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { IngestionSweep } from "../app/ingestionSweep.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
 
 const SYSTEM_CLOCK = { now: () => Date.now() };
 
-function buildSweep(): IngestionSweep {
+async function buildSweep(): Promise<IngestionSweep> {
   const env = loadEnv();
   if (env.CATALOG_TABLE === undefined) {
     throw new Error("CATALOG_TABLE is required for the ingestion sweep Lambda");
   }
+  const [anthropicApiKey, channelAccessToken] = await Promise.all([
+    loadAnthropicApiKey(env),
+    loadChannelAccessToken(env),
+  ]);
+
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
   return new IngestionSweep({
     catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
     messages: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
+    extractor: createClaudeExtractor(anthropicApiKey),
+    media: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
+    gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,
   });
 }
 
-// Memoize across warm invocations so the DynamoDB client/connection is reused.
-let sweep: IngestionSweep | undefined;
+// Memoize the built sweep (incl. warm SSM-loaded secrets and SDK clients) across invocations.
+let sweepPromise: Promise<IngestionSweep> | undefined;
 
 export const handler: ScheduledHandler = async () => {
-  sweep ??= buildSweep();
-  await sweep.run();
+  sweepPromise ??= buildSweep();
+  await (await sweepPromise).run();
 };

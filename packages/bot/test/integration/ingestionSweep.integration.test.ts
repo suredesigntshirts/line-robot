@@ -6,7 +6,10 @@ import { DynamoCatalogRepository } from "../../src/adapters/dynamodb/catalogRepo
 import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepository.js";
 import { IngestionSweep } from "../../src/app/ingestionSweep.js";
 import type { ConversationRef } from "../../src/core/domain/conversation.js";
-import type { StoredMessage } from "../../src/core/domain/message.js";
+import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
+import type { ExtractionResult, PropertyExtractor } from "../../src/core/ports/extraction.js";
+import type { LineGateway } from "../../src/core/ports/lineGateway.js";
+import type { MediaReader } from "../../src/core/ports/mediaReader.js";
 
 const CONTAINER = "linerobot-ddb-sweep-it";
 const CATALOG_TABLE = "catalog-test";
@@ -102,9 +105,36 @@ let messages: DynamoMessageRepository;
 // A clock the sweep reads, advanced by hand so the debounce/cap math is plain milliseconds.
 const clock = { value: 0, now: () => clock.value };
 
-function makeSweep(): IngestionSweep {
+// Push targets captured by the stub gateway (reset per test that cares).
+let pushes: { to: string; messages: OutboundMessage[] }[] = [];
+
+// A media reader that never has anything (the integration messages are text-only).
+const noMedia: MediaReader = {
+  getMedia: async (key) => {
+    throw new Error(`unexpected media read: ${key}`);
+  },
+};
+
+// By default the extractor returns nothing — keeps the mechanics tests focused on claim/watermark.
+const nullExtractor: PropertyExtractor = { extract: async () => null };
+
+function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep {
   return new IngestionSweep(
-    { catalog, messages, logger: { info: () => {}, warn: () => {}, error: () => {} }, clock },
+    {
+      catalog,
+      messages,
+      extractor,
+      media: noMedia,
+      gateway: {
+        reply: async () => {},
+        push: async (to, msgs) => {
+          pushes.push({ to, messages: msgs });
+        },
+      } as LineGateway,
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+      clock,
+      newId: () => "fixed-prop-id",
+    },
     { staleTimeoutMs: 60_000 },
   );
 }
@@ -204,5 +234,62 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     expect(a.messages + b.messages).toBe(1);
     expect(a.claimed + b.claimed).toBeGreaterThanOrEqual(1);
     expect((await catalog.getConversation(key))?.lastIngestedAt).toBe(1000);
+  });
+
+  it("applies extraction: upserts the property, links it, and pushes a confirmation", async () => {
+    const ref = { kind: "user", userId: "Uextract" } as const;
+    const key = "user#Uextract";
+    await arrive(ref, key, "x1", 1000);
+
+    const extractor: PropertyExtractor = {
+      extract: async (): Promise<ExtractionResult> => ({
+        properties: [
+          {
+            existingPropertyId: null,
+            ambiguous: false,
+            normalizedAddress: "123 Sukhumvit",
+            rawAddress: "123 sukhumvit rd",
+            projectName: null,
+            lat: 13.7,
+            long: 100.5,
+            district: null,
+            subdistrict: null,
+            province: "Bangkok",
+            propertyType: "condo",
+            status: "lead",
+            askingPrice: 5_500_000,
+            currency: "THB",
+            tags: ["near-bts"],
+          },
+        ],
+      }),
+    };
+
+    pushes = [];
+    clock.value = 3000;
+    const swept = await makeSweep(extractor).run();
+    expect(swept).toMatchObject({ ingested: 1, properties: 1 });
+
+    // The Conv→Property edge was written, and the property carries the extracted fields.
+    const propertyIds = await catalog.listConversationProperties(key);
+    expect(propertyIds).toEqual(["fixed-prop-id"]);
+    const property = await catalog.getProperty("fixed-prop-id");
+    expect(property).toMatchObject({
+      propertyId: "fixed-prop-id",
+      normalizedAddress: "123 Sukhumvit",
+      rawAddresses: ["123 sukhumvit rd"],
+      province: "Bangkok",
+      propertyType: "condo",
+      askingPrice: 5_500_000,
+      currency: "THB",
+      tags: ["near-bts"],
+      originConversationKey: key,
+    });
+
+    // A push confirmation went to the conversation, and the tracker dropped out of the GSI.
+    expect(pushes).toHaveLength(1);
+    expect(pushes[0]?.to).toBe("Uextract");
+    expect(pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (new)");
+    expect((await catalog.getConversation(key))?.pendingSince).toBeUndefined();
   });
 });

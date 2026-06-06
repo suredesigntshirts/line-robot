@@ -15,6 +15,8 @@ const EnvSchema = z.object({
   CHANNEL_ACCESS_TOKEN_PARAM: z.string().min(1),
   // Catalog table — used by the processor and the ingestion/reminder sweeps, not by ingest.
   CATALOG_TABLE: z.string().min(1).optional(),
+  // Anthropic API key SSM param — used by the ingestion sweep for extraction, not by ingest/processor.
+  ANTHROPIC_API_KEY_PARAM: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -47,6 +49,14 @@ export function loadChannelSecret(env: Env, maxAge = 300): Promise<string> {
 /** Channel access token only — used by the processor Lambda to call the Messaging API. */
 export function loadChannelAccessToken(env: Env, maxAge = 300): Promise<string> {
   return requireParameter(env.CHANNEL_ACCESS_TOKEN_PARAM, maxAge);
+}
+
+/** Anthropic API key — used by the ingestion sweep Lambda for property extraction. */
+export function loadAnthropicApiKey(env: Env, maxAge = 300): Promise<string> {
+  if (env.ANTHROPIC_API_KEY_PARAM === undefined) {
+    throw new Error("ANTHROPIC_API_KEY_PARAM is required for the ingestion sweep Lambda");
+  }
+  return requireParameter(env.ANTHROPIC_API_KEY_PARAM, maxAge);
 }
 
 /**

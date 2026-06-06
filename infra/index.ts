@@ -124,6 +124,13 @@ const channelAccessTokenParam = new aws.ssm.Parameter("channel-access-token", {
   value: config.requireSecret("channelAccessToken"),
 });
 
+// Anthropic API key for the ingestion sweep's Claude extraction. Parked as a Pulumi config secret.
+const anthropicApiKeyParam = new aws.ssm.Parameter("anthropic-api-key", {
+  name: `/${prefix}/anthropic-api-key`,
+  type: "SecureString",
+  value: config.requireSecret("anthropicApiKey"),
+});
+
 // ---------------------------------------------------------------------------
 // IAM: one least-privilege role per Lambda
 // ---------------------------------------------------------------------------
@@ -200,8 +207,9 @@ new aws.iam.RolePolicy("processor-policy", {
 });
 
 // Ingestion sweep: EventBridge-cron Lambda. Reads the sparse GSI1 for due conversations, claims
-// each (UpdateItem condition), batches its un-ingested messages from the messages table, then
-// releases it. Read-only on messages; read/write on the catalog tracker items + GSI1.
+// each (UpdateItem condition), batches its un-ingested messages from the messages table, reads any
+// captured media from S3, runs Claude extraction, upserts properties + edges, and pushes a
+// confirmation. Read-only on messages + S3; read/write on the catalog tracker/property items + GSI1.
 const sweepRole = new aws.iam.Role("sweep-role", {
   name: `${prefix}-sweep`,
   assumeRolePolicy: lambdaAssumeRole,
@@ -216,9 +224,10 @@ new aws.iam.RolePolicy("sweep-policy", {
     Version: "2012-10-17",
     Statement: [
       {
-        // findPending (Query GSI1) + claim/release (UpdateItem) + getConversation (GetItem).
+        // findPending (Query GSI1) + claim/release (UpdateItem) + getConversation/getProperty
+        // (GetItem) + upsertProperty/linkConversationProperty (UpdateItem).
         Effect: "Allow",
-        Action: ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:UpdateItem"],
+        Action: ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:PutItem"],
         Resource: [catalogTable.arn, pulumi.interpolate`${catalogTable.arn}/index/*`],
       },
       {
@@ -227,6 +236,19 @@ new aws.iam.RolePolicy("sweep-policy", {
         Action: ["dynamodb:Query"],
         Resource: messagesTable.arn,
       },
+      {
+        // Read captured media (photos / chanote scans) to feed extraction.
+        Effect: "Allow",
+        Action: ["s3:GetObject"],
+        Resource: pulumi.interpolate`${archiveBucket.arn}/*`,
+      },
+      {
+        // Anthropic key (extraction) + channel access token (push confirmation).
+        Effect: "Allow",
+        Action: ["ssm:GetParameter"],
+        Resource: [anthropicApiKeyParam.arn, channelAccessTokenParam.arn],
+      },
+      ssmKmsDecrypt,
     ],
   }),
 });
@@ -258,6 +280,7 @@ const commonEnv: Record<string, pulumi.Input<string>> = {
   QUEUE_URL: eventsQueue.url,
   CHANNEL_SECRET_PARAM: channelSecretParam.name,
   CHANNEL_ACCESS_TOKEN_PARAM: channelAccessTokenParam.name,
+  ANTHROPIC_API_KEY_PARAM: anthropicApiKeyParam.name,
   POWERTOOLS_SERVICE_NAME: "line-robot",
   POWERTOOLS_LOG_LEVEL: "INFO",
 };
