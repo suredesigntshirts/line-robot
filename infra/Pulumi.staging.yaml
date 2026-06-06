@@ -13,3 +13,8 @@ config:
   # Deploy identity: Pulumi authenticates as the dedicated, project-scoped IAM user
   # (line-robot-deploy) via this profile — never under another project's credentials.
   aws:profile: line-robot
+  line-robot:channelSecret:
+    secure: v1:+PaiWQ6z+/KukcWu:ZUaidfuR7DndPgNYvo7YiGjLQOJdLHSKBpchx0xyN+tz5kUBOy0W/iF4zztYZEGk
+  line-robot:channelAccessToken:
+    secure: v1:VmH1ZSHBRVJJLW2i:YCZOlfay+EMK13hG5wbNwrExvyBN2rD8GvY1nUF4UdJbrbe14IjwOosaqmnNeyd1doELLYsU6ABSPczrIOUf8X8F2t4xa0T2d9q+84pQS8nKMf4ByygTLhqXImvI9tkHasNeW6rBTc5/o1gdAvnJfRuxacCCHkjXo3sBuLNOkPAtRwOzIB2hJsqDEH/5MNkCJra0l4eTtLZ/ab0Yjtenc50Gqun35MhFUrVQLweBLSamxDLztOGloBu6kgs=
+encryptionsalt: v1:BuAIHbVKRfA=:v1:8R81wMHonD29TnuL:PzcC3+AhNJ9PFpLCr6yywZnUG39rfg==
