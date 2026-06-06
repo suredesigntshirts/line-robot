@@ -39,10 +39,7 @@
       "Sid": "S3",
       "Effect": "Allow",
       "Action": ["s3:*"],
-      "Resource": [
-        "arn:aws:s3:::linerobot-*",
-        "arn:aws:s3:::linerobot-*/*"
-      ]
+      "Resource": ["arn:aws:s3:::linerobot-*", "arn:aws:s3:::linerobot-*/*"]
     },
     {
       "Sid": "Sqs",
@@ -140,11 +137,7 @@
     {
       "Sid": "LambdaEventSourceMappingTags",
       "Effect": "Allow",
-      "Action": [
-        "lambda:TagResource",
-        "lambda:UntagResource",
-        "lambda:ListTags"
-      ],
+      "Action": ["lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"],
       "Resource": "arn:aws:lambda:ap-southeast-1:259543826733:event-source-mapping:*"
     },
     {

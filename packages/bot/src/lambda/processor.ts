@@ -1,4 +1,5 @@
 import { BatchProcessor, EventType, processPartialResponse } from "@aws-lambda-powertools/batch";
+import type { IdempotencyConfig } from "@aws-lambda-powertools/idempotency";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
@@ -9,7 +10,6 @@ import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
 import { createDefaultMessageHandler } from "../core/handlers/registry.js";
-import type { IdempotencyConfig } from "@aws-lambda-powertools/idempotency";
 import {
   createIdempotencyConfig,
   createPersistenceLayer,
