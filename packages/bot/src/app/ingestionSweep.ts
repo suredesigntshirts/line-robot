@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { ConversationTracker, PropertyUpsert } from "../core/domain/catalog.js";
 import { pushTarget } from "../core/domain/conversation.js";
 import { parseGeoLinks } from "../core/domain/geo.js";
-import type { StoredMessage } from "../core/domain/message.js";
+import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
+import { mergePromptQuickReplies } from "../core/handlers/views.js";
 import type { CatalogRepository } from "../core/ports/catalog.js";
 import type {
   ExtractedProperty,
@@ -54,12 +55,21 @@ export interface SweepResult {
   readonly failed: number;
 }
 
+/** A merge candidate offered in the ambiguous-confirmation quick reply. */
+interface MergeTarget {
+  readonly id: string;
+  readonly label: string;
+}
+
 /** One property the sweep wrote, for the push confirmation. */
 interface AppliedProperty {
   readonly propertyId: string;
   readonly isNew: boolean;
   readonly ambiguous: boolean;
   readonly label: string;
+  /** For an ambiguous (create-new) property: the conversation's existing properties offered as
+   * merge targets in the confirmation quick reply. */
+  readonly mergeTargets?: readonly MergeTarget[];
 }
 
 const DEFAULT_MAX_CONVERSATIONS = 25;
@@ -205,9 +215,14 @@ export class IngestionSweep {
       return [];
     }
 
+    // The conversation's existing properties become merge targets for any ambiguous create-new.
+    const mergeTargets: MergeTarget[] = candidates.map((c) => ({
+      id: c.propertyId,
+      label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
+    }));
     const applied: AppliedProperty[] = [];
     for (const property of result.properties) {
-      applied.push(await this.applyProperty(key, property));
+      applied.push(await this.applyProperty(key, property, mergeTargets));
     }
     this.deps.logger.info("ingestion sweep: extracted properties", {
       conversationKey: key,
@@ -217,7 +232,11 @@ export class IngestionSweep {
     return applied;
   }
 
-  private async applyProperty(key: string, property: ExtractedProperty): Promise<AppliedProperty> {
+  private async applyProperty(
+    key: string,
+    property: ExtractedProperty,
+    mergeTargets: readonly MergeTarget[],
+  ): Promise<AppliedProperty> {
     // Ambiguous-but-unmatched → create new (never auto-merge across ambiguity); the confirmation
     // flags it so a human can correct it. Interactive quick-reply resolution is a later slice.
     const isNew = property.existingPropertyId === null;
@@ -248,7 +267,15 @@ export class IngestionSweep {
 
     const label =
       nullToUndef(property.normalizedAddress) ?? nullToUndef(property.projectName) ?? propertyId;
-    return { propertyId, isNew, ambiguous: property.ambiguous, label };
+    return {
+      propertyId,
+      isNew,
+      ambiguous: property.ambiguous,
+      label,
+      // Only an ambiguous create-new gets merge offers, and only against *other* existing
+      // properties (the just-created one is brand new, so it's never in the candidate set).
+      ...(property.ambiguous && mergeTargets.length > 0 ? { mergeTargets } : {}),
+    };
   }
 
   /** Fetch the bytes for every media attachment in the batch, capped at `maxMedia`. A missing or
@@ -308,9 +335,8 @@ export class IngestionSweep {
     if (ref === undefined) {
       return;
     }
-    const text = buildConfirmation(applied);
     try {
-      await this.deps.gateway.push(pushTarget(ref), [{ type: "text", text }]);
+      await this.deps.gateway.push(pushTarget(ref), [buildConfirmation(applied)]);
     } catch (error) {
       this.deps.logger.warn("ingestion sweep: push confirmation failed", {
         conversationKey: key,
@@ -320,8 +346,14 @@ export class IngestionSweep {
   }
 }
 
-/** "✅ Saved 2 properties: 123 Sukhumvit (new), Thonglor plot (updated)". Ambiguous creates note it. */
-export function buildConfirmation(applied: AppliedProperty[]): string {
+/**
+ * "✅ Saved 2 properties: 123 Sukhumvit (new), Thonglor plot (updated)". An ambiguous create-new is
+ * tagged "new — please confirm" and, when there are existing properties to merge into, the message
+ * carries quick-reply chips ("Merge → <existing>" / "Keep separate") that the postback router
+ * resolves. LINE only shows one message's quick replies, so we attach the *first* ambiguous
+ * property's offer; any others stay flagged in the text (the safe create-new default).
+ */
+export function buildConfirmation(applied: AppliedProperty[]): OutboundMessage {
   const noun = applied.length === 1 ? "property" : "properties";
   const items = applied
     .map((a) => {
@@ -329,5 +361,15 @@ export function buildConfirmation(applied: AppliedProperty[]): string {
       return `${a.label} (${tag})`;
     })
     .join(", ");
-  return `✅ Saved ${applied.length} ${noun}: ${items}`;
+  const text = `✅ Saved ${applied.length} ${noun}: ${items}`;
+
+  const toConfirm = applied.find((a) => a.mergeTargets !== undefined && a.mergeTargets.length > 0);
+  if (toConfirm?.mergeTargets !== undefined) {
+    return {
+      type: "text",
+      text,
+      quickReplies: mergePromptQuickReplies(toConfirm.propertyId, [...toConfirm.mergeTargets]),
+    };
+  }
+  return { type: "text", text };
 }

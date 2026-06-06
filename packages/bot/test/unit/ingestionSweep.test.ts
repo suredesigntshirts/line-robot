@@ -324,6 +324,36 @@ describe("IngestionSweep — extraction", () => {
       originConversationKey: "user#G",
     });
     expect(textOf(spies.pushes[0]?.messages[0])).toContain("The Park (new — please confirm)");
+    // No existing properties in this conversation → nothing to merge into → no quick replies.
+    const msg = spies.pushes[0]?.messages[0];
+    expect(msg?.type === "text" && msg.quickReplies).toBeFalsy();
+  });
+
+  it("offers merge / keep-separate quick replies when an ambiguous match has candidates", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#G"), claim: tracker("user#G"), batch }],
+      {
+        convProperties: { "user#G": ["p-existing"] },
+        properties: {
+          "p-existing": { propertyId: "p-existing", normalizedAddress: "Thonglor plot" },
+        },
+        extract: () => ({ properties: [extracted({ ambiguous: true, projectName: "The Park" })] }),
+      },
+    );
+    await sweep.run();
+
+    const msg = spies.pushes[0]?.messages[0];
+    if (msg?.type !== "text" || msg.quickReplies === undefined) {
+      throw new Error("expected a text confirmation with quick replies");
+    }
+    expect(msg.quickReplies[0]).toEqual({
+      label: "Merge → Thonglor plot",
+      data: "action=merge&from=gen-1&into=p-existing",
+    });
+    expect(msg.quickReplies.at(-1)).toEqual({
+      label: "Keep separate",
+      data: "action=keep&id=gen-1",
+    });
   });
 
   it("feeds S3 media bytes to the extractor as base64", async () => {
