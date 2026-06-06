@@ -24,6 +24,9 @@ Pulumi.*.yaml.bak
 *.log
 .DS_Store
 
+# Claude Code — share project settings, keep personal overrides local
+.claude/settings.local.json
+
 # Editor swap files (may contain secret contents of files being edited)
 *.swp
 *.swo

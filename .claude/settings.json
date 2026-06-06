@@ -1,0 +1,11 @@
+{
+	"permissions": {
+		"allow": [
+			"Bash(aws iam create-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
+			"Bash(aws iam delete-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
+			"Bash(aws iam list-policy-versions --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
+			"Bash(aws iam get-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)"
+		]
+	}
+}
+
