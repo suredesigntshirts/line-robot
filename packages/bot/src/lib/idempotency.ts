@@ -16,15 +16,23 @@ export function createPersistenceLayer(opts: PersistenceLayerOptions): DynamoDBP
 }
 
 /**
+ * Idempotency config keyed on `webhookEventId`. Create once per cold start, then call
+ * `registerLambdaContext(context)` on each invocation so Powertools can derive the in-progress
+ * expiry from the Lambda's remaining execution time — otherwise a mid-flight timeout can block
+ * retries until the record's full TTL.
+ */
+export function createIdempotencyConfig(): IdempotencyConfig {
+  return new IdempotencyConfig({ eventKeyJmesPath: "webhookEventId" });
+}
+
+/**
  * Wrap a per-event handler so a redelivered webhook (same `webhookEventId`) runs at most once.
  * Backed by a dedicated DynamoDB table with TTL — see Stage 03/05.
  */
 export function makeEventIdempotent<E extends { webhookEventId: string }, R>(
   fn: (event: E) => Promise<R>,
   persistenceStore: DynamoDBPersistenceLayer,
+  config: IdempotencyConfig,
 ): (event: E) => Promise<R> {
-  return makeIdempotent(fn, {
-    persistenceStore,
-    config: new IdempotencyConfig({ eventKeyJmesPath: "webhookEventId" }),
-  });
+  return makeIdempotent(fn, { persistenceStore, config });
 }

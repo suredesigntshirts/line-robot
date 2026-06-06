@@ -4,7 +4,11 @@ import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepository.js";
 import type { StoredMessage } from "../../src/core/domain/message.js";
-import { createPersistenceLayer, makeEventIdempotent } from "../../src/lib/idempotency.js";
+import {
+  createIdempotencyConfig,
+  createPersistenceLayer,
+  makeEventIdempotent,
+} from "../../src/lib/idempotency.js";
 
 const CONTAINER = "linerobot-ddb-it";
 const MESSAGES_TABLE = "messages-test";
@@ -155,7 +159,7 @@ describe("idempotency", () => {
       return `done:${event.webhookEventId}`;
     };
     const store = createPersistenceLayer({ tableName: IDEMPOTENCY_TABLE, awsSdkV3Client: ddb });
-    const idem = makeEventIdempotent(inner, store);
+    const idem = makeEventIdempotent(inner, store, createIdempotencyConfig());
 
     expect(await idem({ webhookEventId: "evt-A" })).toBe("done:evt-A");
     expect(await idem({ webhookEventId: "evt-A" })).toBe("done:evt-A");
