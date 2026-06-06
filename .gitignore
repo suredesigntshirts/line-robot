@@ -23,3 +23,7 @@ Pulumi.*.yaml.bak
 # Logs / OS
 *.log
 .DS_Store
+
+# Editor swap files (may contain secret contents of files being edited)
+*.swp
+*.swo
