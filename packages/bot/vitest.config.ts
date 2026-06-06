@@ -5,9 +5,21 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.ts"],
     coverage: {
-      provider: "v8",
-      include: ["src/**"],
+      provider: "istanbul",
+      // `all: true` reports every source file, so untested code can't hide by being unimported.
+      all: true,
+      include: ["src/**/*.ts"],
+      exclude: ["src/**/*.d.ts"],
       reporter: ["text", "html"],
+      // Core business logic must stay well-covered; adapters are exercised but not gated here.
+      thresholds: {
+        "src/core/**/*.ts": {
+          lines: 80,
+          functions: 80,
+          branches: 80,
+          statements: 80,
+        },
+      },
     },
   },
 });
