@@ -53,6 +53,41 @@ describe("parseWebhook", () => {
     }
   });
 
+  it("carries coordinates on a location message", () => {
+    const parsed = parseWebhook(fx.webhookBody([fx.locationMessageEvent()]));
+    const event = must(parsed.events[0]);
+    if (event.kind === "message") {
+      expect(event.message.contentType).toBe("location");
+      expect(event.message.location).toEqual({
+        latitude: 13.7401,
+        longitude: 100.5601,
+        title: "My Office",
+        address: "Sukhumvit Rd, Bangkok",
+      });
+    }
+  });
+
+  it("carries the file name on a file message", () => {
+    const parsed = parseWebhook(fx.webhookBody([fx.fileMessageEvent({ fileName: "deed.pdf" })]));
+    const event = must(parsed.events[0]);
+    if (event.kind === "message") {
+      expect(event.message.contentType).toBe("file");
+      expect(event.message.fileName).toBe("deed.pdf");
+    }
+  });
+
+  it("extracts member ids on memberJoined/memberLeft", () => {
+    const parsed = parseWebhook(fx.webhookBody([fx.memberJoinedEvent(), fx.memberLeftEvent()]));
+    const joined = must(parsed.events[0]);
+    const left = must(parsed.events[1]);
+    if (joined.kind === "memberJoined") {
+      expect(joined.memberIds).toEqual(["Umember000000000000000000000001"]);
+    }
+    if (left.kind === "memberLeft") {
+      expect(left.memberIds).toEqual(["Umember000000000000000000000002"]);
+    }
+  });
+
   it("parses join/leave/memberJoined/memberLeft and reply-token presence", () => {
     const parsed = parseWebhook(
       fx.webhookBody([

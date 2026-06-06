@@ -67,6 +67,51 @@ export function stickerMessageEvent(opts: EventOpts & { messageId?: string } = {
   };
 }
 
+export function imageMessageEvent(opts: EventOpts & { messageId?: string } = {}): Json {
+  return {
+    ...eventBase(opts, "01EVENTIMAGE00000000000000"),
+    type: "message",
+    replyToken: opts.replyToken ?? "replytoken0000000000000000000005",
+    message: {
+      type: "image",
+      id: opts.messageId ?? "100000000000000003",
+      contentProvider: { type: "line" },
+    },
+  };
+}
+
+export function locationMessageEvent(opts: EventOpts & { messageId?: string } = {}): Json {
+  return {
+    ...eventBase(opts, "01EVENTLOCATION0000000000000"),
+    type: "message",
+    replyToken: opts.replyToken ?? "replytoken0000000000000000000006",
+    message: {
+      type: "location",
+      id: opts.messageId ?? "100000000000000004",
+      title: "My Office",
+      address: "Sukhumvit Rd, Bangkok",
+      latitude: 13.7401,
+      longitude: 100.5601,
+    },
+  };
+}
+
+export function fileMessageEvent(
+  opts: EventOpts & { messageId?: string; fileName?: string } = {},
+): Json {
+  return {
+    ...eventBase(opts, "01EVENTFILE0000000000000000"),
+    type: "message",
+    replyToken: opts.replyToken ?? "replytoken0000000000000000000007",
+    message: {
+      type: "file",
+      id: opts.messageId ?? "100000000000000005",
+      fileName: opts.fileName ?? "chanote.pdf",
+      fileSize: 12345,
+    },
+  };
+}
+
 export function joinEvent(opts: EventOpts = {}): Json {
   return {
     ...eventBase({ source: groupSource(), ...opts }, "01EVENTJOIN0000000000000000"),

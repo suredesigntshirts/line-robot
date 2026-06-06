@@ -23,4 +23,21 @@ describe("S3RawArchive", () => {
     expect(input?.Key).toMatch(/^raw\/\d{4}\/\d{2}\/\d{2}\/group#Cg\/evt-1\.json$/);
     expect(JSON.parse(String(input?.Body))).toEqual({ hello: "world" });
   });
+
+  it("puts media under a per-message key with the right extension and returns the key", async () => {
+    s3Mock.on(PutObjectCommand).resolves({});
+    const archive = new S3RawArchive(new S3Client({ region: "us-east-1" }), "archive-bucket");
+
+    const key = await archive.putMedia(
+      { kind: "group", groupId: "Cg" },
+      "msg-9",
+      Buffer.from("JPEGBYTES"),
+      "image/jpeg",
+    );
+
+    expect(key).toBe("conv/group#Cg/msg-9/content.jpg");
+    const input = s3Mock.commandCalls(PutObjectCommand)[0]?.args[0].input;
+    expect(input?.Key).toBe("conv/group#Cg/msg-9/content.jpg");
+    expect(input?.ContentType).toBe("image/jpeg");
+  });
 });

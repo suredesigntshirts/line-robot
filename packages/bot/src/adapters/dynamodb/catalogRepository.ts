@@ -362,6 +362,10 @@ export class DynamoCatalogRepository implements CatalogRepository {
     await this.membership.upsert({ userId, conversationKey, lastSeenAt: seenAtMs }).go();
   }
 
+  async removeMembership(userId: string, conversationKey: string): Promise<void> {
+    await this.membership.delete({ userId, conversationKey }).go();
+  }
+
   async listUserConversations(userId: string): Promise<string[]> {
     const result = await this.membership.query.byUser({ userId }).go();
     return result.data.map((edge) => edge.conversationKey);

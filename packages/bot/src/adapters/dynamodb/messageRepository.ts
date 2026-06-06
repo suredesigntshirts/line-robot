@@ -19,6 +19,23 @@ function buildMessageEntity(client: DynamoDBDocumentClient, table: string) {
         direction: { type: ["in", "out"] as const, required: true },
         contentType: { type: "string", required: true },
         text: { type: "string" },
+        fileName: { type: "string" },
+        location: {
+          type: "map",
+          properties: {
+            latitude: { type: "number", required: true },
+            longitude: { type: "number", required: true },
+            title: { type: "string" },
+            address: { type: "string" },
+          },
+        },
+        attachment: {
+          type: "map",
+          properties: {
+            s3Key: { type: "string", required: true },
+            contentType: { type: "string", required: true },
+          },
+        },
         webhookEventId: { type: "string" },
         timestamp: { type: "number", required: true },
         kind: { type: ["user", "group", "room"] as const, required: true },
@@ -59,6 +76,9 @@ function toStoredMessage(item: MessageItem): StoredMessage {
     direction: item.direction,
     contentType: item.contentType as MessageContentType,
     text: item.text,
+    fileName: item.fileName,
+    location: item.location,
+    attachment: item.attachment,
     webhookEventId: item.webhookEventId,
     timestamp: item.timestamp,
   };
@@ -80,6 +100,9 @@ export class DynamoMessageRepository implements MessageRepository {
         direction: message.direction,
         contentType: message.contentType,
         text: message.text,
+        fileName: message.fileName,
+        location: message.location,
+        attachment: message.attachment,
         webhookEventId: message.webhookEventId,
         timestamp: message.timestamp,
         kind: ref.kind,

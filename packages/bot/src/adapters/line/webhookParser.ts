@@ -22,15 +22,39 @@ function toConversationRef(source: webhook.Source | undefined): ConversationRef 
 
 function toIncomingMessage(event: webhook.MessageEvent, ref: ConversationRef): IncomingMessage {
   const content = event.message;
-  return {
+  const base = {
     ref,
     messageId: content.id,
     contentType: content.type as MessageContentType,
-    text: content.type === "text" ? content.text : undefined,
     webhookEventId: event.webhookEventId,
     timestamp: event.timestamp,
     replyToken: event.replyToken,
   };
+  switch (content.type) {
+    case "text":
+      return { ...base, text: content.text };
+    case "location":
+      return {
+        ...base,
+        location: {
+          latitude: content.latitude,
+          longitude: content.longitude,
+          title: content.title,
+          address: content.address,
+        },
+      };
+    case "file":
+      return { ...base, fileName: content.fileName };
+    default:
+      return base;
+  }
+}
+
+/** Pull user ids out of a member list on memberJoined/memberLeft events. */
+function memberUserIds(members: ReadonlyArray<webhook.Source> | undefined): string[] {
+  return (members ?? []).flatMap((m) =>
+    m.type === "user" && m.userId !== undefined ? [m.userId] : [],
+  );
 }
 
 function toInboundEvent(event: webhook.Event): InboundEvent {
@@ -52,11 +76,17 @@ function toInboundEvent(event: webhook.Event): InboundEvent {
         : { kind: "other", eventType: "leave", ...base };
     case "memberJoined":
       return ref !== undefined && event.replyToken !== undefined
-        ? { kind: "memberJoined", ref, replyToken: event.replyToken, ...base }
+        ? {
+            kind: "memberJoined",
+            ref,
+            replyToken: event.replyToken,
+            memberIds: memberUserIds(event.joined?.members),
+            ...base,
+          }
         : { kind: "other", eventType: "memberJoined", ...base };
     case "memberLeft":
       return ref !== undefined
-        ? { kind: "memberLeft", ref, ...base }
+        ? { kind: "memberLeft", ref, memberIds: memberUserIds(event.left?.members), ...base }
         : { kind: "other", eventType: "memberLeft", ...base };
     default:
       return { kind: "other", eventType: event.type, ...base };

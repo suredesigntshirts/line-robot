@@ -24,12 +24,16 @@ export type InboundEvent =
       readonly kind: "memberJoined";
       readonly ref: ConversationRef;
       readonly replyToken: string;
+      /** User ids of the members who joined (for membership edges). */
+      readonly memberIds: readonly string[];
       readonly webhookEventId: string;
       readonly timestamp: number;
     }
   | {
       readonly kind: "memberLeft";
       readonly ref: ConversationRef;
+      /** User ids of the members who left (their access edges are removed). */
+      readonly memberIds: readonly string[];
       readonly webhookEventId: string;
       readonly timestamp: number;
     }

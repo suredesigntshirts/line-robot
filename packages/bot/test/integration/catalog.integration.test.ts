@@ -233,4 +233,12 @@ describe("properties + edges + membership", () => {
     const forUser2 = (await repo.listPropertiesForUser("user2")).map((p) => p.propertyId).sort();
     expect(forUser2).toEqual(["p10", "p20"]);
   });
+
+  it("removes a membership edge on memberLeft", async () => {
+    await repo.recordMembership("leaver", "group#H", 1000);
+    expect(await repo.listUserConversations("leaver")).toEqual(["group#H"]);
+
+    await repo.removeMembership("leaver", "group#H");
+    expect(await repo.listUserConversations("leaver")).toEqual([]);
+  });
 });

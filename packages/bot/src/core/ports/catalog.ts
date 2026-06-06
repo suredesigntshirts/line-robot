@@ -50,6 +50,9 @@ export interface CatalogRepository {
   /** Upsert a membership edge `USER#<userId> → CONV#<conversationKey>`. */
   recordMembership(userId: string, conversationKey: string, seenAtMs: number): Promise<void>;
 
+  /** Remove a membership edge (on `memberLeft`) — the user loses access to this conversation. */
+  removeMembership(userId: string, conversationKey: string): Promise<void>;
+
   /** Conversation keys this user is (or has been) a member of. */
   listUserConversations(userId: string): Promise<string[]>;
 
