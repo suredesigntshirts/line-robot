@@ -102,6 +102,18 @@
       "Resource": "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*"
     },
     {
+      "Sid": "LogsReadForVerification",
+      "Effect": "Allow",
+      "Action": [
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:FilterLogEvents",
+        "logs:GetLogRecord",
+        "logs:GetLogGroupFields"
+      ],
+      "Resource": "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*:*"
+    },
+    {
       "Sid": "LambdaFunctions",
       "Effect": "Allow",
       "Action": [
