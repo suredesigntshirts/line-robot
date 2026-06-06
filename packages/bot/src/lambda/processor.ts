@@ -13,7 +13,7 @@ import {
 } from "../adapters/line/lineGateway.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
-import { createDefaultMessageHandler } from "../core/handlers/registry.js";
+import { createDefaultMessageHandler, createPostbackRouter } from "../core/handlers/registry.js";
 import {
   createIdempotencyConfig,
   createPersistenceLayer,
@@ -47,6 +47,7 @@ async function buildDeps(): Promise<Deps> {
     catalog,
     content: createLineContentClient(channelAccessToken),
     handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK }),
+    postback: createPostbackRouter({ catalog, clock: SYSTEM_CLOCK }),
     gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,

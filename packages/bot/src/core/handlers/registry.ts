@@ -1,9 +1,11 @@
 import type { IncomingMessage, OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { MessageHandler } from "../ports/messageHandler.js";
+import type { PostbackRouter } from "../ports/postbackRouter.js";
 import type { Clock } from "../ports/runtime.js";
 import { CatalogAssistant } from "./catalogAssistant.js";
 import { CommandHandler } from "./commandHandler.js";
+import { CatalogPostbackRouter } from "./postbackRouter.js";
 
 /**
  * Chain-of-responsibility over handlers: the first handler to produce output wins. This is the
@@ -34,4 +36,9 @@ export interface HandlerDeps {
 export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
   const assistant = new CatalogAssistant(deps.catalog, deps.clock);
   return new CompositeMessageHandler([new CommandHandler(assistant)]);
+}
+
+/** The default postback router: resolves card-button / quick-reply / rich-menu taps. */
+export function createPostbackRouter(deps: HandlerDeps): PostbackRouter {
+  return new CatalogPostbackRouter(new CatalogAssistant(deps.catalog, deps.clock));
 }

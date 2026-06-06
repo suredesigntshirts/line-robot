@@ -241,4 +241,16 @@ describe("properties + edges + membership", () => {
     await repo.removeMembership("leaver", "group#H");
     expect(await repo.listUserConversations("leaver")).toEqual([]);
   });
+
+  it("deletes a property and unlinks its edge (the merge primitives)", async () => {
+    await repo.upsertProperty({ propertyId: "pMerge", normalizedAddress: "to be merged" });
+    await repo.linkConversationProperty("conv-merge", "pMerge", 1000);
+    expect(await repo.listConversationProperties("conv-merge")).toEqual(["pMerge"]);
+
+    await repo.unlinkConversationProperty("conv-merge", "pMerge");
+    await repo.deleteProperty("pMerge");
+
+    expect(await repo.getProperty("pMerge")).toBeNull();
+    expect(await repo.listConversationProperties("conv-merge")).toEqual([]);
+  });
 });

@@ -17,6 +17,7 @@ import type { LineContentClient } from "../core/ports/lineContent.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
 import type { MessageHandler } from "../core/ports/messageHandler.js";
 import type { MessageRepository, RawArchive } from "../core/ports/persistence.js";
+import type { PostbackRouter } from "../core/ports/postbackRouter.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
 
 /** One queued unit of work: a raw LINE event plus its idempotency key. */
@@ -31,9 +32,18 @@ export interface EventProcessorDeps {
   readonly catalog: CatalogRepository;
   readonly content: LineContentClient;
   readonly handler: MessageHandler;
+  /** Routes card-button / quick-reply / rich-menu taps (postback events). */
+  readonly postback: PostbackRouter;
   readonly gateway: LineGateway;
   readonly logger: Logger;
   readonly clock: Clock;
+}
+
+/** The shape `send`/`persistOutbound` need — satisfied by both an IncomingMessage and a postback. */
+interface ReplyTarget {
+  readonly ref: ConversationRef;
+  readonly webhookEventId: string;
+  readonly replyToken?: string;
 }
 
 const MEDIA_CONTENT_TYPES: ReadonlySet<MessageContentType> = new Set([
@@ -51,6 +61,7 @@ function eventRef(event: InboundEvent): ConversationRef | undefined {
     case "leave":
     case "memberJoined":
     case "memberLeft":
+    case "postback":
       return event.ref;
     default:
       return undefined;
@@ -131,6 +142,9 @@ export class EventProcessor {
       case "memberLeft":
         await this.updateMembership(event.ref, event.memberIds, "left", event.timestamp);
         return;
+      case "postback":
+        await this.handlePostback(event);
+        return;
       default:
         this.deps.logger.info("event archived; no further action", {
           webhookEventId: payload.webhookEventId,
@@ -154,13 +168,32 @@ export class EventProcessor {
       await this.deps.catalog.recordMembership(uid, convKey, message.timestamp);
     }
 
-    // Interactive reply path (echo today; a CommandHandler later).
+    // Interactive reply path: the CommandHandler answers typed commands; ordinary property chat
+    // produces no reply (it's caught by the debounced ingestion sweep instead).
     const replies = await this.deps.handler.handle(message);
     if (replies.length === 0) {
       return;
     }
     await this.send(message, replies);
     await this.persistOutbound(message, replies);
+  }
+
+  /**
+   * A card-button / quick-reply / rich-menu tap. Unlike chat messages it isn't ingested (it's a UI
+   * action, not property content); we only refresh the sender's membership, route the action, and
+   * reply (postbacks carry a live reply token, with push as the fallback).
+   */
+  private async handlePostback(event: Extract<InboundEvent, { kind: "postback" }>): Promise<void> {
+    const uid = senderUserId(event.ref);
+    if (uid !== undefined) {
+      await this.deps.catalog.recordMembership(uid, conversationKey(event.ref), event.timestamp);
+    }
+    const replies = await this.deps.postback.route({ ref: event.ref, data: event.data });
+    if (replies.length === 0) {
+      return;
+    }
+    await this.send(event, replies);
+    await this.persistOutbound(event, replies);
   }
 
   private async captureMedia(message: IncomingMessage): Promise<StoredMessage> {
@@ -204,36 +237,33 @@ export class EventProcessor {
     this.deps.logger.info("membership updated", { convKey, change, count: memberIds.length });
   }
 
-  private async send(message: IncomingMessage, replies: OutboundMessage[]): Promise<void> {
-    if (message.replyToken !== undefined && message.replyToken !== "") {
+  private async send(target: ReplyTarget, replies: OutboundMessage[]): Promise<void> {
+    if (target.replyToken !== undefined && target.replyToken !== "") {
       try {
-        await this.deps.gateway.reply(message.replyToken, replies);
+        await this.deps.gateway.reply(target.replyToken, replies);
         return;
       } catch (error) {
         this.deps.logger.warn("reply failed; falling back to push", {
-          webhookEventId: message.webhookEventId,
+          webhookEventId: target.webhookEventId,
           error: String(error),
         });
       }
     }
-    await this.deps.gateway.push(pushTarget(message.ref), replies);
+    await this.deps.gateway.push(pushTarget(target.ref), replies);
   }
 
-  private async persistOutbound(
-    message: IncomingMessage,
-    replies: OutboundMessage[],
-  ): Promise<void> {
+  private async persistOutbound(target: ReplyTarget, replies: OutboundMessage[]): Promise<void> {
     const now = this.deps.clock.now();
     await Promise.all(
       replies.map((reply, index) =>
         this.deps.repository.save({
-          ref: message.ref,
-          messageId: `${message.webhookEventId}#out#${index}`,
+          ref: target.ref,
+          messageId: `${target.webhookEventId}#out#${index}`,
           direction: "out",
           contentType: "text",
           // Flex carousels have no plain text; log their altText so the audit row is meaningful.
           text: outboundText(reply),
-          webhookEventId: message.webhookEventId,
+          webhookEventId: target.webhookEventId,
           timestamp: now,
         }),
       ),

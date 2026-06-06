@@ -27,6 +27,7 @@ interface Spies {
   contentFetches: string[];
   replies: { token: string; messages: OutboundMessage[] }[];
   pushes: { to: string; messages: OutboundMessage[] }[];
+  postbacks: { data: string }[];
   warns: string[];
 }
 
@@ -41,6 +42,7 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
     contentFetches: [],
     replies: [],
     pushes: [],
+    postbacks: [],
     warns: [],
   };
   const deps: EventProcessorDeps = {
@@ -93,6 +95,12 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
       },
     },
     handler: echoHandler,
+    postback: {
+      route: async ({ data }) => {
+        spies.postbacks.push({ data });
+        return data === "action=silent" ? [] : [{ type: "text", text: `pb:${data}` }];
+      },
+    },
     gateway: {
       reply: async (token, messages) => {
         if (opts.replyThrows) {
@@ -137,6 +145,17 @@ function imageEvent(opts: { source?: unknown; messageId?: string } = {}) {
     source: opts.source ?? { type: "group", groupId: "Cg", userId: "Us" },
     replyToken: "r",
     message: { type: "image", id: opts.messageId ?? "img1" },
+  };
+}
+
+function postbackEvent(opts: { data?: string; source?: unknown; replyToken?: string } = {}) {
+  return {
+    type: "postback",
+    webhookEventId: "pb1",
+    timestamp: 4000,
+    source: opts.source ?? { type: "user", userId: "U1" },
+    replyToken: opts.replyToken ?? "r",
+    postback: { data: opts.data ?? "action=listings" },
   };
 }
 
@@ -254,5 +273,36 @@ describe("EventProcessor", () => {
     expect(spies.archived).toHaveLength(1);
     expect(spies.saved).toHaveLength(0);
     expect(spies.replies).toHaveLength(0);
+  });
+
+  it("routes a postback: replies, refreshes membership, and does not ingest", async () => {
+    const { processor, spies } = makeProcessor();
+    await processor.process({
+      webhookEventId: "pb1",
+      raw: postbackEvent({
+        data: "action=listings",
+        source: { type: "group", groupId: "Cg", userId: "Us" },
+      }),
+    });
+
+    expect(spies.archived).toHaveLength(1);
+    expect(spies.postbacks).toEqual([{ data: "action=listings" }]);
+    expect(spies.memberships).toEqual([{ uid: "Us", key: "group#Cg" }]); // access refreshed
+    expect(spies.touched).toHaveLength(0); // a tap is not chat content — not ingested
+    expect(spies.saved.map((m) => m.direction)).toEqual(["out"]); // only the reply is logged
+    expect(spies.replies[0]?.messages).toEqual([{ type: "text", text: "pb:action=listings" }]);
+  });
+
+  it("stays silent when a postback resolves to no reply", async () => {
+    const { processor, spies } = makeProcessor();
+    await processor.process({
+      webhookEventId: "pb2",
+      raw: postbackEvent({ data: "action=silent" }),
+    });
+
+    expect(spies.postbacks).toEqual([{ data: "action=silent" }]);
+    expect(spies.replies).toHaveLength(0);
+    expect(spies.pushes).toHaveLength(0);
+    expect(spies.saved).toHaveLength(0);
   });
 });
