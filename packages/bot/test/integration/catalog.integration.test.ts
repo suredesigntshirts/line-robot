@@ -90,34 +90,57 @@ beforeAll(async () => {
   doc = DynamoDBDocumentClient.from(ddb);
   await waitForReady(ddb);
   await createTable(ddb);
-  repo = new DynamoCatalogRepository(doc, CATALOG_TABLE);
+  // Small debounce windows so the quiet/cap behaviour is exercised with plain millisecond math.
+  repo = new DynamoCatalogRepository(doc, CATALOG_TABLE, {
+    quietDebounceMs: 1000,
+    maxWaitMs: 5000,
+  });
 });
 
 afterAll(() => {
   tryDocker(["rm", "-f", CONTAINER]);
 });
 
+// Quiet debounce = 1000ms, max-wait cap = 5000ms (set on the repo in beforeAll). readyAt is the
+// GSI1 sort key, so a conversation is "due" once findPendingConversations(now) sees readyAt <= now.
 describe("conversation tracker", () => {
-  it("anchors pendingSince to the first un-ingested message and surfaces it in GSI1", async () => {
-    await repo.touchConversation("conv-A", 1000, iso(1000));
-    // A second message does not move the debounce anchor, but does advance lastInboundAt.
-    await repo.touchConversation("conv-A", 2000, iso(300_000));
+  it("pushes readyAt out as messages arrive (quiet-debounce)", async () => {
+    await repo.touchConversation("conv-A", 1000); // readyAt = 2000
+    await repo.touchConversation("conv-A", 2000); // readyAt pushed out to 3000
 
     const tracker = await repo.getConversation("conv-A");
-    expect(tracker?.pendingSince).toBe(iso(1000));
+    expect(tracker?.pendingSince).toBe(iso(1000)); // anchored to the first message
     expect(tracker?.lastInboundAt).toBe(2000);
     expect(tracker?.lastIngestedAt).toBe(0);
     expect(tracker?.status).toBe("IDLE");
 
-    const ready = await repo.findPendingConversations(iso(60_000), 10);
-    expect(ready.map((t) => t.conversationKey)).toContain("conv-A");
-
-    const tooEarly = await repo.findPendingConversations(iso(500), 10);
+    // Not yet due just after the first message's window — the 2nd message moved the timer.
+    const tooEarly = await repo.findPendingConversations(iso(2999), 50);
     expect(tooEarly.map((t) => t.conversationKey)).not.toContain("conv-A");
+
+    const due = await repo.findPendingConversations(iso(3000), 50);
+    expect(due.map((t) => t.conversationKey)).toContain("conv-A");
+  });
+
+  it("freezes readyAt at the max-wait cap so an active chat can't starve", async () => {
+    await repo.touchConversation("conv-cap", 1000); // readyAt 2000, deadline 6000
+    await repo.touchConversation("conv-cap", 2000); // readyAt 3000
+    await repo.touchConversation("conv-cap", 5500); // candidate 6500 > deadline → frozen at 6000
+    await repo.touchConversation("conv-cap", 7000); // still frozen at 6000, lastInboundAt advances
+
+    const tracker = await repo.getConversation("conv-cap");
+    expect(tracker?.lastInboundAt).toBe(7000);
+
+    expect(
+      (await repo.findPendingConversations(iso(5999), 50)).map((t) => t.conversationKey),
+    ).not.toContain("conv-cap");
+    expect(
+      (await repo.findPendingConversations(iso(6000), 50)).map((t) => t.conversationKey),
+    ).toContain("conv-cap");
   });
 
   it("claims at most one worker and recovers a stale claim", async () => {
-    await repo.touchConversation("conv-B", 1000, iso(1000));
+    await repo.touchConversation("conv-B", 1000);
 
     const claimed = await repo.claimConversation("conv-B", 100_000, 60_000);
     expect(claimed?.status).toBe("INGESTING");
@@ -132,12 +155,11 @@ describe("conversation tracker", () => {
   });
 
   it("clears pending on a clean release (no new messages)", async () => {
-    await repo.touchConversation("conv-C", 1000, iso(1000));
+    await repo.touchConversation("conv-C", 1000);
     const claimed = await repo.claimConversation("conv-C", 100_000, 60_000);
     await repo.releaseConversation("conv-C", {
       watermark: claimed?.lastInboundAt ?? 0,
       claimSeenInboundAt: claimed?.lastInboundAt ?? 0,
-      nowIso: iso(120_000),
     });
 
     const tracker = await repo.getConversation("conv-C");
@@ -149,24 +171,28 @@ describe("conversation tracker", () => {
     expect(ready.map((t) => t.conversationKey)).not.toContain("conv-C");
   });
 
-  it("re-arms pending when a message arrives mid-ingestion (no loss)", async () => {
-    await repo.touchConversation("conv-D", 1000, iso(1000));
+  it("stays pending when a message arrives mid-ingestion (no loss)", async () => {
+    await repo.touchConversation("conv-D", 1000); // readyAt 2000
     const claimed = await repo.claimConversation("conv-D", 100_000, 60_000);
-    // A new message lands during the ingestion run.
-    await repo.touchConversation("conv-D", 2000, iso(110_000));
+    // A new message lands during the ingestion run — touch re-arms readyAt to 3000.
+    await repo.touchConversation("conv-D", 2000);
 
     await repo.releaseConversation("conv-D", {
       watermark: claimed?.lastInboundAt ?? 0, // only ingested up to 1000
       claimSeenInboundAt: claimed?.lastInboundAt ?? 0,
-      nowIso: iso(120_000),
     });
 
     const tracker = await repo.getConversation("conv-D");
     expect(tracker?.lastIngestedAt).toBe(1000);
-    expect(tracker?.pendingSince).toBe(iso(120_000)); // re-armed
+    expect(tracker?.pendingSince).toBe(iso(1000)); // still pending (not cleared)
     expect(tracker?.claimedAt).toBeUndefined();
-    const ready = await repo.findPendingConversations(iso(10_000_000), 50);
-    expect(ready.map((t) => t.conversationKey)).toContain("conv-D");
+    // Due at the re-armed readyAt (3000) from the mid-ingestion message — remainder gets swept.
+    expect(
+      (await repo.findPendingConversations(iso(2999), 50)).map((t) => t.conversationKey),
+    ).not.toContain("conv-D");
+    expect(
+      (await repo.findPendingConversations(iso(3000), 50)).map((t) => t.conversationKey),
+    ).toContain("conv-D");
   });
 });
 

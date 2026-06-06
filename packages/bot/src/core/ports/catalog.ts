@@ -10,14 +10,15 @@ export interface CatalogRepository {
 
   /**
    * Record an inbound message on the conversation tracker: always advance `lastInboundAt`, and
-   * set `pendingSince` (+ the sparse GSI1 keys) only if not already pending — so the debounce
-   * anchors to the first un-ingested message. Idempotent; creates the tracker on first contact.
+   * update the sparse GSI1 "ready-at" key per the quiet-debounce + max-wait policy — the sweep
+   * fires once the conversation is quiet for `quietDebounceMs`, but never later than `maxWaitMs`
+   * from the first un-ingested message. Idempotent; creates the tracker on first contact.
    */
-  touchConversation(conversationKey: string, inboundAtMs: number, nowIso: string): Promise<void>;
+  touchConversation(conversationKey: string, inboundAtMs: number): Promise<void>;
 
-  /** Conversations with pending work whose `pendingSince` is at or before `readyBeforeIso`
-   * (i.e. quiet for the debounce window). Sourced from the sparse GSI1 — no table scan. */
-  findPendingConversations(readyBeforeIso: string, limit: number): Promise<ConversationTracker[]>;
+  /** Conversations whose ready-at time is at or before `nowIso` (i.e. due for ingestion now).
+   * Sourced from the sparse GSI1 — no table scan. */
+  findPendingConversations(nowIso: string, limit: number): Promise<ConversationTracker[]>;
 
   /**
    * Atomically claim a conversation for ingestion: set `status=INGESTING, claimedAt=now` only if
@@ -33,13 +34,13 @@ export interface CatalogRepository {
 
   /**
    * Finish an ingestion run. Advances `lastIngestedAt` to `watermark` and releases the claim.
-   * If no newer message arrived during the run (`lastInboundAt <= claimSeenInboundAt`), clears
-   * `pendingSince` so the conversation drops out of GSI1; otherwise re-arms `pendingSince=nowIso`
-   * so the next sweep ingests the remainder (no message is ever lost).
+   * If no newer message arrived during the run (`lastInboundAt <= claimSeenInboundAt`), clears the
+   * pending state so the conversation drops out of GSI1; otherwise leaves it pending (the mid-run
+   * message already re-armed the GSI key) so the next sweep ingests the remainder — no loss.
    */
   releaseConversation(
     conversationKey: string,
-    opts: { watermark: number; claimSeenInboundAt: number; nowIso: string },
+    opts: { watermark: number; claimSeenInboundAt: number },
   ): Promise<void>;
 
   getConversation(conversationKey: string): Promise<ConversationTracker | null>;

@@ -152,6 +152,19 @@ function trackerKey(conversationKey: string): { pk: string; sk: string } {
   return { pk: `CONV#${conversationKey}`, sk: "META" };
 }
 
+/** Debounce policy for the ingestion sweep. A conversation becomes eligible when it has been quiet
+ * for `quietDebounceMs` (the timer resets on each new message), but never waits longer than
+ * `maxWaitMs` from its first un-ingested message — so a continuously-active chat can't starve. */
+export interface DebouncePolicy {
+  readonly quietDebounceMs: number;
+  readonly maxWaitMs: number;
+}
+
+const DEFAULT_DEBOUNCE: DebouncePolicy = {
+  quietDebounceMs: 5 * 60_000, // 5 min quiet
+  maxWaitMs: 30 * 60_000, // 30 min cap
+};
+
 function isConditionalCheckFailed(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -176,62 +189,88 @@ export class DynamoCatalogRepository implements CatalogRepository {
   private readonly convProperty: ReturnType<typeof buildConvPropertyEntity>;
   private readonly membership: ReturnType<typeof buildMembershipEntity>;
 
+  private readonly debounce: DebouncePolicy;
+
   constructor(
     private readonly doc: DynamoDBDocumentClient,
     private readonly table: string,
+    debounce: Partial<DebouncePolicy> = {},
   ) {
     this.property = buildPropertyEntity(doc, table);
     this.convProperty = buildConvPropertyEntity(doc, table);
     this.membership = buildMembershipEntity(doc, table);
+    this.debounce = { ...DEFAULT_DEBOUNCE, ...debounce };
   }
 
   // --- Conversation tracker ---
 
-  async touchConversation(
-    conversationKey: string,
-    inboundAtMs: number,
-    nowIso: string,
-  ): Promise<void> {
-    // Always advance lastInboundAt; set pendingSince + sparse GSI1 keys only if not already
-    // pending (if_not_exists), anchoring the debounce to the first un-ingested message. Atomic and
-    // idempotent — re-running on the same event is a no-op for the pending keys.
-    await this.doc.send(
-      new UpdateCommand({
-        TableName: this.table,
-        Key: trackerKey(conversationKey),
-        UpdateExpression:
-          "SET lastInboundAt = :in, " +
-          "lastIngestedAt = if_not_exists(lastIngestedAt, :zero), " +
-          "#status = if_not_exists(#status, :idle), " +
-          "entityType = if_not_exists(entityType, :etype), " +
-          "conversationKey = if_not_exists(conversationKey, :ckey), " +
-          "pendingSince = if_not_exists(pendingSince, :now), " +
-          "gsi1pk = if_not_exists(gsi1pk, :pending), " +
-          "gsi1sk = if_not_exists(gsi1sk, :now)",
-        ExpressionAttributeNames: { "#status": "status" },
-        ExpressionAttributeValues: {
-          ":in": inboundAtMs,
-          ":zero": 0,
-          ":idle": "IDLE",
-          ":etype": "conversationTracker",
-          ":ckey": conversationKey,
-          ":now": nowIso,
-          ":pending": "PENDING",
-        },
-      }),
-    );
+  async touchConversation(conversationKey: string, inboundAtMs: number): Promise<void> {
+    // Quiet-debounce with a max-wait cap. The sparse GSI1 sort key is an absolute "ready-at" time
+    // (gsi1sk = readyAt), so the sweep is just `gsi1sk <= now`. readyAt = inboundAt + quietDebounce,
+    // pushed out on each message — but never past ingestDeadline = firstPendingAt + maxWait.
+    const readyAt = new Date(inboundAtMs + this.debounce.quietDebounceMs).toISOString();
+    const deadline = new Date(inboundAtMs + this.debounce.maxWaitMs).toISOString();
+    const firstPending = new Date(inboundAtMs).toISOString();
+
+    try {
+      // Common path (one write): advance lastInboundAt + push the timer out to readyAt, as long as
+      // readyAt is still within the deadline. On the first message, attribute_not_exists wins and
+      // seeds pendingSince/ingestDeadline/gsi1 keys. if_not_exists keeps the deadline anchored to
+      // the first un-ingested message across subsequent messages.
+      await this.doc.send(
+        new UpdateCommand({
+          TableName: this.table,
+          Key: trackerKey(conversationKey),
+          UpdateExpression:
+            "SET lastInboundAt = :in, " +
+            "lastIngestedAt = if_not_exists(lastIngestedAt, :zero), " +
+            "#status = if_not_exists(#status, :idle), " +
+            "entityType = if_not_exists(entityType, :etype), " +
+            "conversationKey = if_not_exists(conversationKey, :ckey), " +
+            "pendingSince = if_not_exists(pendingSince, :first), " +
+            "ingestDeadline = if_not_exists(ingestDeadline, :deadline), " +
+            "gsi1pk = if_not_exists(gsi1pk, :pending), " +
+            "gsi1sk = :ready",
+          ConditionExpression: "attribute_not_exists(ingestDeadline) OR :ready <= ingestDeadline",
+          ExpressionAttributeNames: { "#status": "status" },
+          ExpressionAttributeValues: {
+            ":in": inboundAtMs,
+            ":zero": 0,
+            ":idle": "IDLE",
+            ":etype": "conversationTracker",
+            ":ckey": conversationKey,
+            ":first": firstPending,
+            ":deadline": deadline,
+            ":ready": readyAt,
+            ":pending": "PENDING",
+          },
+        }),
+      );
+    } catch (error) {
+      if (!isConditionalCheckFailed(error)) {
+        throw error;
+      }
+      // Cap reached (readyAt would exceed the deadline): still advance lastInboundAt, but freeze the
+      // GSI key at the deadline so the conversation becomes eligible then rather than starving.
+      await this.doc.send(
+        new UpdateCommand({
+          TableName: this.table,
+          Key: trackerKey(conversationKey),
+          UpdateExpression: "SET lastInboundAt = :in, gsi1sk = ingestDeadline",
+          ExpressionAttributeValues: { ":in": inboundAtMs },
+        }),
+      );
+    }
   }
 
-  async findPendingConversations(
-    readyBeforeIso: string,
-    limit: number,
-  ): Promise<ConversationTracker[]> {
+  async findPendingConversations(nowIso: string, limit: number): Promise<ConversationTracker[]> {
     const result = await this.doc.send(
       new QueryCommand({
         TableName: this.table,
         IndexName: GSI1,
-        KeyConditionExpression: "gsi1pk = :p AND gsi1sk <= :before",
-        ExpressionAttributeValues: { ":p": "PENDING", ":before": readyBeforeIso },
+        // gsi1sk holds the absolute readyAt, so eligibility is simply readyAt <= now.
+        KeyConditionExpression: "gsi1pk = :p AND gsi1sk <= :now",
+        ExpressionAttributeValues: { ":p": "PENDING", ":now": nowIso },
         Limit: limit,
       }),
     );
@@ -271,7 +310,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
 
   async releaseConversation(
     conversationKey: string,
-    opts: { watermark: number; claimSeenInboundAt: number; nowIso: string },
+    opts: { watermark: number; claimSeenInboundAt: number },
   ): Promise<void> {
     const key = trackerKey(conversationKey);
     try {
@@ -281,7 +320,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
           TableName: this.table,
           Key: key,
           UpdateExpression:
-            "SET lastIngestedAt = :wm, #status = :idle REMOVE pendingSince, gsi1pk, gsi1sk, claimedAt",
+            "SET lastIngestedAt = :wm, #status = :idle REMOVE pendingSince, ingestDeadline, gsi1pk, gsi1sk, claimedAt",
           ConditionExpression: "lastInboundAt <= :seen",
           ExpressionAttributeNames: { "#status": "status" },
           ExpressionAttributeValues: {
@@ -295,21 +334,16 @@ export class DynamoCatalogRepository implements CatalogRepository {
       if (!isConditionalCheckFailed(error)) {
         throw error;
       }
-      // A newer message arrived during ingestion — re-arm pending so the next sweep picks up the
-      // remainder. gsi1sk = now keeps it discoverable (it will debounce again from here).
+      // A newer message arrived during ingestion: only advance the watermark and drop the claim.
+      // The conversation stays in GSI1 — touchConversation already re-armed gsi1sk for that message
+      // (it runs regardless of INGESTING status) — so the next sweep ingests the remainder.
       await this.doc.send(
         new UpdateCommand({
           TableName: this.table,
           Key: key,
-          UpdateExpression:
-            "SET lastIngestedAt = :wm, #status = :idle, pendingSince = :now, gsi1pk = :pending, gsi1sk = :now REMOVE claimedAt",
+          UpdateExpression: "SET lastIngestedAt = :wm, #status = :idle REMOVE claimedAt",
           ExpressionAttributeNames: { "#status": "status" },
-          ExpressionAttributeValues: {
-            ":wm": opts.watermark,
-            ":idle": "IDLE",
-            ":now": opts.nowIso,
-            ":pending": "PENDING",
-          },
+          ExpressionAttributeValues: { ":wm": opts.watermark, ":idle": "IDLE" },
         }),
       );
     }

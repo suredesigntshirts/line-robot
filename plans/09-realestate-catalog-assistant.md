@@ -53,10 +53,10 @@ commands & UI taps).
                                                      Catalog DynamoDB table  +  S3 (json + media)
                                                               ▲   ▲                    │
    EventBridge cron (~1–2 min) → INGESTION Lambda ────────────┘   │  reads bytes ◀─────┘
-     • GSI1 query → conversations with pendingSince ≤ now−debounce (5–10 min)
+     • GSI1 query → conversations whose readyAt ≤ now (quiet ≥5 min, capped at 30 min)
      • conditional claim (status/claimedAt) so two sweeps never double-ingest
      • batch msgs since lastIngestedAt (text + S3 media) → Claude parse(),
-       upsert properties/contacts/events, advance lastIngestedAt, clear pendingSince,
+       upsert properties/contacts/events, advance lastIngestedAt, clear pending,
        PUSH confirmation (reply token long expired)                │
                                                                    │
    EventBridge cron (~hourly) → REMINDER Lambda ───────────────────┘
@@ -90,18 +90,27 @@ s3://<archive-bucket>/conv/<conversationKey>/<messageId>/
 - An S3 **lifecycle rule** handles expiry (no date needed in the key). The existing audit path
   `raw/<date>/…json` can stay or fold into this scheme — reversible.
 
-**Finding work (no scan).** On each inbound, the processor sets `pendingSince` on the conversation
-tracker (only if unset) → the tracker appears in the sparse **GSI1 `pendingIngestion`**. The sweep
-queries `gsi1pk = "PENDING" AND gsi1sk ≤ now−debounce` for the exact ready list.
+**Finding work (no scan).** On each inbound, the processor updates the conversation tracker's sparse
+**GSI1 `pendingIngestion`** key, where `gsi1sk` is an absolute **`readyAt`** time. The sweep queries
+`gsi1pk = "PENDING" AND gsi1sk ≤ now` for the exact due list — the debounce is baked into `readyAt`.
+
+**Debounce = quiet period + max-wait cap (decided).** `readyAt = min(lastInboundAt + quietDebounce,
+firstPendingAt + maxWait)` (defaults: quiet 5 min, cap 30 min). Each message pushes `readyAt` out
+(reset-on-activity → the whole burst is ingested as one batch), but never past the cap, so a
+continuously-active chat can't starve. Implemented as a one-write hot path (advance `lastInboundAt`
++ set `gsi1sk = inboundAt + quietDebounce`, conditional on staying ≤ `ingestDeadline`); only when the
+cap is hit does a second write freeze `gsi1sk` at the deadline.
 
 **Never twice (concurrency-safe).** Before processing, the sweep does a **conditional claim**: set
 `status=INGESTING, claimedAt=now` *only if* `status ≠ INGESTING OR claimedAt < now−staleTimeout`.
 Atomic — if two sweeps race, one wins and the other skips; a crashed run is retried after the timeout.
 
 **No loss, no duplicates (watermark).** The batch is "messages with `timestamp > lastIngestedAt`."
-On success: advance `lastIngestedAt` to the newest message ingested, clear the claim, clear
-`pendingSince` (drops out of GSI1). A message arriving *during* ingestion re-sets `pendingSince`, so
-the next sweep picks up the remainder.
+On success: advance `lastIngestedAt` to the newest message ingested, clear the claim, and clear the
+pending state (drops out of GSI1) **only if no newer message arrived during the run**
+(`lastInboundAt ≤ the value seen at claim`). If one did, the watermark advances but the conversation
+stays in GSI1 — `touchConversation` already re-armed `readyAt` for that message (it runs regardless
+of `INGESTING` status) — so the next sweep ingests the remainder.
 
 ---
 
@@ -187,10 +196,11 @@ ElectroDB composes them per entity. Entities & access patterns:
 - **Conv→Property edge** — pk `CONV#<conversationKey>`, sk `PROP#<propertyId>`. Powers ingestion
   dedup candidates (write-scope) and "listings discussed in *this* chat."
 - **Conversation tracker** — pk `CONV#<conversationKey>`, sk `META`. Carries
-  `{lastInboundAt, lastIngestedAt, pendingSince, status, claimedAt}` — written by the processor on
-  each inbound and by the sweep. Indexed by **GSI1 `pendingIngestion`** (sparse) so the sweep finds
-  work without a scan; `lastIngestedAt` is the ingest watermark; `status`/`claimedAt` are the claim
-  lock (see Ingestion mechanics).
+  `{lastInboundAt, lastIngestedAt, pendingSince, ingestDeadline, status, claimedAt}` — written by the
+  processor on each inbound and by the sweep. Indexed by **GSI1 `pendingIngestion`** (sparse, with
+  `gsi1sk = readyAt`) so the sweep finds work without a scan; `lastIngestedAt` is the ingest
+  watermark; `ingestDeadline` is the max-wait cap; `status`/`claimedAt` are the claim lock (see
+  Ingestion mechanics).
 - **Memory doc** — pk `CONV#<conversationKey>`, sk `MEMORY`; bounded learned context.
 - **User↔Conv membership edge** — pk `USER#<userId>`, sk `CONV#<conversationKey>`. Maintained from
   each inbound message's `source.userId` + `memberJoined`/`memberLeft` events. Powers "show *my*
@@ -201,13 +211,13 @@ Single-table key reuse is intentional: `PROP#<id>` holds `META` + `EVT#…` + `C
 `CONV#<key>` holds `META` + `MEMORY` + `PROP#…`. Reads use `pk = X` + `sk begins_with Y`.
 
 **GSIs (concrete keys):**
-- **GSI1 `pendingIngestion`** (sparse, P1) — `gsi1pk = "PENDING"`, `gsi1sk = <pendingSince ISO8601>`.
-  Only the Conversation tracker writes these, and only while it has un-ingested messages; cleared
-  after a successful ingest so the item drops out of the index. Sweep query:
-  `gsi1pk = "PENDING" AND gsi1sk ≤ <now − debounce>`. Project `conversationKey`, `lastIngestedAt`,
-  `pendingSince` so the sweep needs no follow-up read. Start with the single constant `"PENDING"`
-  partition (low volume is trivial for one partition); shard to `"PENDING#<n>"` + N-way fan-out only
-  if write volume ever exceeds one partition.
+- **GSI1 `pendingIngestion`** (sparse, P1) — `gsi1pk = "PENDING"`, `gsi1sk = <readyAt ISO8601>` (the
+  quiet-debounce + cap eligibility time, not the first-message time). Only the Conversation tracker
+  writes these, and only while it has un-ingested messages; cleared after a clean ingest so the item
+  drops out of the index. Sweep query: `gsi1pk = "PENDING" AND gsi1sk ≤ <now>`. Projection ALL so the
+  sweep needs no follow-up read. Start with the single constant `"PENDING"` partition (low volume is
+  trivial for one partition); shard to `"PENDING#<n>"` + N-way fan-out only if write volume ever
+  exceeds one partition.
 - **GSI2 `byDueDate`** (P2) — `gsi2pk = "DUE"`, `gsi2sk = <dueIso>#<eventId>`. Only PropertyEvent
   writes these. Reminder sweep query: `gsi2pk = "DUE" AND gsi2sk BETWEEN <watermark> AND <now+window>`.
   Make sparse by clearing the GSI keys (or setting `notifiedAt`) once pushed; reuse the ingestion
@@ -314,10 +324,13 @@ backfills. Per the earlier estimate the AWS infra stays ~pennies; LLM spend domi
    quick-reply/postback).
 3. **Confirmations:** **push to the same chat** after each ingest (e.g. "✅ Saved 123 Sukhumvit
    (updated)").
-4. **Ingestion timing:** eager media capture in the processor → S3; debounced sweep (5–10 min) reads
-   from S3/DynamoDB. A generous debounce is safe because nothing races LINE's content expiry.
-5. **Sweep correctness:** sparse **GSI1** to find work, **conditional claim** (status/claimedAt) for
-   at-most-one worker, **`lastIngestedAt` watermark** for no-loss / no-duplicate batching.
+4. **Ingestion timing:** eager media capture in the processor → S3; debounced sweep reads from
+   S3/DynamoDB. Debounce = **quiet period (5 min) + max-wait cap (30 min)** via an absolute `readyAt`
+   GSI key, so a whole burst is ingested as one batch and a busy chat can't starve. A generous
+   debounce is safe because nothing races LINE's content expiry.
+5. **Sweep correctness:** sparse **GSI1** (`gsi1sk = readyAt`) to find work, **conditional claim**
+   (status/claimedAt) for at-most-one worker, **`lastIngestedAt` watermark** for no-loss /
+   no-duplicate batching (release re-checks `lastInboundAt` to keep mid-run messages pending).
 6. **Extraction schema:** `@anthropic-ai/sdk@^0.102.0` + `zod@4.x` (verified working);
    `messages.parse` → `parsed_output`; model fields as `.nullable()` (not `.optional()`).
 7. **Dedup:** candidate set includes older properties; **never auto-merge across ambiguity**; **ask
