@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "build": "node esbuild.config.mjs",
     "test": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
@@ -23,6 +24,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@esbuild/linux-x64": "^0.28.0",
     "@types/aws-lambda": "^8.10.162",
     "aws-sdk-client-mock": "^4.1.0",
     "esbuild": "^0.28.0"

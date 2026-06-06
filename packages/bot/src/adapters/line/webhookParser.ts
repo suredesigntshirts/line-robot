@@ -73,3 +73,8 @@ export function parseWebhook(rawBody: string): ParsedWebhook {
   const events = (callback.events ?? []).map(toInboundEvent);
   return { destination: callback.destination, events };
 }
+
+/** Parse a single raw LINE event (e.g. one SQS message payload) into an {@link InboundEvent}. */
+export function parseRawEvent(raw: unknown): InboundEvent {
+  return toInboundEvent(raw as webhook.Event);
+}
