@@ -10,6 +10,7 @@ import type { OutboundMessage, StoredMessage } from "../../src/core/domain/messa
 import type { ExtractionResult, PropertyExtractor } from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
+import { textOf } from "../fixtures/outbound.js";
 
 const CONTAINER = "linerobot-ddb-sweep-it";
 const CATALOG_TABLE = "catalog-test";
@@ -289,7 +290,7 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     // A push confirmation went to the conversation, and the tracker dropped out of the GSI.
     expect(pushes).toHaveLength(1);
     expect(pushes[0]?.to).toBe("Uextract");
-    expect(pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (new)");
+    expect(textOf(pushes[0]?.messages[0])).toContain("123 Sukhumvit (new)");
     expect((await catalog.getConversation(key))?.pendingSince).toBeUndefined();
   });
 });

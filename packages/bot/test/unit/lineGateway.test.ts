@@ -8,6 +8,16 @@ function fakeClient(): LineApiClient {
   };
 }
 
+// biome-ignore lint/suspicious/noExplicitAny: tests inspect the loosely-typed SDK request payloads.
+function firstMessage(fn: unknown, callIndex = 0): any {
+  const calls = (fn as ReturnType<typeof vi.fn>).mock.calls;
+  const call = calls[callIndex];
+  if (call === undefined) {
+    throw new Error(`expected a call at index ${callIndex}`);
+  }
+  return call[0].messages[0];
+}
+
 describe("LineMessagingGateway", () => {
   it("maps outbound text onto an SDK reply request", async () => {
     const client = fakeClient();
@@ -48,5 +58,86 @@ describe("LineMessagingGateway", () => {
 
     expect(client.replyMessage).not.toHaveBeenCalled();
     expect(client.pushMessage).not.toHaveBeenCalled();
+  });
+
+  it("attaches quick replies (capped, label-truncated) to a text message", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+
+    await gateway.push("U1", [
+      {
+        type: "text",
+        text: "Confirm?",
+        quickReplies: [
+          { label: "This label is definitely longer than twenty", data: "action=keep&id=p1" },
+          { label: "Merge", data: "action=merge&from=p1&into=p2", displayText: "Merge it" },
+        ],
+      },
+    ]);
+
+    const sent = firstMessage(client.pushMessage);
+    expect(sent.quickReply.items).toHaveLength(2);
+    expect(sent.quickReply.items[0].action).toMatchObject({
+      type: "postback",
+      label: "This label is defini", // truncated to 20 chars
+      data: "action=keep&id=p1",
+    });
+    expect(sent.quickReply.items[1].action.displayText).toBe("Merge it");
+  });
+
+  it("renders a single card as a bubble and multiple as a carousel", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+
+    await gateway.reply("rt", [
+      {
+        type: "flex",
+        altText: "Your listings",
+        cards: [
+          {
+            title: "123 Sukhumvit",
+            subtitle: "negotiating",
+            rows: [{ label: "Price", value: "฿5.5M" }],
+            actions: [{ label: "Details", data: "action=view&id=p1" }],
+          },
+        ],
+      },
+    ]);
+    const single = firstMessage(client.replyMessage);
+    expect(single.type).toBe("flex");
+    expect(single.altText).toBe("Your listings");
+    expect(single.contents.type).toBe("bubble");
+    expect(single.contents.footer.contents[0].action).toMatchObject({
+      type: "postback",
+      data: "action=view&id=p1",
+    });
+
+    await gateway.reply("rt", [
+      {
+        type: "flex",
+        altText: "Two",
+        cards: [
+          { title: "A", rows: [], actions: [] },
+          { title: "B", rows: [], actions: [] },
+        ],
+      },
+    ]);
+    const multi = firstMessage(client.replyMessage, 1);
+    expect(multi.contents.type).toBe("carousel");
+    expect(multi.contents.contents).toHaveLength(2);
+  });
+
+  it("caps a carousel at 12 bubbles", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+    const cards = Array.from({ length: 20 }, (_, i) => ({
+      title: `P${i}`,
+      rows: [],
+      actions: [],
+    }));
+
+    await gateway.push("U1", [{ type: "flex", altText: "many", cards }]);
+    const sent = firstMessage(client.pushMessage);
+    expect(sent.contents.contents).toHaveLength(12);
   });
 });

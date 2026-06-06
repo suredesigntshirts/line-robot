@@ -57,6 +57,20 @@ function memberUserIds(members: ReadonlyArray<webhook.Source> | undefined): stri
   );
 }
 
+/** Flatten a postback's `params` (datetime picker / rich-menu switch) into a plain string record,
+ * dropping non-string values. Returns undefined when there are no params (the common case). */
+function postbackParams(
+  params: webhook.PostbackContent["params"],
+): Record<string, string> | undefined {
+  if (params === undefined) {
+    return undefined;
+  }
+  const entries = Object.entries(params).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
 function toInboundEvent(event: webhook.Event): InboundEvent {
   const ref = toConversationRef(event.source);
   const base = { webhookEventId: event.webhookEventId, timestamp: event.timestamp };
@@ -88,6 +102,20 @@ function toInboundEvent(event: webhook.Event): InboundEvent {
       return ref !== undefined
         ? { kind: "memberLeft", ref, memberIds: memberUserIds(event.left?.members), ...base }
         : { kind: "other", eventType: "memberLeft", ...base };
+    case "postback": {
+      if (ref === undefined || event.replyToken === undefined) {
+        return { kind: "other", eventType: "postback", ...base };
+      }
+      const params = postbackParams(event.postback.params);
+      return {
+        kind: "postback",
+        ref,
+        replyToken: event.replyToken,
+        data: event.postback.data,
+        ...(params !== undefined ? { params } : {}),
+        ...base,
+      };
+    }
     default:
       return { kind: "other", eventType: event.type, ...base };
   }

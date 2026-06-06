@@ -1,6 +1,6 @@
 import type { Readable } from "node:stream";
 import { messagingApi } from "@line/bot-sdk";
-import type { OutboundMessage } from "../../core/domain/message.js";
+import type { OutboundMessage, PropertyCard, QuickReply } from "../../core/domain/message.js";
 import type { LineContentClient } from "../../core/ports/lineContent.js";
 import type { LineGateway } from "../../core/ports/lineGateway.js";
 
@@ -13,8 +13,105 @@ export interface LineApiClient {
   pushMessage(request: messagingApi.PushMessageRequest): Promise<unknown>;
 }
 
+// LINE limits: ≤13 quick replies, label ≤20 chars; ≤12 bubbles per carousel.
+const MAX_QUICK_REPLIES = 13;
+const MAX_LABEL = 20;
+const MAX_BUBBLES = 12;
+
+function toQuickReply(items?: readonly QuickReply[]): messagingApi.QuickReply | undefined {
+  if (items === undefined || items.length === 0) {
+    return undefined;
+  }
+  return {
+    items: items.slice(0, MAX_QUICK_REPLIES).map((q) => ({
+      type: "action",
+      action: {
+        type: "postback",
+        label: q.label.slice(0, MAX_LABEL),
+        data: q.data,
+        ...(q.displayText !== undefined ? { displayText: q.displayText } : {}),
+      },
+    })),
+  };
+}
+
+/** Build a Flex bubble from a semantic {@link PropertyCard}: title/subtitle, `label: value` rows,
+ * and postback action buttons; an optional hero image is included only when a url is present. */
+function toBubble(card: PropertyCard): messagingApi.FlexBubble {
+  const body: messagingApi.FlexComponent[] = [
+    { type: "text", text: card.title, weight: "bold", size: "lg", wrap: true },
+  ];
+  if (card.subtitle !== undefined) {
+    body.push({ type: "text", text: card.subtitle, size: "sm", color: "#888888", wrap: true });
+  }
+  for (const row of card.rows) {
+    body.push({
+      type: "box",
+      layout: "baseline",
+      spacing: "sm",
+      contents: [
+        { type: "text", text: row.label, size: "sm", color: "#aaaaaa", flex: 2 },
+        { type: "text", text: row.value, size: "sm", color: "#555555", flex: 5, wrap: true },
+      ],
+    });
+  }
+  const bubble: messagingApi.FlexBubble = {
+    type: "bubble",
+    body: { type: "box", layout: "vertical", spacing: "md", contents: body },
+  };
+  if (card.heroImageUrl !== undefined) {
+    bubble.hero = {
+      type: "image",
+      url: card.heroImageUrl,
+      size: "full",
+      aspectRatio: "20:13",
+      aspectMode: "cover",
+    };
+  }
+  if (card.actions.length > 0) {
+    bubble.footer = {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: card.actions.map((a) => ({
+        type: "button",
+        style: "primary",
+        height: "sm",
+        action: {
+          type: "postback",
+          label: a.label.slice(0, MAX_LABEL),
+          data: a.data,
+          displayText: a.label,
+        },
+      })),
+    };
+  }
+  return bubble;
+}
+
+function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexContainer {
+  const bubbles = cards.slice(0, MAX_BUBBLES).map(toBubble);
+  // A lone card renders as a single bubble; multiple cards as a swipeable carousel.
+  return bubbles.length === 1 && bubbles[0] !== undefined
+    ? bubbles[0]
+    : { type: "carousel", contents: bubbles };
+}
+
 function toSdkMessage(message: OutboundMessage): messagingApi.Message {
-  return { type: "text", text: message.text };
+  const quickReply = toQuickReply(message.quickReplies);
+  const withQuickReply = <T extends messagingApi.Message>(m: T): T =>
+    quickReply !== undefined ? { ...m, quickReply } : m;
+
+  switch (message.type) {
+    case "text":
+      return withQuickReply({ type: "text", text: message.text });
+    case "flex":
+      return withQuickReply({
+        type: "flex",
+        altText: message.altText,
+        contents: toFlexContainer(message.cards),
+      });
+  }
 }
 
 export class LineMessagingGateway implements LineGateway {

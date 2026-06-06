@@ -144,6 +144,21 @@ export function memberLeftEvent(opts: EventOpts = {}): Json {
   };
 }
 
+export function postbackEvent(
+  opts: EventOpts & { data?: string; params?: Record<string, string> } = {},
+): Json {
+  const postback: Json = { data: opts.data ?? "action=listings" };
+  if (opts.params !== undefined) {
+    postback.params = opts.params;
+  }
+  return {
+    ...eventBase(opts, "01EVENTPOSTBACK000000000000"),
+    type: "postback",
+    replyToken: opts.replyToken ?? "replytoken0000000000000000000008",
+    postback,
+  };
+}
+
 export function webhookBody(events: Json[], destination = DESTINATION): string {
   return JSON.stringify({ destination, events });
 }

@@ -238,11 +238,17 @@ export class EventProcessor {
           messageId: `${message.webhookEventId}#out#${index}`,
           direction: "out",
           contentType: "text",
-          text: reply.text,
+          // Flex carousels have no plain text; log their altText so the audit row is meaningful.
+          text: outboundText(reply),
           webhookEventId: message.webhookEventId,
           timestamp: now,
         }),
       ),
     );
   }
+}
+
+/** A plain-text representation of an outbound message for the message-log row. */
+function outboundText(message: OutboundMessage): string {
+  return message.type === "text" ? message.text : message.altText;
 }

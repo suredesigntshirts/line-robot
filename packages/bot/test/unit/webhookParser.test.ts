@@ -88,6 +88,44 @@ describe("parseWebhook", () => {
     }
   });
 
+  it("parses a postback event with its data payload", () => {
+    const parsed = parseWebhook(
+      fx.webhookBody([
+        fx.postbackEvent({ data: "action=view&id=PROP%23123", source: fx.userSource("Uabc") }),
+      ]),
+    );
+    const event = must(parsed.events[0]);
+    expect(event.kind).toBe("postback");
+    if (event.kind === "postback") {
+      expect(event.ref).toEqual({ kind: "user", userId: "Uabc" });
+      expect(event.data).toBe("action=view&id=PROP%23123");
+      expect(event.replyToken).toBeTruthy();
+      expect(event.params).toBeUndefined();
+    }
+  });
+
+  it("carries datetime-picker params on a postback", () => {
+    const parsed = parseWebhook(
+      fx.webhookBody([
+        fx.postbackEvent({ data: "action=followup", params: { datetime: "2026-07-01T10:00" } }),
+      ]),
+    );
+    const event = must(parsed.events[0]);
+    if (event.kind === "postback") {
+      expect(event.params).toEqual({ datetime: "2026-07-01T10:00" });
+    }
+  });
+
+  it("carries the group sender on a group postback", () => {
+    const parsed = parseWebhook(
+      fx.webhookBody([fx.postbackEvent({ source: fx.groupSource("Cg", "Usender") })]),
+    );
+    const event = must(parsed.events[0]);
+    if (event.kind === "postback") {
+      expect(event.ref).toEqual({ kind: "group", groupId: "Cg", senderUserId: "Usender" });
+    }
+  });
+
   it("parses join/leave/memberJoined/memberLeft and reply-token presence", () => {
     const parsed = parseWebhook(
       fx.webhookBody([

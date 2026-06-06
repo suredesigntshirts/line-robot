@@ -15,6 +15,7 @@ import type {
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
 import type { MessageRepository } from "../../src/core/ports/persistence.js";
+import { textOf } from "../fixtures/outbound.js";
 
 interface Spies {
   claims: { key: string; nowMs: number; staleTimeoutMs: number }[];
@@ -266,7 +267,7 @@ describe("IngestionSweep — extraction", () => {
     expect(spies.upserts[0]?.createdAt).toBeDefined();
     expect(spies.links).toEqual([{ key: "user#E", propertyId: "gen-1" }]);
     expect(spies.pushes[0]?.to).toBe("U");
-    expect(spies.pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (new)");
+    expect(textOf(spies.pushes[0]?.messages[0])).toContain("123 Sukhumvit (new)");
 
     // Geo mined from the maps link + (empty) candidate set reach the extractor.
     expect(spies.extractRequests[0]?.geoHints).toEqual([{ lat: 13.7, long: 100.5 }]);
@@ -307,7 +308,7 @@ describe("IngestionSweep — extraction", () => {
         long: undefined,
       },
     ]);
-    expect(spies.pushes[0]?.messages[0]?.text).toContain("123 Sukhumvit (updated)");
+    expect(textOf(spies.pushes[0]?.messages[0])).toContain("123 Sukhumvit (updated)");
   });
 
   it("creates new and flags ambiguous matches for confirmation", async () => {
@@ -322,7 +323,7 @@ describe("IngestionSweep — extraction", () => {
       propertyId: "gen-1",
       originConversationKey: "user#G",
     });
-    expect(spies.pushes[0]?.messages[0]?.text).toContain("The Park (new — please confirm)");
+    expect(textOf(spies.pushes[0]?.messages[0])).toContain("The Park (new — please confirm)");
   });
 
   it("feeds S3 media bytes to the extractor as base64", async () => {
