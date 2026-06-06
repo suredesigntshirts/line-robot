@@ -1,6 +1,6 @@
 import { SQSClient } from "@aws-sdk/client-sqs";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { loadEnv, loadSecrets } from "../adapters/config/config.js";
+import { loadChannelSecret, loadEnv } from "../adapters/config/config.js";
 import { SignatureVerifier } from "../adapters/line/signatureVerifier.js";
 import { SqsQueuePublisher } from "../adapters/queue/sqsPublisher.js";
 import { handleIngest, type IngestDeps } from "../app/ingestHandler.js";
@@ -13,9 +13,9 @@ async function buildDeps(): Promise<IngestDeps> {
   if (env.QUEUE_URL === undefined) {
     throw new Error("QUEUE_URL is required for the ingest Lambda");
   }
-  const secrets = await loadSecrets(env);
+  const channelSecret = await loadChannelSecret(env);
   return {
-    verifier: new SignatureVerifier(secrets.channelSecret),
+    verifier: new SignatureVerifier(channelSecret),
     publisher: new SqsQueuePublisher(new SQSClient({}), env.QUEUE_URL),
     logger: new PowertoolsLoggerAdapter(),
   };

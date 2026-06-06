@@ -1,0 +1,5 @@
+config:
+  aws:region: ap-southeast-1
+  # Secrets are set out-of-band and stored encrypted (not committed in plaintext):
+  #   pulumi config set --secret channelSecret <staging channel secret>
+  #   pulumi config set --secret channelAccessToken <staging access token>

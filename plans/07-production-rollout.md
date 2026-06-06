@@ -39,5 +39,5 @@ Production bot live, monitored, releasable by tag, and rollback verified.
 
 ## References
 - `aws.cloudwatch.{MetricAlarm,Dashboard}`, `aws.sns.{Topic,TopicSubscription}`, and
-  `aws.lambda.Alias` docs (fetched Stage 01). Lambda versioning = `publishVersion: true` on the Function.
+  `aws.lambda.Alias` docs (fetched Stage 01). Lambda versioning = `publish: true` on the Function.
 - Stacks/secrets: `docs/pulumi.com/docs/iac/concepts/{stacks,secrets,state-and-backends}.md`.

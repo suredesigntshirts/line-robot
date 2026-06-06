@@ -26,17 +26,35 @@ export interface Secrets {
   channelAccessToken: string;
 }
 
+async function requireParameter(name: string, maxAge: number): Promise<string> {
+  const value = await getParameter(name, { decrypt: true, maxAge });
+  if (value === undefined) {
+    throw new Error(`Missing SSM SecureString parameter: ${name}`);
+  }
+  return value;
+}
+
 /**
- * Loads LINE channel secrets from SSM SecureString parameters. Powertools caches values
+ * Channel secret only — used by the ingest Lambda for signature verification. Granular so the
+ * ingest role needs read access to just this one SSM parameter (least privilege).
+ */
+export function loadChannelSecret(env: Env, maxAge = 300): Promise<string> {
+  return requireParameter(env.CHANNEL_SECRET_PARAM, maxAge);
+}
+
+/** Channel access token only — used by the processor Lambda to call the Messaging API. */
+export function loadChannelAccessToken(env: Env, maxAge = 300): Promise<string> {
+  return requireParameter(env.CHANNEL_ACCESS_TOKEN_PARAM, maxAge);
+}
+
+/**
+ * Loads both LINE channel secrets from SSM SecureString parameters. Powertools caches values
  * (`maxAge` seconds) so warm invocations don't re-hit SSM.
  */
 export async function loadSecrets(env: Env, maxAge = 300): Promise<Secrets> {
   const [channelSecret, channelAccessToken] = await Promise.all([
-    getParameter(env.CHANNEL_SECRET_PARAM, { decrypt: true, maxAge }),
-    getParameter(env.CHANNEL_ACCESS_TOKEN_PARAM, { decrypt: true, maxAge }),
+    loadChannelSecret(env, maxAge),
+    loadChannelAccessToken(env, maxAge),
   ]);
-  if (channelSecret === undefined || channelAccessToken === undefined) {
-    throw new Error("Missing LINE channel secret or access token in SSM Parameter Store");
-  }
   return { channelSecret, channelAccessToken };
 }

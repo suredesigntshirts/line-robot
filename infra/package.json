@@ -1,0 +1,12 @@
+{
+  "name": "@line-robot/infra",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^7.32.0",
+    "@pulumi/pulumi": "^3.245.0"
+  }
+}

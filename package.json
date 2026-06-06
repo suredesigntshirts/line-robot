@@ -7,7 +7,8 @@
     "node": ">=22"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "infra"
   ],
   "scripts": {
     "typecheck": "npm run typecheck --workspaces --if-present",

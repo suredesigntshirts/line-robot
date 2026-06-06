@@ -3,7 +3,7 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { SQSEvent, SQSHandler, SQSRecord } from "aws-lambda";
-import { loadEnv, loadSecrets } from "../adapters/config/config.js";
+import { loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
 import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
@@ -22,7 +22,7 @@ let depsPromise: Promise<Deps> | undefined;
 
 async function buildDeps(): Promise<Deps> {
   const env = loadEnv();
-  const secrets = await loadSecrets(env);
+  const channelAccessToken = await loadChannelAccessToken(env);
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
@@ -31,7 +31,7 @@ async function buildDeps(): Promise<Deps> {
     archive: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     handler: createDefaultMessageHandler(),
-    gateway: createLineMessagingGateway(secrets.channelAccessToken),
+    gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,
   });

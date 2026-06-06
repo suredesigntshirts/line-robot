@@ -1,0 +1,16 @@
+{
+  // Standalone (not extending the ESM base) — Pulumi runs this program as CommonJS.
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["index.ts", "src/**/*.ts"]
+}
