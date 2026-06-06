@@ -337,3 +337,17 @@
 - docs/pulumi.com/docs/iac/cli/api.md: Pulumi — Subcommands
 - docs/pulumi.com/docs/reference/cloud-rest-api.md: Pulumi — Calling the API
 - docs/pulumi.com/registry.md: Pulumi — 1Password
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/loggroup.md: Pulumi AWS — aws.cloudwatch.LogGroup
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/metricalarm.md: Pulumi AWS — aws.cloudwatch.MetricAlarm
+- docs/pulumi.com/registry/packages/aws/api-docs/dynamodb/table.md: Pulumi AWS — aws.dynamodb.Table
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/dashboard.md: Pulumi AWS — aws.cloudwatch.Dashboard
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/alias.md: Pulumi AWS — aws.lambda.Alias
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketpublicaccessblock.md: Pulumi AWS — aws.s3.BucketPublicAccessBlock
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketv2.md: Pulumi AWS — aws.s3.BucketV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketversioningv2.md: Pulumi AWS — aws.s3.BucketVersioningV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketserversideencryptionconfigurationv2.md: Pulumi AWS — aws.s3.BucketServerSideEncryptionConfigurationV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketlifecycleconfigurationv2.md: Pulumi AWS — aws.s3.BucketLifecycleConfigurationV2
+- docs/pulumi.com/registry/packages/aws/api-docs/sqs/queue.md: Pulumi AWS — aws.sqs.Queue
+- docs/pulumi.com/registry/packages/aws/api-docs/sqs/redriveallowpolicy.md: Pulumi AWS — aws.sqs.RedriveAllowPolicy
+- docs/pulumi.com/registry/packages/aws/api-docs/sns/topic.md: Pulumi AWS — aws.sns.Topic
+- docs/pulumi.com/registry/packages/aws/api-docs/sns/topicsubscription.md: Pulumi AWS — aws.sns.TopicSubscription

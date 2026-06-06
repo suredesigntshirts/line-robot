@@ -65,8 +65,11 @@ Execute in order. Each file lists its prerequisite stage.
   `join` / `leave` / `memberJoined` / `memberLeft` events
   (`docs/.../messaging-api/group-chats/index.md`).
 - **Cache gaps filled in Stage 01** (confirmed missing from `docs/pulumi.com/`):
-  `aws.dynamodb.Table`, `aws.cloudwatch.LogGroup`, `aws.lambda.Alias`/`Version`,
-  `aws.s3.Bucket(V2)`, `aws.sqs.Queue`.
+  `aws.dynamodb.Table`, `aws.cloudwatch.LogGroup`, `aws.lambda.Alias`,
+  `aws.s3.BucketV2` (+ public-access-block/versioning/lifecycle/SSE), `aws.sqs.Queue`,
+  plus `aws.cloudwatch.{MetricAlarm,Dashboard}` and `aws.sns.{Topic,TopicSubscription}` for
+  stages 07–08. (Note: Lambda versioning is `publishVersion: true` on the Function, not a
+  separate `Version` resource.) **All fetched in Stage 01.**
 
 ## SDK quick reference (`@line/bot-sdk@11.0.1`, verified from installed `.d.ts`)
 

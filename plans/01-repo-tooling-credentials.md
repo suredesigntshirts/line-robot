@@ -64,7 +64,8 @@ Use the **`documentation-downloader`** skill to fetch the Pulumi AWS resources m
 `docs/pulumi.com/` (confirmed missing in exploration):
 - `aws.dynamodb.Table`
 - `aws.cloudwatch.LogGroup`
-- `aws.lambda.Alias` and `aws.lambda.Version`
+- `aws.lambda.Alias` (note: there is **no** `aws.lambda.Version` resource — function
+  versioning is the `publishVersion: true` attribute on `aws.lambda.Function`)
 - `aws.s3.Bucket` / `aws.s3.BucketV2` (+ public-access-block, versioning, lifecycle)
 - `aws.sqs.Queue` (+ redrive policy)
 

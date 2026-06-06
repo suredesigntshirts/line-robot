@@ -40,7 +40,8 @@ Compute (`lambda.ts`):
 - `aws.lambda.FunctionUrl` on **ingest** — `authorizationType: "NONE"` (LINE can't sign IAM;
   security is the signature check — documented, do not IP-filter).
 - `aws.lambda.EventSourceMapping` SQS main → **processor** (`batchSize`, `functionResponseTypes:["ReportBatchItemFailures"]`).
-- `aws.lambda.Alias` `staging` per function (rollback target).
+- Set `publishVersion: true` on each `aws.lambda.Function` and add an `aws.lambda.Alias`
+  `staging` per function (rollback target). (There is no separate `aws.lambda.Version` resource.)
 
 Secrets/config (`config.ts`):
 - `aws.ssm.Parameter` (type `SecureString`) for **channelSecret** and **channelAccessToken**,
