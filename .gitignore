@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Pulumi
+Pulumi.*.yaml.bak
+.pulumi/
+
+# Logs / OS
+*.log
+.DS_Store

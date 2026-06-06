@@ -1,0 +1,339 @@
+
+## developers.line.biz
+
+- docs/developers.line.biz/en/docs/basics.md: LINE Platform basics
+- docs/developers.line.biz/en/docs/messaging-api.md: LINE Messaging API — overview index linking to API reference, development guidelines, and feature docs
+- docs/developers.line.biz/en/docs/line-developers-console.md: LINE Developers Console — overview, login, provider/channel setup, roles, and account management
+- docs/developers.line.biz/en/docs/line-social-plugins.md: LINE Social Plugins — overview, usage guidelines, Like button, Share button, and Add Friend button
+- docs/developers.line.biz/en/docs/liff.md: LINE Front-end Framework (LIFF)
+- docs/developers.line.biz/en/docs/line-login.md: LINE Login — OAuth 2.0 integration, PKCE, profile access, API v2.0/v2.1 references, SDK guides
+- docs/developers.line.biz/en/docs/basics/channel-access-token/index.md: Channel access token
+- docs/developers.line.biz/en/docs/basics/user-profile/index.md: Get user profile information
+- docs/developers.line.biz/en/docs/basics/line-api-status/index.md: Check the availability of the LINE Platform (LINE API Status)
+- docs/developers.line.biz/en/docs/line-developers-console/overview/index.md: LINE Developers Console overview
+- docs/developers.line.biz/en/docs/line-developers-console/login-account/index.md: Log in to the LINE Developers Console
+- docs/developers.line.biz/en/docs/line-developers-console/managing-roles/index.md: Managing roles
+- docs/developers.line.biz/en/docs/line-developers-console/best-practices-for-provider-and-channel-management/index.md: Best practices for provider and channel management
+- docs/developers.line.biz/en/docs/line-developers-console/notification/index.md: Receive notifications via email or the notification center
+- docs/developers.line.biz/en/docs/messaging-api/development-guidelines/index.md: Messaging API development guidelines
+- docs/developers.line.biz/en/reference/messaging-api/index.md: Messaging API reference
+- docs/developers.line.biz/en/docs/messaging-api/overview/index.md: Messaging API overview
+- docs/developers.line.biz/en/docs/messaging-api/message-types/index.md: Message types
+- docs/developers.line.biz/en/docs/messaging-api/getting-started/index.md: Get started with the Messaging API
+- docs/developers.line.biz/en/docs/messaging-api/generate-json-web-token/index.md: Issue channel access token v2.1
+- docs/developers.line.biz/en/docs/messaging-api/building-bot/index.md: Build a bot
+- docs/developers.line.biz/en/docs/messaging-api/pricing/index.md: Messaging API pricing
+- docs/developers.line.biz/en/docs/messaging-api/sending-messages/index.md: Send messages
+- docs/developers.line.biz/en/docs/messaging-api/text-character-count/index.md: Character counting in a text
+- docs/developers.line.biz/en/docs/messaging-api/getting-user-ids/index.md: Get user IDs
+- docs/developers.line.biz/en/docs/line-mini-app.md: LINE MINI App — LIFF-based mini app development guidelines, API reference, certification, deployment
+- docs/developers.line.biz/en/docs/messaging-api/using-audience/index.md: Use audiences
+- docs/developers.line.biz/en/docs/messaging-api/using-quick-reply/index.md: Use quick replies
+- docs/developers.line.biz/en/docs/messaging-api/unit-based-statistics-aggregation/index.md: Get statistics of sent messages
+- docs/developers.line.biz/en/docs/messaging-api/using-line-url-scheme/index.md: Use LINE features with the LINE URL scheme
+- docs/developers.line.biz/en/docs/messaging-api/using-beacons/index.md: Use beacons with LINE
+- docs/developers.line.biz/en/docs/messaging-api/sharing-bot/index.md: Gain friends of your LINE Official Account
+- docs/developers.line.biz/en/docs/messaging-api/linking-accounts/index.md: User account linking
+- docs/developers.line.biz/en/docs/messaging-api/icon-nickname-switch/index.md: Customize icon and display name
+- docs/developers.line.biz/en/docs/messaging-api/use-loading-indicator/index.md: Display a loading animation
+- docs/developers.line.biz/en/docs/messaging-api/use-membership-features/index.md: Use membership features
+- docs/developers.line.biz/en/docs/messaging-api/send-coupons-to-users/index.md: Create coupons and send them to users
+- docs/developers.line.biz/en/docs/messaging-api/get-quote-tokens/index.md: Get quote tokens
+- docs/developers.line.biz/en/docs/messaging-api/emoji-list.md: LINE emoji
+- docs/developers.line.biz/en/docs/messaging-api/mark-as-read/index.md: Mark messages as read
+- docs/developers.line.biz/en/docs/messaging-api/retrying-api-request/index.md: Retry failed API requests
+- docs/developers.line.biz/en/docs/messaging-api/stop-using-line-official-account/index.md: Stop using your LINE Official Account
+- docs/developers.line.biz/en/docs/messaging-api/stop-using-messaging-api/index.md: Stop using the Messaging API
+- docs/developers.line.biz/en/docs/messaging-api/sticker-list.md: [Send a sticker](#send-sticker)
+- docs/developers.line.biz/en/docs/messaging-api/measure-impressions/index.md: Measure impressions
+- docs/developers.line.biz/en/docs/messaging-api/nodejs-sample/index.md: Tutorial - Make a reply bot
+- docs/developers.line.biz/en/docs/messaging-api/receiving-messages/index.md: Receive messages (webhook)
+- docs/developers.line.biz/en/docs/messaging-api/verify-webhook-url/index.md: Verify webhook URL
+- docs/developers.line.biz/en/docs/messaging-api/verify-webhook-signature/index.md: Verify webhook signature
+- docs/developers.line.biz/en/docs/messaging-api/check-webhook-error-statistics/index.md: Check webhook error causes and statistics
+- docs/developers.line.biz/en/docs/messaging-api/ssl-tls-spec-of-the-webhook-source/index.md: SSL/TLS specification of the webhook source
+- docs/developers.line.biz/en/docs/messaging-api/rich-menus-overview/index.md: Rich menus overview
+- docs/developers.line.biz/en/docs/messaging-api/using-rich-menus/index.md: Use rich menus
+- docs/developers.line.biz/en/docs/messaging-api/use-per-user-rich-menus/index.md: Use per-user rich menus
+- docs/developers.line.biz/en/docs/messaging-api/switch-rich-menus/index.md: Switch between tabs on rich menus
+- docs/developers.line.biz/en/docs/messaging-api/try-rich-menu/index.md: Play with rich menus
+- docs/developers.line.biz/en/docs/messaging-api/using-bot-designer/index.md: LINE Bot Designer
+- docs/developers.line.biz/en/docs/messaging-api/download-bot-designer/index.md: Download LINE Bot Designer
+- docs/developers.line.biz/en/docs/messaging-api/using-flex-messages/index.md: Send Flex Messages
+- docs/developers.line.biz/en/docs/messaging-api/flex-message-elements/index.md: Flex Message elements
+- docs/developers.line.biz/en/docs/messaging-api/flex-message-layout/index.md: Flex Message layout
+- docs/developers.line.biz/en/docs/messaging-api/create-flex-message-including-video/index.md: Create a Flex Message including a video
+- docs/developers.line.biz/en/docs/messaging-api/using-flex-message-simulator/index.md: Tutorial - Create a digital business card with Flex Message Simulator
+- docs/developers.line.biz/en/docs/messaging-api/actions/index.md: Postback action
+- docs/developers.line.biz/en/docs/messaging-api/group-chats/index.md: Group chats and multi-person chats
+- docs/developers.line.biz/en/docs/messaging-api/user-consent/index.md: Consent on getting user profile information
+- docs/developers.line.biz/en/docs/messaging-api/beacon-device-spec/index.md: LINE Beacon device specification
+- docs/developers.line.biz/en/docs/messaging-api/secure-message-sample/index.md: Sample code and data for generating secure messages
+- docs/developers.line.biz/en/docs/messaging-api/line-bot-sdk/index.md: LINE Messaging API SDKs
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/skillbox/index.md: SkillBox technical case study: LINE notifications greatly increased usage rate of engagement surveys, even for employ...
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/resortbaito-dive/index.md: A case study on the development of \"Resort Baito Dive\" to enhance temporary staff satisfaction
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/heptagon/index.md: A case study of developing a LINE bot to handle inquiries related to relocation and settlement
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/evolany-ai/index.md: Technical case study of anybot for ChatGPT: achieving smoother communication by fully leveraging ChatGPT
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/playnext-lab/index.md: Technical case study of Smart Public Lab: LINE utilization strategy supporting administrative digital transformation
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/softbank/index.md: Introducing infrastructure as low code for LINE-based service development case study on improving development efficie...
+- docs/developers.line.biz/en/docs/messaging-api/technicalcase/boldly/index.md: A LINE MINI App case study of an on-demand autonomous bus reservation system
+- docs/developers.line.biz/en/docs/line-social-plugins/general/overview.md: LINE Social Plugins overview
+- docs/developers.line.biz/en/docs/line-social-plugins/general/guidelines.md: Usage Guidelines for the LINE Social Plugin
+- docs/developers.line.biz/en/docs/line-social-plugins/install-guide/using-add-friend-buttons.md: [About](#about)
+- docs/developers.line.biz/en/docs/line-social-plugins/install-guide/using-line-share-buttons.md: Using Share buttons
+- docs/developers.line.biz/en/docs/line-social-plugins/install-guide/using-like-buttons.md: [About](#about)
+- docs/developers.line.biz/en/reference/line-login/index.md: LINE Login v2.1 API reference
+- docs/developers.line.biz/en/docs/line-login/development-guidelines/index.md: LINE Login development guidelines
+- docs/developers.line.biz/en/docs/line-login/security-checklist/index.md: LINE Login security checklist
+- docs/developers.line.biz/en/docs/line-social-plugins/resources/release-notes.md: [Seamless sharing experience from desktop to mobile](#seamless-sharing-experience-from-desktop-to-mobile)
+- docs/developers.line.biz/en/docs/line-social-plugins/resources/design-guide.md: [Sample images](#sample-images)
+- docs/developers.line.biz/en/docs/line-login/overview/index.md: LINE Login overview
+- docs/developers.line.biz/en/docs/line-login/getting-started/index.md: Getting started with LINE Login
+- docs/developers.line.biz/en/docs/line-login/integrate-line-login/index.md: Integrating LINE Login with your web app
+- docs/developers.line.biz/en/docs/line-login/how-to-handle-auto-login-failure/index.md: How to handle auto login failure
+- docs/developers.line.biz/en/docs/line-login/integrate-pkce/index.md: PKCE support for LINE Login
+- docs/developers.line.biz/en/docs/line-login/link-a-bot/index.md: Add a LINE Official Account as a friend when logged in (add friend option)
+- docs/developers.line.biz/en/docs/line-login/secure-login-process/index.md: Creating a secure login process between your app and server
+- docs/developers.line.biz/en/docs/line-login/managing-access-tokens/index.md: Managing access tokens
+- docs/developers.line.biz/en/docs/line-login/verify-id-token/index.md: Get profile information from ID tokens
+- docs/developers.line.biz/en/docs/line-login/managing-users/index.md: Managing users
+- docs/developers.line.biz/en/docs/line-login/managing-authorized-apps/index.md: Managing authorized apps
+- docs/developers.line.biz/en/docs/line-login/login-button/index.md: LINE Login button design guidelines
+- docs/developers.line.biz/en/docs/line-login/using-line-url-scheme/index.md: Using LINE features with the LINE URL scheme
+- docs/developers.line.biz/en/reference/ios-sdk-swift.md: LINE SDK v5.10 for iOS Swift
+- docs/developers.line.biz/en/reference/android-sdk/reference/packages.md: Package Index - LINE SDK for Android (Ver 5.12.0)
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/overview.md: LINE SDK for iOS Swift overview
+- docs/developers.line.biz/en/reference/unity-sdk.md: LINE SDK for Unity Documentation
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/try-line-login.md: Trying the starter app
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/setting-up-project.md: Setting up your project
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/universal-links-support.md: Using universal links
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/integrate-line-login.md: Integrating LINE Login with your iOS app
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/link-a-bot.md: Enabling the add friend option with the SDK
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/managing-users.md: Getting user profiles
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/managing-access-tokens.md: Refreshing access tokens
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/error-handling.md: Handling errors
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/using-objc.md: Using the SDK with Objective-C code
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/swift/migration-guide.md: Upgrading the SDK
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/overview.md: LINE SDK for Android overview
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/try-line-login.md: Trying the sample app
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/link-a-bot.md: Enabling the add friend option with the SDK
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/integrate-line-login.md: Integrating LINE Login with your Android app
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/managing-users.md: Getting user profiles
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/managing-access-tokens.md: Refreshing access tokens
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/handling-errors.md: LINE Login Android SDK — error handling, getResponseCode() method, LineApiError codes and responses
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/overview.md: LINE SDK for Unity overview
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/project-setup.md: Setting up your project
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/try-line-login.md: Trying the starter app
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/integrate-line-login.md: Integrating LINE Login with your Unity game
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/using-sdk.md: Using LINE SDK for other APIs and result handling
+- docs/developers.line.biz/en/docs/line-login-sdks/flutter-sdk.md: LINE SDK for Flutter
+- docs/developers.line.biz/en/docs/line-login-sdks/ios-sdk/release-notes.md: Release notes for LINE SDK for iOS
+- docs/developers.line.biz/en/docs/line-login-sdks/android-sdk/release-notes.md: Release notes for LINE SDK for Android
+- docs/developers.line.biz/en/reference/liff/index.md: LIFF API reference
+- docs/developers.line.biz/en/reference/liff-server/index.md: Server API
+- docs/developers.line.biz/en/docs/liff/development-guidelines/index.md: LIFF app development guidelines
+- docs/developers.line.biz/en/docs/liff/overview/index.md: LIFF overview
+- docs/developers.line.biz/en/docs/line-login-sdks/unity-sdk/release-notes.md: Release notes for LINE SDK for Unity
+- docs/developers.line.biz/en/docs/liff/getting-started/index.md: Create a channel
+- docs/developers.line.biz/en/docs/liff/trying-liff-app/index.md: Trying the LIFF starter app
+- docs/developers.line.biz/en/docs/liff/cli-tool-create-liff-app/index.md: Building a LIFF app development environment with Create LIFF App
+- docs/developers.line.biz/en/docs/liff/registering-liff-apps/index.md: Adding a LIFF app to your channel
+- docs/developers.line.biz/en/docs/liff/developing-liff-apps/index.md: Developing a LIFF app
+- docs/developers.line.biz/en/docs/downloads.md: LINE API SDKs
+- docs/developers.line.biz/en/docs/liff/opening-liff-app/index.md: Opening a LIFF app
+- docs/developers.line.biz/en/docs/liff/minimizing-liff-browser/index.md: Minimizing LIFF browser
+- docs/developers.line.biz/en/docs/liff/using-user-profile/index.md: Using user data in LIFF apps and servers
+- docs/developers.line.biz/en/docs/liff/differences-between-liff-browser-and-line-in-app-browser/index.md: The differences between LIFF browser and LINE's in-app browser
+- docs/developers.line.biz/en/docs/liff/differences-between-liff-browser-and-external-browser/index.md: The differences between the LIFF browser and external browser
+- docs/developers.line.biz/en/docs/liff/liff-plugin/index.md: LIFF plugin
+- docs/developers.line.biz/en/docs/liff/liff-cli/index.md: LIFF CLI
+- docs/developers.line.biz/en/docs/liff/pluggable-sdk/index.md: Pluggable SDK
+- docs/developers.line.biz/en/docs/liff/versioning-policy/index.md: Versioning policy
+- docs/developers.line.biz/en/docs/liff/release-notes/index.md: Release notes
+- docs/developers.line.biz/en/reference/line-mini-app/index.md: LINE MINI App API reference
+- docs/developers.line.biz/en/docs/line-mini-app/development-guidelines/index.md: LINE MINI App development guidelines
+- docs/developers.line.biz/en/docs/line-mini-app/quickstart/index.md: Get started with LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/discover/introduction/index.md: Introducing LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/discover/console-guide/index.md: LINE Developers Console Guide for LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/discover/specifications/index.md: LINE MINI App specifications
+- docs/developers.line.biz/en/docs/line-mini-app/discover/builtin-features/index.md: Built-in features
+- docs/developers.line.biz/en/docs/line-mini-app/discover/custom-features/index.md: Custom features
+- docs/developers.line.biz/en/docs/line-mini-app/discover/ui-components/index.md: LINE MINI App UI components
+- docs/developers.line.biz/en/docs/line-mini-app/discover/native-mini/index.md: The differences between native apps and LINE MINI Apps
+- docs/developers.line.biz/en/docs/line-mini-app/design/landscape/index.md: Safe area of LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/design/line-mini-app-icon/index.md: LINE MINI App icon specifications and guidelines
+- docs/developers.line.biz/en/docs/line-mini-app/design/loading-icon/index.md: Loading icon
+- docs/developers.line.biz/en/docs/line-mini-app/develop/develop-overview/index.md: Create a LINE MINI App Channel
+- docs/developers.line.biz/en/docs/line-mini-app/develop/service-messages/index.md: Sending service messages
+- docs/developers.line.biz/en/docs/line-mini-app/develop/share-messages/index.md: Implementing a custom action button
+- docs/developers.line.biz/en/docs/line-mini-app/develop/custom-path/index.md: Configuring Custom Path
+- docs/developers.line.biz/en/docs/line-mini-app/develop/channel-consent-simplification/index.md: LINE MINI App authorization flow
+- docs/developers.line.biz/en/docs/line-mini-app/develop/payment/index.md: Handling payments
+- docs/developers.line.biz/en/docs/line-mini-app/develop/permanent-links/index.md: Creating permanent links
+- docs/developers.line.biz/en/docs/line-mini-app/develop/add-to-home-screen/index.md: Add a shortcut to your LINE MINI App to the home screen of the user's device
+- docs/developers.line.biz/en/docs/line-mini-app/develop/configure-console/index.md: Managing LINE MINI App settings on LINE Developers Console
+- docs/developers.line.biz/en/docs/line-mini-app/develop/external-browser/index.md: Open a LINE MINI App in an external browser
+- docs/developers.line.biz/en/docs/line-mini-app/develop/web-to-mini-app/index.md: Implementing web apps in operation as LINE MINI Apps
+- docs/developers.line.biz/en/docs/line-mini-app/develop/performance-guidelines/index.md: Performance guidelines
+- docs/developers.line.biz/en/docs/line-mini-app/quick-fill/overview/index.md: Overview of Common Profile Quick-fill
+- docs/developers.line.biz/en/docs/line-mini-app/quick-fill/design-regulations/index.md: Common Profile Quick-fill design regulations
+- docs/developers.line.biz/en/docs/line-mini-app/in-app-purchase/overview/index.md: In-app purchase overview
+- docs/developers.line.biz/en/docs/line-mini-app/in-app-purchase/iap-guidelines/index.md: In-app purchase development guidelines
+- docs/developers.line.biz/en/docs/line-mini-app/in-app-purchase/request-iap-review/index.md: Apply to use in-app purchase
+- docs/developers.line.biz/en/docs/line-mini-app/in-app-purchase/iap-settings/index.md: Set up in-app purchase
+- docs/developers.line.biz/en/docs/line-mini-app/in-app-purchase/implement-in-app-purchase/index.md: Integrate the in-app purchase feature
+- docs/developers.line.biz/en/docs/line-mini-app/submit/submission-guide/index.md: Submitting LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/service/service-operation/index.md: Running your service
+- docs/developers.line.biz/en/docs/line-mini-app/service/line-mini-app-ads/index.md: Place ads in LINE MINI Apps
+- docs/developers.line.biz/en/docs/line-mini-app/service/update-service/index.md: Re-review after updating your verified MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/service/line-mini-app-oa/index.md: Use LINE Official Account
+- docs/developers.line.biz/en/docs/line-mini-app/demo/reservation-demo/index.md: Store reservation demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/tableorder-demo/index.md: Table order demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/membership-demo/index.md: Membership card demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/mixwayapi-demo/index.md: Event experience demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/traisare-demo/index.md: Mobile experience demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/smartretail-demo/index.md: Purchase experience demo
+- docs/developers.line.biz/en/docs/line-mini-app/demo/maas-demo/index.md: Travel experience demo
+- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/kirifuda-morikaranotegami/index.md: Nature conservation through play: A technical case study of Letters from the Forest launched on the LINE MINI App
+- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/bravetechnology/index.md: 'How queue management solutions are scaling with the LINE MINI App: The development use case of "matoca" and "yoboca"'
+- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/classmethod/index.md: A case study of mobile order system CX ORDER
+- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/grandream/index.md: Technical case study of the GDL platform: achieving both cost-efficiency and flexibility
+- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/hakuhodo/index.md: A development case study of “PoHUNT,” a digital revitalization initiative for mobility and health promotion in Asahi ...
+- docs/developers.line.biz/en/reference/partner-docs/index.md: Options for corporate customers API reference
+- docs/developers.line.biz/en/reference/line-notification-messages/index.md: LINE notification messages API reference
+- docs/developers.line.biz/en/docs/partner-docs/development-guidelines/index.md: Development guidelines for corporate customers
+- docs/developers.line.biz/en/docs/partner-docs/api-policy-handbook/index.md: LINE API Policy Handbook
+- docs/developers.line.biz/en/docs/partner-docs/notice/index.md: Notice for corporate customers
+- docs/developers.line.biz/en/docs/partner-docs/overview/index.md: LINE Partner Docs — optional corporate functions: error notification, module, chat control overview
+- docs/developers.line.biz/en/docs/partner-docs/error-notification/index.md: Error notification
+- docs/developers.line.biz/en/docs/partner-docs/provider-page/index.md: Provider page
+- docs/developers.line.biz/en/docs/partner-docs/mission-stickers/index.md: Mission Sticker API
+- docs/developers.line.biz/en/docs/partner-docs/line-profile-plus/index.md: LINE Profile+
+- docs/developers.line.biz/en/docs/partner-docs/line-beacon/index.md: LINE Beacon
+- docs/developers.line.biz/en/docs/partner-docs/mark-as-read/index.md: Mark as read API (old)
+- docs/developers.line.biz/en/docs/partner-docs/line-notification-messages/overview/index.md: LINE notification messages overview
+- docs/developers.line.biz/en/docs/partner-docs/line-notification-messages/template/index.md: LINE notification messages (template)
+- docs/developers.line.biz/en/docs/partner-docs/line-notification-messages/technical-specs/index.md: Technical specifications of the LINE notification messages API
+- docs/developers.line.biz/en/docs/partner-docs/line-notification-messages/message-sending-complete-webhook-event/index.md: Webhook delivery completion event
+- docs/developers.line.biz/en/docs/partner-docs/line-notification-messages/flow-when-receiving-message/index.md: Flow when receiving a LINE notification message
+- docs/developers.line.biz/en/docs/partner-docs/module/index.md: LINE Partner Docs Module — corporate extension module, publishing, attach/detach channel operations
+- docs/developers.line.biz/en/docs/partner-docs/module-technical-attach-channel/index.md: Attach Module Channel
+- docs/developers.line.biz/en/docs/partner-docs/module-technical-chat-control/index.md: Control chat initiative (Chat Control)
+- docs/developers.line.biz/en/docs/partner-docs/module-technical-console/index.md: Configure module channel settings
+- docs/developers.line.biz/en/docs/partner-docs/module-technical-using-messaging-api/index.md: Using the Messaging API from a module channel
+- docs/developers.line.biz/en/trademark.md: About trademarks
+- docs/developers.line.biz/en/terms-and-policies.md: LINE Developers — terms of use, privacy policy, developer agreement, and LY Corporation policies
+- docs/developers.line.biz/en/about.md: About LINE Developers site
+
+## account.line.biz
+
+- docs/account.line.biz/login.md: LINEヤフーBusiness ID       LINE Business ID
+
+## pub.dev
+
+- docs/pub.dev/documentation/flutter_line_sdk/latest/flutter_line_sdk.md: flutter\_line\_sdk library
+
+## miniapp.line.me
+
+- docs/miniapp.line.me/lineminiapp_playground.md: Open page on your smartphone
+
+## other
+
+- docs/liff-playground.netlify.app.md: LIFF Playground
+
+## terms2.line.me
+
+- docs/terms2.line.me/LINE_MINI_App.md: LINE MINI App Policy — certification review guidelines, operating precautions, compliance requirements
+
+## pulumi.com
+
+- docs/pulumi.com/product.md: Pulumi — The unified platform for infrastructure teams.
+- docs/pulumi.com/pricing.md: Pulumi — Plans for teams of all sizes
+- docs/pulumi.com/product/neo.md: Pulumi — Meet Neo, your new AI infrastructure agent.
+- docs/pulumi.com/blog.md: Pulumi — Pulumi Blog
+- docs/pulumi.com/tutorials.md: Pulumi — Pulumi Tutorials[](#pulumi-tutorials)
+- docs/pulumi.com/what-is.md: Pulumi — Cloud Engineering Concepts Explained
+- docs/pulumi.com/templates.md: Pulumi — Pulumi Templates
+- docs/pulumi.com/case-studies.md: Pulumi — customer case studies showing real-world infrastructure automation at scale
+- docs/pulumi.com/automation.md: Pulumi — Automation API
+- docs/pulumi.com/whitepapers.md: Pulumi — whitepapers on cloud engineering, infrastructure as code, and modern cloud practices
+- docs/pulumi.com/security.md: Pulumi — Pulumi Security
+- docs/pulumi.com/community.md: Pulumi — Need Help?
+- docs/pulumi.com/docs.md: Pulumi — **Pulumi Docs**[](#pulumi-docs)
+- docs/pulumi.com/docs/install.md: Pulumi — Choose an operating system
+- docs/pulumi.com/docs/get-started.md: Pulumi — Additional resources
+- docs/pulumi.com/docs/iac.md: Pulumi — Infrastructure as Code
+- docs/pulumi.com/docs/esc.md: Pulumi — - type: full-width-cards
+- docs/pulumi.com/docs/deployments.md: Pulumi — Deployments & Workflows
+- docs/pulumi.com/docs/insights.md: Pulumi Insights — cloud infrastructure discovery, governance, security visibility, and policy enforcement
+- docs/pulumi.com/docs/ai.md: Pulumi — Infrastructure AI
+- docs/pulumi.com/docs/idp.md: Pulumi — Internal Developer Platform
+- docs/pulumi.com/docs/administration.md: Pulumi — Getting started[](#getting-started)
+- docs/pulumi.com/docs/integrations.md: Pulumi — Clouds[](#clouds)
+- docs/pulumi.com/docs/reference.md: Pulumi — Reference Documentation
+- docs/pulumi.com/docs/support.md: Pulumi — Support & Troubleshooting
+- docs/pulumi.com/blog/trigger-deployments-on-git-tags.md: Pulumi — Why tags?[](#why-tags)
+- docs/pulumi.com/blog/self-host-gemma4-llama-cpp-k8s-tailscale-pulumi.md: Pulumi — Use Your Mac for AI Agents: Self-Host Gemma 4 12 B with Pulumi and Tailscale
+- docs/pulumi.com/blog/eks-vcluster-ephemeral-environments-with-pulumi.md: Pulumi — Build an EKS Environment Factory with Pulumi and vCluster
+- docs/pulumi.com/blog/why-choose-pulumi-over-terraform.md: Pulumi — Why Choose Pulumi Over Terraform?
+- docs/pulumi.com/blog/parallel-coding-playbook-for-pulumi.md: Pulumi — Five Stacks Before Lunch: The Parallel Coding Playbook for Pulumi
+- docs/pulumi.com/blog/generating-a-pulumi-provider-from-an-openapi-spec.md: Pulumi — Why this matters for users[](#why-this-matters-for-users)
+- docs/pulumi.com/blog/stop-tuning-prompts-build-a-harness.md: Pulumi — Stop Tuning Prompts. Build a Harness.
+- docs/pulumi.com/blog/ai-infrastructure-tools.md: Pulumi — Best AI Infrastructure Tools in 2026
+- docs/pulumi.com/blog/neo-github-slack.md: Pulumi — Bringing Neo to GitHub and Slack
+- docs/pulumi.com/blog/pulumi-do-direct-resource-operations.md: Pulumi — Introducing pulumi do: Direct Resource Operations for Any Cloud
+
+## api.pulumi.com
+
+- docs/api.pulumi.com/api/registry/packages/pulumi/pulumi/aws/versions/latest/readme.md: Pulumi AWS provider v7.32.0 — overview, S3/Lambda/IAM/VPC resources, TypeScript/Python/Go/C# SDK
+- docs/pulumi.com/docs/iac/get-started/aws/create-project.md: Pulumi AWS — Create an AWS resource (S3 Bucket)
+- docs/pulumi.com/docs/iac/get-started/aws.md: Pulumi — Before you begin
+- docs/pulumi.com/docs/iac/get-started/aws/begin.md: Pulumi AWS — Get started with Pulumi and AWS
+- docs/pulumi.com/docs/iac/get-started/aws/destroy-stack.md: Pulumi AWS — Cleanup & destroy the stack
+- docs/pulumi.com/docs/iac/get-started/aws/modify-program.md: Pulumi AWS — Bucket ...
+- docs/pulumi.com/docs/iac/get-started/aws/deploy-stack.md: Pulumi AWS — Deploy to AWS
+- docs/pulumi.com/docs/iac/concepts.md: Pulumi — Supported languages and SDKs
+- docs/pulumi.com/docs/iac/languages-sdks/javascript.md: Pulumi — Installation requirements
+- docs/pulumi.com/docs/iac/concepts/projects.md: Pulumi — The project file (Pulumi.yaml) {#pulumi-yaml}
+- docs/pulumi.com/docs/iac/concepts/secrets.md: Pulumi — Creating secrets programmatically
+- docs/pulumi.com/docs/iac/concepts/config.md: Pulumi — Pulumi.dev.yaml
+- docs/pulumi.com/docs/iac/concepts/stacks.md: Pulumi — Before
+- docs/pulumi.com/docs/iac/concepts/resources.md: Pulumi — Related topics
+- docs/pulumi.com/docs/iac/concepts/inputs-outputs.md: Pulumi — What are inputs and outputs?
+- docs/pulumi.com/docs/integrations/clouds/aws.md: Pulumi — Infrastructure as Code
+- docs/pulumi.com/registry/packages/aws/installation-configuration.md: Pulumi AWS — Installation
+- docs/pulumi.com/registry/packages/aws.md: Pulumi — Example
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda.md: Pulumi AWS — aws.lambda
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2.md: Pulumi AWS — aws.apigatewayv2
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/permission.md: Pulumi AWS — aws.lambda.Permission
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/function.md: Pulumi AWS — aws.lambda.Function
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicyattachment.md: Pulumi AWS — aws.iam.RolePolicyAttachment
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicy.md: Pulumi AWS — aws.iam.RolePolicy
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/role.md: Pulumi AWS — aws.iam.Role
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretversion.md: Pulumi AWS — aws.secretsmanager.SecretVersion
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secret.md: Pulumi AWS — aws.secretsmanager.Secret
+- docs/pulumi.com/registry/packages/aws/api-docs/ssm/parameter.md: Pulumi AWS — aws.ssm.Parameter
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/api.md: Pulumi AWS — aws.apigatewayv2.Api
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/route.md: Pulumi AWS — aws.apigatewayv2.Route
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/stage.md: Pulumi AWS — aws.apigatewayv2.Stage
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/integration.md: Pulumi AWS — aws.apigatewayv2.Integration
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/deployment.md: Pulumi AWS — aws.apigatewayv2.Deployment
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/domainname.md: Pulumi AWS — aws.apigatewayv2.DomainName
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/callbackfunction.md: Pulumi AWS — aws.lambda.CallbackFunction
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/functionurl.md: Pulumi AWS — aws.lambda.FunctionUrl
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/eventsourcemapping.md: Pulumi AWS — aws.lambda.EventSourceMapping
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/getpolicydocument.md: Pulumi AWS — aws.iam.getPolicyDocument
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretrotation.md: Pulumi AWS — aws.secretsmanager.SecretRotation
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/policy.md: Pulumi AWS — aws.iam.Policy
+- docs/pulumi.com/registry/packages/aws/api-docs/ssm/getparameter.md: Pulumi AWS — aws.ssm.getParameter
+- docs/pulumi.com/docs/iac/concepts/resources/options.md: Pulumi — Resource options and component resources
+- docs/pulumi.com/docs/iac/concepts/components.md: Pulumi — Consuming components
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_up.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/concepts/state-and-backends.md: Pulumi — switch to the backend/stack we want to export
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_stack.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_new.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_config.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/exit-codes.md: Pulumi — Error Categories
+- docs/pulumi.com/docs/iac/cli/api.md: Pulumi — Subcommands
+- docs/pulumi.com/docs/reference/cloud-rest-api.md: Pulumi — Calling the API
+- docs/pulumi.com/registry.md: Pulumi — 1Password
