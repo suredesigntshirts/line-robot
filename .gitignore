@@ -12,6 +12,9 @@ coverage/
 .env
 .env.*
 !.env.example
+# Local scratch file where the user pastes LINE credentials before they're
+# loaded into Pulumi config — must never be committed.
+LINE.md
 
 # Pulumi
 Pulumi.*.yaml.bak
