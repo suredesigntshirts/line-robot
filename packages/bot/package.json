@@ -10,6 +10,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.102.0",
     "@aws-lambda-powertools/batch": "^2.33.1",
     "@aws-lambda-powertools/idempotency": "^2.33.1",
     "@aws-lambda-powertools/logger": "^2.33.1",
