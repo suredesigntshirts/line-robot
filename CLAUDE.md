@@ -35,4 +35,20 @@ Pulumi state is on a **local file backend** (`file://~`); secrets use a **passph
 - `npm --prefix packages/bot run test:integration` — integration against DynamoDB Local (needs docker).
 - `npm run lint` / `npm run typecheck` before committing.
 
+## Rich menu (one-time, after deploy)
+
+The persistent nav menu (My Listings / Upcoming / Search / Help) is a **data-plane LINE API call,
+not Pulumi infra**. Its shape lives in `packages/bot/src/adapters/line/richMenu.ts`; the tappable
+tabs fire the same postbacks the processor's `PostbackRouter` handles. To (re)install it:
+
+```bash
+export LINE_CHANNEL_ACCESS_TOKEN="$(cd infra && pulumi config get channelAccessToken)"
+npm --prefix packages/bot run build   # bundles dist/scripts/setup-rich-menu.mjs
+node packages/bot/dist/scripts/setup-rich-menu.mjs <menu-image.(png|jpeg)>
+```
+
+The image is a **2500×843 PNG/JPEG ≤1MB** the user supplies; its visuals are cosmetic (the four tap
+zones are defined by bounds, not the picture). The script is idempotent — it deletes any prior menu
+named `line-robot-main` before creating + setting the new one as default.
+
 Current build plan: `plans/09-realestate-catalog-assistant.md`.
