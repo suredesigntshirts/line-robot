@@ -45,6 +45,7 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
         spies.saved.push(message);
       },
       findRecent: async () => [],
+      findSince: async () => [],
     },
     catalog: {
       touchConversation: async (key, at) => {

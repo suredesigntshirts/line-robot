@@ -38,12 +38,7 @@
     {
       "Sid": "DataPlaneReadStagingForVerification",
       "Effect": "Allow",
-      "Action": [
-        "dynamodb:GetItem",
-        "dynamodb:BatchGetItem",
-        "dynamodb:Query",
-        "dynamodb:Scan"
-      ],
+      "Action": ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:Scan"],
       "Resource": [
         "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*",
         "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*/index/*"
@@ -165,6 +160,24 @@
       "Effect": "Allow",
       "Action": ["lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"],
       "Resource": "arn:aws:lambda:ap-southeast-1:259543826733:event-source-mapping:*"
+    },
+    {
+      "Sid": "EventBridgeRulesScopedToThisProject",
+      "Effect": "Allow",
+      "Action": [
+        "events:PutRule",
+        "events:DeleteRule",
+        "events:DescribeRule",
+        "events:EnableRule",
+        "events:DisableRule",
+        "events:PutTargets",
+        "events:RemoveTargets",
+        "events:ListTargetsByRule",
+        "events:ListTagsForResource",
+        "events:TagResource",
+        "events:UntagResource"
+      ],
+      "Resource": "arn:aws:events:ap-southeast-1:259543826733:rule/linerobot-*"
     },
     {
       "Sid": "IamRolesScopedToThisProject",

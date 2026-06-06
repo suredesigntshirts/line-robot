@@ -22,6 +22,7 @@ await Promise.all([
     entryPoints: ["src/lambda/processor.ts"],
     outfile: "dist/processor/index.mjs",
   }),
+  build({ ...common, entryPoints: ["src/lambda/sweep.ts"], outfile: "dist/sweep/index.mjs" }),
 ]);
 
-console.log("Built dist/ingest/index.mjs and dist/processor/index.mjs");
+console.log("Built dist/{ingest,processor,sweep}/index.mjs");

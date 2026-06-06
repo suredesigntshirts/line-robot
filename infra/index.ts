@@ -199,6 +199,38 @@ new aws.iam.RolePolicy("processor-policy", {
   }),
 });
 
+// Ingestion sweep: EventBridge-cron Lambda. Reads the sparse GSI1 for due conversations, claims
+// each (UpdateItem condition), batches its un-ingested messages from the messages table, then
+// releases it. Read-only on messages; read/write on the catalog tracker items + GSI1.
+const sweepRole = new aws.iam.Role("sweep-role", {
+  name: `${prefix}-sweep`,
+  assumeRolePolicy: lambdaAssumeRole,
+});
+new aws.iam.RolePolicyAttachment("sweep-basic", {
+  role: sweepRole.name,
+  policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+});
+new aws.iam.RolePolicy("sweep-policy", {
+  role: sweepRole.id,
+  policy: pulumi.jsonStringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        // findPending (Query GSI1) + claim/release (UpdateItem) + getConversation (GetItem).
+        Effect: "Allow",
+        Action: ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:UpdateItem"],
+        Resource: [catalogTable.arn, pulumi.interpolate`${catalogTable.arn}/index/*`],
+      },
+      {
+        // findSince: batch a conversation's messages (read-only).
+        Effect: "Allow",
+        Action: ["dynamodb:Query"],
+        Resource: messagesTable.arn,
+      },
+    ],
+  }),
+});
+
 // ---------------------------------------------------------------------------
 // Observability: explicit log groups with retention
 // ---------------------------------------------------------------------------
@@ -208,6 +240,10 @@ const ingestLogGroup = new aws.cloudwatch.LogGroup("ingest-logs", {
 });
 const processorLogGroup = new aws.cloudwatch.LogGroup("processor-logs", {
   name: `/aws/lambda/${prefix}-processor`,
+  retentionInDays: logRetentionDays,
+});
+const sweepLogGroup = new aws.cloudwatch.LogGroup("sweep-logs", {
+  name: `/aws/lambda/${prefix}-sweep`,
   retentionInDays: logRetentionDays,
 });
 
@@ -289,6 +325,50 @@ new aws.lambda.EventSourceMapping("processor-sqs", {
   functionResponseTypes: ["ReportBatchItemFailures"],
 });
 
+// Ingestion sweep — EventBridge-cron triggered (no Function URL, no SQS).
+const sweepFn = new aws.lambda.Function(
+  "sweep",
+  {
+    name: `${prefix}-sweep`,
+    runtime: aws.lambda.Runtime.NodeJS22dX,
+    architectures: ["arm64"],
+    handler: "index.handler",
+    code: new pulumi.asset.FileArchive("../packages/bot/dist/sweep"),
+    role: sweepRole.arn,
+    timeout: 60,
+    memorySize: 512,
+    publish: true,
+    environment: { variables: commonEnv },
+    loggingConfig: { logFormat: "JSON", logGroup: sweepLogGroup.name },
+  },
+  { dependsOn: [sweepLogGroup] },
+);
+
+new aws.lambda.Alias("sweep-alias", {
+  name: stack,
+  functionName: sweepFn.name,
+  functionVersion: sweepFn.version,
+});
+
+// Run the sweep on a fixed cadence. The debounce lives in the GSI1 readyAt key, so the cron just
+// needs to tick often enough to keep ingestion latency low (a due conversation waits at most one
+// interval past its readyAt).
+const sweepSchedule = new aws.cloudwatch.EventRule("sweep-schedule", {
+  name: `${prefix}-ingestion-sweep`,
+  description: "Trigger the debounced ingestion sweep",
+  scheduleExpression: "rate(2 minutes)",
+});
+new aws.cloudwatch.EventTarget("sweep-target", {
+  rule: sweepSchedule.name,
+  arn: sweepFn.arn,
+});
+new aws.lambda.Permission("sweep-invoke", {
+  action: "lambda:InvokeFunction",
+  function: sweepFn.name,
+  principal: "events.amazonaws.com",
+  sourceArn: sweepSchedule.arn,
+});
+
 // ---------------------------------------------------------------------------
 // Outputs
 // ---------------------------------------------------------------------------
@@ -299,3 +379,4 @@ export const catalogTableName = catalogTable.name;
 export const archiveBucketName = archiveBucket.bucket;
 export const eventsQueueUrl = eventsQueue.url;
 export const deadLetterQueueUrl = dlq.url;
+export const sweepFunctionName = sweepFn.name;

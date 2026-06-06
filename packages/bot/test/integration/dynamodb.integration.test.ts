@@ -132,6 +132,30 @@ describe("DynamoMessageRepository", () => {
     expect(recent[0]?.ref).toEqual(ref);
   });
 
+  it("findSince returns messages strictly newer than the watermark, oldest-first", async () => {
+    const repo = new DynamoMessageRepository(doc, MESSAGES_TABLE);
+    const ref = { kind: "user", userId: "Uwatermark" } as const;
+    const key = "user#Uwatermark";
+    const base = {
+      ref,
+      direction: "in",
+      contentType: "text",
+      webhookEventId: "ew",
+    } as const;
+    await repo.save({ ...base, messageId: "a", text: "t1", timestamp: 1000 });
+    await repo.save({ ...base, messageId: "b", text: "t2", timestamp: 2000 });
+    await repo.save({ ...base, messageId: "c", text: "t3", timestamp: 3000 });
+
+    // Never ingested → all of them, oldest-first (the natural batch order for extraction).
+    expect((await repo.findSince(key, 0)).map((m) => m.text)).toEqual(["t1", "t2", "t3"]);
+
+    // Watermark is inclusive of the last-ingested message, so 2000 itself is excluded.
+    expect((await repo.findSince(key, 2000)).map((m) => m.text)).toEqual(["t3"]);
+
+    // Watermark at/after the newest message → empty batch.
+    expect(await repo.findSince(key, 3000)).toEqual([]);
+  });
+
   it("scopes messages to their own conversation", async () => {
     const repo = new DynamoMessageRepository(doc, MESSAGES_TABLE);
     const userRef = { kind: "user", userId: "Ualone" } as const;

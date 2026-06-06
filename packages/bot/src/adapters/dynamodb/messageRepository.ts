@@ -120,6 +120,18 @@ export class DynamoMessageRepository implements MessageRepository {
       .go({ order: "desc", limit });
     return result.data.map(toStoredMessage);
   }
+
+  async findSince(conversationKey: string, sinceMs: number): Promise<StoredMessage[]> {
+    const result = await this.entity.query
+      .byConversation({ conversationKey })
+      // `gte` on the partial sort key (timestamp only) yields a superset: the composite sk carries
+      // `#messageId` after the timestamp, so a row at exactly `sinceMs` sorts past the bare bound.
+      .gte({ timestamp: sinceMs })
+      .go({ order: "asc", pages: "all" });
+    // The watermark is inclusive of the last-ingested message, so drop the boundary here — leaving
+    // an exact `timestamp > sinceMs` batch (the no-loss/no-duplicate contract from the plan).
+    return result.data.map(toStoredMessage).filter((m) => m.timestamp > sinceMs);
+  }
 }
 
 export function createMessageRepository(
