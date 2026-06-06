@@ -41,6 +41,26 @@ const idempotencyTable = new aws.dynamodb.Table("idempotency", {
   ttl: { attributeName: "expiration", enabled: true },
 });
 
+// Catalog: single-table design for the real-estate assistant (properties, Conv→Property edges,
+// conversation trackers, User↔Conv membership). GSI1 is the sparse "pending ingestion" index the
+// debounced sweep queries to find conversations with un-ingested messages (no table scan).
+const catalogTable = new aws.dynamodb.Table("catalog", {
+  name: `${prefix}-catalog`,
+  billingMode: "PAY_PER_REQUEST",
+  hashKey: "pk",
+  rangeKey: "sk",
+  attributes: [
+    { name: "pk", type: "S" },
+    { name: "sk", type: "S" },
+    { name: "gsi1pk", type: "S" },
+    { name: "gsi1sk", type: "S" },
+  ],
+  globalSecondaryIndexes: [
+    { name: "gsi1", hashKey: "gsi1pk", rangeKey: "gsi1sk", projectionType: "ALL" },
+  ],
+  pointInTimeRecovery: { enabled: true },
+});
+
 const archiveBucket = new aws.s3.BucketV2("archive", {
   bucketPrefix: `${prefix}-archive-`,
 });
@@ -161,7 +181,12 @@ new aws.iam.RolePolicy("processor-policy", {
           "dynamodb:DeleteItem",
           "dynamodb:Query",
         ],
-        Resource: [messagesTable.arn, idempotencyTable.arn],
+        Resource: [
+          messagesTable.arn,
+          idempotencyTable.arn,
+          catalogTable.arn,
+          pulumi.interpolate`${catalogTable.arn}/index/*`,
+        ],
       },
       {
         Effect: "Allow",
@@ -192,6 +217,7 @@ const processorLogGroup = new aws.cloudwatch.LogGroup("processor-logs", {
 const commonEnv: Record<string, pulumi.Input<string>> = {
   MESSAGES_TABLE: messagesTable.name,
   IDEMPOTENCY_TABLE: idempotencyTable.name,
+  CATALOG_TABLE: catalogTable.name,
   ARCHIVE_BUCKET: archiveBucket.bucket,
   QUEUE_URL: eventsQueue.url,
   CHANNEL_SECRET_PARAM: channelSecretParam.name,
@@ -269,6 +295,7 @@ new aws.lambda.EventSourceMapping("processor-sqs", {
 export const webhookUrl = ingestUrl.functionUrl;
 export const messagesTableName = messagesTable.name;
 export const idempotencyTableName = idempotencyTable.name;
+export const catalogTableName = catalogTable.name;
 export const archiveBucketName = archiveBucket.bucket;
 export const eventsQueueUrl = eventsQueue.url;
 export const deadLetterQueueUrl = dlq.url;

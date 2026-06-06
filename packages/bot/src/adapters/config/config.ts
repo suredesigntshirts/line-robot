@@ -13,6 +13,8 @@ const EnvSchema = z.object({
   QUEUE_URL: z.string().min(1).optional(),
   CHANNEL_SECRET_PARAM: z.string().min(1),
   CHANNEL_ACCESS_TOKEN_PARAM: z.string().min(1),
+  // Catalog table — used by the processor and the ingestion/reminder sweeps, not by ingest.
+  CATALOG_TABLE: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
