@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["test/**/*.test.ts"],
+    include: ["test/unit/**/*.test.ts"],
     coverage: {
       provider: "istanbul",
       // `all: true` reports every source file, so untested code can't hide by being unimported.
