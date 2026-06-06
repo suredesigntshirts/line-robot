@@ -36,6 +36,20 @@
       "Resource": "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*"
     },
     {
+      "Sid": "DataPlaneReadStagingForVerification",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:GetItem",
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:Scan"
+      ],
+      "Resource": [
+        "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*",
+        "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*/index/*"
+      ]
+    },
+    {
       "Sid": "S3",
       "Effect": "Allow",
       "Action": ["s3:*"],
