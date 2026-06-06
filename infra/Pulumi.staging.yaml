@@ -1,5 +1,15 @@
 config:
   aws:region: ap-southeast-1
+  # Stamp every taggable AWS resource so this project is distinguishable from others
+  # sharing the account (Cost Explorer / Tag Editor filter on Project=line-robot).
+  aws:defaultTags:
+    tags:
+      Project: line-robot
+      Environment: staging
+      ManagedBy: pulumi
   # Secrets are set out-of-band and stored encrypted (not committed in plaintext):
   #   pulumi config set --secret channelSecret <staging channel secret>
   #   pulumi config set --secret channelAccessToken <staging access token>
+  # Deploy identity: Pulumi authenticates as the dedicated, project-scoped IAM user
+  # (line-robot-deploy) via this profile — never under another project's credentials.
+  aws:profile: line-robot
