@@ -1,8 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { EventProcessor, type EventProcessorDeps } from "../../src/app/eventProcessor.js";
 import { type ConversationRef, conversationKey } from "../../src/core/domain/conversation.js";
-import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
-import { EchoHandler } from "../../src/core/handlers/echoHandler.js";
+import type {
+  IncomingMessage,
+  OutboundMessage,
+  StoredMessage,
+} from "../../src/core/domain/message.js";
+import type { MessageHandler } from "../../src/core/ports/messageHandler.js";
+
+/** A stand-in echo handler — the processor tests exercise reply/push/persist plumbing, not the
+ * real CommandHandler's catalog logic (which has its own tests). */
+const echoHandler: MessageHandler = {
+  handle: async (message: IncomingMessage) =>
+    message.contentType === "text" && message.text !== undefined && message.text !== ""
+      ? [{ type: "text", text: message.text }]
+      : [],
+};
 
 interface Spies {
   archived: { id: string; ref: ConversationRef }[];
@@ -64,7 +77,9 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
       listUserConversations: async () => [],
       upsertProperty: async () => {},
       getProperty: async () => null,
+      deleteProperty: async () => {},
       linkConversationProperty: async () => {},
+      unlinkConversationProperty: async () => {},
       listConversationProperties: async () => [],
       listPropertiesForUser: async () => [],
     },
@@ -77,7 +92,7 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
         return Buffer.from("FAKEIMG");
       },
     },
-    handler: new EchoHandler(),
+    handler: echoHandler,
     gateway: {
       reply: async (token, messages) => {
         if (opts.replyThrows) {

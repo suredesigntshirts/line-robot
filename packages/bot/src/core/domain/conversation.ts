@@ -30,3 +30,17 @@ export function pushTarget(ref: ConversationRef): string {
       return ref.roomId;
   }
 }
+
+/**
+ * The user who sent/owns a message or interaction: the peer in a DM, the sender in a group/room
+ * (undefined when LINE didn't include a sender). Drives membership edges and "show *my* listings".
+ */
+export function senderUserId(ref: ConversationRef): string | undefined {
+  switch (ref.kind) {
+    case "user":
+      return ref.userId;
+    case "group":
+    case "room":
+      return ref.senderUserId;
+  }
+}

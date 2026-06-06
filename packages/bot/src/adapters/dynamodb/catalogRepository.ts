@@ -389,12 +389,20 @@ export class DynamoCatalogRepository implements CatalogRepository {
     return result.data ? toProperty(result.data) : null;
   }
 
+  async deleteProperty(propertyId: string): Promise<void> {
+    await this.property.delete({ propertyId }).go();
+  }
+
   async linkConversationProperty(
     conversationKey: string,
     propertyId: string,
     nowMs: number,
   ): Promise<void> {
     await this.convProperty.upsert({ conversationKey, propertyId, updatedAt: nowMs }).go();
+  }
+
+  async unlinkConversationProperty(conversationKey: string, propertyId: string): Promise<void> {
+    await this.convProperty.delete({ conversationKey, propertyId }).go();
   }
 
   async listConversationProperties(conversationKey: string): Promise<string[]> {

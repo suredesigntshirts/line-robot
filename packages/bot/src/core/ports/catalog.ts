@@ -63,12 +63,19 @@ export interface CatalogRepository {
 
   getProperty(propertyId: string): Promise<Property | null>;
 
+  /** Delete a property's META row. Used when merging a just-created (still single-conversation)
+   * property into an existing one — the new row is removed after its fields move over. */
+  deleteProperty(propertyId: string): Promise<void>;
+
   /** Upsert a Conv→Property edge `CONV#<conversationKey> → PROP#<propertyId>`. */
   linkConversationProperty(
     conversationKey: string,
     propertyId: string,
     nowMs: number,
   ): Promise<void>;
+
+  /** Remove a Conv→Property edge (e.g. after re-pointing a merged property). */
+  unlinkConversationProperty(conversationKey: string, propertyId: string): Promise<void>;
 
   /** Property ids discussed in (scoped to) this conversation — dedup candidates + this chat's
    * listings. */

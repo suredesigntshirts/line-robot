@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { IncomingMessage } from "../../src/core/domain/message.js";
-import { EchoHandler } from "../../src/core/handlers/echoHandler.js";
 import {
   CompositeMessageHandler,
   createDefaultMessageHandler,
 } from "../../src/core/handlers/registry.js";
 import type { MessageHandler } from "../../src/core/ports/messageHandler.js";
+import { FakeCatalog } from "../fixtures/fakeCatalog.js";
 
 function msg(partial: Partial<IncomingMessage> = {}): IncomingMessage {
   return {
@@ -20,24 +20,6 @@ function msg(partial: Partial<IncomingMessage> = {}): IncomingMessage {
   };
 }
 
-describe("EchoHandler", () => {
-  const handler = new EchoHandler();
-
-  it("echoes text straight back", async () => {
-    expect(await handler.handle(msg({ text: "hi there" }))).toEqual([
-      { type: "text", text: "hi there" },
-    ]);
-  });
-
-  it("ignores non-text content", async () => {
-    expect(await handler.handle(msg({ contentType: "sticker", text: undefined }))).toEqual([]);
-  });
-
-  it("ignores empty text", async () => {
-    expect(await handler.handle(msg({ text: "" }))).toEqual([]);
-  });
-});
-
 describe("CompositeMessageHandler", () => {
   it("returns the first non-empty handler result", async () => {
     const silent: MessageHandler = { handle: async () => [] };
@@ -48,13 +30,20 @@ describe("CompositeMessageHandler", () => {
 
   it("returns nothing when all handlers are silent", async () => {
     const silent: MessageHandler = { handle: async () => [] };
-    const composite = new CompositeMessageHandler([silent, silent]);
-    expect(await composite.handle(msg())).toEqual([]);
+    expect(await new CompositeMessageHandler([silent, silent]).handle(msg())).toEqual([]);
   });
+});
 
-  it("default handler echoes text", async () => {
-    expect(await createDefaultMessageHandler().handle(msg({ text: "yo" }))).toEqual([
-      { type: "text", text: "yo" },
-    ]);
+describe("createDefaultMessageHandler", () => {
+  it("wires a working catalog command handler", async () => {
+    const catalog = new FakeCatalog();
+    catalog.seedMembership("U1", "user#U1");
+    catalog
+      .seedProperty({ propertyId: "p1", normalizedAddress: "1 Sukhumvit" })
+      .seedEdge("user#U1", "p1");
+    const handler = createDefaultMessageHandler({ catalog, clock: { now: () => 1 } });
+
+    expect((await handler.handle(msg({ text: "my listings" })))[0]?.type).toBe("flex");
+    expect(await handler.handle(msg({ text: "just chatting about nothing" }))).toEqual([]);
   });
 });

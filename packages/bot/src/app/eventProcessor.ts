@@ -1,5 +1,10 @@
 import { parseRawEvent } from "../adapters/line/webhookParser.js";
-import { type ConversationRef, conversationKey, pushTarget } from "../core/domain/conversation.js";
+import {
+  type ConversationRef,
+  conversationKey,
+  pushTarget,
+  senderUserId,
+} from "../core/domain/conversation.js";
 import type { InboundEvent } from "../core/domain/events.js";
 import type {
   IncomingMessage,
@@ -49,18 +54,6 @@ function eventRef(event: InboundEvent): ConversationRef | undefined {
       return event.ref;
     default:
       return undefined;
-  }
-}
-
-/** The user who sent/owns a message, for membership edges: the peer in a DM, the sender in a
- * group/room (absent if LINE didn't include a sender). */
-function senderUserId(ref: ConversationRef): string | undefined {
-  switch (ref.kind) {
-    case "user":
-      return ref.userId;
-    case "group":
-    case "room":
-      return ref.senderUserId;
   }
 }
 

@@ -39,13 +39,14 @@ async function buildDeps(): Promise<Deps> {
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
+  const catalog = new DynamoCatalogRepository(doc, env.CATALOG_TABLE);
 
   const processor = new EventProcessor({
     archive: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
-    catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
+    catalog,
     content: createLineContentClient(channelAccessToken),
-    handler: createDefaultMessageHandler(),
+    handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK }),
     gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,
