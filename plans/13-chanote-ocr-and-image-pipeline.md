@@ -111,12 +111,21 @@ stale-timeout lets a later sweep re-claim and now succeed.
 |---|---|
 | `app/eventProcessor.ts` | After fetching the LINE blob, sniff magic bytes → `image/jpeg` (FFD8FF) / `image/png` (89504E47) / `image/gif` (474946) / `image/webp` (RIFF…WEBP); fall back to the current best-guess. Use the sniffed type for the S3 `Content-Type` + key extension (today `"image"` hard-codes `image/jpeg`). |
 
-## Increment 6 — two-pass extraction (segment → per-property) + per-segment attribution — IMPLEMENTED
+## Increment 6 — two-pass extraction (segment → per-property) + per-segment attribution — DONE & LIVE
 
-Implemented + tested (176 unit / 24 integration). Transcript is timestamped (second resolution, so
-burst/gap structure is visible) with `[IMG n]`/`[MAP n]` markers; pass 1 segments + attributes by
-index; pass 2 extracts each property focused. Photo subtype label (`PropertyPhoto.label`) added too.
-Fallback to single-pass when segmentation returns null. Pending deploy + blank-slate wipe.
+Deployed (`26ca152`, code-only 6 updated/40 unchanged). 176 unit / 24 integration green. Transcript
+is timestamped (second resolution, so burst/gap structure is visible) with `[IMG n]`/`[MAP n]`
+markers; pass 1 segments + attributes media by index; pass 2 extracts each property focused (no
+dilution); fallback to single-pass when segmentation returns null. Photo subtype label
+(`PropertyPhoto.label`, e.g. "external - front") added. **Blank-slate wipe executed** afterwards
+(admin profile): catalog 0 / messages 0 / S3 0 — re-share to test the new pipeline fresh.
+
+### Debug finding that drove inc 6
+First live batch (group chat, 33 msgs) held two properties; the sparse one was NOT a context/
+truncation issue — multi-property batches attributed photos/map/chanote to NEITHER property (the
+old single-property guard), so both group listings lost their photos. Two-pass fixes attribution +
+dilution. Mooban Wangtan stays text-sparse because its details live only in photos we don't
+deep-extract — expected, not a bug.
 
 **Why:** Debugging the first live batch (group chat, 33 msgs) found the model returned two properties
 but one (Mooban Wangtan) was sparse, and — the real bug — **multi-property batches attribute photos /
