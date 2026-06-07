@@ -35,3 +35,33 @@ describe("buildRichMenu", () => {
     expect(RICH_MENU_TABS).toEqual(["My Listings", "Upcoming", "Search", "Help"]);
   });
 });
+
+describe("buildRichMenu with a LIFF URL (Catalog tab)", () => {
+  const liffUrl = "https://liff.line.me/2010316764-abcdef";
+  const menu = buildRichMenu({ liffUrl });
+
+  it("adds a fifth tab that tiles edge-to-edge to 2500", () => {
+    const areas = menu.areas ?? [];
+    expect(areas).toHaveLength(5);
+    let cursor = 0;
+    for (const area of areas) {
+      expect(area.bounds?.x).toBe(cursor);
+      cursor += area.bounds?.width ?? 0;
+    }
+    expect(cursor).toBe(2500);
+  });
+
+  it("makes the Catalog tab a uri action opening the LIFF URL, before Help", () => {
+    const areas = menu.areas ?? [];
+    const catalog = areas[3]?.action;
+    expect(catalog?.type).toBe("uri");
+    expect(catalog?.type === "uri" ? catalog.uri : undefined).toBe(liffUrl);
+    // Help stays last and stays a postback.
+    const help = areas[4]?.action;
+    expect(help?.type).toBe("postback");
+  });
+
+  it("omits the Catalog tab when the LIFF URL is empty", () => {
+    expect(buildRichMenu({ liffUrl: "" }).areas).toHaveLength(4);
+  });
+});

@@ -28,6 +28,11 @@ await Promise.all([
     entryPoints: ["src/lambda/reminder.ts"],
     outfile: "dist/reminder/index.mjs",
   }),
+  build({
+    ...common,
+    entryPoints: ["src/lambda/read-api.ts"],
+    outfile: "dist/read-api/index.mjs",
+  }),
   // Operational CLI (not deployed): the rich-menu setup. Bundled so it can be run with plain `node`.
   build({
     ...common,
@@ -38,5 +43,5 @@ await Promise.all([
 ]);
 
 console.log(
-  "Built dist/{ingest,processor,sweep,reminder}/index.mjs + dist/scripts/setup-rich-menu.mjs",
+  "Built dist/{ingest,processor,sweep,reminder,read-api}/index.mjs + dist/scripts/setup-rich-menu.mjs",
 );

@@ -6,11 +6,14 @@
  *
  * Usage:
  *   export LINE_CHANNEL_ACCESS_TOKEN="$(cd infra && pulumi config get channelAccessToken)"
+ *   # Optional: add the MINI App "Catalog" tab (a uri action). Known only after LIFF registration.
+ *   export LIFF_URL="https://liff.line.me/<liffId>"
  *   npm --prefix packages/bot run build        # bundles dist/scripts/setup-rich-menu.mjs
  *   node packages/bot/dist/scripts/setup-rich-menu.mjs <menu-image.(png|jpeg)>
  *
- * The image must be a 2500x843 PNG/JPEG ≤1MB. Its visuals are cosmetic — the four tappable tabs are
- * defined by {@link ../src/adapters/line/richMenu}'s bounds, not by the picture.
+ * The image must be a 2500x843 PNG/JPEG ≤1MB. Its visuals are cosmetic — the tappable tabs are
+ * defined by {@link ../src/adapters/line/richMenu}'s bounds, not by the picture. With `LIFF_URL` set
+ * the menu gains a fifth "Catalog" tab; without it, the original four tabs.
  */
 import { readFileSync } from "node:fs";
 import { messagingApi } from "@line/bot-sdk";
@@ -29,6 +32,9 @@ async function main(): Promise<void> {
   if (imagePath === undefined) {
     throw new Error("Usage: setup-rich-menu <image.(png|jpeg)>  (2500x843, ≤1MB)");
   }
+  // The MINI App "Catalog" tab is a uri action; its LIFF URL is only known after registration, so
+  // it's injected here (env or 2nd arg) rather than hard-coded. Absent → the original 4-tab menu.
+  const liffUrl = process.env.LIFF_URL ?? process.argv[3];
 
   const client = new messagingApi.MessagingApiClient({ channelAccessToken: token });
   const blob = new messagingApi.MessagingApiBlobClient({ channelAccessToken: token });
@@ -42,7 +48,7 @@ async function main(): Promise<void> {
     }
   }
 
-  const { richMenuId } = await client.createRichMenu(buildRichMenu());
+  const { richMenuId } = await client.createRichMenu(buildRichMenu({ liffUrl }));
   const contentType = imagePath.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg";
   await blob.setRichMenuImage(
     richMenuId,

@@ -37,7 +37,9 @@ export function formatPrice(price?: number, currency?: string): string | undefin
   return ccy === "THB" ? `฿${amount}` : `${amount} ${ccy}`;
 }
 
-function area(property: Property): string | undefined {
+/** "Subdistrict, District, Province" from the present location parts, or undefined when none.
+ * Exported so the mini-app DTO mapper ({@link ./catalogDto}) reuses the same area string. */
+export function area(property: Property): string | undefined {
   const parts = [property.subdistrict, property.district, property.province].filter(
     (p): p is string => p !== undefined && p !== "",
   );
@@ -113,8 +115,9 @@ const STATUS_EMOJI: Record<string, string> = {
   dropped: "⚪",
 };
 
-/** "🟡 Negotiating" — the status with a leading emoji badge and a capitalized label. */
-function statusBadge(status?: string): string | undefined {
+/** "🟡 Negotiating" — the status with a leading emoji badge and a capitalized label. Exported so the
+ * mini-app DTO mapper ({@link ./catalogDto}) renders the same badge as the Flex cards. */
+export function statusBadge(status?: string): string | undefined {
   if (status === undefined || status === "") {
     return undefined;
   }
@@ -279,7 +282,7 @@ export function propertyDetail(
   return { type: "flex", altText: `📍 ${title}`, cards: [card] };
 }
 
-/** Render (presigned) image urls as a swipeable gallery; each bubble opens its image at full size.
+/** Render (presigned) image urls as a swipeable gallery of full-width image bubbles.
  * Empty list → a friendly text fallback (e.g. a listing with no photos). */
 export function imageCarouselMessage(
   imageUrls: readonly string[],

@@ -1,0 +1,356 @@
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #1c1c1e;
+  --muted: #8a8a8e;
+  --line: #e4e5e8;
+  --accent: #06c755; /* LINE green */
+  --accent-weak: #e6f7ee;
+  --radius: 12px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --text: #f2f2f7;
+    --muted: #98989f;
+    --line: #2c2c2e;
+    --accent: #06c755;
+    --accent-weak: #15321f;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    "Noto Sans Thai", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.screen {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 12px 14px calc(28px + env(safe-area-inset-bottom));
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 12px;
+}
+
+.app-header h1 {
+  font-size: 22px;
+  margin: 0;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 13px;
+}
+
+.center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 16px;
+  text-align: center;
+}
+
+/* Search + chips + sort */
+.search {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  font-size: 16px; /* ≥16px avoids iOS zoom-on-focus */
+  margin-bottom: 10px;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.chip-active {
+  background: var(--accent-weak);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 14px;
+}
+.sort {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* List cards */
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: inherit;
+  text-align: left;
+  align-items: stretch;
+}
+.card:active {
+  background: var(--accent-weak);
+}
+
+.card-hero {
+  flex: 0 0 96px;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--line);
+}
+.card-hero-empty {
+  display: block;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.card-title {
+  font-weight: 600;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-price {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.badge {
+  align-self: flex-start;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  color: var(--text);
+}
+
+/* Detail */
+.back {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 16px;
+  padding: 4px 0;
+}
+
+.detail-title {
+  font-size: 22px;
+  margin: 0 0 6px;
+}
+.detail-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.detail-price {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.fields {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 4px 14px;
+  margin: 12px 0;
+}
+.field {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+.field:last-child {
+  border-bottom: none;
+}
+.field-label {
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+.field-value {
+  text-align: right;
+  word-break: break-word;
+}
+
+.section-title {
+  font-size: 15px;
+  margin: 12px 0 2px;
+}
+.chanote .section-title {
+  color: var(--accent);
+}
+
+/* Gallery */
+.gallery {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-bottom: 8px;
+  margin: 8px 0;
+  scrollbar-width: none;
+}
+.gallery::-webkit-scrollbar {
+  display: none;
+}
+.gallery-item {
+  flex: 0 0 86%;
+  scroll-snap-align: center;
+  margin: 0;
+}
+.gallery-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+}
+.gallery-item img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  border-radius: var(--radius);
+  background: var(--line);
+}
+.gallery-item figcaption {
+  padding: 6px 2px 0;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  border: none;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  overflow: auto;
+}
+.lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  touch-action: pinch-zoom;
+}
+
+/* Map */
+.map {
+  height: 220px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin: 12px 0;
+  border: 1px solid var(--line);
+}
+
+/* Buttons */
+.btn {
+  display: inline-block;
+  padding: 11px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  text-align: center;
+}
+.btn-block {
+  display: block;
+  width: 100%;
+  margin: 6px 0 4px;
+}
+
+.stamps {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+/* Spinner */
+.spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

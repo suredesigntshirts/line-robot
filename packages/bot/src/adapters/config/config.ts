@@ -17,6 +17,9 @@ const EnvSchema = z.object({
   CATALOG_TABLE: z.string().min(1).optional(),
   // Anthropic API key SSM param — used by the ingestion sweep for extraction, not by ingest/processor.
   ANTHROPIC_API_KEY_PARAM: z.string().min(1).optional(),
+  // MINI App (LIFF) channel id — the `aud` the read-api validates id-tokens against. Plain config
+  // (a channel id is public), only required by the read-api Lambda.
+  LIFF_CHANNEL_ID: z.string().min(1).optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
