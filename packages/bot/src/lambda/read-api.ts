@@ -2,23 +2,17 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import { loadEnv } from "../adapters/config/config.js";
+import { loadReadApiEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { LineIdTokenVerifier } from "../adapters/line/lineTokenVerifier.js";
 import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { handleReadApi, type ReadApiDeps } from "../app/readApiHandler.js";
+import { SYSTEM_CLOCK } from "../lib/clock.js";
+import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
 
-const SYSTEM_CLOCK = { now: () => Date.now() };
-
 async function buildDeps(): Promise<ReadApiDeps> {
-  const env = loadEnv();
-  if (env.CATALOG_TABLE === undefined) {
-    throw new Error("CATALOG_TABLE is required for the read-api Lambda");
-  }
-  if (env.LIFF_CHANNEL_ID === undefined) {
-    throw new Error("LIFF_CHANNEL_ID is required for the read-api Lambda");
-  }
+  const env = loadReadApiEnv();
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
@@ -35,12 +29,7 @@ async function buildDeps(): Promise<ReadApiDeps> {
 }
 
 // Memoize across warm invocations (cold-start singleton, like the other Lambdas).
-let depsPromise: Promise<ReadApiDeps> | undefined;
-
-function getDeps(): Promise<ReadApiDeps> {
-  depsPromise ??= buildDeps();
-  return depsPromise;
-}
+const getDeps = lazySingleton(buildDeps);
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   return handleReadApi(await getDeps(), event);

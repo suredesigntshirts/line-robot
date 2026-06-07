@@ -73,3 +73,22 @@ export async function loadSecrets(env: Env, maxAge = 300): Promise<Secrets> {
   ]);
   return { channelSecret, channelAccessToken };
 }
+
+/**
+ * Scoped env for the read-only read-api Lambda. It only needs the catalog table, the archive
+ * bucket (to presign photos), and the public LIFF channel id (id-token `aud`). It has NO IAM grant
+ * for the message/idempotency tables, the SSM secret params, or the queue — so it must not require
+ * (or carry) them. All three are required-non-optional here, replacing the by-hand `undefined`
+ * guards in the entry point.
+ */
+const ReadApiEnvSchema = z.object({
+  CATALOG_TABLE: z.string().min(1),
+  ARCHIVE_BUCKET: z.string().min(1),
+  LIFF_CHANNEL_ID: z.string().min(1),
+});
+
+export type ReadApiEnv = z.infer<typeof ReadApiEnvSchema>;
+
+export function loadReadApiEnv(source: NodeJS.ProcessEnv = process.env): ReadApiEnv {
+  return ReadApiEnvSchema.parse(source);
+}

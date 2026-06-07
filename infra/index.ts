@@ -579,6 +579,17 @@ new aws.lambda.Permission("reminder-invoke", {
 // PUBLIC, so plain config (not a secret). Staging = the Developing internal channel (2010316764).
 const liffChannelId = config.require("liffChannelId");
 
+// read-api is READ-ONLY: only the catalog table, the archive bucket, and the public LIFF channel
+// id (id-token aud). It has no IAM grant for the message/idempotency tables, SSM params, or queue,
+// so it must not carry them — loadReadApiEnv() validates exactly this set.
+const readApiEnv: Record<string, pulumi.Input<string>> = {
+  CATALOG_TABLE: catalogTable.name,
+  ARCHIVE_BUCKET: archiveBucket.bucket,
+  LIFF_CHANNEL_ID: liffChannelId,
+  POWERTOOLS_SERVICE_NAME: "line-robot",
+  POWERTOOLS_LOG_LEVEL: "INFO",
+};
+
 // read-api role — READ-ONLY: Query/GetItem on the catalog (+ its GSIs) and GetObject on the archive
 // (to presign photo URLs). No writes, no SSM, no SQS, no Anthropic — id-token verification is an
 // outbound HTTPS call carrying only the public client_id, so it needs no AWS creds and no secret.
@@ -628,9 +639,10 @@ const readApiFn = new aws.lambda.Function(
     timeout: 10,
     memorySize: 256,
     publish: true,
-    // LIFF_CHANNEL_ID added only here (not in the shared commonEnv) so the existing Lambdas stay
-    // byte-identical — this deploy is purely additive.
-    environment: { variables: { ...commonEnv, LIFF_CHANNEL_ID: liffChannelId } },
+    // Scoped env (not the shared commonEnv): read-api validates only CATALOG_TABLE / ARCHIVE_BUCKET
+    // / LIFF_CHANNEL_ID via loadReadApiEnv(), matching its read-only IAM role — it has no grant for
+    // the message/idempotency tables, SSM params, or queue, so it must not carry them.
+    environment: { variables: readApiEnv },
     loggingConfig: { logFormat: "JSON", logGroup: readApiLogGroup.name },
   },
   { dependsOn: [readApiLogGroup] },

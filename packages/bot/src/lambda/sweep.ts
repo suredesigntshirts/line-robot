@@ -12,9 +12,9 @@ import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.
 import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { IngestionSweep } from "../app/ingestionSweep.js";
+import { SYSTEM_CLOCK } from "../lib/clock.js";
+import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
-
-const SYSTEM_CLOCK = { now: () => Date.now() };
 
 async function buildSweep(): Promise<IngestionSweep> {
   const env = loadEnv();
@@ -46,9 +46,8 @@ async function buildSweep(): Promise<IngestionSweep> {
 }
 
 // Memoize the built sweep (incl. warm SSM-loaded secrets and SDK clients) across invocations.
-let sweepPromise: Promise<IngestionSweep> | undefined;
+const getSweep = lazySingleton(buildSweep);
 
 export const handler: ScheduledHandler = async () => {
-  sweepPromise ??= buildSweep();
-  await (await sweepPromise).run();
+  await (await getSweep()).run();
 };

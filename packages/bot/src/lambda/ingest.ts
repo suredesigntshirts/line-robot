@@ -4,9 +4,8 @@ import { loadChannelSecret, loadEnv } from "../adapters/config/config.js";
 import { SignatureVerifier } from "../adapters/line/signatureVerifier.js";
 import { SqsQueuePublisher } from "../adapters/queue/sqsPublisher.js";
 import { handleIngest, type IngestDeps } from "../app/ingestHandler.js";
+import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
-
-let depsPromise: Promise<IngestDeps> | undefined;
 
 async function buildDeps(): Promise<IngestDeps> {
   const env = loadEnv();
@@ -21,10 +20,7 @@ async function buildDeps(): Promise<IngestDeps> {
   };
 }
 
-function getDeps(): Promise<IngestDeps> {
-  depsPromise ??= buildDeps();
-  return depsPromise;
-}
+const getDeps = lazySingleton(buildDeps);
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   return handleIngest(await getDeps(), event);

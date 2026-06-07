@@ -5,9 +5,9 @@ import { loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
 import { ReminderSweep } from "../app/reminderSweep.js";
+import { SYSTEM_CLOCK } from "../lib/clock.js";
+import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
-
-const SYSTEM_CLOCK = { now: () => Date.now() };
 
 async function buildReminderSweep(): Promise<ReminderSweep> {
   const env = loadEnv();
@@ -27,9 +27,8 @@ async function buildReminderSweep(): Promise<ReminderSweep> {
 }
 
 // Memoize the built sweep (incl. warm SSM-loaded secret and SDK clients) across invocations.
-let sweepPromise: Promise<ReminderSweep> | undefined;
+const getSweep = lazySingleton(buildReminderSweep);
 
 export const handler: ScheduledHandler = async () => {
-  sweepPromise ??= buildReminderSweep();
-  await (await sweepPromise).run();
+  await (await getSweep()).run();
 };

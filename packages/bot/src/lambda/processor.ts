@@ -16,21 +16,19 @@ import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
 import { createDefaultMessageHandler, createPostbackRouter } from "../core/handlers/registry.js";
+import { SYSTEM_CLOCK } from "../lib/clock.js";
 import {
   createIdempotencyConfig,
   createPersistenceLayer,
   makeEventIdempotent,
 } from "../lib/idempotency.js";
+import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
-
-const SYSTEM_CLOCK = { now: () => Date.now() };
 
 interface Deps {
   processOne: (payload: EventPayload) => Promise<void>;
   idempotencyConfig: IdempotencyConfig;
 }
-
-let depsPromise: Promise<Deps> | undefined;
 
 async function buildDeps(): Promise<Deps> {
   const env = loadEnv();
@@ -90,10 +88,7 @@ async function buildDeps(): Promise<Deps> {
   return { processOne, idempotencyConfig };
 }
 
-function getDeps(): Promise<Deps> {
-  depsPromise ??= buildDeps();
-  return depsPromise;
-}
+const getDeps = lazySingleton(buildDeps);
 
 const batchProcessor = new BatchProcessor(EventType.SQS);
 
