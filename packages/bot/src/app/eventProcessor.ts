@@ -96,6 +96,35 @@ function fileContentType(fileName?: string): string {
   return byExt[ext] ?? "application/octet-stream";
 }
 
+/** Sniff the real image type from the leading magic bytes — LINE `image` messages don't carry a MIME
+ * (we used to hard-code jpeg), and a chanote may arrive as a PNG. Returns undefined for non-images
+ * (e.g. PDFs), so the caller keeps its declared type. */
+function sniffImageType(bytes: Buffer): string | undefined {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47
+  ) {
+    return "image/png";
+  }
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+    return "image/gif";
+  }
+  if (
+    bytes.length >= 12 &&
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  return undefined;
+}
+
 function toStoredIncoming(message: IncomingMessage): StoredMessage {
   return {
     ref: message.ref,
@@ -207,7 +236,9 @@ export class EventProcessor {
     }
     try {
       const bytes = await this.deps.content.getContent(message.messageId);
-      const contentType = mediaContentType(message);
+      // Prefer the sniffed image type (LINE image messages carry no MIME); fall back to the
+      // type derived from the LINE message kind / filename.
+      const contentType = sniffImageType(bytes) ?? mediaContentType(message);
       const s3Key = await this.deps.archive.putMedia(
         message.ref,
         message.messageId,

@@ -9,8 +9,11 @@ import type { OutboundMessage, StoredMessage } from "../../src/core/domain/messa
 import type { CatalogRepository } from "../../src/core/ports/catalog.js";
 import type {
   ExtractedProperty,
+  ExtractionMedia,
   ExtractionRequest,
   ExtractionResult,
+  ImageClassification,
+  ImageClassifier,
 } from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
@@ -45,6 +48,8 @@ interface Options {
   convProperties?: Record<string, string[]>;
   /** s3Key → bytes; a missing key throws (simulating a vanished object). */
   mediaBytes?: Record<string, Buffer>;
+  /** Per-image classification; default classifies every image as a plain property photo. */
+  classify?: (media: ExtractionMedia) => ImageClassification | null;
   /** conversationKey → existing memory note fed to the extractor. */
   memory?: Record<string, string>;
   pushThrows?: boolean;
@@ -166,6 +171,9 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
       return bytes;
     },
   };
+  const classifier: ImageClassifier = {
+    classifyImage: async (m) => (opts.classify ?? (() => ({ kind: "property" })))(m),
+  };
   const sweep = new IngestionSweep(
     {
       catalog: catalog as CatalogRepository,
@@ -176,6 +184,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
           return (opts.extract ?? (() => null))(req);
         },
       },
+      classifier,
       media,
       gateway: {
         reply: async () => {},
@@ -456,7 +465,7 @@ describe("IngestionSweep — extraction", () => {
       },
     );
     await sweep.run();
-    expect(spies.upserts[0]?.photos).toEqual(["conv/P/img/content"]);
+    expect(spies.upserts[0]?.photos).toEqual([{ s3Key: "conv/P/img/content", kind: "property" }]);
   });
 
   it("does not attribute photos when a batch yields multiple properties (ambiguous)", async () => {
@@ -482,7 +491,8 @@ describe("IngestionSweep — extraction", () => {
     expect(spies.upserts.every((u) => u.photos === undefined)).toBe(true);
   });
 
-  it("feeds S3 media bytes to the extractor as base64", async () => {
+  it("feeds S3 media bytes to the per-image classifier as base64 (not the text extractor)", async () => {
+    const seen: ExtractionMedia[] = [];
     const { sweep, spies } = makeSweep(
       [
         {
@@ -493,17 +503,66 @@ describe("IngestionSweep — extraction", () => {
       ],
       {
         mediaBytes: { "conv/user#H/img200/content.jpg": Buffer.from("PHOTO") },
-        extract: () => ({ properties: [extracted({ projectName: "Chanote scan" })] }),
+        classify: (m) => {
+          seen.push(m);
+          return { kind: "property" };
+        },
+        extract: () => ({ properties: [extracted({ projectName: "House" })] }),
       },
     );
     await sweep.run();
     expect(spies.mediaReads).toEqual(["conv/user#H/img200/content.jpg"]);
-    expect(spies.extractRequests[0]?.media).toEqual([
+    expect(seen).toEqual([
       { base64: Buffer.from("PHOTO").toString("base64"), mediaType: "image/jpeg" },
     ]);
+    // Images are handled per-image now — the property extractor gets text only.
+    expect(spies.extractRequests[0]?.media).toEqual([]);
   });
 
-  it("skips unreadable media but still extracts (warn, no failure)", async () => {
+  it("stores chanote data + labels the photo, and OCRs 'other' docs into the extractor text", async () => {
+    let extractText = "";
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#C"),
+          claim: tracker("user#C"),
+          batch: [
+            textMsg(100, "land for sale"),
+            imageMsg(200, "deed.jpg"),
+            imageMsg(210, "screenshot.jpg"),
+          ],
+        },
+      ],
+      {
+        mediaBytes: {
+          "deed.jpg": Buffer.from("DEED"),
+          "screenshot.jpg": Buffer.from("SHOT"),
+        },
+        classify: (m) => {
+          const text = Buffer.from(m.base64, "base64").toString();
+          if (text === "DEED") {
+            return { kind: "chanote", chanote: { deedNumber: "1234", titleType: "chanote" } };
+          }
+          return { kind: "other", ocrText: "owner asks 6.5M, call 081-000" };
+        },
+        extract: (req) => {
+          extractText = req.text;
+          return { properties: [extracted({ normalizedAddress: "1 Rai Plot" })] };
+        },
+      },
+    );
+    await sweep.run();
+    const upsert = spies.upserts[0];
+    expect(upsert?.chanote).toEqual({ deedNumber: "1234", titleType: "chanote" });
+    expect(upsert?.photos).toEqual([
+      { s3Key: "deed.jpg", kind: "chanote" },
+      { s3Key: "screenshot.jpg", kind: "other" },
+    ]);
+    // The screenshot's OCR text is appended to the chat text the extractor reads.
+    expect(extractText).toContain("owner asks 6.5M");
+  });
+
+  it("skips unreadable media but still extracts (warn, no photo)", async () => {
     const { sweep, spies } = makeSweep(
       [
         {
@@ -517,7 +576,7 @@ describe("IngestionSweep — extraction", () => {
     const result = await sweep.run();
     expect(result).toMatchObject({ ingested: 1, properties: 1, failed: 0 });
     expect(spies.warns.length).toBeGreaterThanOrEqual(1);
-    expect(spies.extractRequests[0]?.media).toEqual([]); // the missing image was dropped
+    expect(spies.upserts[0]?.photos).toBeUndefined(); // the missing image yielded no photo
   });
 
   it("does not release, upsert, or push when extraction throws", async () => {

@@ -47,7 +47,10 @@ describe("CatalogPostbackRouter", () => {
     const catalog = new FakeCatalog().seedProperty({
       propertyId: "p1",
       normalizedAddress: "9 Rama IX",
-      photos: ["a.jpg", "b.jpg"],
+      photos: [
+        { s3Key: "a.jpg", kind: "property" },
+        { s3Key: "b.jpg", kind: "property" },
+      ],
     });
     const signer = { presignGet: async (k: string) => `https://signed.example/${k}` };
     const router = new CatalogPostbackRouter(

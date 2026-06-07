@@ -5,6 +5,7 @@ import {
   buildExtractionContent,
   buildExtractionSystem,
   ClaudeExtractor,
+  ClassifiedImageSchema,
   ExtractionSchema,
   type ModelTier,
 } from "../../src/adapters/anthropic/claudeExtractor.js";
@@ -161,6 +162,11 @@ describe("ExtractionSchema — Anthropic 16-union-parameter limit (REGRESSION GU
         `${ANTHROPIC_UNION_LIMIT}. Use "" / [] sentinels instead of .nullable() — see ` +
         "src/adapters/anthropic/CLAUDE.md.",
     ).toBeLessThanOrEqual(ANTHROPIC_UNION_LIMIT);
+  });
+
+  it("the per-image classify schema is also within the limit", () => {
+    const unions = countUnionParams(z.toJSONSchema(ClassifiedImageSchema));
+    expect(unions).toBeLessThanOrEqual(ANTHROPIC_UNION_LIMIT);
   });
 });
 

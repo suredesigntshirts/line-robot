@@ -2,7 +2,10 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { ScheduledHandler } from "aws-lambda";
-import { createClaudeExtractor } from "../adapters/anthropic/claudeExtractor.js";
+import {
+  createClaudeExtractor,
+  createClaudeImageClassifier,
+} from "../adapters/anthropic/claudeExtractor.js";
 import { loadAnthropicApiKey, loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
@@ -30,6 +33,8 @@ async function buildSweep(): Promise<IngestionSweep> {
     catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
     messages: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     extractor: createClaudeExtractor(anthropicApiKey, undefined, logger),
+    // Per-image classify + OCR (plan 13): one cheap Haiku vision call per image.
+    classifier: createClaudeImageClassifier(anthropicApiKey, undefined, logger),
     media: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
     gateway: createLineMessagingGateway(channelAccessToken),
     logger,

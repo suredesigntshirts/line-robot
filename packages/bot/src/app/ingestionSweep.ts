@@ -1,5 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { ConversationTracker, PropertyUpsert } from "../core/domain/catalog.js";
+import type {
+  Chanote,
+  ConversationTracker,
+  PropertyPhoto,
+  PropertyUpsert,
+} from "../core/domain/catalog.js";
 import { pushTarget } from "../core/domain/conversation.js";
 import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
@@ -8,7 +13,7 @@ import type { CatalogRepository } from "../core/ports/catalog.js";
 import type {
   ExtractedProperty,
   ExtractionCandidate,
-  ExtractionMedia,
+  ImageClassifier,
   PropertyExtractor,
 } from "../core/ports/extraction.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
@@ -20,6 +25,8 @@ export interface IngestionSweepDeps {
   readonly catalog: CatalogRepository;
   readonly messages: MessageRepository;
   readonly extractor: PropertyExtractor;
+  /** Per-image classify + OCR (plan 13): each image is read in its own small vision call. */
+  readonly classifier: ImageClassifier;
   readonly media: MediaReader;
   readonly gateway: LineGateway;
   readonly logger: Logger;
@@ -33,8 +40,20 @@ export interface SweepOptions {
   readonly maxConversations?: number;
   /** A claim older than this (ms) is treated as crashed and may be re-claimed by a later sweep. */
   readonly staleTimeoutMs?: number;
-  /** Max media binaries (photos / chanote scans) to send to the model per conversation (cost cap). */
+  /** Backstop on how many images/docs to CLASSIFY per conversation per run (one vision call each). */
   readonly maxMedia?: number;
+  /** Cap on PROPERTY photos kept per batch (documents — chanote/other — are never capped). */
+  readonly maxPropertyPhotos?: number;
+}
+
+/** One classified attachment from a batch: its S3 key, content-type, and the model's verdict
+ * (null when classification failed → treated as a plain property photo). */
+interface ClassifiedMedia {
+  readonly s3Key: string;
+  readonly contentType: string;
+  readonly kind: PropertyPhoto["kind"];
+  readonly chanote?: Chanote;
+  readonly ocrText?: string;
 }
 
 /** Tallies one sweep run — returned for the Lambda log line and asserted in tests. */
@@ -74,7 +93,11 @@ interface AppliedProperty {
 
 const DEFAULT_MAX_CONVERSATIONS = 25;
 const DEFAULT_STALE_TIMEOUT_MS = 5 * 60_000;
-const DEFAULT_MAX_MEDIA = 8;
+/** Backstop on images classified per conversation per run (one cheap vision call each). High enough
+ * to cover real listings (we never know which images are documents until we look). */
+const DEFAULT_MAX_CLASSIFY = 30;
+/** Property photos kept per batch — documents (chanote/other) are uncapped. */
+const DEFAULT_MAX_PROPERTY_PHOTOS = 12;
 /** Storage cap for the per-conversation memory note (mirrors the extractor's ≤1500-char prompt
  * instruction) — a backstop so a runaway note can't grow the cached prefix unbounded. */
 const MAX_MEMORY_CHARS = 1500;
@@ -99,13 +122,29 @@ function listToUndef(value: readonly string[]): string[] | undefined {
   return value.length > 0 ? [...value] : undefined;
 }
 
-/** S3 keys of the image attachments in a batch (chanote PDFs and other media are excluded — only
- * photos are card-hero candidates). */
-function collectPhotoKeys(batch: StoredMessage[]): string[] {
-  return batch.flatMap((m) => {
-    const a = m.attachment;
-    return a?.contentType.startsWith("image/") ? [a.s3Key] : [];
-  });
+/** Merge title-deed reads across a chanote's pages (front carries the parcel fields, the back the
+ * encumbrances) — prefer the first non-empty value per field; union the encumbrances. */
+function mergeChanote(a: Chanote, b: Chanote): Chanote {
+  const pick = (x?: string, y?: string): string | undefined => x ?? y;
+  const notes = [a.confidenceNote, b.confidenceNote].filter((n): n is string => n !== undefined);
+  return {
+    titleType: pick(a.titleType, b.titleType),
+    deedNumber: pick(a.deedNumber, b.deedNumber),
+    landNumber: pick(a.landNumber, b.landNumber),
+    surveyPage: pick(a.surveyPage, b.surveyPage),
+    mapSheet: pick(a.mapSheet, b.mapSheet),
+    landOffice: pick(a.landOffice, b.landOffice),
+    province: pick(a.province, b.province),
+    district: pick(a.district, b.district),
+    subdistrict: pick(a.subdistrict, b.subdistrict),
+    landArea: pick(a.landArea, b.landArea),
+    ownerName: pick(a.ownerName, b.ownerName),
+    encumbrances:
+      [...(a.encumbrances ?? []), ...(b.encumbrances ?? [])].length > 0
+        ? [...new Set([...(a.encumbrances ?? []), ...(b.encumbrances ?? [])])]
+        : undefined,
+    confidenceNote: notes.length > 0 ? notes.join(" ") : undefined,
+  };
 }
 
 /**
@@ -209,12 +248,17 @@ export class IngestionSweep {
   }
 
   private async extractAndApply(key: string, batch: StoredMessage[]): Promise<AppliedProperty[]> {
-    const text = batch
+    const chatText = batch
       .map((m) => m.text)
       .filter((t): t is string => t !== undefined && t !== "")
       .join("\n");
-    const media = await this.collectMedia(batch);
-    if (text.trim() === "" && media.length === 0) {
+    // Per-image pass: classify every attachment + OCR documents (plan 13). Property photos carry no
+    // extractable text, so the property extractor runs on text only — the giant multimodal call is
+    // gone; OCR'd document/screenshot text is appended to the chat text instead.
+    const classified = await this.classifyMedia(batch);
+    const ocrChunks = classified.flatMap((c) => (c.ocrText !== undefined ? [c.ocrText] : []));
+    const text = [chatText, ...ocrChunks].filter((t) => t.trim() !== "").join("\n\n");
+    if (text.trim() === "" && classified.length === 0) {
       this.deps.logger.info("ingestion sweep: nothing to extract", { conversationKey: key });
       return [];
     }
@@ -225,7 +269,7 @@ export class IngestionSweep {
     const result = await this.deps.extractor.extract({
       conversationKey: key,
       text,
-      media,
+      media: [],
       geoHints,
       candidates,
       memory,
@@ -260,14 +304,15 @@ export class IngestionSweep {
       id: c.propertyId,
       label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
     }));
-    // Attribute the batch's photos / shared map link only when it produced exactly one property —
-    // otherwise which property they belong to is ambiguous, so we attach none (never misattribute).
+    // Attribute the batch's photos / chanote / shared map link only when it produced exactly one
+    // property — otherwise which property they belong to is ambiguous, so we attach none.
     const single = result.properties.length === 1;
-    const photoKeys = single ? collectPhotoKeys(batch) : [];
+    const photos = single ? this.collectPhotos(classified) : [];
+    const chanote = single ? this.collectChanote(classified) : undefined;
     const mapUrl = single ? parseMapUrls(text)[0] : undefined;
     const applied: AppliedProperty[] = [];
     for (const property of result.properties) {
-      applied.push(await this.applyProperty(key, property, mergeTargets, photoKeys, mapUrl));
+      applied.push(await this.applyProperty(key, property, mergeTargets, photos, chanote, mapUrl));
     }
     this.deps.logger.info("ingestion sweep: extracted properties", {
       conversationKey: key,
@@ -281,7 +326,8 @@ export class IngestionSweep {
     key: string,
     property: ExtractedProperty,
     mergeTargets: readonly MergeTarget[],
-    photoKeys: readonly string[],
+    newPhotos: readonly PropertyPhoto[],
+    chanote?: Chanote,
     mapUrl?: string,
   ): Promise<AppliedProperty> {
     // Ambiguous-but-unmatched → create new (never auto-merge across ambiguity); the confirmation
@@ -290,9 +336,9 @@ export class IngestionSweep {
     const propertyId = isNew ? this.newId() : property.existingPropertyId;
     const now = this.deps.clock.now();
 
-    // Accumulate photos (a property's gallery grows across batches) — merge this batch's keys with
-    // any already stored, de-duped, rather than replacing. New property → just this batch's keys.
-    const photos = await this.mergePhotos(isNew ? null : propertyId, photoKeys);
+    // Accumulate photos (a property's gallery grows across batches) — merge this batch's labelled
+    // images with any already stored, de-duped by S3 key, rather than replacing.
+    const photos = await this.mergePhotos(isNew ? null : propertyId, newPhotos);
 
     const upsert: PropertyUpsert = {
       propertyId,
@@ -301,9 +347,10 @@ export class IngestionSweep {
       projectName: emptyToUndef(property.projectName),
       lat: nullToUndef(property.lat),
       long: nullToUndef(property.long),
-      district: emptyToUndef(property.district),
-      subdistrict: emptyToUndef(property.subdistrict),
-      province: emptyToUndef(property.province),
+      // Backfill location from the title deed when the chat text didn't state it.
+      district: emptyToUndef(property.district) ?? chanote?.district,
+      subdistrict: emptyToUndef(property.subdistrict) ?? chanote?.subdistrict,
+      province: emptyToUndef(property.province) ?? chanote?.province,
       propertyType: emptyToUndef(property.propertyType),
       status: emptyToUndef(property.status),
       askingPrice: nullToUndef(property.askingPrice),
@@ -312,7 +359,7 @@ export class IngestionSweep {
       bedrooms: nullToUndef(property.bedrooms),
       bathrooms: nullToUndef(property.bathrooms),
       usableAreaSqm: nullToUndef(property.usableAreaSqm),
-      landArea: emptyToUndef(property.landArea),
+      landArea: emptyToUndef(property.landArea) ?? chanote?.landArea,
       floors: nullToUndef(property.floors),
       furnishing: emptyToUndef(property.furnishing),
       notes: emptyToUndef(property.notes),
@@ -322,6 +369,8 @@ export class IngestionSweep {
       source: emptyToUndef(property.source),
       // Keep the original shared map link (set-if-present, so it isn't cleared when none this batch).
       ...(mapUrl !== undefined ? { mapUrl } : {}),
+      // Title-deed data from a chanote scan this batch (set-if-present).
+      ...(chanote !== undefined ? { chanote } : {}),
       // Only set photos when this batch had images — never clobber existing photos with an empty list.
       ...(photos !== undefined ? { photos } : {}),
       updatedAt: now,
@@ -349,20 +398,28 @@ export class IngestionSweep {
     };
   }
 
-  /** Merge a batch's photo keys into a property's existing gallery (de-duped, order-preserving), or
-   * undefined when this batch had no images — so we never clobber stored photos with an empty list. */
+  /** Merge a batch's labelled images into a property's existing gallery (de-duped by S3 key, a fresh
+   * classification winning), or undefined when this batch had no images — so we never clobber stored
+   * photos with an empty list. */
   private async mergePhotos(
     existingPropertyId: string | null,
-    newKeys: readonly string[],
-  ): Promise<string[] | undefined> {
-    if (newKeys.length === 0) {
+    newPhotos: readonly PropertyPhoto[],
+  ): Promise<PropertyPhoto[] | undefined> {
+    if (newPhotos.length === 0) {
       return undefined;
     }
     const prior =
       existingPropertyId === null
         ? []
         : ((await this.deps.catalog.getProperty(existingPropertyId))?.photos ?? []);
-    return [...new Set([...prior, ...newKeys])];
+    const byKey = new Map<string, PropertyPhoto>();
+    for (const p of prior) {
+      byKey.set(p.s3Key, p);
+    }
+    for (const p of newPhotos) {
+      byKey.set(p.s3Key, p); // re-classification of the same image wins
+    }
+    return [...byKey.values()];
   }
 
   /** Persist a model-proposed memory note (bounded), if it learned anything durable this run. */
@@ -382,37 +439,81 @@ export class IngestionSweep {
     });
   }
 
-  /** Fetch the bytes for every media attachment in the batch, capped at `maxMedia`. A missing or
-   * unreadable object is skipped (logged) rather than failing the whole conversation. */
-  private async collectMedia(batch: StoredMessage[]): Promise<ExtractionMedia[]> {
-    const maxMedia = this.opts.maxMedia ?? DEFAULT_MAX_MEDIA;
+  /** Classify (+ OCR documents) every media attachment in the batch, one vision call each, capped at
+   * the classify backstop. A missing/unreadable object or a failed classify falls back to a plain
+   * `property` photo (logged) rather than failing the whole conversation. */
+  private async classifyMedia(batch: StoredMessage[]): Promise<ClassifiedMedia[]> {
+    const maxClassify = this.opts.maxMedia ?? DEFAULT_MAX_CLASSIFY;
     const withAttachment = batch.filter(
       (m) => m.attachment !== undefined && MEDIA_CONTENT_TYPES.has(m.attachment.contentType),
     );
-    if (withAttachment.length > maxMedia) {
+    if (withAttachment.length > maxClassify) {
       this.deps.logger.info("ingestion sweep: capping media", {
         available: withAttachment.length,
-        cap: maxMedia,
+        cap: maxClassify,
       });
     }
 
-    const media: ExtractionMedia[] = [];
-    for (const message of withAttachment.slice(0, maxMedia)) {
+    const out: ClassifiedMedia[] = [];
+    for (const message of withAttachment.slice(0, maxClassify)) {
       const attachment = message.attachment;
       if (attachment === undefined) {
         continue;
       }
+      let bytes: Buffer;
       try {
-        const bytes = await this.deps.media.getMedia(attachment.s3Key);
-        media.push({ base64: bytes.toString("base64"), mediaType: attachment.contentType });
+        bytes = await this.deps.media.getMedia(attachment.s3Key);
       } catch (error) {
         this.deps.logger.warn("ingestion sweep: media read failed; skipping", {
           s3Key: attachment.s3Key,
           error: String(error),
         });
+        continue;
       }
+      const classification = await this.deps.classifier.classifyImage({
+        base64: bytes.toString("base64"),
+        mediaType: attachment.contentType,
+      });
+      out.push({
+        s3Key: attachment.s3Key,
+        contentType: attachment.contentType,
+        // A failed classify defaults to a plain property photo (it's stored + shown, just unlabelled).
+        kind: classification?.kind ?? "property",
+        ...(classification?.chanote !== undefined ? { chanote: classification.chanote } : {}),
+        ...(classification?.ocrText !== undefined ? { ocrText: classification.ocrText } : {}),
+      });
     }
-    return media;
+    return out;
+  }
+
+  /** The labelled gallery images for a single-property batch: only renderable images (PDFs can't show
+   * in an image carousel), property photos capped, documents (chanote/other) uncapped. */
+  private collectPhotos(classified: readonly ClassifiedMedia[]): PropertyPhoto[] {
+    const maxPhotos = this.opts.maxPropertyPhotos ?? DEFAULT_MAX_PROPERTY_PHOTOS;
+    const photos: PropertyPhoto[] = [];
+    let propertyCount = 0;
+    for (const c of classified) {
+      if (!c.contentType.startsWith("image/")) {
+        continue; // a chanote PDF still yields chanote data, but can't be a gallery image
+      }
+      if (c.kind === "property") {
+        if (propertyCount >= maxPhotos) {
+          continue;
+        }
+        propertyCount += 1;
+      }
+      photos.push({ s3Key: c.s3Key, kind: c.kind });
+    }
+    return photos;
+  }
+
+  /** Merge the chanote reads across all title-deed images/pages in a single-property batch. */
+  private collectChanote(classified: readonly ClassifiedMedia[]): Chanote | undefined {
+    const chanotes = classified.flatMap((c) => (c.chanote !== undefined ? [c.chanote] : []));
+    if (chanotes.length === 0) {
+      return undefined;
+    }
+    return chanotes.reduce((acc, c) => mergeChanote(acc, c));
   }
 
   /** The conversation's own properties, as dedup candidates (write-scope is per conversation). */

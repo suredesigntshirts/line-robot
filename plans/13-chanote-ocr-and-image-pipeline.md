@@ -1,7 +1,8 @@
 # Plan 13 — Fix broken extraction (schema union limit), per-image classify+OCR, chanote schema, photo type labels, S3 format detection
 
-Status: **IN PROGRESS.** Follows plan 12. Driven by a production outage found in staging logs +
-new chanote-OCR requirements.
+Status: **Inc 1 DONE & LIVE (`ea12c4f`). Incs 2–5 implemented + tested (175 unit / 24 integration),
+pending deploy.** Follows plan 12. Driven by a production outage found in staging logs + new
+chanote-OCR requirements.
 
 ## Context / why
 
@@ -56,7 +57,12 @@ listings only ever sent 8 to the model; the rest were marked ingested unread.
 - S3 → sniff magic bytes for the real image type.
 - Chanote stored as a **nested `chanote` group** on the property; rendered as its own Details section.
 
-## Increment 1 — P0 hotfix: restore extraction (deploy first) ✅ target
+## Increment 1 — P0 hotfix: restore extraction (deploy first) ✅ DONE & LIVE (`ea12c4f`)
+
+Deployed code-only (4 updated, 42 unchanged). **Verified live:** the 09:50 post-deploy sweep
+extracted 2 properties from the previously-stuck 33-message batch on Haiku with no 400; catalog now
+has 2 PROP# rows. Regression guard (`claudeExtractor.test.ts`) asserts ≤16 unions; current count = 8.
+
 
 Reduce nullable count 27 → ~8 by switching text/array fields to **required-with-sentinel** (strict
 mode already forces every key to be present, so we keep determinism without `.nullable()`):

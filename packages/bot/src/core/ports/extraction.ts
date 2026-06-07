@@ -6,12 +6,32 @@
  * {@link ../../adapters/anthropic/claudeExtractor}.
  */
 
+import type { Chanote, PhotoKind } from "../domain/catalog.js";
+
 /** An image or document for the model to read (listing photos, chanote scans). */
 export interface ExtractionMedia {
   /** Base64-encoded bytes. */
   readonly base64: string;
   /** MIME type, e.g. `image/jpeg` or `application/pdf`. */
   readonly mediaType: string;
+}
+
+/** The result of classifying ONE image/document (plan 13, per-image pass). Property photos return
+ * just `kind`; chanote/title-deed images return the structured `chanote`; other documents
+ * (contracts, message screenshots) return `ocrText` so the property extractor can read it. */
+export interface ImageClassification {
+  readonly kind: PhotoKind;
+  /** Present (best-effort) when the image is a title deed. */
+  readonly chanote?: Chanote;
+  /** Freeform text read off a document/screenshot, fed into the text extraction. */
+  readonly ocrText?: string;
+}
+
+/** Classifies + OCRs a single image/document. Provider-agnostic; the Anthropic implementation is one
+ * small structured-output vision call per image. Returns `null` on unparseable output (the caller
+ * then stores the image as a plain `property` photo). */
+export interface ImageClassifier {
+  classifyImage(media: ExtractionMedia): Promise<ImageClassification | null>;
 }
 
 /** A coordinate pair mined from a Google-Maps link in the text, passed so the model can attach it

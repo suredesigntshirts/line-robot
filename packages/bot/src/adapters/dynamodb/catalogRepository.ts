@@ -9,9 +9,12 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { Entity, type EntityItem } from "electrodb";
 import type {
+  Chanote,
   ConversationTracker,
+  PhotoKind,
   Property,
   PropertyEvent,
+  PropertyPhoto,
   PropertyUpsert,
 } from "../../core/domain/catalog.js";
 import type { CatalogRepository } from "../../core/ports/catalog.js";
@@ -60,7 +63,31 @@ function buildPropertyEntity(client: DynamoDBDocumentClient, table: string) {
         contact: { type: "string" },
         source: { type: "string" },
         mapUrl: { type: "string" },
-        photos: { type: "list", items: { type: "string" } },
+        chanote: {
+          type: "map",
+          properties: {
+            titleType: { type: "string" },
+            deedNumber: { type: "string" },
+            landNumber: { type: "string" },
+            surveyPage: { type: "string" },
+            mapSheet: { type: "string" },
+            landOffice: { type: "string" },
+            province: { type: "string" },
+            district: { type: "string" },
+            subdistrict: { type: "string" },
+            landArea: { type: "string" },
+            ownerName: { type: "string" },
+            encumbrances: { type: "list", items: { type: "string" } },
+            confidenceNote: { type: "string" },
+          },
+        },
+        photos: {
+          type: "list",
+          items: {
+            type: "map",
+            properties: { s3Key: { type: "string" }, kind: { type: "string" } },
+          },
+        },
         createdAt: { type: "number" },
         updatedAt: { type: "number" },
         lastActivityAt: { type: "number" },
@@ -241,15 +268,52 @@ function toProperty(item: PropertyItem): Property {
     contact: item.contact,
     source: item.source,
     mapUrl: item.mapUrl,
-    photos: item.photos,
+    chanote: item.chanote,
+    photos: toPhotos(item.photos),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     lastActivityAt: item.lastActivityAt,
   };
 }
 
+/** Map stored photos to the domain shape, migrating legacy rows that stored a bare `string[]` of S3
+ * keys (pre-plan-13) to labelled `{ s3Key, kind:"property" }`. */
+function toPhotos(raw: unknown): PropertyPhoto[] | undefined {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return undefined;
+  }
+  return raw.map((p) =>
+    typeof p === "string"
+      ? { s3Key: p, kind: "property" as const }
+      : {
+          s3Key: String((p as { s3Key?: unknown }).s3Key ?? ""),
+          kind: ((p as { kind?: unknown }).kind ?? "property") as PhotoKind,
+        },
+  );
+}
+
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+/** Copy the readonly domain {@link Chanote} into the mutable map ElectroDB writes, dropping absent
+ * fields so the stored map stays compact. */
+function toStoredChanote(c: Chanote): Record<string, unknown> {
+  return stripUndefined({
+    titleType: c.titleType,
+    deedNumber: c.deedNumber,
+    landNumber: c.landNumber,
+    surveyPage: c.surveyPage,
+    mapSheet: c.mapSheet,
+    landOffice: c.landOffice,
+    province: c.province,
+    district: c.district,
+    subdistrict: c.subdistrict,
+    landArea: c.landArea,
+    ownerName: c.ownerName,
+    encumbrances: c.encumbrances ? [...c.encumbrances] : undefined,
+    confidenceNote: c.confidenceNote,
+  });
 }
 
 /** Map a stored event item (ElectroDB item or a raw GSI2 row) onto the domain {@link PropertyEvent};
@@ -548,13 +612,14 @@ export class DynamoCatalogRepository implements CatalogRepository {
   // --- Properties + edges ---
 
   async upsertProperty(input: PropertyUpsert): Promise<void> {
-    // Copy the readonly domain arrays into the mutable shape ElectroDB's writer expects.
-    const { rawAddresses, tags, photos, ...rest } = input;
+    // Copy the readonly domain arrays/maps into the mutable shape ElectroDB's writer expects.
+    const { rawAddresses, tags, photos, chanote, ...rest } = input;
     const data = stripUndefined({
       ...rest,
       ...(rawAddresses ? { rawAddresses: [...rawAddresses] } : {}),
       ...(tags ? { tags: [...tags] } : {}),
-      ...(photos ? { photos: [...photos] } : {}),
+      ...(photos ? { photos: photos.map((p) => ({ s3Key: p.s3Key, kind: p.kind })) } : {}),
+      ...(chanote ? { chanote: toStoredChanote(chanote) } : {}),
     });
     await this.property.upsert(data).go();
   }

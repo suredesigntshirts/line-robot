@@ -31,7 +31,9 @@ interface Spies {
   warns: string[];
 }
 
-function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } = {}) {
+function makeProcessor(
+  opts: { replyThrows?: boolean; contentThrows?: boolean; contentBytes?: Buffer } = {},
+) {
   const spies: Spies = {
     archived: [],
     media: [],
@@ -101,7 +103,8 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
         if (opts.contentThrows) {
           throw new Error("content expired");
         }
-        return Buffer.from("FAKEIMG");
+        // PNG magic bytes — exercises the content-type sniff (a LINE image message has no MIME).
+        return opts.contentBytes ?? Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
       },
     },
     handler: echoHandler,
@@ -210,11 +213,18 @@ describe("EventProcessor", () => {
     await processor.process({ webhookEventId: "e-img", raw: imageEvent() });
 
     expect(spies.contentFetches).toEqual(["img1"]);
-    expect(spies.media[0]).toMatchObject({ messageId: "img1", contentType: "image/jpeg" });
+    // Sniffed from the PNG magic bytes, overriding the LINE image message's jpeg default.
+    expect(spies.media[0]).toMatchObject({ messageId: "img1", contentType: "image/png" });
     expect(spies.saved[0]?.attachment).toEqual({
       s3Key: "conv/group#Cg/img1/content",
-      contentType: "image/jpeg",
+      contentType: "image/png",
     });
+  });
+
+  it("falls back to the declared image type when bytes aren't a recognised image", async () => {
+    const { processor, spies } = makeProcessor({ contentBytes: Buffer.from("not-an-image") });
+    await processor.process({ webhookEventId: "e-img", raw: imageEvent() });
+    expect(spies.media[0]).toMatchObject({ contentType: "image/jpeg" }); // LINE image default
   });
 
   it("stores the message without an attachment if media capture fails", async () => {

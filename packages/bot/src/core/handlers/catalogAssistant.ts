@@ -4,7 +4,7 @@
  * are thin parsers that delegate here, so the retrieval + merge logic lives — and is tested — once.
  */
 import { randomUUID } from "node:crypto";
-import type { Property, PropertyUpsert } from "../domain/catalog.js";
+import type { PhotoKind, Property, PropertyPhoto, PropertyUpsert } from "../domain/catalog.js";
 import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
@@ -23,6 +23,25 @@ import {
 } from "./views.js";
 
 /** Most-recently-active first, so the freshest listings lead the carousel. */
+/** Gallery order: property photos first, then chanote scans, then other documents (plan 13). */
+const PHOTO_KIND_ORDER: Record<PhotoKind, number> = { property: 0, chanote: 1, other: 2 };
+
+function orderedPhotos(photos: readonly PropertyPhoto[] | undefined): readonly PropertyPhoto[] {
+  if (photos === undefined) {
+    return [];
+  }
+  // Stable sort: within a kind, capture order is preserved.
+  return [...photos].sort((a, b) => PHOTO_KIND_ORDER[a.kind] - PHOTO_KIND_ORDER[b.kind]);
+}
+
+/** The hero image key: the first property photo, falling back to any image. */
+function heroPhotoKey(photos: readonly PropertyPhoto[] | undefined): string | undefined {
+  if (photos === undefined || photos.length === 0) {
+    return undefined;
+  }
+  return (photos.find((p) => p.kind === "property") ?? photos[0])?.s3Key;
+}
+
 function byActivityDesc(a: Property, b: Property): number {
   return (b.lastActivityAt ?? b.updatedAt ?? 0) - (a.lastActivityAt ?? a.updatedAt ?? 0);
 }
@@ -89,7 +108,7 @@ export class CatalogAssistant {
     }
     const entries = await Promise.all(
       properties.map(async (property): Promise<readonly [string, string] | null> => {
-        const key = property.photos?.[0];
+        const key = heroPhotoKey(property.photos);
         if (key === undefined) {
           return null;
         }
@@ -226,10 +245,11 @@ export class CatalogAssistant {
    * signer — so one bad key never breaks the gallery. Mirrors {@link heroUrls} for a single listing. */
   private async presignPhotos(property: Property): Promise<string[]> {
     const signer = this.signer;
-    const keys = property.photos;
-    if (signer === undefined || keys === undefined) {
+    if (signer === undefined) {
       return [];
     }
+    // Ordered property → chanote → other so the gallery groups by kind.
+    const keys = orderedPhotos(property.photos).map((p) => p.s3Key);
     const urls = await Promise.all(
       keys.map(async (key): Promise<string | null> => {
         try {

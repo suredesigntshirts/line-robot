@@ -7,7 +7,11 @@ import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepo
 import { IngestionSweep } from "../../src/app/ingestionSweep.js";
 import type { ConversationRef } from "../../src/core/domain/conversation.js";
 import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
-import type { ExtractionResult, PropertyExtractor } from "../../src/core/ports/extraction.js";
+import type {
+  ExtractionResult,
+  ImageClassifier,
+  PropertyExtractor,
+} from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
 import { textOf } from "../fixtures/outbound.js";
@@ -119,12 +123,20 @@ const noMedia: MediaReader = {
 // By default the extractor returns nothing — keeps the mechanics tests focused on claim/watermark.
 const nullExtractor: PropertyExtractor = { extract: async () => null };
 
+// The integration messages are text-only, so no image is ever classified.
+const noClassifier: ImageClassifier = {
+  classifyImage: async () => {
+    throw new Error("unexpected classify call");
+  },
+};
+
 function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep {
   return new IngestionSweep(
     {
       catalog,
       messages,
       extractor,
+      classifier: noClassifier,
       media: noMedia,
       gateway: {
         reply: async () => {},

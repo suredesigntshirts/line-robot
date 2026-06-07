@@ -48,7 +48,10 @@ describe("CatalogAssistant — retrieval", () => {
   it("presigns a hero image for listings with photos, and none without a signer", async () => {
     const catalog = new FakeCatalog();
     seedUserListings(catalog, "U1", "user#U1", [
-      prop("withPhoto", { normalizedAddress: "1 Sukhumvit", photos: ["conv/x/1/content"] }),
+      prop("withPhoto", {
+        normalizedAddress: "1 Sukhumvit",
+        photos: [{ s3Key: "conv/x/1/content", kind: "property" }],
+      }),
       prop("noPhoto", { normalizedAddress: "2 Rama IX", lastActivityAt: -1 }),
     ]);
     const signer = { presignGet: async (key: string) => `signed:${key}` };
@@ -98,7 +101,14 @@ describe("CatalogAssistant — retrieval", () => {
 
   it("presigns all photos for the detail hero/count and the photo gallery", async () => {
     const catalog = new FakeCatalog().seedProperty(
-      prop("p1", { normalizedAddress: "1 Rama IX", photos: ["a.jpg", "b.jpg", "c.jpg"] }),
+      prop("p1", {
+        normalizedAddress: "1 Rama IX",
+        photos: [
+          { s3Key: "a.jpg", kind: "property" },
+          { s3Key: "b.jpg", kind: "property" },
+          { s3Key: "c.jpg", kind: "property" },
+        ],
+      }),
     );
     const signer = { presignGet: async (key: string) => `signed:${key}` };
     const assistant = new CatalogAssistant(catalog, clock, undefined, signer);
@@ -117,9 +127,39 @@ describe("CatalogAssistant — retrieval", () => {
     }
   });
 
+  it("orders the gallery property → chanote → other and heroes the first property photo", async () => {
+    const catalog = new FakeCatalog().seedProperty(
+      prop("p1", {
+        normalizedAddress: "1 Rama IX",
+        photos: [
+          { s3Key: "doc.jpg", kind: "other" },
+          { s3Key: "deed.jpg", kind: "chanote" },
+          { s3Key: "house.jpg", kind: "property" },
+        ],
+      }),
+    );
+    const signer = { presignGet: async (key: string) => `signed:${key}` };
+    const assistant = new CatalogAssistant(catalog, clock, undefined, signer);
+
+    const [detail] = await assistant.viewProperty("p1");
+    if (detail?.type === "flex") {
+      expect(detail.cards[0]?.heroImageUrl).toBe("signed:house.jpg"); // property photo, not the doc
+    }
+    const [gallery] = await assistant.showPhotos("p1");
+    if (gallery?.type === "imageCarousel") {
+      expect(gallery.imageUrls).toEqual(["signed:house.jpg", "signed:deed.jpg", "signed:doc.jpg"]);
+    }
+  });
+
   it("renders no hero/Photos button and an empty gallery without a signer", async () => {
     const catalog = new FakeCatalog().seedProperty(
-      prop("p1", { normalizedAddress: "1 Rama IX", photos: ["a.jpg", "b.jpg"] }),
+      prop("p1", {
+        normalizedAddress: "1 Rama IX",
+        photos: [
+          { s3Key: "a.jpg", kind: "property" },
+          { s3Key: "b.jpg", kind: "property" },
+        ],
+      }),
     );
     const assistant = new CatalogAssistant(catalog, clock); // no signer
 

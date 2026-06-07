@@ -225,7 +225,10 @@ describe("conversation tracker", () => {
 describe("properties + edges + membership", () => {
   it("merges property upserts without clobbering prior fields", async () => {
     await repo.upsertProperty({ propertyId: "pM", normalizedAddress: "a", tags: ["x"] });
-    await repo.upsertProperty({ propertyId: "pM", photos: ["conv/x/1/content"] });
+    await repo.upsertProperty({
+      propertyId: "pM",
+      photos: [{ s3Key: "conv/x/1/content", kind: "property" }],
+    });
     await repo.upsertProperty({ propertyId: "pM", askingPrice: 5_000_000, currency: "THB" });
 
     const prop = await repo.getProperty("pM");
@@ -233,7 +236,7 @@ describe("properties + edges + membership", () => {
       propertyId: "pM",
       normalizedAddress: "a",
       tags: ["x"],
-      photos: ["conv/x/1/content"],
+      photos: [{ s3Key: "conv/x/1/content", kind: "property" }],
       askingPrice: 5_000_000,
       currency: "THB",
     });
@@ -270,6 +273,36 @@ describe("properties + edges + membership", () => {
       source: "FB group",
       mapUrl: "https://maps.app.goo.gl/aB9xQ",
     });
+  });
+
+  it("round-trips chanote data + labelled photos (plan 13)", async () => {
+    await repo.upsertProperty({
+      propertyId: "pC",
+      normalizedAddress: "Plot 7",
+      chanote: {
+        titleType: "chanote",
+        deedNumber: "12345",
+        landNumber: "678",
+        landArea: "1 rai 2 ngan 30 wah",
+        ownerName: "Khun Mali",
+        encumbrances: ["mortgage to SCB"],
+      },
+      photos: [
+        { s3Key: "house.jpg", kind: "property" },
+        { s3Key: "deed.jpg", kind: "chanote" },
+      ],
+    });
+    const stored = await repo.getProperty("pC");
+    expect(stored?.chanote).toMatchObject({
+      titleType: "chanote",
+      deedNumber: "12345",
+      ownerName: "Khun Mali",
+      encumbrances: ["mortgage to SCB"],
+    });
+    expect(stored?.photos).toEqual([
+      { s3Key: "house.jpg", kind: "property" },
+      { s3Key: "deed.jpg", kind: "chanote" },
+    ]);
   });
 
   it("resolves 'my listings' via membership → conversations → properties", async () => {

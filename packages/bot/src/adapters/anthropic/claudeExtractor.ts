@@ -1,9 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+import type { Chanote } from "../../core/domain/catalog.js";
 import type {
+  ExtractionMedia,
   ExtractionRequest,
   ExtractionResult,
+  ImageClassification,
+  ImageClassifier,
   PropertyExtractor,
 } from "../../core/ports/extraction.js";
 import type { Logger } from "../../core/ports/runtime.js";
@@ -84,6 +88,48 @@ export const ExtractionSchema = z.object({
 });
 
 type ParsedExtraction = z.infer<typeof ExtractionSchema>;
+
+// --- Per-image classify + OCR (plan 13) ------------------------------------------------------------
+// Each image gets ONE small vision call. Stays trivially within the 16-union limit: only `chanote`
+// is nullable (1); every inner field is required-with-sentinel ("" / []).
+const ChanoteSchema = z.object({
+  titleType: z.string(), // chanote | nor-sor-3-gor | nor-sor-3 | sor-por-kor | other | ""
+  deedNumber: z.string(),
+  landNumber: z.string(),
+  surveyPage: z.string(),
+  mapSheet: z.string(),
+  landOffice: z.string(),
+  province: z.string(),
+  district: z.string(),
+  subdistrict: z.string(),
+  landArea: z.string(),
+  ownerName: z.string(),
+  encumbrances: z.array(z.string()),
+  confidenceNote: z.string(), // "" unless something was hard to read
+});
+
+export const ClassifiedImageSchema = z.object({
+  kind: z.enum(["property", "chanote", "other"]),
+  chanote: ChanoteSchema.nullable(), // non-null only when kind === "chanote"
+  ocrText: z.string(), // text read off a document/screenshot ("other"); "" otherwise
+});
+
+type ParsedClassification = z.infer<typeof ClassifiedImageSchema>;
+
+const CLASSIFY_SYSTEM_PROMPT = `You classify ONE image from a Thai/English property chat and, if it is a document, read its text.
+
+Set "kind" to exactly one of:
+- "property": a photo of the actual property — building, room, exterior, land plot, view, floor plan render. No legal text.
+- "chanote": a Thai land title deed or land legal document. Recognise it by its CONTENT/LAYOUT, never by the Garuda emblem colour or the file type — photocopies are greyscale and back/continuation pages may have no Garuda. Tell-tale content: a title-deed/parcel number (เลขที่โฉนด/เลขที่ดิน), a survey map-sheet (ระวาง), area in rai/ngan/wah (ไร่/งาน/ตารางวา), a surveyed plot diagram, a Land Office (สำนักงานที่ดิน), an owner registry.
+- "other": any other document or text image — a sale/lease contract, a screenshot of chat messages, a listing flyer, a price sheet, a map screenshot.
+
+If kind is "chanote": fill the chanote object (else set chanote to null). Make a BEST EFFORT even on low-quality scans; for any field you cannot read confidently, leave it "" and describe the problem in confidenceNote. Use "" for missing text, [] for no encumbrances.
+- titleType: chanote (โฉนด / Nor Sor 4 Jor) | nor-sor-3-gor (น.ส.3ก) | nor-sor-3 (น.ส.3) | sor-por-kor (ส.ป.ก.) | other.
+- deedNumber=เลขที่โฉนด, landNumber=เลขที่ดิน, surveyPage=หน้าสำรวจ, mapSheet=ระวาง, landOffice=สำนักงานที่ดิน, landArea=area as written (e.g. "1 rai 2 ngan 30 wah"), ownerName=registered owner(s).
+- encumbrances: from the reverse side — mortgages (จำนอง), leases, usufructs (สิทธิเก็บกิน), servitudes (ภาระจำยอม); [] if none/not shown.
+
+If kind is "other": put ALL legible text into ocrText verbatim (it may contain property facts). Otherwise ocrText is "".
+If kind is "property": chanote is null and ocrText is "".`;
 
 // Stable cached prefix: instructions + field taxonomy + a small Thai title-deed glossary. The
 // volatile batch/candidates/photos go in the user turn, after this breakpoint.
@@ -270,4 +316,102 @@ export function createClaudeExtractor(
   clientOpts?: ExtractorClientOptions,
 ): ClaudeExtractor {
   return new ClaudeExtractor(new Anthropic({ apiKey, ...clientOpts }), ladder, logger);
+}
+
+const emptyToUndef = (v: string): string | undefined => (v === "" ? undefined : v);
+
+/** Map the model's sentinel-filled chanote object to the domain shape (drop "" / [] fields). Returns
+ * undefined if nothing legible was captured. */
+function toChanote(c: z.infer<typeof ChanoteSchema>): Chanote | undefined {
+  const chanote: Chanote = {
+    titleType: emptyToUndef(c.titleType),
+    deedNumber: emptyToUndef(c.deedNumber),
+    landNumber: emptyToUndef(c.landNumber),
+    surveyPage: emptyToUndef(c.surveyPage),
+    mapSheet: emptyToUndef(c.mapSheet),
+    landOffice: emptyToUndef(c.landOffice),
+    province: emptyToUndef(c.province),
+    district: emptyToUndef(c.district),
+    subdistrict: emptyToUndef(c.subdistrict),
+    landArea: emptyToUndef(c.landArea),
+    ownerName: emptyToUndef(c.ownerName),
+    encumbrances: c.encumbrances.length > 0 ? [...c.encumbrances] : undefined,
+    confidenceNote: emptyToUndef(c.confidenceNote),
+  };
+  return Object.values(chanote).some((v) => v !== undefined) ? chanote : undefined;
+}
+
+const CLASSIFY_MAX_TOKENS = 1500;
+const IMAGE_TYPES_FOR_CLASSIFY = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+
+/** One Haiku vision call per image: classify property/chanote/other and, for documents, OCR. Kept
+ * deliberately cheap + bounded so a listing's whole photo set can be processed independently. */
+export class ClaudeImageClassifier implements ImageClassifier {
+  constructor(
+    private readonly client: Anthropic,
+    private readonly model: string = "claude-haiku-4-5",
+    private readonly logger?: Logger,
+  ) {}
+
+  async classifyImage(media: ExtractionMedia): Promise<ImageClassification | null> {
+    const block = mediaBlock(media);
+    if (block === null) {
+      return null; // unsupported type — caller stores it as a plain property photo
+    }
+    let parsed: ParsedClassification | null = null;
+    try {
+      const response = await this.client.messages.parse({
+        model: this.model,
+        max_tokens: CLASSIFY_MAX_TOKENS,
+        system: CLASSIFY_SYSTEM_PROMPT,
+        messages: [{ role: "user", content: [block] }],
+        output_config: { format: zodOutputFormat(ClassifiedImageSchema) },
+      });
+      parsed = response.parsed_output ?? null;
+    } catch (error) {
+      this.logger?.warn("image classify failed", { error: String(error) });
+      return null;
+    }
+    if (parsed === null) {
+      return null;
+    }
+    const chanote =
+      parsed.kind === "chanote" && parsed.chanote !== null ? toChanote(parsed.chanote) : undefined;
+    return {
+      kind: parsed.kind,
+      ...(chanote !== undefined ? { chanote } : {}),
+      ...(emptyToUndef(parsed.ocrText) !== undefined ? { ocrText: parsed.ocrText } : {}),
+    };
+  }
+}
+
+/** Build the single image/document content block for a classify call, or null for an unsupported
+ * media type. */
+function mediaBlock(media: ExtractionMedia): Anthropic.ContentBlockParam | null {
+  if (IMAGE_TYPES_FOR_CLASSIFY.has(media.mediaType)) {
+    return {
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: media.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+        data: media.base64,
+      },
+    };
+  }
+  if (media.mediaType === "application/pdf") {
+    return {
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf", data: media.base64 },
+    };
+  }
+  return null;
+}
+
+export function createClaudeImageClassifier(
+  apiKey: string,
+  model?: string,
+  logger?: Logger,
+  clientOpts?: ExtractorClientOptions,
+): ClaudeImageClassifier {
+  return new ClaudeImageClassifier(new Anthropic({ apiKey, ...clientOpts }), model, logger);
 }

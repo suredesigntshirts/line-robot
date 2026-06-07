@@ -3,7 +3,7 @@
  * property cards, detail text, and the quick-reply confirmation chips. No IO and no LINE specifics
  * (the Flex JSON is built later in the gateway), so every shape here is unit-testable in isolation.
  */
-import type { Property } from "../domain/catalog.js";
+import type { Chanote, Property } from "../domain/catalog.js";
 import { formatDueDate, formatShortDate } from "../domain/datetime.js";
 import type {
   CardAction,
@@ -152,6 +152,29 @@ function pushRow(rows: PropertyCardRow[], label: string, value?: string): void {
   }
 }
 
+/** Append the title-deed identifiers from a chanote scan (location/area are surfaced as the normal
+ * rows). Each row is omitted when absent. */
+function pushChanoteRows(rows: PropertyCardRow[], chanote?: Chanote): void {
+  if (chanote === undefined) {
+    return;
+  }
+  pushRow(rows, "Title deed", chanote.titleType);
+  pushRow(rows, "Deed no.", chanote.deedNumber);
+  pushRow(rows, "Parcel no.", chanote.landNumber);
+  pushRow(rows, "Survey page", chanote.surveyPage);
+  pushRow(rows, "Map sheet", chanote.mapSheet);
+  pushRow(rows, "Land office", chanote.landOffice);
+  pushRow(rows, "Owner", chanote.ownerName);
+  pushRow(
+    rows,
+    "Encumbrances",
+    chanote.encumbrances !== undefined && chanote.encumbrances.length > 0
+      ? chanote.encumbrances.join("; ")
+      : undefined,
+  );
+  pushRow(rows, "⚠ Deed note", chanote.confidenceNote);
+}
+
 /**
  * A rich, single-bubble Flex detail of one property: hero photo, status badge, prominent price,
  * full location (project / address / area), tags, a "reply to update" hint + saved/updated dates,
@@ -207,6 +230,9 @@ export function propertyDetail(
     property.tags !== undefined && property.tags.length > 0 ? property.tags.join(", ") : undefined,
   );
   pushRow(rows, "Notes", property.notes);
+  // Title-deed (chanote) section — its location/area already backfilled the rows above, so show only
+  // the deed-specific identifiers + encumbrances + any legibility caveat.
+  pushChanoteRows(rows, property.chanote);
 
   const notes = ['💬 Reply to update — e.g. "price 4.5M" or "now sold"'];
   const stamps = [
