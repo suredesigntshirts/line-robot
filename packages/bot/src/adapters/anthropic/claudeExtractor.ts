@@ -9,6 +9,8 @@ import type {
   ImageClassification,
   ImageClassifier,
   PropertyExtractor,
+  PropertySegmenter,
+  SegmentationResult,
 } from "../../core/ports/extraction.js";
 import type { Logger } from "../../core/ports/runtime.js";
 
@@ -89,6 +91,35 @@ export const ExtractionSchema = z.object({
 
 type ParsedExtraction = z.infer<typeof ExtractionSchema>;
 
+// --- Two-pass: segmentation (plan 13 inc 6) --------------------------------------------------------
+// Pass 1 splits a batch into distinct properties and attributes their images/map by index — no field
+// extraction (that's pass 2, `extract` with `focus`). 0 nullables (arrays/sentinels only).
+const SegmentSchema = z.object({
+  label: z.string(), // short anchor for the property, e.g. "Mooban Wangtan"
+  existingPropertyId: z.string(), // "" → create-new
+  ambiguous: z.boolean(),
+  ambiguousWith: z.array(z.string()),
+  imageIndices: z.array(z.number()), // which [IMG n] belong to this property
+  mapIndex: z.number(), // which [MAP n] belongs to it; -1 = none
+});
+
+export const SegmentationSchema = z.object({
+  segments: z.array(SegmentSchema),
+  memoryUpdate: z.string(), // "" → none
+});
+
+const SEGMENT_SYSTEM_PROMPT = `You segment a batch of Thai/English property-chat messages into the DISTINCT properties it covers. Do NOT extract details — only split + attribute.
+
+The transcript is line-by-line in chat order. Image attachments appear as "[IMG n] <kind> - <label> ocr: <text>" and shared map links as "[MAP n] ...". Use the ordering + content to group everything about one property together.
+
+For each distinct property, output one segment with:
+- label: a short anchor naming it (a project/road name or the clearest identifier in its messages).
+- existingPropertyId: if it clearly matches one of the existing properties listed, that id; else "" (new). If unsure, "" + ambiguous=true + ambiguousWith=[the candidate id(s) it might be].
+- imageIndices: the n of every [IMG n] that belongs to this property (photos, its chanote pages, its docs). [] if none.
+- mapIndex: the n of the [MAP n] that is this property's location, or -1.
+
+Assign each image/map to exactly one property by its position + content. If the whole batch is one property, return a single segment listing all images. In memoryUpdate, return a durable note (≤1500 chars) only if you learned something worth remembering, else "".`;
+
 // --- Per-image classify + OCR (plan 13) ------------------------------------------------------------
 // Each image gets ONE small vision call. Stays trivially within the 16-union limit: only `chanote`
 // is nullable (1); every inner field is required-with-sentinel ("" / []).
@@ -110,6 +141,7 @@ const ChanoteSchema = z.object({
 
 export const ClassifiedImageSchema = z.object({
   kind: z.enum(["property", "chanote", "other"]),
+  label: z.string(), // short subtype of the image; "" if nothing useful
   chanote: ChanoteSchema.nullable(), // non-null only when kind === "chanote"
   ocrText: z.string(), // text read off a document/screenshot ("other"); "" otherwise
 });
@@ -122,6 +154,12 @@ Set "kind" to exactly one of:
 - "property": a photo of the actual property — building, room, exterior, land plot, view, floor plan render. No legal text.
 - "chanote": a Thai land title deed or land legal document. Recognise it by its CONTENT/LAYOUT, never by the Garuda emblem colour or the file type — photocopies are greyscale and back/continuation pages may have no Garuda. Tell-tale content: a title-deed/parcel number (เลขที่โฉนด/เลขที่ดิน), a survey map-sheet (ระวาง), area in rai/ngan/wah (ไร่/งาน/ตารางวา), a surveyed plot diagram, a Land Office (สำนักงานที่ดิน), an owner registry.
 - "other": any other document or text image — a sale/lease contract, a screenshot of chat messages, a listing flyer, a price sheet, a map screenshot.
+
+Set "label" to a SHORT (2-4 word) lowercase descriptor of this specific image — loose, not strict. Examples by kind:
+- property: "external - front", "external - side", "external - balcony", "internal - bedroom", "internal - living room", "internal - kitchen", "internal - bathroom", "road / access", "view", "floor plan".
+- chanote: "front", "back", "2nd page", "plot diagram".
+- other: "chat log", "contract", "price list", "map screenshot".
+Pick the closest fit; coin a similar short label if none match. "" only if you truly can't tell.
 
 If kind is "chanote": fill the chanote object (else set chanote to null). Make a BEST EFFORT even on low-quality scans; for any field you cannot read confidently, leave it "" and describe the problem in confidenceNote. Use "" for missing text, [] for no encumbrances.
 - titleType: chanote (โฉนด / Nor Sor 4 Jor) | nor-sor-3-gor (น.ส.3ก) | nor-sor-3 (น.ส.3) | sor-por-kor (ส.ป.ก.) | other.
@@ -190,7 +228,17 @@ export function buildExtractionSystem(memory?: string): Anthropic.TextBlockParam
 /** Build the volatile user-turn content: the batch text + candidates + geo hints, followed by any
  * media blocks. Exported (pure) so the prompt shape is unit-testable without hitting the API. */
 export function buildExtractionContent(request: ExtractionRequest): Anthropic.ContentBlockParam[] {
-  const sections: string[] = [`New chat messages to extract from:\n${request.text || "(no text)"}`];
+  const sections: string[] = [];
+  if (request.focus !== undefined && request.focus !== "") {
+    // Two-pass: extract only the one property a prior segmentation pass identified.
+    sections.push(
+      `FOCUS: Extract ONLY the single property described as "${request.focus}" in the transcript below ` +
+        "(ignore any other properties). Emit EXACTLY ONE property entry for it. The transcript may " +
+        'contain image markers like "[IMG n] ..." and map markers like "[MAP n] ..." — treat them as ' +
+        "context for this property.",
+    );
+  }
+  sections.push(`New chat messages to extract from:\n${request.text || "(no text)"}`);
 
   if (request.geoHints.length > 0) {
     const coords = request.geoHints.map((g) => `${g.lat},${g.long}`).join("; ");
@@ -237,12 +285,40 @@ export function buildExtractionContent(request: ExtractionRequest): Anthropic.Co
   return content;
 }
 
-export class ClaudeExtractor implements PropertyExtractor {
+export class ClaudeExtractor implements PropertyExtractor, PropertySegmenter {
   constructor(
     private readonly client: Anthropic,
     private readonly ladder: readonly ModelTier[] = DEFAULT_LADDER,
     private readonly logger?: Logger,
   ) {}
+
+  /** Pass 1 of two-pass extraction: split + attribute, on the cheap primary tier (no field work). */
+  async segment(request: ExtractionRequest): Promise<SegmentationResult | null> {
+    const model = this.ladder[0]?.model ?? "claude-haiku-4-5";
+    try {
+      const response = await this.client.messages.parse({
+        model,
+        max_tokens: MAX_TOKENS,
+        system: [
+          {
+            type: "text",
+            text: SEGMENT_SYSTEM_PROMPT,
+            cache_control: { type: "ephemeral", ttl: "1h" },
+          },
+        ],
+        messages: [{ role: "user", content: buildExtractionContent(request) }],
+        output_config: { format: zodOutputFormat(SegmentationSchema) },
+      });
+      const parsed = response.parsed_output ?? null;
+      if (parsed === null) {
+        return null;
+      }
+      return { segments: parsed.segments, memoryUpdate: parsed.memoryUpdate };
+    } catch (error) {
+      this.logger?.warn("segmentation failed", { error: String(error) });
+      return null;
+    }
+  }
 
   async extract(request: ExtractionRequest): Promise<ExtractionResult | null> {
     // Walk the ladder: accept the first tier that is confident (or unparseable-but-last). Escalate
@@ -379,6 +455,7 @@ export class ClaudeImageClassifier implements ImageClassifier {
       parsed.kind === "chanote" && parsed.chanote !== null ? toChanote(parsed.chanote) : undefined;
     return {
       kind: parsed.kind,
+      ...(emptyToUndef(parsed.label) !== undefined ? { label: parsed.label } : {}),
       ...(chanote !== undefined ? { chanote } : {}),
       ...(emptyToUndef(parsed.ocrText) !== undefined ? { ocrText: parsed.ocrText } : {}),
     };

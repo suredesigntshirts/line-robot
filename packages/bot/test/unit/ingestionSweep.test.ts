@@ -14,6 +14,8 @@ import type {
   ExtractionResult,
   ImageClassification,
   ImageClassifier,
+  PropertySegmenter,
+  SegmentationResult,
 } from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
@@ -23,6 +25,7 @@ import { textOf } from "../fixtures/outbound.js";
 interface Spies {
   claims: { key: string; nowMs: number; staleTimeoutMs: number }[];
   releases: { key: string; watermark: number; claimSeenInboundAt: number }[];
+  segmentRequests: ExtractionRequest[];
   extractRequests: ExtractionRequest[];
   upserts: PropertyUpsert[];
   links: { key: string; propertyId: string }[];
@@ -50,6 +53,8 @@ interface Options {
   mediaBytes?: Record<string, Buffer>;
   /** Per-image classification; default classifies every image as a plain property photo. */
   classify?: (media: ExtractionMedia) => ImageClassification | null;
+  /** Pass-1 segmentation; default returns null → the sweep uses the single-pass fallback. */
+  segment?: (req: ExtractionRequest) => SegmentationResult | null;
   /** conversationKey → existing memory note fed to the extractor. */
   memory?: Record<string, string>;
   pushThrows?: boolean;
@@ -118,6 +123,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
   const spies: Spies = {
     claims: [],
     releases: [],
+    segmentRequests: [],
     extractRequests: [],
     upserts: [],
     links: [],
@@ -174,6 +180,12 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
   const classifier: ImageClassifier = {
     classifyImage: async (m) => (opts.classify ?? (() => ({ kind: "property" })))(m),
   };
+  const segmenter: PropertySegmenter = {
+    segment: async (req) => {
+      spies.segmentRequests.push(req);
+      return (opts.segment ?? (() => null))(req);
+    },
+  };
   const sweep = new IngestionSweep(
     {
       catalog: catalog as CatalogRepository,
@@ -184,6 +196,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
           return (opts.extract ?? (() => null))(req);
         },
       },
+      segmenter,
       classifier,
       media,
       gateway: {
@@ -448,6 +461,80 @@ describe("IngestionSweep — extraction", () => {
     expect(mergeChips).toEqual([
       { label: "Merge → Thonglor plot", data: "action=merge&from=gen-1&into=p-thonglor" },
     ]);
+  });
+
+  it("two-pass: segments a multi-property batch and attributes each one's own photo + map", async () => {
+    const focusSeen: string[] = [];
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("group#G"),
+          claim: tracker("group#G"),
+          batch: [
+            textMsg(1000, "Baan Lak Chai 3 bed https://www.google.com/maps?q=18.8,99.0"),
+            imageMsg(2000, "deed.jpg"),
+            textMsg(40000, "Mooban Wangtan 2.3M https://www.google.com/maps?q=18.7,98.9"),
+            imageMsg(41000, "house.jpg"),
+          ],
+        },
+      ],
+      {
+        mediaBytes: { "deed.jpg": Buffer.from("DEED"), "house.jpg": Buffer.from("HOUSE") },
+        classify: (m) =>
+          Buffer.from(m.base64, "base64").toString() === "DEED"
+            ? { kind: "chanote", chanote: { deedNumber: "111" } }
+            : { kind: "property", label: "external - front" },
+        segment: () => ({
+          segments: [
+            {
+              label: "Baan Lak Chai",
+              existingPropertyId: "",
+              ambiguous: false,
+              ambiguousWith: [],
+              imageIndices: [0],
+              mapIndex: 0,
+            },
+            {
+              label: "Mooban Wangtan",
+              existingPropertyId: "",
+              ambiguous: false,
+              ambiguousWith: [],
+              imageIndices: [1],
+              mapIndex: 1,
+            },
+          ],
+          memoryUpdate: "",
+        }),
+        extract: (req) => {
+          focusSeen.push(req.focus ?? "");
+          return req.focus === "Baan Lak Chai"
+            ? { properties: [extracted({ normalizedAddress: "Baan Lak Chai", bedrooms: 3 })] }
+            : {
+                properties: [extracted({ projectName: "Mooban Wangtan", askingPrice: 1_700_000 })],
+              };
+        },
+      },
+    );
+    await sweep.run();
+
+    // The segmenter saw a timestamped transcript with indexed image + map markers.
+    const transcript = spies.segmentRequests[0]?.text ?? "";
+    expect(transcript).toContain("[IMG 0] chanote");
+    expect(transcript).toContain("[IMG 1] property - external - front");
+    expect(transcript).toContain("[MAP 0]");
+    expect(transcript).toMatch(/\[\d+ \w+ \d{2}:\d{2}:\d{2}\]/); // per-line second-resolution stamp
+
+    // Each property got its OWN photo + map (the old code attributed nothing on multi-property).
+    expect(focusSeen).toEqual(["Baan Lak Chai", "Mooban Wangtan"]);
+    const lak = spies.upserts.find((u) => u.normalizedAddress === "Baan Lak Chai");
+    const moo = spies.upserts.find((u) => u.projectName === "Mooban Wangtan");
+    expect(lak?.photos).toEqual([{ s3Key: "deed.jpg", kind: "chanote" }]);
+    expect(lak?.chanote).toEqual({ deedNumber: "111" });
+    expect(lak?.mapUrl).toBe("https://www.google.com/maps?q=18.8,99.0");
+    expect(moo?.photos).toEqual([
+      { s3Key: "house.jpg", kind: "property", label: "external - front" },
+    ]);
+    expect(moo?.mapUrl).toBe("https://www.google.com/maps?q=18.7,98.9");
   });
 
   it("attributes a single-property batch's photo to that property", async () => {

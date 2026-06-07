@@ -36,6 +36,18 @@ export function formatShortDate(at: number): string {
   return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
 }
 
+/** Format an instant as a compact Bangkok-local date+time WITH SECONDS, e.g. `2 Jun 14:32:07` — used
+ * to stamp each line of the extraction transcript. Second resolution matters: a burst of messages a
+ * few seconds apart then a ~20s gap is a strong signal of where one property ends and the next begins,
+ * so the segmenter can group by time clustering. */
+export function formatShortDateTime(at: number): string {
+  const d = new Date(at + BANGKOK_OFFSET_MS); // shift so UTC getters read Bangkok wall-clock
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  const ss = String(d.getUTCSeconds()).padStart(2, "0");
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${hh}:${mm}:${ss}`;
+}
+
 /** Format an instant as a short Bangkok-local label, e.g. `Tue Jun 10, 14:30 ICT`. */
 export function formatDueDate(dueAt: number): string {
   const d = new Date(dueAt + BANGKOK_OFFSET_MS); // shift so UTC getters read Bangkok wall-clock

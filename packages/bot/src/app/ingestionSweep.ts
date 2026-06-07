@@ -6,6 +6,7 @@ import type {
   PropertyUpsert,
 } from "../core/domain/catalog.js";
 import { pushTarget } from "../core/domain/conversation.js";
+import { formatShortDateTime } from "../core/domain/datetime.js";
 import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
 import { mergePromptQuickReplies } from "../core/handlers/views.js";
@@ -15,6 +16,8 @@ import type {
   ExtractionCandidate,
   ImageClassifier,
   PropertyExtractor,
+  PropertySegment,
+  PropertySegmenter,
 } from "../core/ports/extraction.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
 import type { MediaReader } from "../core/ports/mediaReader.js";
@@ -25,6 +28,8 @@ export interface IngestionSweepDeps {
   readonly catalog: CatalogRepository;
   readonly messages: MessageRepository;
   readonly extractor: PropertyExtractor;
+  /** Pass 1 of two-pass extraction (plan 13 inc 6): split the batch into distinct properties. */
+  readonly segmenter: PropertySegmenter;
   /** Per-image classify + OCR (plan 13): each image is read in its own small vision call. */
   readonly classifier: ImageClassifier;
   readonly media: MediaReader;
@@ -52,6 +57,7 @@ interface ClassifiedMedia {
   readonly s3Key: string;
   readonly contentType: string;
   readonly kind: PropertyPhoto["kind"];
+  readonly label?: string;
   readonly chanote?: Chanote;
   readonly ocrText?: string;
 }
@@ -145,6 +151,96 @@ function mergeChanote(a: Chanote, b: Chanote): Chanote {
         : undefined,
     confidenceNote: notes.length > 0 ? notes.join(" ") : undefined,
   };
+}
+
+/** A blank extracted property (all sentinels) — used when a focused pass-2 extract returns nothing
+ * but the segment still warrants a record (so its photos/map/chanote aren't lost). */
+function emptyExtracted(): ExtractedProperty {
+  return {
+    existingPropertyId: "",
+    ambiguous: false,
+    ambiguousWith: [],
+    normalizedAddress: "",
+    rawAddress: "",
+    projectName: "",
+    lat: null,
+    long: null,
+    district: "",
+    subdistrict: "",
+    province: "",
+    propertyType: "",
+    status: "",
+    askingPrice: null,
+    currency: "",
+    tags: [],
+    bedrooms: null,
+    bathrooms: null,
+    usableAreaSqm: null,
+    landArea: "",
+    floors: null,
+    furnishing: "",
+    notes: "",
+    listingType: "",
+    rentPrice: null,
+    contact: "",
+    source: "",
+  };
+}
+
+/** Combine a segment's identity decision (pass 1) with the focused field extraction (pass 2). The
+ * segment owns create-vs-update + ambiguity; the focused extract owns the fields. If pass 2 produced
+ * nothing, keep the segment label as a project name so the listing isn't nameless. */
+function mergeSegment(segment: PropertySegment, fields?: ExtractedProperty): ExtractedProperty {
+  const base = fields ?? emptyExtracted();
+  const projectName =
+    base.projectName !== "" ? base.projectName : fields === undefined ? segment.label : "";
+  return {
+    ...base,
+    projectName,
+    existingPropertyId: segment.existingPropertyId,
+    ambiguous: segment.ambiguous,
+    ambiguousWith: segment.ambiguousWith,
+  };
+}
+
+/** Build the single timestamped transcript both passes read. Each line is `[<Bangkok date+time>]`
+ * followed by the message text (with map links rewritten to `[MAP n]`) or an image marker
+ * `[IMG n] <kind> - <label> ocr: <text>`. The timestamps (second resolution) expose burst/gap
+ * structure for segmentation; the indexed markers let the segmenter attribute media per property. */
+function buildTranscript(
+  batch: readonly StoredMessage[],
+  classified: readonly ClassifiedMedia[],
+): { transcript: string; mapLinks: string[] } {
+  const indexByKey = new Map(classified.map((c, i) => [c.s3Key, i]));
+  const ordered = [...batch].sort((a, b) => a.timestamp - b.timestamp);
+  const mapLinks: string[] = [];
+  const lines: string[] = [];
+  for (const m of ordered) {
+    const stamp = `[${formatShortDateTime(m.timestamp)}]`;
+    const attachKey = m.attachment?.s3Key;
+    if (attachKey !== undefined && indexByKey.has(attachKey)) {
+      const i = indexByKey.get(attachKey) as number;
+      const c = classified[i] as ClassifiedMedia;
+      const label = c.label !== undefined ? ` - ${c.label}` : "";
+      const ocr = c.ocrText !== undefined ? ` ocr: ${c.ocrText}` : "";
+      lines.push(`${stamp} [IMG ${i}] ${c.kind}${label}${ocr}`);
+      continue;
+    }
+    const text = m.text;
+    if (text !== undefined && text !== "") {
+      let rewritten = text;
+      for (const url of parseMapUrls(text)) {
+        let idx = mapLinks.indexOf(url);
+        if (idx === -1) {
+          idx = mapLinks.length;
+          mapLinks.push(url);
+        }
+        rewritten = rewritten.split(url).join(`[MAP ${idx}]`);
+      }
+      lines.push(`${stamp} ${rewritten}`);
+    }
+  }
+  return { transcript: lines.join("\n"), mapLinks };
 }
 
 /**
@@ -248,27 +344,107 @@ export class IngestionSweep {
   }
 
   private async extractAndApply(key: string, batch: StoredMessage[]): Promise<AppliedProperty[]> {
-    const chatText = batch
-      .map((m) => m.text)
-      .filter((t): t is string => t !== undefined && t !== "")
-      .join("\n");
-    // Per-image pass: classify every attachment + OCR documents (plan 13). Property photos carry no
-    // extractable text, so the property extractor runs on text only — the giant multimodal call is
-    // gone; OCR'd document/screenshot text is appended to the chat text instead.
+    // Per-image pass: classify every attachment + OCR documents (plan 13).
     const classified = await this.classifyMedia(batch);
-    const ocrChunks = classified.flatMap((c) => (c.ocrText !== undefined ? [c.ocrText] : []));
-    const text = [chatText, ...ocrChunks].filter((t) => t.trim() !== "").join("\n\n");
-    if (text.trim() === "" && classified.length === 0) {
+    // Build ONE timestamped transcript with [IMG n] / [MAP n] markers — feeds both passes, and the
+    // timestamps + markers let the model segment by time-clustering and attribute each image/map.
+    const { transcript, mapLinks } = buildTranscript(batch, classified);
+    if (transcript.trim() === "") {
       this.deps.logger.info("ingestion sweep: nothing to extract", { conversationKey: key });
       return [];
     }
 
-    const geoHints = parseGeoLinks(text).map((g) => ({ lat: g.lat, long: g.long }));
+    // Geo coords come from the raw chat text (parseGeoLinks handles `?q=lat,lng` links, including
+    // ones parseMapUrls doesn't treat as shareable map links and so didn't rewrite to [MAP n]).
+    const chatText = batch
+      .map((m) => m.text)
+      .filter((t): t is string => t !== undefined && t !== "")
+      .join("\n");
+    const allGeoHints = parseGeoLinks(chatText).map((g) => ({ lat: g.lat, long: g.long }));
     const candidates = await this.loadCandidates(key);
     const memory = nullToUndef(await this.deps.catalog.getMemoryDoc(key));
+
+    // PASS 1 — segment the batch into distinct properties + attribute their images/map by index.
+    const seg = await this.deps.segmenter.segment({
+      conversationKey: key,
+      text: transcript,
+      media: [],
+      geoHints: allGeoHints,
+      candidates,
+      memory,
+    });
+    if (seg === null) {
+      // Segmentation unparseable → fall back to a single focused-less extraction over the transcript.
+      return this.singlePassFallback(
+        key,
+        batch,
+        transcript,
+        classified,
+        mapLinks,
+        candidates,
+        memory,
+        allGeoHints,
+      );
+    }
+    await this.applyMemoryUpdate(key, seg.memoryUpdate);
+    if (seg.segments.length === 0) {
+      this.deps.logger.info("ingestion sweep: segmenter found no properties", {
+        conversationKey: key,
+        messageCount: batch.length,
+      });
+      return [];
+    }
+
+    const mergeTargets = this.toMergeTargets(candidates);
+    const applied: AppliedProperty[] = [];
+    for (const segment of seg.segments) {
+      const mapUrl = segment.mapIndex >= 0 ? mapLinks[segment.mapIndex] : undefined;
+      // Pass ONLY this property's own map coord to its focused extract (don't leak siblings' coords).
+      const segGeo =
+        mapUrl !== undefined
+          ? parseGeoLinks(mapUrl).map((g) => ({ lat: g.lat, long: g.long }))
+          : [];
+      // PASS 2 — a focused extraction filling all fields for THIS property only (no dilution).
+      const result = await this.deps.extractor.extract({
+        conversationKey: key,
+        text: transcript,
+        media: [],
+        geoHints: segGeo,
+        candidates,
+        focus: segment.label,
+      });
+      const segImages = segment.imageIndices
+        .map((i) => classified[i])
+        .filter((c): c is ClassifiedMedia => c !== undefined);
+      const photos = this.collectPhotos(segImages);
+      const chanote = this.collectChanote(segImages);
+      const property = mergeSegment(segment, result?.properties[0]);
+      applied.push(await this.applyProperty(key, property, mergeTargets, photos, chanote, mapUrl));
+    }
+    this.deps.logger.info("ingestion sweep: extracted properties", {
+      conversationKey: key,
+      messageCount: batch.length,
+      segmentCount: seg.segments.length,
+      propertyCount: applied.length,
+    });
+    return applied;
+  }
+
+  /** Fallback when segmentation fails: one extraction over the transcript, attributing media only
+   * when it resolves to exactly one property (the pre-two-pass behaviour). */
+  private async singlePassFallback(
+    key: string,
+    batch: StoredMessage[],
+    transcript: string,
+    classified: readonly ClassifiedMedia[],
+    mapLinks: readonly string[],
+    candidates: readonly ExtractionCandidate[],
+    memory: string | undefined,
+    geoHints: readonly { lat: number; long: number }[],
+  ): Promise<AppliedProperty[]> {
     const result = await this.deps.extractor.extract({
       conversationKey: key,
-      text,
+      text: transcript,
       media: [],
       geoHints,
       candidates,
@@ -277,49 +453,36 @@ export class IngestionSweep {
     if (result === null) {
       this.deps.logger.info("ingestion sweep: extractor returned nothing", {
         conversationKey: key,
-        messageCount: batch.length,
       });
       return [];
     }
-    if (result.escalatedTo !== undefined) {
-      // Surfaced so escalation rate (and its cost) is visible in the logs.
-      this.deps.logger.info("ingestion sweep: extraction escalated", {
-        conversationKey: key,
-        model: result.escalatedTo,
-      });
-    }
-    // Apply a proposed memory update even when no properties changed (the model may have learned an
-    // alias without a property edit).
     await this.applyMemoryUpdate(key, result.memoryUpdate);
     if (result.properties.length === 0) {
-      this.deps.logger.info("ingestion sweep: extractor returned no properties", {
-        conversationKey: key,
-        messageCount: batch.length,
-      });
       return [];
     }
-
-    // The conversation's existing properties become merge targets for any ambiguous create-new.
-    const mergeTargets: MergeTarget[] = candidates.map((c) => ({
-      id: c.propertyId,
-      label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
-    }));
-    // Attribute the batch's photos / chanote / shared map link only when it produced exactly one
-    // property — otherwise which property they belong to is ambiguous, so we attach none.
+    const mergeTargets = this.toMergeTargets(candidates);
     const single = result.properties.length === 1;
     const photos = single ? this.collectPhotos(classified) : [];
     const chanote = single ? this.collectChanote(classified) : undefined;
-    const mapUrl = single ? parseMapUrls(text)[0] : undefined;
+    const mapUrl = single ? mapLinks[0] : undefined;
     const applied: AppliedProperty[] = [];
     for (const property of result.properties) {
       applied.push(await this.applyProperty(key, property, mergeTargets, photos, chanote, mapUrl));
     }
-    this.deps.logger.info("ingestion sweep: extracted properties", {
+    this.deps.logger.info("ingestion sweep: extracted properties (fallback)", {
       conversationKey: key,
       messageCount: batch.length,
       propertyCount: applied.length,
     });
     return applied;
+  }
+
+  /** The conversation's existing properties become merge targets for any ambiguous create-new. */
+  private toMergeTargets(candidates: readonly ExtractionCandidate[]): MergeTarget[] {
+    return candidates.map((c) => ({
+      id: c.propertyId,
+      label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
+    }));
   }
 
   private async applyProperty(
@@ -479,6 +642,7 @@ export class IngestionSweep {
         contentType: attachment.contentType,
         // A failed classify defaults to a plain property photo (it's stored + shown, just unlabelled).
         kind: classification?.kind ?? "property",
+        ...(classification?.label !== undefined ? { label: classification.label } : {}),
         ...(classification?.chanote !== undefined ? { chanote: classification.chanote } : {}),
         ...(classification?.ocrText !== undefined ? { ocrText: classification.ocrText } : {}),
       });
@@ -502,7 +666,11 @@ export class IngestionSweep {
         }
         propertyCount += 1;
       }
-      photos.push({ s3Key: c.s3Key, kind: c.kind });
+      photos.push({
+        s3Key: c.s3Key,
+        kind: c.kind,
+        ...(c.label !== undefined ? { label: c.label } : {}),
+      });
     }
     return photos;
   }

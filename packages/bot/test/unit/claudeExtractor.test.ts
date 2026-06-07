@@ -4,8 +4,8 @@ import { z } from "zod";
 import {
   buildExtractionContent,
   buildExtractionSystem,
-  ClaudeExtractor,
   ClassifiedImageSchema,
+  ClaudeExtractor,
   ExtractionSchema,
   type ModelTier,
 } from "../../src/adapters/anthropic/claudeExtractor.js";

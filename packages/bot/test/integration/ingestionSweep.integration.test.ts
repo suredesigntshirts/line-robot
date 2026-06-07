@@ -11,6 +11,7 @@ import type {
   ExtractionResult,
   ImageClassifier,
   PropertyExtractor,
+  PropertySegmenter,
 } from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
@@ -130,12 +131,16 @@ const noClassifier: ImageClassifier = {
   },
 };
 
+// Segmentation returns null → the sweep uses its single-pass fallback (what these tests assert).
+const nullSegmenter: PropertySegmenter = { segment: async () => null };
+
 function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep {
   return new IngestionSweep(
     {
       catalog,
       messages,
       extractor,
+      segmenter: nullSegmenter,
       classifier: noClassifier,
       media: noMedia,
       gateway: {

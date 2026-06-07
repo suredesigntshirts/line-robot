@@ -21,6 +21,9 @@ export interface ExtractionMedia {
  * (contracts, message screenshots) return `ocrText` so the property extractor can read it. */
 export interface ImageClassification {
   readonly kind: PhotoKind;
+  /** A short free-text subtype of this image, e.g. "external - front", "kitchen", "chanote - back",
+   * "chat log". Best-effort metadata; omitted when nothing useful. */
+  readonly label?: string;
   /** Present (best-effort) when the image is a title deed. */
   readonly chanote?: Chanote;
   /** Freeform text read off a document/screenshot, fed into the text extraction. */
@@ -61,6 +64,10 @@ export interface ExtractionRequest {
   /** The conversation's durable memory note (known people, area aliases, terminology), if any.
    * Injected into the cached prefix so the model can resolve references and aliases. */
   readonly memory?: string;
+  /** Two-pass extraction (plan 13 inc 6): when set, extract ONLY the property described by this label
+   * (from a prior segmentation pass) and emit exactly one entry for it — so each property in a
+   * multi-property batch gets its own focused call instead of being diluted in one. */
+  readonly focus?: string;
 }
 
 /**
@@ -117,6 +124,35 @@ export interface ExtractionResult {
 
 export interface PropertyExtractor {
   /** Run one extraction over the batch. Returns `null` when the model produced no parseable output
-   * (the sweep then applies nothing for this run). */
+   * (the sweep then applies nothing for this run). With `request.focus` set, returns the single
+   * focused property. */
   extract(request: ExtractionRequest): Promise<ExtractionResult | null>;
+}
+
+/** One distinct property found in a batch by the segmentation pass (plan 13 inc 6). It carries the
+ * identity decision + which images/map-link belong to it (by index into the marked transcript), so
+ * the sweep can attribute each property's own photos/chanote/map even in a multi-property batch. */
+export interface PropertySegment {
+  /** A short human anchor for the property (e.g. "Mooban Wangtan"); also used as `focus` in pass 2. */
+  readonly label: string;
+  /** `""` → create-new; otherwise the existing property id to update. */
+  readonly existingPropertyId: string;
+  readonly ambiguous: boolean;
+  readonly ambiguousWith: readonly string[];
+  /** Indices of the `[IMG n]` markers in the transcript that belong to this property. */
+  readonly imageIndices: readonly number[];
+  /** Index of the `[MAP n]` marker that belongs to this property, or -1 for none. */
+  readonly mapIndex: number;
+}
+
+export interface SegmentationResult {
+  readonly segments: readonly PropertySegment[];
+  /** A durable memory note proposed from the whole batch (the per-property passes don't propose it). */
+  readonly memoryUpdate?: string | null;
+}
+
+/** Pass 1 of two-pass extraction: split a batch into distinct properties + attribute their media,
+ * without filling fields. Returns `null` on unparseable output (the sweep falls back to one call). */
+export interface PropertySegmenter {
+  segment(request: ExtractionRequest): Promise<SegmentationResult | null>;
 }

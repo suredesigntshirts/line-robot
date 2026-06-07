@@ -8,10 +8,14 @@
  * three the same on LINE but ordered property → chanote → other. */
 export type PhotoKind = "property" | "chanote" | "other";
 
-/** One stored image (S3 key) with its classified kind. Replaces the bare `string[]` of S3 keys. */
+/** One stored image (S3 key) with its classified kind and a short free-text subtype label —
+ * best-effort metadata the per-image classifier already "sees" (e.g. "external - front",
+ * "internal - kitchen", "chanote - back", "chat log"). Replaces the bare `string[]` of S3 keys. */
 export interface PropertyPhoto {
   readonly s3Key: string;
   readonly kind: PhotoKind;
+  /** A loose descriptor of the specific shot/page, omitted when the classifier had nothing useful. */
+  readonly label?: string;
 }
 
 /** Structured data OCR'd from a Thai land title-deed (chanote / นส.3ก / etc.). Captured by the

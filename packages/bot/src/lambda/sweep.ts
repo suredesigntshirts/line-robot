@@ -29,10 +29,13 @@ async function buildSweep(): Promise<IngestionSweep> {
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
   const logger = new PowertoolsLoggerAdapter();
+  // ClaudeExtractor implements both PropertyExtractor and PropertySegmenter — one instance, two roles.
+  const extractor = createClaudeExtractor(anthropicApiKey, undefined, logger);
   return new IngestionSweep({
     catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
     messages: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
-    extractor: createClaudeExtractor(anthropicApiKey, undefined, logger),
+    extractor,
+    segmenter: extractor,
     // Per-image classify + OCR (plan 13): one cheap Haiku vision call per image.
     classifier: createClaudeImageClassifier(anthropicApiKey, undefined, logger),
     media: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),

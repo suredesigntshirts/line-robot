@@ -1,8 +1,8 @@
 # Plan 13 — Fix broken extraction (schema union limit), per-image classify+OCR, chanote schema, photo type labels, S3 format detection
 
-Status: **Inc 1 DONE & LIVE (`ea12c4f`). Incs 2–5 implemented + tested (175 unit / 24 integration),
-pending deploy.** Follows plan 12. Driven by a production outage found in staging logs + new
-chanote-OCR requirements.
+Status: **DONE & LIVE.** Inc 1 (`ea12c4f`) + Incs 2–5 (`4d130fe`) deployed code-only (6 updated, 40
+unchanged; no DynamoDB/IAM diff). 175 unit / 24 integration green. Post-deploy sweep runs clean.
+Follows plan 12. Driven by a production outage found in staging logs + new chanote-OCR requirements.
 
 ## Context / why
 
@@ -110,6 +110,32 @@ stale-timeout lets a later sweep re-claim and now succeed.
 | File | Change |
 |---|---|
 | `app/eventProcessor.ts` | After fetching the LINE blob, sniff magic bytes → `image/jpeg` (FFD8FF) / `image/png` (89504E47) / `image/gif` (474946) / `image/webp` (RIFF…WEBP); fall back to the current best-guess. Use the sniffed type for the S3 `Content-Type` + key extension (today `"image"` hard-codes `image/jpeg`). |
+
+## Increment 6 — two-pass extraction (segment → per-property) + per-segment attribution — IMPLEMENTED
+
+Implemented + tested (176 unit / 24 integration). Transcript is timestamped (second resolution, so
+burst/gap structure is visible) with `[IMG n]`/`[MAP n]` markers; pass 1 segments + attributes by
+index; pass 2 extracts each property focused. Photo subtype label (`PropertyPhoto.label`) added too.
+Fallback to single-pass when segmentation returns null. Pending deploy + blank-slate wipe.
+
+**Why:** Debugging the first live batch (group chat, 33 msgs) found the model returned two properties
+but one (Mooban Wangtan) was sparse, and — the real bug — **multi-property batches attribute photos /
+map links / chanote to NO property** (the sweep only attaches on a single-property batch). So both
+group properties lost their photos + location; only the DM copy kept photos. Root cause is NOT context
+/truncation (the call parsed fine; Mooban Wangtan is genuinely text-sparse — its details live only in
+photos we don't deep-extract). Fix = the user's two-pass: segment first, then extract each property
+individually, attributing each one's own images/map/chanote.
+
+| File | Change |
+|---|---|
+| `core/ports/extraction.ts` | Add `focus?: string` to `ExtractionRequest` (pass-2 extracts ONE named property). Add `PropertySegment { label, existingPropertyId, ambiguous, ambiguousWith, imageIndices[], mapIndex }`, `SegmentationResult { segments[], memoryUpdate }`, and `PropertyExtractor.segment(request)`. |
+| `adapters/anthropic/claudeExtractor.ts` | `SegmentationSchema` (0 nullables — arrays/sentinels) + concise `SEGMENT_SYSTEM_PROMPT`; `segment()` method. `buildExtractionContent` honours `focus` ("extract ONLY this property; emit exactly one"). |
+| `app/ingestionSweep.ts` | New flow: classify images (ordered) → build a marked transcript (`[IMG n]` with kind/label, `[MAP n]`, text) → `segment()` → for each segment `extract({focus})` → take the one property, attach photos at `imageIndices`, chanote merged from those, mapUrl at `mapIndex`, identity from the segment. `memoryUpdate` from the segment pass. Fallback to the old single-`extract()` if `segment()` returns null. |
+| tests | segment + per-segment attribution (multi-property batch attaches each property's own photos/map); focus in content; fallback. |
+
+Also: **photo subtype label** — `PropertyPhoto.label?` + `ImageClassification.label` + a `label` field
+in the classify schema/prompt (e.g. "external - front", "internal - kitchen", "chanote - back",
+"chat log"); stored + round-tripped. Cheap metadata since we already classify each image.
 
 ## Verification (per increment)
 - `npm run test` / `test:integration` / `lint` / `typecheck`.

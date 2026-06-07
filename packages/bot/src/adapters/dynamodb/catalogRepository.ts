@@ -85,7 +85,11 @@ function buildPropertyEntity(client: DynamoDBDocumentClient, table: string) {
           type: "list",
           items: {
             type: "map",
-            properties: { s3Key: { type: "string" }, kind: { type: "string" } },
+            properties: {
+              s3Key: { type: "string" },
+              kind: { type: "string" },
+              label: { type: "string" },
+            },
           },
         },
         createdAt: { type: "number" },
@@ -282,14 +286,18 @@ function toPhotos(raw: unknown): PropertyPhoto[] | undefined {
   if (!Array.isArray(raw) || raw.length === 0) {
     return undefined;
   }
-  return raw.map((p) =>
-    typeof p === "string"
-      ? { s3Key: p, kind: "property" as const }
-      : {
-          s3Key: String((p as { s3Key?: unknown }).s3Key ?? ""),
-          kind: ((p as { kind?: unknown }).kind ?? "property") as PhotoKind,
-        },
-  );
+  return raw.map((p) => {
+    if (typeof p === "string") {
+      return { s3Key: p, kind: "property" as const };
+    }
+    const obj = p as { s3Key?: unknown; kind?: unknown; label?: unknown };
+    const label = typeof obj.label === "string" && obj.label !== "" ? obj.label : undefined;
+    return {
+      s3Key: String(obj.s3Key ?? ""),
+      kind: (obj.kind ?? "property") as PhotoKind,
+      ...(label !== undefined ? { label } : {}),
+    };
+  });
 }
 
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
@@ -618,7 +626,15 @@ export class DynamoCatalogRepository implements CatalogRepository {
       ...rest,
       ...(rawAddresses ? { rawAddresses: [...rawAddresses] } : {}),
       ...(tags ? { tags: [...tags] } : {}),
-      ...(photos ? { photos: photos.map((p) => ({ s3Key: p.s3Key, kind: p.kind })) } : {}),
+      ...(photos
+        ? {
+            photos: photos.map((p) => ({
+              s3Key: p.s3Key,
+              kind: p.kind,
+              ...(p.label !== undefined ? { label: p.label } : {}),
+            })),
+          }
+        : {}),
       ...(chanote ? { chanote: toStoredChanote(chanote) } : {}),
     });
     await this.property.upsert(data).go();
