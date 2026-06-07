@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseGeoLinks } from "../../src/core/domain/geo.js";
+import { parseGeoLinks, parseMapUrls } from "../../src/core/domain/geo.js";
 
 describe("parseGeoLinks", () => {
   it("parses the q= pin form (the real-data pattern users paste)", () => {
@@ -43,5 +43,31 @@ describe("parseGeoLinks", () => {
   it("returns empty for empty/blank text", () => {
     expect(parseGeoLinks("")).toEqual([]);
     expect(parseGeoLinks("no link here")).toEqual([]);
+  });
+});
+
+describe("parseMapUrls", () => {
+  it("captures the original long-form and short-link Google-Maps URLs verbatim", () => {
+    expect(parseMapUrls("see https://www.google.com/maps/place/Foo/@13.7,100.5,17z here")[0]).toBe(
+      "https://www.google.com/maps/place/Foo/@13.7,100.5,17z",
+    );
+    expect(parseMapUrls("loc: https://maps.app.goo.gl/aB9xQ")).toEqual([
+      "https://maps.app.goo.gl/aB9xQ",
+    ]);
+    expect(parseMapUrls("old https://goo.gl/maps/xyz123")).toEqual(["https://goo.gl/maps/xyz123"]);
+  });
+
+  it("trims trailing sentence punctuation and de-duplicates", () => {
+    expect(parseMapUrls("here: https://maps.app.goo.gl/aB9xQ.")).toEqual([
+      "https://maps.app.goo.gl/aB9xQ",
+    ]);
+    expect(
+      parseMapUrls("https://maps.app.goo.gl/dup and again https://maps.app.goo.gl/dup"),
+    ).toEqual(["https://maps.app.goo.gl/dup"]);
+  });
+
+  it("returns empty when there's no maps link", () => {
+    expect(parseMapUrls("just chatting, no link")).toEqual([]);
+    expect(parseMapUrls("")).toEqual([]);
   });
 });

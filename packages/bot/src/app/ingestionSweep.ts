@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ConversationTracker, PropertyUpsert } from "../core/domain/catalog.js";
 import { pushTarget } from "../core/domain/conversation.js";
-import { parseGeoLinks } from "../core/domain/geo.js";
+import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
 import { mergePromptQuickReplies } from "../core/handlers/views.js";
 import type { CatalogRepository } from "../core/ports/catalog.js";
@@ -251,12 +251,14 @@ export class IngestionSweep {
       id: c.propertyId,
       label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
     }));
-    // Attribute the batch's photos only when it produced exactly one property — otherwise which
-    // property a photo belongs to is ambiguous, so we attach none (never misattribute).
-    const photoKeys = result.properties.length === 1 ? collectPhotoKeys(batch) : [];
+    // Attribute the batch's photos / shared map link only when it produced exactly one property —
+    // otherwise which property they belong to is ambiguous, so we attach none (never misattribute).
+    const single = result.properties.length === 1;
+    const photoKeys = single ? collectPhotoKeys(batch) : [];
+    const mapUrl = single ? parseMapUrls(text)[0] : undefined;
     const applied: AppliedProperty[] = [];
     for (const property of result.properties) {
-      applied.push(await this.applyProperty(key, property, mergeTargets, photoKeys));
+      applied.push(await this.applyProperty(key, property, mergeTargets, photoKeys, mapUrl));
     }
     this.deps.logger.info("ingestion sweep: extracted properties", {
       conversationKey: key,
@@ -271,12 +273,17 @@ export class IngestionSweep {
     property: ExtractedProperty,
     mergeTargets: readonly MergeTarget[],
     photoKeys: readonly string[],
+    mapUrl?: string,
   ): Promise<AppliedProperty> {
     // Ambiguous-but-unmatched → create new (never auto-merge across ambiguity); the confirmation
     // flags it so a human can correct it. Interactive quick-reply resolution is a later slice.
     const isNew = property.existingPropertyId === null;
     const propertyId = property.existingPropertyId ?? this.newId();
     const now = this.deps.clock.now();
+
+    // Accumulate photos (a property's gallery grows across batches) — merge this batch's keys with
+    // any already stored, de-duped, rather than replacing. New property → just this batch's keys.
+    const photos = await this.mergePhotos(isNew ? null : propertyId, photoKeys);
 
     const upsert: PropertyUpsert = {
       propertyId,
@@ -293,8 +300,21 @@ export class IngestionSweep {
       askingPrice: nullToUndef(property.askingPrice),
       currency: nullToUndef(property.currency),
       tags: property.tags ? [...property.tags] : undefined,
+      bedrooms: nullToUndef(property.bedrooms),
+      bathrooms: nullToUndef(property.bathrooms),
+      usableAreaSqm: nullToUndef(property.usableAreaSqm),
+      landArea: nullToUndef(property.landArea),
+      floors: nullToUndef(property.floors),
+      furnishing: nullToUndef(property.furnishing),
+      notes: nullToUndef(property.notes),
+      listingType: nullToUndef(property.listingType),
+      rentPrice: nullToUndef(property.rentPrice),
+      contact: nullToUndef(property.contact),
+      source: nullToUndef(property.source),
+      // Keep the original shared map link (set-if-present, so it isn't cleared when none this batch).
+      ...(mapUrl !== undefined ? { mapUrl } : {}),
       // Only set photos when this batch had images — never clobber existing photos with an empty list.
-      ...(photoKeys.length > 0 ? { photos: [...photoKeys] } : {}),
+      ...(photos !== undefined ? { photos } : {}),
       updatedAt: now,
       lastActivityAt: now,
       ...(isNew ? { originConversationKey: key, createdAt: now } : {}),
@@ -318,6 +338,22 @@ export class IngestionSweep {
       // properties (the just-created one is brand new, so it's never in the candidate set).
       ...(property.ambiguous && offered.length > 0 ? { mergeTargets: offered } : {}),
     };
+  }
+
+  /** Merge a batch's photo keys into a property's existing gallery (de-duped, order-preserving), or
+   * undefined when this batch had no images — so we never clobber stored photos with an empty list. */
+  private async mergePhotos(
+    existingPropertyId: string | null,
+    newKeys: readonly string[],
+  ): Promise<string[] | undefined> {
+    if (newKeys.length === 0) {
+      return undefined;
+    }
+    const prior =
+      existingPropertyId === null
+        ? []
+        : ((await this.deps.catalog.getProperty(existingPropertyId))?.photos ?? []);
+    return [...new Set([...prior, ...newKeys])];
   }
 
   /** Persist a model-proposed memory note (bounded), if it learned anything durable this run. */

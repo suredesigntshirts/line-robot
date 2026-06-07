@@ -48,6 +48,18 @@ function buildPropertyEntity(client: DynamoDBDocumentClient, table: string) {
         askingPrice: { type: "number" },
         currency: { type: "string" },
         tags: { type: "list", items: { type: "string" } },
+        bedrooms: { type: "number" },
+        bathrooms: { type: "number" },
+        usableAreaSqm: { type: "number" },
+        landArea: { type: "string" },
+        floors: { type: "number" },
+        furnishing: { type: "string" },
+        notes: { type: "string" },
+        listingType: { type: "string" },
+        rentPrice: { type: "number" },
+        contact: { type: "string" },
+        source: { type: "string" },
+        mapUrl: { type: "string" },
         photos: { type: "list", items: { type: "string" } },
         createdAt: { type: "number" },
         updatedAt: { type: "number" },
@@ -217,6 +229,18 @@ function toProperty(item: PropertyItem): Property {
     askingPrice: item.askingPrice,
     currency: item.currency,
     tags: item.tags,
+    bedrooms: item.bedrooms,
+    bathrooms: item.bathrooms,
+    usableAreaSqm: item.usableAreaSqm,
+    landArea: item.landArea,
+    floors: item.floors,
+    furnishing: item.furnishing,
+    notes: item.notes,
+    listingType: item.listingType,
+    rentPrice: item.rentPrice,
+    contact: item.contact,
+    source: item.source,
+    mapUrl: item.mapUrl,
     photos: item.photos,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -590,6 +614,16 @@ export class DynamoCatalogRepository implements CatalogRepository {
   async listPropertyEvents(propertyId: string): Promise<PropertyEvent[]> {
     const result = await this.event.query.byProperty({ propertyId }).go();
     return result.data.map(toEvent);
+  }
+
+  async deletePropertyEvents(propertyId: string): Promise<void> {
+    const result = await this.event.query.byProperty({ propertyId }).go();
+    if (result.data.length === 0) {
+      return;
+    }
+    await this.event
+      .delete(result.data.map((e) => ({ propertyId, dueIso: e.dueIso, eventId: e.eventId })))
+      .go();
   }
 
   async findDueEvents(nowIso: string, limit: number): Promise<PropertyEvent[]> {

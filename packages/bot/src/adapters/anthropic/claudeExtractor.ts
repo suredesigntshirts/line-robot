@@ -56,6 +56,17 @@ const ExtractedPropertySchema = z.object({
   askingPrice: z.number().nullable(),
   currency: z.string().nullable(),
   tags: z.array(z.string()).nullable(),
+  bedrooms: z.number().nullable(),
+  bathrooms: z.number().nullable(),
+  usableAreaSqm: z.number().nullable(),
+  landArea: z.string().nullable(),
+  floors: z.number().nullable(),
+  furnishing: z.string().nullable(),
+  notes: z.string().nullable(),
+  listingType: z.string().nullable(),
+  rentPrice: z.number().nullable(),
+  contact: z.string().nullable(),
+  source: z.string().nullable(),
 });
 
 const ExtractionSchema = z.object({
@@ -83,6 +94,9 @@ Field rules:
 - status: one of lead, researching, visited, negotiating, offer, under-contract, closed, dropped.
 - lat/long: if map coordinates are supplied in the request, attach them to the property they describe.
 - normalizedAddress: a clean single-line address; rawAddress: the address exactly as written in chat.
+- bedrooms/bathrooms/floors: plain integer counts. usableAreaSqm: built/usable area in square metres (number). landArea: land size exactly as written, keeping Thai units (e.g. "1 rai 2 ngan", "80 ตารางวา").
+- furnishing: one of unfurnished, partly furnished, fully furnished. listingType: "sale" or "rent" (if it's a rental, put the monthly rent in rentPrice and leave askingPrice null unless a sale price is also given).
+- contact: the owner/agent name and/or phone exactly as written. source: where the lead came from (a person, a group/chat name, or a listing site). notes: a short free-form description of anything notable not captured by the other fields.
 
 Thai title-deed glossary (context only): โฉนด = Chanote (full title), น.ส.3ก = Nor Sor 3 Gor, ส.ป.ก. = Sor Por Kor (agricultural), ไร่/งาน/ตารางวา = rai/ngan/wah (land area: 1 rai = 4 ngan = 400 wah = 1600 sqm), ตำบล/tambon = subdistrict, อำเภอ/amphoe = district, จังหวัด = province.
 

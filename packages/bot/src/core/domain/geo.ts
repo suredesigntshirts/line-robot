@@ -54,3 +54,27 @@ export function parseGeoLinks(text: string): ParsedGeo[] {
   }
   return out;
 }
+
+// Full Google-Maps share URLs (long-form and `maps.app.goo.gl` / `goo.gl/maps` short links). We keep
+// the ORIGINAL link verbatim because it's the best representation of the shared location — short
+// links don't even contain coordinates, and the long form carries the exact place the user picked.
+const MAP_URL =
+  /https?:\/\/(?:[a-z0-9.-]*\.)?(?:google\.[a-z.]+\/maps|maps\.app\.goo\.gl|goo\.gl\/maps)\b[^\s]*/gi;
+
+/** Every Google-Maps URL found in free text, de-duplicated and in first-seen order. Trailing
+ * sentence punctuation is trimmed so a link at the end of a sentence stays valid. */
+export function parseMapUrls(text: string): string[] {
+  if (!text) {
+    return [];
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const match of text.matchAll(MAP_URL)) {
+    const url = match[0].replace(/[.,;)\]]+$/, "");
+    if (!seen.has(url)) {
+      seen.add(url);
+      out.push(url);
+    }
+  }
+  return out;
+}

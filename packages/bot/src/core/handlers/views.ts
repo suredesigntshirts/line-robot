@@ -118,10 +118,14 @@ function statusBadge(status?: string): string | undefined {
 }
 
 /**
- * A Google-Maps deep link for the property: by coordinates when we have them, else by the best
- * address/area string we can build. Undefined when we have neither — the Maps button is then omitted.
+ * The best "Open in Maps" link for a property, in preference order: the **original Google-Maps link
+ * the user shared** (the truest representation of the spot), then reconstructed coordinates, then a
+ * search by the best address/area string. Undefined when we have none — the button is then omitted.
  */
 export function mapsUri(property: Property): string | undefined {
+  if (property.mapUrl !== undefined && property.mapUrl !== "") {
+    return property.mapUrl;
+  }
   if (property.lat !== undefined && property.long !== undefined) {
     return `https://www.google.com/maps/search/?api=1&query=${property.lat},${property.long}`;
   }
@@ -135,6 +139,14 @@ export function mapsUri(property: Property): string | undefined {
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
+/** Push `{label, value}` only when `value` is a non-empty string (keeps the detail card to fields we
+ * actually have — nulls are simply omitted). */
+function pushRow(rows: PropertyCardRow[], label: string, value?: string): void {
+  if (value !== undefined && value !== "") {
+    rows.push({ label, value });
+  }
+}
+
 /**
  * A rich, single-bubble Flex detail of one property: hero photo, status badge, prominent price,
  * full location (project / address / area), tags, a "reply to update" hint + saved/updated dates,
@@ -146,26 +158,50 @@ export function propertyDetail(
   opts: { heroImageUrl?: string; photoCount?: number } = {},
 ): OutboundMessage {
   const title = propertyTitle(property);
+  const sale = formatPrice(property.askingPrice, property.currency);
+  const rent =
+    property.rentPrice !== undefined
+      ? `${formatPrice(property.rentPrice, property.currency)}/mo`
+      : undefined;
 
+  // Every field we hold, rendered as "Label: value" — nulls omitted (pushRow drops empties).
   const rows: PropertyCardRow[] = [];
-  if (property.propertyType !== undefined) {
-    rows.push({ label: "Type", value: property.propertyType });
-  }
+  pushRow(rows, "Type", property.propertyType);
+  pushRow(rows, "For", property.listingType);
+  const bedBath = [
+    property.bedrooms !== undefined ? `${property.bedrooms} bed` : undefined,
+    property.bathrooms !== undefined ? `${property.bathrooms} bath` : undefined,
+  ]
+    .filter((s): s is string => s !== undefined)
+    .join(" · ");
+  pushRow(rows, "Rooms", bedBath);
+  pushRow(
+    rows,
+    "Usable area",
+    property.usableAreaSqm !== undefined ? `${property.usableAreaSqm} sqm` : undefined,
+  );
+  pushRow(rows, "Land", property.landArea);
+  pushRow(rows, "Floors", property.floors !== undefined ? String(property.floors) : undefined);
+  pushRow(rows, "Furnishing", property.furnishing);
+  // Rent as a row only when there's ALSO a sale price (else rent is the headline below).
+  pushRow(rows, "Rent", sale !== undefined ? rent : undefined);
   // Surface the *other* identifier rather than repeating the heading: propertyTitle prefers the
   // address then the project, so show whichever the title didn't already use.
-  if (property.projectName !== undefined && property.projectName !== title) {
-    rows.push({ label: "Project", value: property.projectName });
-  }
-  if (property.normalizedAddress !== undefined && property.normalizedAddress !== title) {
-    rows.push({ label: "Address", value: property.normalizedAddress });
-  }
-  const where = area(property);
-  if (where !== undefined) {
-    rows.push({ label: "Area", value: where });
-  }
-  if (property.tags !== undefined && property.tags.length > 0) {
-    rows.push({ label: "Tags", value: property.tags.join(", ") });
-  }
+  pushRow(rows, "Project", property.projectName !== title ? property.projectName : undefined);
+  pushRow(
+    rows,
+    "Address",
+    property.normalizedAddress !== title ? property.normalizedAddress : undefined,
+  );
+  pushRow(rows, "Area", area(property));
+  pushRow(rows, "Contact", property.contact);
+  pushRow(rows, "Source", property.source);
+  pushRow(
+    rows,
+    "Tags",
+    property.tags !== undefined && property.tags.length > 0 ? property.tags.join(", ") : undefined,
+  );
+  pushRow(rows, "Notes", property.notes);
 
   const notes = ['💬 Reply to update — e.g. "price 4.5M" or "now sold"'];
   const stamps = [
@@ -193,13 +229,17 @@ export function propertyDetail(
     data: encodePostback(ACTIONS.setFollowUp, { id: property.propertyId }),
     mode: "datetime",
   });
+  actions.push({
+    label: "🗑 Delete",
+    data: encodePostback(ACTIONS.delete, { id: property.propertyId }),
+  });
 
   const badge = statusBadge(property.status);
-  const price = formatPrice(property.askingPrice, property.currency);
+  const headline = sale ?? rent; // sale price leads; a pure rental shows its monthly rent
   const card: PropertyCard = {
     title,
     ...(badge !== undefined ? { subtitle: badge } : {}),
-    ...(price !== undefined ? { headline: price } : {}),
+    ...(headline !== undefined ? { headline } : {}),
     ...(opts.heroImageUrl !== undefined ? { heroImageUrl: opts.heroImageUrl } : {}),
     rows,
     notes,
@@ -220,55 +260,58 @@ export function imageCarouselMessage(
   return { type: "imageCarousel", altText, imageUrls };
 }
 
+/** A property as a flat map of display strings (present fields only) — the shared basis for the
+ * edit diff. Numbers are formatted the same way the detail card shows them. */
+function displayFields(p: Property): Record<string, string | undefined> {
+  const num = (n?: number): string | undefined => (n !== undefined ? String(n) : undefined);
+  return {
+    Price: formatPrice(p.askingPrice, p.currency),
+    Rent: p.rentPrice !== undefined ? `${formatPrice(p.rentPrice, p.currency)}/mo` : undefined,
+    Status: p.status,
+    Type: p.propertyType,
+    For: p.listingType,
+    Beds: num(p.bedrooms),
+    Baths: num(p.bathrooms),
+    "Usable area": p.usableAreaSqm !== undefined ? `${p.usableAreaSqm} sqm` : undefined,
+    Land: p.landArea,
+    Floors: num(p.floors),
+    Furnishing: p.furnishing,
+    Project: p.projectName,
+    Address: p.normalizedAddress,
+    Area: area(p),
+    Contact: p.contact,
+    Source: p.source,
+    Notes: p.notes,
+    Tags: p.tags !== undefined && p.tags.length > 0 ? p.tags.join(", ") : undefined,
+  };
+}
+
 /**
- * A short confirmation of what a free-text edit changed on a property, old→new. Only fields that
- * actually changed are listed; an empty diff (the reply matched but moved nothing) says so plainly.
+ * A short confirmation of what a free-text edit changed on a property, old→new. Diffs every display
+ * field (plus coordinates/map link) and lists only what actually changed; an empty diff (the reply
+ * matched but moved nothing) says so plainly.
  */
 export function editConfirmationMessage(before: Property, after: Property): OutboundMessage {
   const changes: string[] = [];
-
-  const priceBefore = formatPrice(before.askingPrice, before.currency);
-  const priceAfter = formatPrice(after.askingPrice, after.currency);
-  if (priceAfter !== undefined && priceAfter !== priceBefore) {
-    changes.push(
-      priceBefore !== undefined
-        ? `Price ${priceAfter} (was ${priceBefore})`
-        : `Price ${priceAfter}`,
-    );
+  const a = displayFields(after);
+  const b = displayFields(before);
+  for (const label of Object.keys(a)) {
+    const av = a[label];
+    const bv = b[label];
+    if (av !== undefined && av !== bv) {
+      changes.push(bv !== undefined ? `${label} ${av} (was ${bv})` : `${label} ${av}`);
+    }
   }
-  if (after.status !== undefined && after.status !== before.status) {
-    changes.push(
-      before.status !== undefined
-        ? `Status ${after.status} (was ${before.status})`
-        : `Status ${after.status}`,
-    );
-  }
-  if (after.propertyType !== undefined && after.propertyType !== before.propertyType) {
-    changes.push(`Type ${after.propertyType}`);
-  }
+  // Coordinates / shared map link don't have a tidy display string — note them as a change.
   if (
-    after.normalizedAddress !== undefined &&
-    after.normalizedAddress !== before.normalizedAddress
-  ) {
-    changes.push(`Address ${after.normalizedAddress}`);
-  }
-  if (after.projectName !== undefined && after.projectName !== before.projectName) {
-    changes.push(`Project ${after.projectName}`);
-  }
-  const areaAfter = area(after);
-  if (areaAfter !== undefined && areaAfter !== area(before)) {
-    changes.push(`Area ${areaAfter}`);
-  }
-  const tagsAfter = (after.tags ?? []).join(", ");
-  if (tagsAfter !== "" && tagsAfter !== (before.tags ?? []).join(", ")) {
-    changes.push(`Tags ${tagsAfter}`);
-  }
-  if (
+    (after.lat !== before.lat || after.long !== before.long) &&
     after.lat !== undefined &&
-    after.long !== undefined &&
-    (after.lat !== before.lat || after.long !== before.long)
+    after.long !== undefined
   ) {
     changes.push("Location updated");
+  }
+  if (after.mapUrl !== undefined && after.mapUrl !== before.mapUrl) {
+    changes.push("Map link updated");
   }
 
   const title = propertyTitle(after);
@@ -276,6 +319,22 @@ export function editConfirmationMessage(before: Property, after: Property): Outb
     return { type: "text", text: `Nothing changed on ${title}.` };
   }
   return { type: "text", text: `✏️ Updated ${title}:\n• ${changes.join("\n• ")}` };
+}
+
+/** The destructive-delete confirmation: a "Yes, delete" chip (fires {@link ACTIONS.deleteConfirm})
+ * and a "Cancel" chip that simply re-opens the listing's detail. */
+export function deletePromptMessage(property: Property): OutboundMessage {
+  return {
+    type: "text",
+    text: `Delete “${propertyTitle(property)}”? This removes the listing and its follow-ups — it can't be undone.`,
+    quickReplies: [
+      {
+        label: "🗑 Yes, delete",
+        data: encodePostback(ACTIONS.deleteConfirm, { id: property.propertyId }),
+      },
+      { label: "Cancel", data: encodePostback(ACTIONS.view, { id: property.propertyId }) },
+    ],
+  };
 }
 
 export function helpMessage(): OutboundMessage {

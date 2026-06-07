@@ -9,7 +9,7 @@
  */
 import type { PropertyUpsert } from "../domain/catalog.js";
 import { conversationKey } from "../domain/conversation.js";
-import { parseGeoLinks } from "../domain/geo.js";
+import { parseGeoLinks, parseMapUrls } from "../domain/geo.js";
 import type { IncomingMessage, OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { PropertyExtractor } from "../ports/extraction.js";
@@ -84,6 +84,7 @@ export class EditReplyHandler implements MessageHandler {
     }
 
     const now = this.clock.now();
+    const mapUrl = parseMapUrls(text)[0];
     const upsert: PropertyUpsert = {
       propertyId: before.propertyId,
       normalizedAddress: nullToUndef(edit.normalizedAddress),
@@ -99,6 +100,18 @@ export class EditReplyHandler implements MessageHandler {
       askingPrice: nullToUndef(edit.askingPrice),
       currency: nullToUndef(edit.currency),
       tags: edit.tags ? [...edit.tags] : undefined,
+      bedrooms: nullToUndef(edit.bedrooms),
+      bathrooms: nullToUndef(edit.bathrooms),
+      usableAreaSqm: nullToUndef(edit.usableAreaSqm),
+      landArea: nullToUndef(edit.landArea),
+      floors: nullToUndef(edit.floors),
+      furnishing: nullToUndef(edit.furnishing),
+      notes: nullToUndef(edit.notes),
+      listingType: nullToUndef(edit.listingType),
+      rentPrice: nullToUndef(edit.rentPrice),
+      contact: nullToUndef(edit.contact),
+      source: nullToUndef(edit.source),
+      ...(mapUrl !== undefined ? { mapUrl } : {}),
       updatedAt: now,
       lastActivityAt: now,
     };

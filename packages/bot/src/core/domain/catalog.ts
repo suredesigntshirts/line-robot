@@ -25,6 +25,27 @@ export interface Property {
   readonly askingPrice?: number;
   readonly currency?: string;
   readonly tags?: readonly string[];
+  // --- Physical / commercial detail (extracted when mentioned; absent when not) ---
+  readonly bedrooms?: number;
+  readonly bathrooms?: number;
+  readonly usableAreaSqm?: number;
+  /** Land size as written, in Thai units where relevant (e.g. "1 rai 2 ngan"). */
+  readonly landArea?: string;
+  readonly floors?: number;
+  /** unfurnished | partly furnished | fully furnished (best guess). */
+  readonly furnishing?: string;
+  /** Free-form description / notes about the property. */
+  readonly notes?: string;
+  /** "sale" | "rent" (best guess). */
+  readonly listingType?: string;
+  /** Monthly rent when this is a rental (askingPrice stays the sale price). */
+  readonly rentPrice?: number;
+  /** Owner/agent contact as written. */
+  readonly contact?: string;
+  /** Where the lead came from (person, group, listing site). */
+  readonly source?: string;
+  /** The original Google-Maps link shared in chat — preferred over reconstructed coordinates. */
+  readonly mapUrl?: string;
   /** S3 keys of photos captured for this property (the first is used as the card hero). */
   readonly photos?: readonly string[];
   readonly createdAt?: number;

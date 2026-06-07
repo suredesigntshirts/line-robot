@@ -83,6 +83,7 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
       upsertProperty: async () => {},
       getProperty: async () => null,
       deleteProperty: async () => {},
+      deletePropertyEvents: async () => {},
       linkConversationProperty: async () => {},
       unlinkConversationProperty: async () => {},
       listConversationProperties: async () => [],

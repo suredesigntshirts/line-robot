@@ -92,6 +92,9 @@ export class FakeCatalog implements CatalogRepository {
   async deleteProperty(propertyId: string): Promise<void> {
     this.properties.delete(propertyId);
   }
+  async deletePropertyEvents(propertyId: string): Promise<void> {
+    this.events.delete(propertyId);
+  }
   async linkConversationProperty(conversationKey: string, propertyId: string): Promise<void> {
     this.seedEdge(conversationKey, propertyId);
   }

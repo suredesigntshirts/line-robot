@@ -146,6 +146,29 @@ describe("CatalogAssistant — retrieval", () => {
     });
   });
 
+  it("deletes a listing: removes its events, edge, property, and any armed edit", async () => {
+    const catalog = new FakeCatalog()
+      .seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }))
+      .seedEdge("user#U1", "p1")
+      .seedEvent({
+        eventId: "e1",
+        propertyId: "p1",
+        dueAt: 1,
+        notifyConversationKey: "user#U1",
+      });
+    await catalog.armEdit("user#U1", "p1", 1);
+    const assistant = new CatalogAssistant(catalog, clock);
+
+    // Prompt first (confirmation), then confirm.
+    expect(textOf((await assistant.deletePrompt("p1"))[0])).toContain("Delete");
+    const [done] = await assistant.deleteListing("user#U1", "p1");
+    expect(textOf(done)).toContain("Deleted");
+    expect(catalog.properties.has("p1")).toBe(false);
+    expect(await catalog.listPropertyEvents("p1")).toEqual([]);
+    expect(await catalog.listConversationProperties("user#U1")).not.toContain("p1");
+    expect(await catalog.getEditContext("user#U1")).toBeNull();
+  });
+
   it("returns help and search-prompt copy", () => {
     const assistant = new CatalogAssistant(new FakeCatalog(), clock);
     expect(assistant.help()[0]?.type).toBe("text");

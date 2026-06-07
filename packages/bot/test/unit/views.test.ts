@@ -148,8 +148,13 @@ describe("propertyDetail", () => {
     const onePhoto = propertyDetail(prop({ lat: 13.7, long: 100.5 }), { photoCount: 1 });
     const labels = (m: typeof withPhotos): string[] =>
       m.type === "flex" ? (m.cards[0]?.actions.map((a) => a.label) ?? []) : [];
-    expect(labels(withPhotos)).toEqual(["🗺 Open in Maps", "🖼 Photos (3)", "📅 Follow-up"]);
-    expect(labels(onePhoto)).toEqual(["🗺 Open in Maps", "📅 Follow-up"]); // no Photos button
+    expect(labels(withPhotos)).toEqual([
+      "🗺 Open in Maps",
+      "🖼 Photos (3)",
+      "📅 Follow-up",
+      "🗑 Delete",
+    ]);
+    expect(labels(onePhoto)).toEqual(["🗺 Open in Maps", "📅 Follow-up", "🗑 Delete"]); // no Photos
   });
 
   it("omits the Maps button when there is no location or address at all", () => {
@@ -161,7 +166,54 @@ describe("propertyDetail", () => {
   });
 });
 
+describe("propertyDetail — extended fields", () => {
+  it("renders every present field as a row and omits nulls", () => {
+    const msg = propertyDetail(
+      prop({
+        normalizedAddress: "9 Rama IX",
+        propertyType: "house",
+        bedrooms: 3,
+        bathrooms: 2,
+        usableAreaSqm: 180,
+        landArea: "1 rai 2 ngan",
+        floors: 2,
+        furnishing: "fully furnished",
+        listingType: "sale",
+        contact: "Khun A 081-234",
+        source: "FB group",
+        notes: "Corner unit, quiet soi",
+      }),
+    );
+    if (msg.type !== "flex") {
+      throw new Error("expected flex");
+    }
+    const rows = Object.fromEntries((msg.cards[0]?.rows ?? []).map((r) => [r.label, r.value]));
+    expect(rows.Rooms).toBe("3 bed · 2 bath");
+    expect(rows["Usable area"]).toBe("180 sqm");
+    expect(rows.Land).toBe("1 rai 2 ngan");
+    expect(rows.Floors).toBe("2");
+    expect(rows.Furnishing).toBe("fully furnished");
+    expect(rows.For).toBe("sale");
+    expect(rows.Contact).toBe("Khun A 081-234");
+    expect(rows.Source).toBe("FB group");
+    expect(rows.Notes).toBe("Corner unit, quiet soi");
+    expect(rows.Tags).toBeUndefined(); // no tags → omitted
+  });
+
+  it("uses monthly rent as the headline for a pure rental", () => {
+    const msg = propertyDetail(prop({ rentPrice: 25_000, listingType: "rent" }));
+    if (msg.type === "flex") {
+      expect(msg.cards[0]?.headline).toBe("฿25,000/mo");
+    }
+  });
+});
+
 describe("mapsUri", () => {
+  it("prefers the original shared map link over coordinates", () => {
+    expect(mapsUri(prop({ mapUrl: "https://maps.app.goo.gl/abc", lat: 13.7, long: 100.5 }))).toBe(
+      "https://maps.app.goo.gl/abc",
+    );
+  });
   it("prefers lat/long coordinates", () => {
     expect(mapsUri(prop({ lat: 13.736, long: 100.523 }))).toBe(
       "https://www.google.com/maps/search/?api=1&query=13.736,100.523",

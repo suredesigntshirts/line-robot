@@ -63,6 +63,26 @@ describe("CatalogPostbackRouter", () => {
     }
   });
 
+  it("routes delete to a confirm prompt, and deleteConfirm to an actual delete", async () => {
+    const catalog = new FakeCatalog()
+      .seedProperty({ propertyId: "p1", normalizedAddress: "9 Rama IX" })
+      .seedEdge("user#U1", "p1");
+
+    const prompt = await routerWith(catalog).route({
+      ref: DM,
+      data: encodePostback(ACTIONS.delete, { id: "p1" }),
+    });
+    expect(textOf(prompt[0])).toContain("Delete");
+    expect(catalog.properties.has("p1")).toBe(true); // not yet deleted
+
+    const done = await routerWith(catalog).route({
+      ref: DM,
+      data: encodePostback(ACTIONS.deleteConfirm, { id: "p1" }),
+    });
+    expect(textOf(done[0])).toContain("Deleted");
+    expect(catalog.properties.has("p1")).toBe(false);
+  });
+
   it("routes search, upcoming, and help to text", async () => {
     const router = routerWith();
     expect((await router.route({ ref: DM, data: encodePostback(ACTIONS.search) }))[0]?.type).toBe(

@@ -87,6 +87,10 @@ export interface CatalogRepository {
    * property into an existing one — the new row is removed after its fields move over. */
   deleteProperty(propertyId: string): Promise<void>;
 
+  /** Delete every follow-up event on a property (used when fully deleting a listing, so no orphan
+   * reminders fire afterwards). No-op when the property has none. */
+  deletePropertyEvents(propertyId: string): Promise<void>;
+
   /** Upsert a Conv→Property edge `CONV#<conversationKey> → PROP#<propertyId>`. */
   linkConversationProperty(
     conversationKey: string,

@@ -69,6 +69,18 @@ export interface ExtractedProperty {
   readonly askingPrice: number | null;
   readonly currency: string | null;
   readonly tags: readonly string[] | null;
+  // Physical / commercial detail (null when not stated).
+  readonly bedrooms: number | null;
+  readonly bathrooms: number | null;
+  readonly usableAreaSqm: number | null;
+  readonly landArea: string | null;
+  readonly floors: number | null;
+  readonly furnishing: string | null;
+  readonly notes: string | null;
+  readonly listingType: string | null;
+  readonly rentPrice: number | null;
+  readonly contact: string | null;
+  readonly source: string | null;
 }
 
 export interface ExtractionResult {

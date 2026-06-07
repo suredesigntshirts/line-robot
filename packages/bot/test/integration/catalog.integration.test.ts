@@ -239,6 +239,39 @@ describe("properties + edges + membership", () => {
     });
   });
 
+  it("round-trips the extended detail fields + original map link", async () => {
+    await repo.upsertProperty({
+      propertyId: "pX",
+      normalizedAddress: "9 Rama IX",
+      bedrooms: 3,
+      bathrooms: 2,
+      usableAreaSqm: 180,
+      landArea: "1 rai 2 ngan",
+      floors: 2,
+      furnishing: "fully furnished",
+      notes: "Corner unit",
+      listingType: "sale",
+      rentPrice: 25_000,
+      contact: "Khun A 081-234",
+      source: "FB group",
+      mapUrl: "https://maps.app.goo.gl/aB9xQ",
+    });
+    expect(await repo.getProperty("pX")).toMatchObject({
+      bedrooms: 3,
+      bathrooms: 2,
+      usableAreaSqm: 180,
+      landArea: "1 rai 2 ngan",
+      floors: 2,
+      furnishing: "fully furnished",
+      notes: "Corner unit",
+      listingType: "sale",
+      rentPrice: 25_000,
+      contact: "Khun A 081-234",
+      source: "FB group",
+      mapUrl: "https://maps.app.goo.gl/aB9xQ",
+    });
+  });
+
   it("resolves 'my listings' via membership → conversations → properties", async () => {
     // user1 & user2 discuss property p10 in group#G; user2 separately discusses p20 in their DM.
     await repo.recordMembership("user1", "group#G", 1000);
@@ -344,6 +377,26 @@ describe("property events (calendar / reminders)", () => {
     expect(stillDue.map((e) => e.eventId)).not.toContain("evtOnce");
     const remaining = (await repo.listPropertyEvents("pOnce")).find((e) => e.eventId === "evtOnce");
     expect(remaining?.notifiedAt).toBe(1000);
+  });
+
+  it("deletes all of a property's events (delete-listing cascade)", async () => {
+    await repo.addEvent({
+      eventId: "d1",
+      propertyId: "pDel",
+      dueAt: Date.parse("2026-07-01T03:00:00Z"),
+      notifyConversationKey: "user#U1",
+    });
+    await repo.addEvent({
+      eventId: "d2",
+      propertyId: "pDel",
+      dueAt: Date.parse("2026-07-02T03:00:00Z"),
+      notifyConversationKey: "user#U1",
+    });
+    expect(await repo.listPropertyEvents("pDel")).toHaveLength(2);
+
+    await repo.deletePropertyEvents("pDel");
+    expect(await repo.listPropertyEvents("pDel")).toEqual([]);
+    await repo.deletePropertyEvents("pDel"); // idempotent: no-op when none remain
   });
 });
 

@@ -26,6 +26,10 @@ export const ACTIONS = {
   /** Set a follow-up date on a property (param: `id`; the chosen datetime arrives in the LINE
    * datetime-picker's `params.datetime`, not in `data`). */
   setFollowUp: "setfollowup",
+  /** Ask to delete a property — shows a confirm prompt (param: `id`). */
+  delete: "delete",
+  /** Confirmed delete: actually remove the property (param: `id`). */
+  deleteConfirm: "deleteconfirm",
 } as const;
 
 export type ActionName = (typeof ACTIONS)[keyof typeof ACTIONS];

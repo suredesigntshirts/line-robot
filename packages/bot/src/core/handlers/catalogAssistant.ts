@@ -11,6 +11,7 @@ import type { CatalogRepository } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock } from "../ports/runtime.js";
 import {
+  deletePromptMessage,
   helpMessage,
   imageCarouselMessage,
   listingsMessage,
@@ -185,6 +186,30 @@ export class CatalogAssistant {
     // actually show (no signer / all presigns failed → no hero, no Photos button).
     const photos = await this.presignPhotos(property);
     return [propertyDetail(property, { heroImageUrl: photos[0], photoCount: photos.length })];
+  }
+
+  /** Ask to confirm deleting a property (the 🗑 Delete button). */
+  async deletePrompt(propertyId: string): Promise<OutboundMessage[]> {
+    const property = await this.catalog.getProperty(propertyId);
+    if (property === null) {
+      return [{ type: "text", text: "I couldn't find that listing — it may already be gone." }];
+    }
+    return [deletePromptMessage(property)];
+  }
+
+  /** Fully delete a property: its events, its META row, and this conversation's edge. Edges in other
+   * conversations are filtered out at read time (a missing property resolves to null). */
+  async deleteListing(conversationKey: string, propertyId: string): Promise<OutboundMessage[]> {
+    const property = await this.catalog.getProperty(propertyId);
+    if (property === null) {
+      return [{ type: "text", text: "That listing is already gone." }];
+    }
+    const title = propertyTitle(property);
+    await this.catalog.deletePropertyEvents(propertyId);
+    await this.catalog.unlinkConversationProperty(conversationKey, propertyId);
+    await this.catalog.deleteProperty(propertyId);
+    await this.catalog.clearEdit(conversationKey); // don't leave a deleted listing armed for edits
+    return [{ type: "text", text: `🗑 Deleted “${title}”.` }];
   }
 
   /** The full photo gallery for a property, as a swipeable image carousel (the "Photos" button). */

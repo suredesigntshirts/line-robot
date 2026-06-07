@@ -32,6 +32,17 @@ function extracted(over: Partial<ExtractedProperty> = {}): ExtractedProperty {
     askingPrice: null,
     currency: null,
     tags: null,
+    bedrooms: null,
+    bathrooms: null,
+    usableAreaSqm: null,
+    landArea: null,
+    floors: null,
+    furnishing: null,
+    notes: null,
+    listingType: null,
+    rentPrice: null,
+    contact: null,
+    source: null,
     ...over,
   };
 }
