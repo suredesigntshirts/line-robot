@@ -764,4 +764,59 @@ describe("IngestionSweep — extraction", () => {
     expect(spies.releases).toHaveLength(1); // released despite the push failure
     expect(spies.warns.some((w) => w.includes("push"))).toBe(true);
   });
+
+  it("two-pass: forwards the stored memory note to each pass-2 focused extract", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("group#MM"),
+          claim: tracker("group#MM"),
+          batch: [textMsg(1000, "Baan Lak Chai 3 bed"), textMsg(40000, "Mooban Wangtan 2.3M")],
+        },
+      ],
+      {
+        memory: { "group#MM": "'the plot' = Baan Lak Chai. Khun Mali is the seller." },
+        segment: () => ({
+          segments: [
+            {
+              label: "Baan Lak Chai",
+              existingPropertyId: "",
+              ambiguous: false,
+              ambiguousWith: [],
+              imageIndices: [],
+              mapIndex: -1,
+            },
+            {
+              label: "Mooban Wangtan",
+              existingPropertyId: "",
+              ambiguous: false,
+              ambiguousWith: [],
+              imageIndices: [],
+              mapIndex: -1,
+            },
+          ],
+          memoryUpdate: "",
+        }),
+        extract: (req) =>
+          req.focus === "Baan Lak Chai"
+            ? { properties: [extracted({ normalizedAddress: "Baan Lak Chai" })] }
+            : { properties: [extracted({ projectName: "Mooban Wangtan" })] },
+      },
+    );
+    await sweep.run();
+
+    // Pass 1 (segment) AND both pass-2 focused extracts must carry the stored memory note.
+    expect(spies.segmentRequests[0]?.memory).toBe(
+      "'the plot' = Baan Lak Chai. Khun Mali is the seller.",
+    );
+    expect(spies.extractRequests).toHaveLength(2);
+    expect(spies.extractRequests[0]?.memory).toBe(
+      "'the plot' = Baan Lak Chai. Khun Mali is the seller.",
+    );
+    expect(spies.extractRequests[1]?.memory).toBe(
+      "'the plot' = Baan Lak Chai. Khun Mali is the seller.",
+    );
+    // And focus is still per-segment (we didn't break the two-pass attribution).
+    expect(spies.extractRequests.map((r) => r.focus)).toEqual(["Baan Lak Chai", "Mooban Wangtan"]);
+  });
 });

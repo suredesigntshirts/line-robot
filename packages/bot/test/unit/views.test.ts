@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Property } from "../../src/core/domain/catalog.js";
 import { decodePostback } from "../../src/core/handlers/commands.js";
 import {
+  buildConfirmation,
   formatPrice,
   helpMessage,
   imageCarouselMessage,
@@ -276,5 +277,64 @@ describe("mergePromptQuickReplies", () => {
     const chips = mergePromptQuickReplies("new-1", []);
     expect(chips).toHaveLength(1);
     expect(decodePostback(chips[0]?.data ?? "").action).toBe("keep");
+  });
+});
+
+describe("buildConfirmation", () => {
+  it("renders a single new property as '(new)'", () => {
+    const msg = buildConfirmation([
+      { propertyId: "p1", isNew: true, ambiguous: false, label: "123 Sukhumvit" },
+    ]);
+    expect(msg).toEqual({ type: "text", text: "✅ Saved 1 property: 123 Sukhumvit (new)" });
+  });
+
+  it("renders a single updated property as '(updated)'", () => {
+    const msg = buildConfirmation([
+      { propertyId: "p1", isNew: false, ambiguous: false, label: "Thonglor plot" },
+    ]);
+    expect(msg).toEqual({ type: "text", text: "✅ Saved 1 property: Thonglor plot (updated)" });
+  });
+
+  it("tags an ambiguous create-new '(new — please confirm)' and attaches merge quick replies", () => {
+    const msg = buildConfirmation([
+      {
+        propertyId: "new-1",
+        isNew: true,
+        ambiguous: true,
+        label: "The Park",
+        mergeTargets: [{ id: "c1", label: "Thonglor plot" }],
+      },
+    ]);
+    expect(msg.type).toBe("text");
+    if (msg.type !== "text" || msg.quickReplies === undefined) {
+      throw new Error("expected a text confirmation with quick replies");
+    }
+    expect(msg.text).toBe("✅ Saved 1 property: The Park (new — please confirm)");
+    expect(msg.quickReplies[0]).toEqual({
+      label: "Merge → Thonglor plot",
+      data: "action=merge&from=new-1&into=c1",
+    });
+    expect(msg.quickReplies.at(-1)).toEqual({
+      label: "Keep separate",
+      data: "action=keep&id=new-1",
+    });
+  });
+
+  it("flags an ambiguous property with no merge targets but adds no quick replies", () => {
+    const msg = buildConfirmation([
+      { propertyId: "new-1", isNew: true, ambiguous: true, label: "The Park" },
+    ]);
+    expect(msg).toEqual({
+      type: "text",
+      text: "✅ Saved 1 property: The Park (new — please confirm)",
+    });
+  });
+
+  it("pluralizes and joins multiple properties", () => {
+    const msg = buildConfirmation([
+      { propertyId: "p1", isNew: true, ambiguous: false, label: "A" },
+      { propertyId: "p2", isNew: false, ambiguous: false, label: "B" },
+    ]);
+    expect(msg).toEqual({ type: "text", text: "✅ Saved 2 properties: A (new), B (updated)" });
   });
 });

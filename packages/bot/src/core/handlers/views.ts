@@ -471,3 +471,48 @@ export function mergePromptQuickReplies(
   chips.push({ label: "Keep separate", data: encodePostback(ACTIONS.keep, { id: newPropertyId }) });
   return chips;
 }
+
+/** A merge candidate offered in the ambiguous-confirmation quick reply. */
+export interface MergeTarget {
+  readonly id: string;
+  readonly label: string;
+}
+
+/** One property the sweep wrote, for the push confirmation. */
+export interface AppliedProperty {
+  readonly propertyId: string;
+  readonly isNew: boolean;
+  readonly ambiguous: boolean;
+  readonly label: string;
+  /** For an ambiguous (create-new) property: the conversation's existing properties offered as
+   * merge targets in the confirmation quick reply. */
+  readonly mergeTargets?: readonly MergeTarget[];
+}
+
+/**
+ * "✅ Saved 2 properties: 123 Sukhumvit (new), Thonglor plot (updated)". An ambiguous create-new is
+ * tagged "new — please confirm" and, when there are existing properties to merge into, the message
+ * carries quick-reply chips ("Merge → <existing>" / "Keep separate") that the postback router
+ * resolves. LINE only shows one message's quick replies, so we attach the *first* ambiguous
+ * property's offer; any others stay flagged in the text (the safe create-new default).
+ */
+export function buildConfirmation(applied: AppliedProperty[]): OutboundMessage {
+  const noun = applied.length === 1 ? "property" : "properties";
+  const items = applied
+    .map((a) => {
+      const tag = a.ambiguous ? "new — please confirm" : a.isNew ? "new" : "updated";
+      return `${a.label} (${tag})`;
+    })
+    .join(", ");
+  const text = `✅ Saved ${applied.length} ${noun}: ${items}`;
+
+  const toConfirm = applied.find((a) => a.mergeTargets !== undefined && a.mergeTargets.length > 0);
+  if (toConfirm?.mergeTargets !== undefined) {
+    return {
+      type: "text",
+      text,
+      quickReplies: mergePromptQuickReplies(toConfirm.propertyId, [...toConfirm.mergeTargets]),
+    };
+  }
+  return { type: "text", text };
+}
