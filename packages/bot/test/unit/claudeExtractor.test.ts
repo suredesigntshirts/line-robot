@@ -1,7 +1,10 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import {
   buildExtractionContent,
   buildExtractionSystem,
+  ClaudeExtractor,
+  type ModelTier,
 } from "../../src/adapters/anthropic/claudeExtractor.js";
 import type { ExtractionRequest } from "../../src/core/ports/extraction.js";
 
@@ -102,5 +105,84 @@ describe("buildExtractionSystem", () => {
       cache_control: { type: "ephemeral", ttl: "1h" },
     });
     expect(blocks[1]?.type === "text" && blocks[1].text).toContain("Thonglor plot");
+  });
+});
+
+describe("ClaudeExtractor — escalation ladder", () => {
+  const LADDER: ModelTier[] = [
+    { model: "m1" },
+    { model: "m2", effort: "medium", thinking: true },
+    { model: "m3", effort: "high", thinking: true },
+  ];
+
+  interface Call {
+    model: string;
+    effort?: string;
+    thinking?: unknown;
+    maxTokens: number;
+  }
+
+  /** Fake the SDK client: each model returns its scripted parsed_output (or null). */
+  function extractorWith(script: Record<string, { lowConfidence: boolean } | null>) {
+    const calls: Call[] = [];
+    const client = {
+      messages: {
+        parse: async (params: {
+          model: string;
+          max_tokens: number;
+          output_config?: { effort?: string };
+          thinking?: unknown;
+        }) => {
+          calls.push({
+            model: params.model,
+            effort: params.output_config?.effort,
+            thinking: params.thinking,
+            maxTokens: params.max_tokens,
+          });
+          const out = script[params.model];
+          return { parsed_output: out ? { properties: [], memoryUpdate: null, ...out } : null };
+        },
+      },
+    } as unknown as Anthropic;
+    return { extractor: new ClaudeExtractor(client, LADDER), calls };
+  }
+
+  it("uses the primary plain when it is confident — no escalation", async () => {
+    const { extractor, calls } = extractorWith({ m1: { lowConfidence: false } });
+    const result = await extractor.extract(request());
+    expect(calls.map((c) => c.model)).toEqual(["m1"]);
+    expect(result?.escalatedTo).toBeUndefined();
+    expect(calls[0]).toMatchObject({ effort: undefined, thinking: undefined }); // Haiku-style
+  });
+
+  it("escalates on low confidence with effort + adaptive thinking, tagging the model used", async () => {
+    const { extractor, calls } = extractorWith({
+      m1: { lowConfidence: true },
+      m2: { lowConfidence: false },
+    });
+    const result = await extractor.extract(request());
+    expect(calls.map((c) => c.model)).toEqual(["m1", "m2"]);
+    expect(result?.escalatedTo).toBe("m2");
+    expect(calls[1]).toMatchObject({ effort: "medium", thinking: { type: "adaptive" } });
+    expect(calls[1]?.maxTokens).toBeGreaterThan(calls[0]?.maxTokens ?? 0);
+  });
+
+  it("accepts the last tier even if still low confidence (best effort)", async () => {
+    const { extractor, calls } = extractorWith({
+      m1: { lowConfidence: true },
+      m2: { lowConfidence: true },
+      m3: { lowConfidence: true },
+    });
+    expect((await extractor.extract(request()))?.escalatedTo).toBe("m3");
+    expect(calls.map((c) => c.model)).toEqual(["m1", "m2", "m3"]);
+  });
+
+  it("escalates past an unparseable tier, and returns null only if every tier fails", async () => {
+    const ok = extractorWith({ m1: null, m2: { lowConfidence: false } });
+    expect((await ok.extractor.extract(request()))?.escalatedTo).toBe("m2");
+
+    const allNull = extractorWith({});
+    expect(await allNull.extractor.extract(request())).toBeNull();
+    expect(allNull.calls.map((c) => c.model)).toEqual(["m1", "m2", "m3"]);
   });
 });

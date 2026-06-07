@@ -219,6 +219,13 @@ export class IngestionSweep {
       });
       return [];
     }
+    if (result.escalatedTo !== undefined) {
+      // Surfaced so escalation rate (and its cost) is visible in the logs.
+      this.deps.logger.info("ingestion sweep: extraction escalated", {
+        conversationKey: key,
+        model: result.escalatedTo,
+      });
+    }
     // Apply a proposed memory update even when no properties changed (the model may have learned an
     // alias without a property edit).
     await this.applyMemoryUpdate(key, result.memoryUpdate);

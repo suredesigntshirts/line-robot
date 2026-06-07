@@ -72,6 +72,9 @@ export interface ExtractionResult {
   /** A full updated memory note the model proposes for this conversation (durable context only), or
    * null when nothing changed. The sweep bounds the length and replaces the stored note. */
   readonly memoryUpdate?: string | null;
+  /** The stronger model that produced this result if the cheap primary escalated (low confidence),
+   * else undefined — surfaced so the sweep can log the escalation rate to watch cost. */
+  readonly escalatedTo?: string;
 }
 
 export interface PropertyExtractor {

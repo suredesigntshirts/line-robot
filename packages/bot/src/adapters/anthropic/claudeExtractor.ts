@@ -8,15 +8,33 @@ import type {
 } from "../../core/ports/extraction.js";
 
 /**
- * Property extraction via one structured-output call (no agent loop — cheapest). Haiku 4.5 plain
- * (no `effort`/`thinking` — those error on Haiku); escalation to Sonnet 4.6 is a later slice. Absent
+ * Property extraction via one structured-output call per tier (no agent loop — cheapest). The cheap
+ * primary is Haiku 4.5 run plain (`effort`/`thinking` error on Haiku); when it reports
+ * `lowConfidence`, the call escalates up a model ladder (Sonnet 4.6 → Opus 4.8) with adaptive
+ * thinking, so the common case stays cheap and only hard batches pay for a stronger model. Absent
  * fields are modelled as explicit `.nullable()` rather than optional, so the model always emits the
  * key — more deterministic and easier to diff. See `plans/09-realestate-catalog-assistant.md`.
  */
 
-// Default extraction model. Haiku 4.5 has vision + structured outputs and is the cheap primary.
-const DEFAULT_MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 4096;
+/** Thinking tiers need more headroom (thinking tokens count toward the output budget). */
+const THINKING_MAX_TOKENS = 8192;
+
+/** One rung of the escalation ladder. Haiku takes no `effort`/`thinking` (they error on Haiku);
+ * the stronger tiers set `effort` + adaptive thinking. */
+export interface ModelTier {
+  readonly model: string;
+  readonly effort?: "low" | "medium" | "high" | "max";
+  readonly thinking?: boolean;
+}
+
+/** Haiku primary → Sonnet 4.6 (effort medium) → Opus 4.8 (effort high) — escalate only on low
+ * confidence. `max` effort is Opus-tier only; Haiku rejects `effort`/`thinking` entirely. */
+const DEFAULT_LADDER: readonly ModelTier[] = [
+  { model: "claude-haiku-4-5" },
+  { model: "claude-sonnet-4-6", effort: "medium", thinking: true },
+  { model: "claude-opus-4-8", effort: "high", thinking: true },
+];
 
 const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
@@ -41,7 +59,10 @@ const ExtractedPropertySchema = z.object({
 const ExtractionSchema = z.object({
   properties: z.array(ExtractedPropertySchema),
   memoryUpdate: z.string().nullable(),
+  lowConfidence: z.boolean(),
 });
+
+type ParsedExtraction = z.infer<typeof ExtractionSchema>;
 
 // Stable cached prefix: instructions + field taxonomy + a small Thai title-deed glossary. The
 // volatile batch/candidates/photos go in the user turn, after this breakpoint.
@@ -52,6 +73,7 @@ Method:
 - Decide update-vs-create per property: if it clearly matches one of the existing properties provided, set existingPropertyId to that id; otherwise set existingPropertyId to null (a new property).
 - If a match is plausible but you are not confident, set existingPropertyId to null AND ambiguous to true. Never guess a merge across ambiguity.
 - Use null for every field not stated. Do NOT invent values.
+- Set lowConfidence to true only if this batch is genuinely hard to extract — unreadable handwriting/OCR, conflicting or contradictory figures, or you are unsure of the overall structure. A stronger model then re-reads it. Otherwise set lowConfidence to false; do NOT set it merely because some fields are absent.
 
 Field rules:
 - askingPrice: a plain number in the property's currency (strip symbols, commas, and units like "M"/"ล้าน" — e.g. "5.5 ล้าน" → 5500000). currency defaults to "THB" unless another is stated.
@@ -144,22 +166,56 @@ export function buildExtractionContent(request: ExtractionRequest): Anthropic.Co
 export class ClaudeExtractor implements PropertyExtractor {
   constructor(
     private readonly client: Anthropic,
-    private readonly model: string = DEFAULT_MODEL,
+    private readonly ladder: readonly ModelTier[] = DEFAULT_LADDER,
   ) {}
 
   async extract(request: ExtractionRequest): Promise<ExtractionResult | null> {
+    // Walk the ladder: accept the first tier that is confident (or unparseable-but-last). Escalate
+    // when a tier reports lowConfidence and a stronger tier remains.
+    for (let i = 0; i < this.ladder.length; i += 1) {
+      const tier = this.ladder[i];
+      if (tier === undefined) {
+        continue;
+      }
+      const parsed = await this.callTier(tier, request);
+      const hasStrongerTier = i < this.ladder.length - 1;
+      if (parsed !== null && (!parsed.lowConfidence || !hasStrongerTier)) {
+        return {
+          properties: parsed.properties,
+          memoryUpdate: parsed.memoryUpdate,
+          ...(i > 0 ? { escalatedTo: tier.model } : {}),
+        };
+      }
+      // parsed === null (unparseable) or lowConfidence with a stronger tier → escalate.
+    }
+    return null;
+  }
+
+  /** One structured-output call for a given tier. Haiku runs plain; stronger tiers add `effort` +
+   * adaptive thinking (with extra token headroom for the thinking). */
+  private async callTier(
+    tier: ModelTier,
+    request: ExtractionRequest,
+  ): Promise<ParsedExtraction | null> {
     const response = await this.client.messages.parse({
-      model: this.model,
-      max_tokens: MAX_TOKENS,
+      model: tier.model,
+      max_tokens: tier.thinking === true ? THINKING_MAX_TOKENS : MAX_TOKENS,
       system: buildExtractionSystem(request.memory),
       messages: [{ role: "user", content: buildExtractionContent(request) }],
-      output_config: { format: zodOutputFormat(ExtractionSchema) },
+      output_config: {
+        format: zodOutputFormat(ExtractionSchema),
+        ...(tier.effort !== undefined ? { effort: tier.effort } : {}),
+      },
+      ...(tier.thinking === true ? { thinking: { type: "adaptive" as const } } : {}),
     });
     // parsed_output is null if the model refused or produced unparseable output — guard it.
     return response.parsed_output ?? null;
   }
 }
 
-export function createClaudeExtractor(apiKey: string, model?: string): ClaudeExtractor {
-  return new ClaudeExtractor(new Anthropic({ apiKey }), model);
+export function createClaudeExtractor(
+  apiKey: string,
+  ladder?: readonly ModelTier[],
+): ClaudeExtractor {
+  return new ClaudeExtractor(new Anthropic({ apiKey }), ladder);
 }
