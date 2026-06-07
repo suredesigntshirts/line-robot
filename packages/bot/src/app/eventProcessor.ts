@@ -1,5 +1,3 @@
-import { isPermanentLineError } from "../adapters/line/lineGateway.js";
-import { parseRawEvent } from "../adapters/line/webhookParser.js";
 import {
   type ConversationRef,
   conversationKey,
@@ -20,6 +18,7 @@ import type { MessageHandler } from "../core/ports/messageHandler.js";
 import type { MessageRepository, RawArchive } from "../core/ports/persistence.js";
 import type { PostbackRouter } from "../core/ports/postbackRouter.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
+import type { WebhookParser } from "../core/ports/webhookParser.js";
 
 /** One queued unit of work: a raw LINE event plus its idempotency key. */
 export interface EventPayload {
@@ -29,6 +28,7 @@ export interface EventPayload {
 
 export interface EventProcessorDeps {
   readonly archive: RawArchive;
+  readonly parser: WebhookParser;
   readonly repository: MessageRepository;
   readonly catalog: CatalogRepository;
   readonly content: LineContentClient;
@@ -152,7 +152,7 @@ export class EventProcessor {
   async process(payload: EventPayload): Promise<void> {
     let event: InboundEvent;
     try {
-      event = parseRawEvent(payload.raw);
+      event = this.deps.parser.parse(payload.raw);
     } catch (error) {
       // A structurally malformed event throws identically on every redelivery, so retrying it just
       // loops to the DLQ. Log + drop (ack) instead of rethrowing.
@@ -310,7 +310,7 @@ export class EventProcessor {
       await this.deps.gateway.push(pushTarget(target.ref), replies);
       return true;
     } catch (error) {
-      if (isPermanentLineError(error)) {
+      if (this.deps.gateway.isPermanentError(error)) {
         this.deps.logger.error("delivery rejected by LINE (permanent); dropping without retry", {
           webhookEventId: target.webhookEventId,
           error: String(error),

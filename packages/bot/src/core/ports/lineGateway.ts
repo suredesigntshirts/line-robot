@@ -4,4 +4,7 @@ import type { OutboundMessage } from "../domain/message.js";
 export interface LineGateway {
   reply(replyToken: string, messages: OutboundMessage[]): Promise<void>;
   push(to: string, messages: OutboundMessage[]): Promise<void>;
+  /** Whether a delivery failure is permanent (re-sending can never succeed → drop, don't retry).
+   * Keeps the LINE HTTPFetchError check inside the adapter; the app stays SDK-free. */
+  isPermanentError(error: unknown): boolean;
 }

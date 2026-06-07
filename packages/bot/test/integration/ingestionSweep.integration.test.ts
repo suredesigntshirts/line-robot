@@ -148,6 +148,7 @@ function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep
         push: async (to, msgs) => {
           pushes.push({ to, messages: msgs });
         },
+        isPermanentError: () => false,
       } as LineGateway,
       logger: { info: () => {}, warn: () => {}, error: () => {} },
       clock,

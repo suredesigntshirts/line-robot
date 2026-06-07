@@ -16,6 +16,7 @@ function capturingGateway() {
     push: async (to, messages) => {
       pushes.push({ to, messages });
     },
+    isPermanentError: () => false,
   };
   return { gateway, pushes };
 }

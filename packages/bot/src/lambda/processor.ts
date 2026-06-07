@@ -12,6 +12,7 @@ import {
   createLineContentClient,
   createLineMessagingGateway,
 } from "../adapters/line/lineGateway.js";
+import { LineWebhookParser } from "../adapters/line/webhookParser.js";
 import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
@@ -62,6 +63,7 @@ async function buildDeps(): Promise<Deps> {
 
   const processor = new EventProcessor({
     archive: new S3RawArchive(s3, env.ARCHIVE_BUCKET),
+    parser: new LineWebhookParser(),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     catalog,
     content: createLineContentClient(channelAccessToken),

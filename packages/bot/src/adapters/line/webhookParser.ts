@@ -1,7 +1,9 @@
 import type { webhook } from "@line/bot-sdk";
+import { z } from "zod";
 import type { ConversationRef } from "../../core/domain/conversation.js";
 import type { InboundEvent, ParsedWebhook } from "../../core/domain/events.js";
 import type { IncomingMessage, MessageContentType } from "../../core/domain/message.js";
+import type { WebhookParser } from "../../core/ports/webhookParser.js";
 
 /** Map a LINE `source` object onto a provider-agnostic {@link ConversationRef}. */
 function toConversationRef(source: webhook.Source | undefined): ConversationRef | undefined {
@@ -132,7 +134,31 @@ export function parseWebhook(rawBody: string): ParsedWebhook {
   return { destination: callback.destination, events };
 }
 
-/** Parse a single raw LINE event (e.g. one SQS message payload) into an {@link InboundEvent}. */
+/** Minimal structural guard for a raw LINE event — the {@link webhook.EventBase} fields
+ * {@link toInboundEvent} actually depends on. Per-type payloads (`message`/`postback`/members)
+ * stay loose: each `toInboundEvent` branch already null-guards them, and over-tight validation
+ * would drop valid events whose optional fields the SDK union allows to vary. NOT an extraction
+ * schema — never passed to zodOutputFormat (Anthropic 16-union cap does not apply). */
+const RawEventSchema = z
+  .object({
+    type: z.string().min(1),
+    webhookEventId: z.string().min(1),
+    timestamp: z.number(),
+    // source/message/postback/joined/left are read per-branch and individually guarded.
+  })
+  .passthrough();
+
+/** Parse a single raw LINE event (e.g. one SQS message payload) into an {@link InboundEvent}.
+ * Validates the structural minimum first, throwing a descriptive ZodError on a malformed shape
+ * (truncated JSON, DLQ replay, foreign producer) rather than silently misparsing deeper in. */
 export function parseRawEvent(raw: unknown): InboundEvent {
-  return toInboundEvent(raw as webhook.Event);
+  const parsed = RawEventSchema.parse(raw);
+  return toInboundEvent(parsed as unknown as webhook.Event);
+}
+
+/** Port-shaped wrapper so the app's EventProcessor depends on {@link WebhookParser}, not this module. */
+export class LineWebhookParser implements WebhookParser {
+  parse(raw: unknown): InboundEvent {
+    return parseRawEvent(raw);
+  }
 }

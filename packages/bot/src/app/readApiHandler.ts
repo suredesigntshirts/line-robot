@@ -9,11 +9,11 @@
  * additionally enforces membership — a caller can only fetch a listing reachable through one of their
  * conversations — so property ids are not enumerable.
  */
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import type { Property, PropertyPhoto } from "../core/domain/catalog.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { propertyTitle } from "../core/handlers/views.js";
 import type { CatalogRepository } from "../core/ports/catalog.js";
+import type { HttpRequest, HttpResponse } from "../core/ports/httpGateway.js";
 import type { LineTokenVerifier } from "../core/ports/lineTokenVerifier.js";
 import type { MediaUrlSigner } from "../core/ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
@@ -51,7 +51,7 @@ function heroPhotoKey(photos: readonly PropertyPhoto[] | undefined): string | un
 // answers the OPTIONS preflight without invoking us and adds the (origin-locked) ACAO to every
 // response. The handler must NOT also set `access-control-allow-origin` — two ACAO headers on one
 // response is invalid CORS and the browser rejects it (the SPA's fetch then throws).
-function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
+function json(statusCode: number, body: unknown): HttpResponse {
   return {
     statusCode,
     headers: { "content-type": "application/json" },
@@ -60,8 +60,8 @@ function json(statusCode: number, body: unknown): APIGatewayProxyResultV2 {
 }
 
 /** The Bearer token from the (case-insensitive) Authorization header, or "" when absent/malformed. */
-function bearerToken(event: APIGatewayProxyEventV2): string {
-  const headers = event.headers ?? {};
+function bearerToken(request: HttpRequest): string {
+  const headers = request.headers;
   const raw = headers.authorization ?? headers.Authorization ?? "";
   const match = /^Bearer\s+(.+)$/i.exec(raw.trim());
   return match?.[1]?.trim() ?? "";
@@ -115,10 +115,7 @@ async function allowedPropertyIds(
   return new Set(idLists.flat());
 }
 
-async function handleMyProperties(
-  deps: ReadApiDeps,
-  userId: string,
-): Promise<APIGatewayProxyResultV2> {
+async function handleMyProperties(deps: ReadApiDeps, userId: string): Promise<HttpResponse> {
   const properties = (await deps.catalog.listPropertiesForUser(userId)).sort(
     (a, b) => (b.lastActivityAt ?? b.updatedAt ?? 0) - (a.lastActivityAt ?? a.updatedAt ?? 0),
   );
@@ -135,7 +132,7 @@ async function handlePropertyDetail(
   deps: ReadApiDeps,
   userId: string,
   propertyId: string,
-): Promise<APIGatewayProxyResultV2> {
+): Promise<HttpResponse> {
   // Membership gate FIRST — never reveal whether an unowned id exists (same 404 either way).
   const allowed = await allowedPropertyIds(deps.catalog, userId);
   if (!allowed.has(propertyId)) {
@@ -149,7 +146,7 @@ async function handlePropertyDetail(
   return json(200, { ...toDetailDto(property), photos });
 }
 
-async function handleUpcoming(deps: ReadApiDeps, userId: string): Promise<APIGatewayProxyResultV2> {
+async function handleUpcoming(deps: ReadApiDeps, userId: string): Promise<HttpResponse> {
   const properties = await deps.catalog.listPropertiesForUser(userId);
   const rows: Array<{
     propertyId: string;
@@ -191,19 +188,19 @@ function propertyDetailId(path: string): string | null {
 
 export async function handleReadApi(
   deps: ReadApiDeps,
-  event: APIGatewayProxyEventV2,
-): Promise<APIGatewayProxyResultV2> {
-  const method = event.requestContext?.http?.method ?? "GET";
-  // rawPath is the path after the Function URL host (the SPA hits the URL root); strip any trailing
+  request: HttpRequest,
+): Promise<HttpResponse> {
+  const method = request.method;
+  // The path is after the Function URL host (the SPA hits the URL root); strip any trailing
   // slash so "/me/properties/" and "/me/properties" route the same.
-  const path = (event.rawPath ?? "/").replace(/\/+$/, "") || "/";
+  const path = (request.path ?? "/").replace(/\/+$/, "") || "/";
 
   // The OPTIONS preflight is answered by the Function URL's CORS config without invoking this
   // handler, so there's no OPTIONS branch here (and we must not emit our own CORS headers — see
   // `json`). If an OPTIONS ever does reach us it simply falls through to the 401 below, harmlessly.
 
   try {
-    const token = bearerToken(event);
+    const token = bearerToken(request);
     const verified = await deps.verifier.verifyIdToken(token);
     if (verified === null) {
       return json(401, { error: "unauthorized" });

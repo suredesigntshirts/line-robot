@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseWebhook } from "../../src/adapters/line/webhookParser.js";
+import { parseRawEvent, parseWebhook } from "../../src/adapters/line/webhookParser.js";
 import * as fx from "../fixtures/webhook.js";
 
 function must<T>(value: T | undefined): T {
@@ -149,5 +149,33 @@ describe("parseWebhook", () => {
     // leave and memberLeft variants carry no reply token
     const leave = must(parsed.events[1]);
     expect("replyToken" in leave).toBe(false);
+  });
+});
+
+describe("parseRawEvent", () => {
+  it("round-trips a valid single postback event", () => {
+    const ev = JSON.parse(fx.webhookBody([fx.postbackEvent({ data: "action=x" })])).events[0];
+    const parsed = parseRawEvent(ev);
+    expect(parsed.kind).toBe("postback");
+  });
+  it("round-trips a valid text message event", () => {
+    const ev = JSON.parse(fx.webhookBody([fx.textMessageEvent({ text: "hi" })])).events[0];
+    expect(parseRawEvent(ev).kind).toBe("message");
+  });
+  it("throws on null / non-object input", () => {
+    expect(() => parseRawEvent(null)).toThrow();
+    expect(() => parseRawEvent("nope")).toThrow();
+    expect(() => parseRawEvent(42)).toThrow();
+  });
+  it("throws when the type field is missing", () => {
+    expect(() => parseRawEvent({ webhookEventId: "e1", timestamp: 1 })).toThrow();
+  });
+  it("throws when webhookEventId is missing", () => {
+    expect(() => parseRawEvent({ type: "message", timestamp: 1 })).toThrow();
+  });
+  it("throws when timestamp is the wrong type", () => {
+    expect(() =>
+      parseRawEvent({ type: "message", webhookEventId: "e1", timestamp: "x" }),
+    ).toThrow();
   });
 });

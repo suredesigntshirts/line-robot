@@ -1,5 +1,7 @@
 import { HTTPFetchError } from "@line/bot-sdk";
 import { describe, expect, it } from "vitest";
+import { isPermanentLineError } from "../../src/adapters/line/lineGateway.js";
+import { parseRawEvent } from "../../src/adapters/line/webhookParser.js";
 import { EventProcessor, type EventProcessorDeps } from "../../src/app/eventProcessor.js";
 import { type ConversationRef, conversationKey } from "../../src/core/domain/conversation.js";
 import type {
@@ -56,6 +58,7 @@ function makeProcessor(
     errors: [],
   };
   const deps: EventProcessorDeps = {
+    parser: { parse: (raw) => parseRawEvent(raw) },
     archive: {
       put: async (id, ref) => {
         spies.archived.push({ id, ref });
@@ -136,6 +139,7 @@ function makeProcessor(
         }
         spies.pushes.push({ to, messages });
       },
+      isPermanentError: isPermanentLineError,
     },
     logger: {
       info: () => {},

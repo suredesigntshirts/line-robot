@@ -215,6 +215,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
           }
           spies.pushes.push({ to, messages: msgs });
         },
+        isPermanentError: () => false,
       } as LineGateway,
       logger: {
         info: () => {},

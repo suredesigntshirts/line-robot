@@ -7,6 +7,7 @@ import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.
 import { LineIdTokenVerifier } from "../adapters/line/lineTokenVerifier.js";
 import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { handleReadApi, type ReadApiDeps } from "../app/readApiHandler.js";
+import type { HttpRequest } from "../core/ports/httpGateway.js";
 import { SYSTEM_CLOCK } from "../lib/clock.js";
 import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
@@ -31,6 +32,19 @@ async function buildDeps(): Promise<ReadApiDeps> {
 // Memoize across warm invocations (cold-start singleton, like the other Lambdas).
 const getDeps = lazySingleton(buildDeps);
 
+/** Map the Lambda Function URL event to a provider-agnostic HttpRequest, lower-casing header keys
+ * so the handler's case-insensitive Authorization lookup resolves regardless of inbound casing. */
+function toHttpRequest(event: APIGatewayProxyEventV2): HttpRequest {
+  const headers: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(event.headers ?? {})) headers[k.toLowerCase()] = v;
+  return {
+    method: event.requestContext?.http?.method ?? "GET",
+    path: event.rawPath ?? "/",
+    headers,
+    rawBody: event.body ?? "",
+  };
+}
+
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
-  return handleReadApi(await getDeps(), event);
+  return handleReadApi(await getDeps(), toHttpRequest(event));
 }

@@ -1,20 +1,24 @@
 import { createHmac } from "node:crypto";
-import type { APIGatewayProxyEventV2 } from "aws-lambda";
 import { describe, expect, it } from "vitest";
 import { SignatureVerifier } from "../../src/adapters/line/signatureVerifier.js";
 import { handleIngest, type IngestDeps } from "../../src/app/ingestHandler.js";
+import type { HttpRequest } from "../../src/core/ports/httpGateway.js";
 import type { Logger, QueuePublisher } from "../../src/core/ports/runtime.js";
 
 const SECRET = "test-secret";
 const sign = (body: string) => createHmac("sha256", SECRET).update(body).digest("base64");
 const noopLogger: Logger = { info: () => {}, warn: () => {}, error: () => {} };
 
-function event(body: string, signature?: string, isBase64Encoded = false): APIGatewayProxyEventV2 {
+// Mirrors lambda/ingest.ts toHttpRequest: when base64-encoded, the lambda decodes before the handler
+// ever sees it, so the handler's rawBody is always the decoded body (round-tripped here).
+function event(body: string, signature?: string, isBase64Encoded = false): HttpRequest {
+  const transported = isBase64Encoded ? Buffer.from(body).toString("base64") : body;
   return {
+    method: "POST",
+    path: "/",
     headers: signature === undefined ? {} : { "x-line-signature": signature },
-    body: isBase64Encoded ? Buffer.from(body).toString("base64") : body,
-    isBase64Encoded,
-  } as unknown as APIGatewayProxyEventV2;
+    rawBody: isBase64Encoded ? Buffer.from(transported, "base64").toString("utf8") : transported,
+  };
 }
 
 const messageBody = JSON.stringify({

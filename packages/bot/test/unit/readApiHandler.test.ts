@@ -1,6 +1,6 @@
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { describe, expect, it } from "vitest";
 import { handleReadApi, type ReadApiDeps } from "../../src/app/readApiHandler.js";
+import type { HttpRequest, HttpResponse } from "../../src/core/ports/httpGateway.js";
 import type { LineTokenVerifier } from "../../src/core/ports/lineTokenVerifier.js";
 import type { MediaUrlSigner } from "../../src/core/ports/mediaUrlSigner.js";
 import { FakeCatalog } from "../fixtures/fakeCatalog.js";
@@ -35,16 +35,8 @@ function deps(catalog: FakeCatalog): ReadApiDeps {
   };
 }
 
-function event(
-  method: string,
-  path: string,
-  headers: Record<string, string> = {},
-): APIGatewayProxyEventV2 {
-  return {
-    rawPath: path,
-    headers,
-    requestContext: { http: { method, path } },
-  } as unknown as APIGatewayProxyEventV2;
+function event(method: string, path: string, headers: Record<string, string> = {}): HttpRequest {
+  return { method, path, headers, rawBody: "" };
 }
 
 const AUTH = { authorization: "Bearer good" };
@@ -71,8 +63,8 @@ function seeded(): FakeCatalog {
   return catalog;
 }
 
-function body(res: APIGatewayProxyResultV2): unknown {
-  return JSON.parse((res as { body: string }).body);
+function body(res: HttpResponse): unknown {
+  return JSON.parse(res.body);
 }
 
 describe("handleReadApi auth", () => {
@@ -144,9 +136,7 @@ describe("GET /properties/{id}", () => {
       ],
     });
     catalog.seedEdge(CONV, "p3");
-    const res = (await handleReadApi(deps(catalog), event("GET", "/properties/p3", AUTH))) as {
-      statusCode: number;
-    };
+    const res = await handleReadApi(deps(catalog), event("GET", "/properties/p3", AUTH));
     expect(res.statusCode).toBe(200);
     const detail = body(res) as { photos: Array<{ url: string }> };
     expect(detail.photos).toEqual([{ url: "signed:p3/ok.jpg", kind: "property" }]);

@@ -202,6 +202,10 @@ export class LineMessagingGateway implements LineGateway {
     }
     await this.client.pushMessage({ to, messages: messages.map(toSdkMessage) });
   }
+
+  isPermanentError(error: unknown): boolean {
+    return isPermanentLineError(error);
+  }
 }
 
 /** Build a gateway backed by the real LINE Messaging API client. */

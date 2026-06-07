@@ -1,20 +1,12 @@
-import { LINE_SIGNATURE_HTTP_HEADER_NAME } from "@line/bot-sdk";
-import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
-import type { SignatureVerifier } from "../adapters/line/signatureVerifier.js";
+import type { HttpRequest, HttpResponse } from "../core/ports/httpGateway.js";
 import type { Logger, QueuePublisher } from "../core/ports/runtime.js";
+import type { SignatureVerifier } from "../core/ports/signatureVerifier.js";
 import type { EventPayload } from "./eventProcessor.js";
 
 export interface IngestDeps {
   readonly verifier: SignatureVerifier;
   readonly publisher: QueuePublisher;
   readonly logger: Logger;
-}
-
-function rawBodyOf(event: APIGatewayProxyEventV2): string {
-  if (event.body === undefined) {
-    return "";
-  }
-  return event.isBase64Encoded ? Buffer.from(event.body, "base64").toString("utf8") : event.body;
 }
 
 function extractRawEvents(rawBody: string): Array<{ webhookEventId?: unknown }> {
@@ -29,12 +21,9 @@ function extractRawEvents(rawBody: string): Array<{ webhookEventId?: unknown }> 
  * - empty events (LINE "verify" ping) → 200, nothing enqueued
  * - enqueue failure → 500 so LINE redelivers
  */
-export async function handleIngest(
-  deps: IngestDeps,
-  event: APIGatewayProxyEventV2,
-): Promise<APIGatewayProxyResultV2> {
-  const signature = event.headers?.[LINE_SIGNATURE_HTTP_HEADER_NAME];
-  const rawBody = rawBodyOf(event);
+export async function handleIngest(deps: IngestDeps, request: HttpRequest): Promise<HttpResponse> {
+  const signature = request.headers["x-line-signature"];
+  const rawBody = request.rawBody;
 
   if (!deps.verifier.verify(rawBody, signature)) {
     deps.logger.warn("rejected webhook with invalid signature");
