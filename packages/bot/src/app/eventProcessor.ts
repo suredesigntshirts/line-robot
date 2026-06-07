@@ -1,3 +1,4 @@
+import { isPermanentLineError } from "../adapters/line/lineGateway.js";
 import { parseRawEvent } from "../adapters/line/webhookParser.js";
 import {
   type ConversationRef,
@@ -149,7 +150,18 @@ export class EventProcessor {
   constructor(private readonly deps: EventProcessorDeps) {}
 
   async process(payload: EventPayload): Promise<void> {
-    const event = parseRawEvent(payload.raw);
+    let event: InboundEvent;
+    try {
+      event = parseRawEvent(payload.raw);
+    } catch (error) {
+      // A structurally malformed event throws identically on every redelivery, so retrying it just
+      // loops to the DLQ. Log + drop (ack) instead of rethrowing.
+      this.deps.logger.error("unparseable event; dropping without retry", {
+        webhookEventId: payload.webhookEventId,
+        error: String(error),
+      });
+      return;
+    }
     const ref = eventRef(event);
 
     if (ref === undefined) {
@@ -203,8 +215,9 @@ export class EventProcessor {
     if (replies.length === 0) {
       return;
     }
-    await this.send(message, replies);
-    await this.persistOutbound(message, replies);
+    if (await this.send(message, replies)) {
+      await this.persistOutbound(message, replies);
+    }
   }
 
   /**
@@ -225,8 +238,9 @@ export class EventProcessor {
     if (replies.length === 0) {
       return;
     }
-    await this.send(event, replies);
-    await this.persistOutbound(event, replies);
+    if (await this.send(event, replies)) {
+      await this.persistOutbound(event, replies);
+    }
   }
 
   private async captureMedia(message: IncomingMessage): Promise<StoredMessage> {
@@ -272,11 +286,19 @@ export class EventProcessor {
     this.deps.logger.info("membership updated", { convKey, change, count: memberIds.length });
   }
 
-  private async send(target: ReplyTarget, replies: OutboundMessage[]): Promise<void> {
+  /**
+   * Deliver replies, preferring the live reply token and falling back to push (reply tokens are
+   * short-lived; push is the recovery). Returns whether the message was delivered. A *permanent*
+   * LINE rejection (4xx except 429 — e.g. a payload that violates a LINE limit) is swallowed and
+   * returns `false`: the identical request will 400 on every redelivery, so we ack the event rather
+   * than burn five SQS retries (and fire a confusing delayed push minutes later). Transient failures
+   * (429 / 5xx / network) still throw, so the record is retried.
+   */
+  private async send(target: ReplyTarget, replies: OutboundMessage[]): Promise<boolean> {
     if (target.replyToken !== undefined && target.replyToken !== "") {
       try {
         await this.deps.gateway.reply(target.replyToken, replies);
-        return;
+        return true;
       } catch (error) {
         this.deps.logger.warn("reply failed; falling back to push", {
           webhookEventId: target.webhookEventId,
@@ -284,7 +306,19 @@ export class EventProcessor {
         });
       }
     }
-    await this.deps.gateway.push(pushTarget(target.ref), replies);
+    try {
+      await this.deps.gateway.push(pushTarget(target.ref), replies);
+      return true;
+    } catch (error) {
+      if (isPermanentLineError(error)) {
+        this.deps.logger.error("delivery rejected by LINE (permanent); dropping without retry", {
+          webhookEventId: target.webhookEventId,
+          error: String(error),
+        });
+        return false;
+      }
+      throw error;
+    }
   }
 
   private async persistOutbound(target: ReplyTarget, replies: OutboundMessage[]): Promise<void> {

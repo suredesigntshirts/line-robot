@@ -1,5 +1,10 @@
+import { HTTPFetchError } from "@line/bot-sdk";
 import { describe, expect, it, vi } from "vitest";
-import { type LineApiClient, LineMessagingGateway } from "../../src/adapters/line/lineGateway.js";
+import {
+  isPermanentLineError,
+  type LineApiClient,
+  LineMessagingGateway,
+} from "../../src/adapters/line/lineGateway.js";
 
 function fakeClient(): LineApiClient {
   return {
@@ -190,7 +195,7 @@ describe("LineMessagingGateway", () => {
     expect(bubble.body.contents.some((c: { type: string }) => c.type === "separator")).toBe(true);
   });
 
-  it("renders an imageCarousel as a flex carousel of tappable image bubbles", async () => {
+  it("renders an imageCarousel as a flex carousel of image bubbles with no tap action", async () => {
     const client = fakeClient();
     const gateway = new LineMessagingGateway(client);
 
@@ -204,7 +209,8 @@ describe("LineMessagingGateway", () => {
     expect(sent.contents.contents).toHaveLength(2);
     const hero = sent.contents.contents[0].hero;
     expect(hero).toMatchObject({ type: "image", url: "https://i/1" });
-    expect(hero.action).toMatchObject({ type: "uri", uri: "https://i/1" });
+    // No action: a presigned S3 URL exceeds LINE's 1000-char action.uri cap (see toImageCarousel).
+    expect(hero.action).toBeUndefined();
   });
 
   it("caps a carousel at 12 bubbles", async () => {
@@ -219,5 +225,32 @@ describe("LineMessagingGateway", () => {
     await gateway.push("U1", [{ type: "flex", altText: "many", cards }]);
     const sent = firstMessage(client.pushMessage);
     expect(sent.contents.contents).toHaveLength(12);
+  });
+});
+
+describe("isPermanentLineError", () => {
+  const httpError = (status: number) =>
+    new HTTPFetchError(String(status), {
+      status,
+      statusText: "",
+      headers: new Headers(),
+      body: "",
+    });
+
+  it("treats a 4xx (other than 429) as permanent — retrying re-sends the same bad request", () => {
+    expect(isPermanentLineError(httpError(400))).toBe(true);
+    expect(isPermanentLineError(httpError(403))).toBe(true);
+    expect(isPermanentLineError(httpError(404))).toBe(true);
+  });
+
+  it("treats 429 and 5xx as transient — worth a retry", () => {
+    expect(isPermanentLineError(httpError(429))).toBe(false);
+    expect(isPermanentLineError(httpError(500))).toBe(false);
+    expect(isPermanentLineError(httpError(503))).toBe(false);
+  });
+
+  it("treats non-HTTP errors (network/timeouts/unknown) as transient", () => {
+    expect(isPermanentLineError(new Error("socket hang up"))).toBe(false);
+    expect(isPermanentLineError(undefined)).toBe(false);
   });
 });

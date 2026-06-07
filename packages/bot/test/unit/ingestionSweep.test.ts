@@ -25,6 +25,7 @@ import { textOf } from "../fixtures/outbound.js";
 interface Spies {
   claims: { key: string; nowMs: number; staleTimeoutMs: number }[];
   releases: { key: string; watermark: number; claimSeenInboundAt: number }[];
+  fails: string[];
   segmentRequests: ExtractionRequest[];
   extractRequests: ExtractionRequest[];
   upserts: PropertyUpsert[];
@@ -53,6 +54,8 @@ interface Options {
   mediaBytes?: Record<string, Buffer>;
   /** Per-image classification; default classifies every image as a plain property photo. */
   classify?: (media: ExtractionMedia) => ImageClassification | null;
+  /** Full async classifier override (for exercising concurrency); takes precedence over `classify`. */
+  classifyImpl?: ImageClassifier["classifyImage"];
   /** Pass-1 segmentation; default returns null → the sweep uses the single-pass fallback. */
   segment?: (req: ExtractionRequest) => SegmentationResult | null;
   /** conversationKey → existing memory note fed to the extractor. */
@@ -123,6 +126,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
   const spies: Spies = {
     claims: [],
     releases: [],
+    fails: [],
     segmentRequests: [],
     extractRequests: [],
     upserts: [],
@@ -144,6 +148,9 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
     },
     releaseConversation: async (key, o) => {
       spies.releases.push({ key, ...o });
+    },
+    failConversation: async (key) => {
+      spies.fails.push(key);
     },
     listConversationProperties: async (key) => opts.convProperties?.[key] ?? [],
     getProperty: async (id) => opts.properties?.[id] ?? null,
@@ -178,7 +185,8 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
     },
   };
   const classifier: ImageClassifier = {
-    classifyImage: async (m) => (opts.classify ?? (() => ({ kind: "property" })))(m),
+    classifyImage:
+      opts.classifyImpl ?? (async (m) => (opts.classify ?? (() => ({ kind: "property" })))(m)),
   };
   const segmenter: PropertySegmenter = {
     segment: async (req) => {
@@ -251,6 +259,42 @@ describe("IngestionSweep — mechanics", () => {
     ]);
     expect(await sweep.run()).toMatchObject({ skipped: 1, ingested: 0 });
     expect(spies.releases).toHaveLength(0);
+  });
+
+  it("abandons a conversation once the attempt cap is exceeded (no extraction, marks FAILED)", async () => {
+    // Cost guard: a batch that keeps failing must not loop forever burning inference. After the cap,
+    // the sweep gives up WITHOUT extracting — marks FAILED + notifies the user once.
+    const { sweep, spies } = makeSweep([
+      {
+        tracker: tracker("user#X"),
+        claim: tracker("user#X", { status: "INGESTING", ingestAttempts: 4 }),
+        batch: [textMsg(200, "this batch keeps failing")],
+      },
+    ]);
+    const result = await sweep.run();
+    expect(result).toMatchObject({ abandoned: 1, ingested: 0, claimed: 0, skipped: 0, failed: 0 });
+    expect(spies.fails).toEqual(["user#X"]); // marked FAILED (dropped off the pending index)
+    expect(spies.extractRequests).toHaveLength(0); // critical: no inference spent
+    expect(spies.releases).toHaveLength(0); // not released — it's terminal
+    expect(spies.pushes).toHaveLength(1); // user told once
+    expect(textOf(spies.pushes[0]?.messages[0])).toMatch(/couldn't process/i);
+  });
+
+  it("still ingests on the final allowed attempt (at the cap, not over it)", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#Y"),
+          claim: tracker("user#Y", { status: "INGESTING", ingestAttempts: 3 }),
+          batch: [textMsg(200, "a house")],
+        },
+      ],
+      { extract: () => ({ properties: [extracted({ projectName: "House" })] }) },
+    );
+    // 3 == cap (DEFAULT_MAX_INGEST_ATTEMPTS) → still allowed; only > cap abandons.
+    const result = await sweep.run();
+    expect(result).toMatchObject({ abandoned: 0, ingested: 1 });
+    expect(spies.fails).toHaveLength(0);
   });
 
   it("releases with the existing watermark on an empty batch", async () => {
@@ -604,6 +648,33 @@ describe("IngestionSweep — extraction", () => {
     ]);
     // Images are handled per-image now — the property extractor gets text only.
     expect(spies.extractRequests[0]?.media).toEqual([]);
+  });
+
+  it("classifies images with bounded concurrency (not one-at-a-time, not all-at-once)", async () => {
+    // Regression guard: a serial classify loop over a big photo batch blew the sweep's Lambda
+    // timeout in prod (23 images × one vision call each > 60s). Classification must fan out.
+    const COUNT = 8;
+    let inFlight = 0;
+    let peak = 0;
+    const batch = Array.from({ length: COUNT }, (_, i) => imageMsg(100 + i, `img${i}.jpg`));
+    const mediaBytes = Object.fromEntries(
+      batch.map((_, i) => [`img${i}.jpg`, Buffer.from(`b${i}`)]),
+    );
+    const { sweep } = makeSweep([{ tracker: tracker("user#P"), claim: tracker("user#P"), batch }], {
+      mediaBytes,
+      classifyImpl: async () => {
+        inFlight += 1;
+        peak = Math.max(peak, inFlight);
+        // Yield twice so every concurrently-started call is observed before any resolves.
+        await Promise.resolve();
+        await Promise.resolve();
+        inFlight -= 1;
+        return { kind: "property" };
+      },
+    });
+    await sweep.run();
+    expect(peak).toBeGreaterThan(1); // not serial
+    expect(peak).toBeLessThan(COUNT); // not unbounded (the pool caps in-flight below the batch size)
   });
 
   it("stores chanote data + labels the photo, and OCRs 'other' docs into the extractor text", async () => {

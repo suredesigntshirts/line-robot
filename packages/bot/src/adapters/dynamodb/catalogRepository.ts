@@ -369,13 +369,16 @@ function isConditionalCheckFailed(error: unknown): boolean {
 }
 
 function toTracker(item: Record<string, unknown>): ConversationTracker {
+  const status =
+    item.status === "INGESTING" ? "INGESTING" : item.status === "FAILED" ? "FAILED" : "IDLE";
   return {
     conversationKey: String(item.conversationKey ?? ""),
     lastInboundAt: Number(item.lastInboundAt ?? 0),
     lastIngestedAt: Number(item.lastIngestedAt ?? 0),
-    status: item.status === "INGESTING" ? "INGESTING" : "IDLE",
+    status,
     pendingSince: typeof item.pendingSince === "string" ? item.pendingSince : undefined,
     claimedAt: typeof item.claimedAt === "number" ? item.claimedAt : undefined,
+    ingestAttempts: typeof item.ingestAttempts === "number" ? item.ingestAttempts : undefined,
   };
 }
 
@@ -422,6 +425,9 @@ export class DynamoCatalogRepository implements CatalogRepository {
           Key: trackerKey(conversationKey),
           UpdateExpression:
             "SET lastInboundAt = :in, " +
+            // New user activity → fresh attempt budget. Only autonomous reclaim loops (no inbound)
+            // accumulate ingestAttempts toward the give-up cap.
+            "ingestAttempts = :zero, " +
             "lastIngestedAt = if_not_exists(lastIngestedAt, :zero), " +
             "#status = if_not_exists(#status, :idle), " +
             "entityType = if_not_exists(entityType, :etype), " +
@@ -486,7 +492,9 @@ export class DynamoCatalogRepository implements CatalogRepository {
         new UpdateCommand({
           TableName: this.table,
           Key: trackerKey(conversationKey),
-          UpdateExpression: "SET #status = :ingesting, claimedAt = :now",
+          // ADD is atomic + committed before any extraction work, so a timeout/crash mid-run is
+          // still counted toward the give-up cap (the next reclaim sees the bumped attempts).
+          UpdateExpression: "SET #status = :ingesting, claimedAt = :now ADD ingestAttempts :one",
           ConditionExpression:
             "attribute_exists(pk) AND (#status <> :ingesting OR claimedAt < :staleBefore)",
           ExpressionAttributeNames: { "#status": "status" },
@@ -494,6 +502,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
             ":ingesting": "INGESTING",
             ":now": nowMs,
             ":staleBefore": nowMs - staleTimeoutMs,
+            ":one": 1,
           },
           ReturnValues: "ALL_NEW",
         }),
@@ -519,7 +528,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
           TableName: this.table,
           Key: key,
           UpdateExpression:
-            "SET lastIngestedAt = :wm, #status = :idle REMOVE pendingSince, ingestDeadline, gsi1pk, gsi1sk, claimedAt",
+            "SET lastIngestedAt = :wm, #status = :idle REMOVE pendingSince, ingestDeadline, gsi1pk, gsi1sk, claimedAt, ingestAttempts",
           ConditionExpression: "lastInboundAt <= :seen",
           ExpressionAttributeNames: { "#status": "status" },
           ExpressionAttributeValues: {
@@ -540,12 +549,31 @@ export class DynamoCatalogRepository implements CatalogRepository {
         new UpdateCommand({
           TableName: this.table,
           Key: key,
-          UpdateExpression: "SET lastIngestedAt = :wm, #status = :idle REMOVE claimedAt",
+          // A new message re-armed pending → the claimed batch ingested fine, so the remaining
+          // streak starts with a fresh attempt budget.
+          UpdateExpression:
+            "SET lastIngestedAt = :wm, #status = :idle, ingestAttempts = :zero REMOVE claimedAt",
           ExpressionAttributeNames: { "#status": "status" },
-          ExpressionAttributeValues: { ":wm": opts.watermark, ":idle": "IDLE" },
+          ExpressionAttributeValues: { ":wm": opts.watermark, ":idle": "IDLE", ":zero": 0 },
         }),
       );
     }
+  }
+
+  async failConversation(conversationKey: string): Promise<void> {
+    // Terminal: drop off the pending GSI so no sweep reclaims it again (stops the cost loop). Keep
+    // ingestAttempts for diagnostics. A later inbound message re-arms gsi1 + resets attempts.
+    await this.doc.send(
+      new UpdateCommand({
+        TableName: this.table,
+        Key: trackerKey(conversationKey),
+        UpdateExpression:
+          "SET #status = :failed REMOVE pendingSince, ingestDeadline, gsi1pk, gsi1sk, claimedAt",
+        ConditionExpression: "attribute_exists(pk)",
+        ExpressionAttributeNames: { "#status": "status" },
+        ExpressionAttributeValues: { ":failed": "FAILED" },
+      }),
+    );
   }
 
   async getConversation(conversationKey: string): Promise<ConversationTracker | null> {

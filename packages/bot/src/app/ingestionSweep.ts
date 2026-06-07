@@ -5,7 +5,7 @@ import type {
   PropertyPhoto,
   PropertyUpsert,
 } from "../core/domain/catalog.js";
-import { pushTarget } from "../core/domain/conversation.js";
+import { pushTarget, pushTargetFromKey } from "../core/domain/conversation.js";
 import { formatShortDateTime } from "../core/domain/datetime.js";
 import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
@@ -49,6 +49,8 @@ export interface SweepOptions {
   readonly maxMedia?: number;
   /** Cap on PROPERTY photos kept per batch (documents — chanote/other — are never capped). */
   readonly maxPropertyPhotos?: number;
+  /** Give up on (→ FAILED) a conversation after this many ingestion attempts. */
+  readonly maxIngestAttempts?: number;
 }
 
 /** One classified attachment from a batch: its S3 key, content-type, and the model's verdict
@@ -78,7 +80,16 @@ export interface SweepResult {
   readonly skipped: number;
   /** Conversations that errored mid-run (claim left in place for the stale-timeout retry). */
   readonly failed: number;
+  /** Conversations abandoned (→ FAILED) after exceeding the ingestion-attempt cap. */
+  readonly abandoned: number;
 }
+
+/** The result of attempting one conversation: ingested (with counts), skipped (claim contended), or
+ * abandoned (attempt cap exceeded → FAILED, no extraction run). */
+type IngestOutcome =
+  | { readonly kind: "ingested"; readonly messageCount: number; readonly propertyCount: number }
+  | { readonly kind: "skipped" }
+  | { readonly kind: "abandoned" };
 
 /** A merge candidate offered in the ambiguous-confirmation quick reply. */
 interface MergeTarget {
@@ -99,9 +110,18 @@ interface AppliedProperty {
 
 const DEFAULT_MAX_CONVERSATIONS = 25;
 const DEFAULT_STALE_TIMEOUT_MS = 5 * 60_000;
+/** Give up on a conversation after this many ingestion attempts (claims). Extraction shouldn't
+ * normally fail, so a conversation that keeps failing (timeout, bad media, API error) is abandoned
+ * → FAILED rather than reclaimed forever — bounding the inference + Lambda spend of a stuck loop.
+ * Counts every claim including timed-out/crashed runs (the counter is committed at claim time). */
+const DEFAULT_MAX_INGEST_ATTEMPTS = 3;
 /** Backstop on images classified per conversation per run (one cheap vision call each). High enough
  * to cover real listings (we never know which images are documents until we look). */
 const DEFAULT_MAX_CLASSIFY = 30;
+/** Image classification runs as independent vision calls — done concurrently (bounded) so a large
+ * batch (20+ photos) doesn't serialise past the sweep's Lambda timeout. Each Haiku call is cheap;
+ * a small pool stays well under Anthropic concurrency limits while cutting wall-clock ~Nx. */
+const CLASSIFY_CONCURRENCY = 6;
 /** Property photos kept per batch — documents (chanote/other) are uncapped. */
 const DEFAULT_MAX_PROPERTY_PHOTOS = 12;
 /** Storage cap for the per-conversation memory note (mirrors the extractor's ≤1500-char prompt
@@ -203,6 +223,30 @@ function mergeSegment(segment: PropertySegment, fields?: ExtractedProperty): Ext
   };
 }
 
+/** Map over items with a bounded number of in-flight promises, preserving input order in the result
+ * (workers pull from a shared cursor). Lets us fan out independent I/O — e.g. per-image vision calls
+ * — without spawning all N at once or serialising them one at a time. */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) {
+        return;
+      }
+      results[i] = await fn(items[i] as T, i);
+    }
+  };
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
 /** Build the single timestamped transcript both passes read. Each line is `[<Bangkok date+time>]`
  * followed by the message text (with map links rewritten to `[MAP n]`) or an image marker
  * `[IMG n] <kind> - <label> ocr: <text>`. The timestamps (second resolution) expose burst/gap
@@ -270,9 +314,19 @@ export class IngestionSweep {
     const due = await this.deps.catalog.findPendingConversations(nowIso, maxConversations);
     if (due.length === 0) {
       this.deps.logger.info("ingestion sweep: nothing due", { nowIso });
-      return { due: 0, claimed: 0, ingested: 0, messages: 0, properties: 0, skipped: 0, failed: 0 };
+      return {
+        due: 0,
+        claimed: 0,
+        ingested: 0,
+        messages: 0,
+        properties: 0,
+        skipped: 0,
+        failed: 0,
+        abandoned: 0,
+      };
     }
 
+    const maxAttempts = this.opts.maxIngestAttempts ?? DEFAULT_MAX_INGEST_ATTEMPTS;
     const tally = {
       due: due.length,
       claimed: 0,
@@ -281,12 +335,17 @@ export class IngestionSweep {
       properties: 0,
       skipped: 0,
       failed: 0,
+      abandoned: 0,
     };
     for (const tracker of due) {
       try {
-        const outcome = await this.ingestOne(tracker, nowMs, staleTimeoutMs);
-        if (outcome === null) {
+        const outcome = await this.ingestOne(tracker, nowMs, staleTimeoutMs, maxAttempts);
+        if (outcome.kind === "skipped") {
           tally.skipped += 1;
+          continue;
+        }
+        if (outcome.kind === "abandoned") {
+          tally.abandoned += 1;
           continue;
         }
         tally.claimed += 1;
@@ -309,18 +368,35 @@ export class IngestionSweep {
     return { ...tally };
   }
 
-  /** Claim → batch → extract → upsert → release → (best-effort) push. Returns counts, or `null` if
-   * another worker holds a live claim. */
+  /** Claim → batch → extract → upsert → release → (best-effort) push. Returns the outcome:
+   * `ingested` (counts), `skipped` (another worker holds a live claim), or `abandoned` (the
+   * attempt cap was exceeded → marked FAILED, no extraction run). */
   private async ingestOne(
     tracker: ConversationTracker,
     nowMs: number,
     staleTimeoutMs: number,
-  ): Promise<{ messageCount: number; propertyCount: number } | null> {
+    maxAttempts: number,
+  ): Promise<IngestOutcome> {
     const key = tracker.conversationKey;
     const claimed = await this.deps.catalog.claimConversation(key, nowMs, staleTimeoutMs);
     if (claimed === null) {
       this.deps.logger.info("ingestion sweep: claim contended; skipping", { conversationKey: key });
-      return null;
+      return { kind: "skipped" };
+    }
+
+    // Give-up cap: the claim atomically bumped ingestAttempts (counting prior timeouts/crashes too).
+    // Past the cap we abandon WITHOUT extracting — that's the whole point: stop burning inference on
+    // a batch that keeps failing. Mark FAILED (off the pending index) and tell the user once.
+    const attempts = claimed.ingestAttempts ?? 1;
+    if (attempts > maxAttempts) {
+      this.deps.logger.error("ingestion sweep: giving up after repeated failures", {
+        conversationKey: key,
+        attempts,
+        maxAttempts,
+      });
+      await this.deps.catalog.failConversation(key);
+      await this.pushFailureNotice(key);
+      return { kind: "abandoned" };
     }
 
     const batch = await this.deps.messages.findSince(key, claimed.lastIngestedAt);
@@ -340,7 +416,7 @@ export class IngestionSweep {
     if (applied.length > 0) {
       await this.pushConfirmation(key, batch, applied);
     }
-    return { messageCount: batch.length, propertyCount: applied.length };
+    return { kind: "ingested", messageCount: batch.length, propertyCount: applied.length };
   }
 
   private async extractAndApply(key: string, batch: StoredMessage[]): Promise<AppliedProperty[]> {
@@ -617,37 +693,43 @@ export class IngestionSweep {
       });
     }
 
-    const out: ClassifiedMedia[] = [];
-    for (const message of withAttachment.slice(0, maxClassify)) {
-      const attachment = message.attachment;
-      if (attachment === undefined) {
-        continue;
-      }
-      let bytes: Buffer;
-      try {
-        bytes = await this.deps.media.getMedia(attachment.s3Key);
-      } catch (error) {
-        this.deps.logger.warn("ingestion sweep: media read failed; skipping", {
-          s3Key: attachment.s3Key,
-          error: String(error),
+    // Classify with bounded concurrency: each image is an independent vision call, so a serial loop
+    // over a large batch (20+ photos) blows the sweep's Lambda timeout. Results stay positional, so
+    // the [IMG n] markers + segment imageIndices remain stable (buildTranscript keys off this order).
+    const settled = await mapWithConcurrency(
+      withAttachment.slice(0, maxClassify),
+      CLASSIFY_CONCURRENCY,
+      async (message): Promise<ClassifiedMedia | null> => {
+        const attachment = message.attachment;
+        if (attachment === undefined) {
+          return null;
+        }
+        let bytes: Buffer;
+        try {
+          bytes = await this.deps.media.getMedia(attachment.s3Key);
+        } catch (error) {
+          this.deps.logger.warn("ingestion sweep: media read failed; skipping", {
+            s3Key: attachment.s3Key,
+            error: String(error),
+          });
+          return null;
+        }
+        const classification = await this.deps.classifier.classifyImage({
+          base64: bytes.toString("base64"),
+          mediaType: attachment.contentType,
         });
-        continue;
-      }
-      const classification = await this.deps.classifier.classifyImage({
-        base64: bytes.toString("base64"),
-        mediaType: attachment.contentType,
-      });
-      out.push({
-        s3Key: attachment.s3Key,
-        contentType: attachment.contentType,
-        // A failed classify defaults to a plain property photo (it's stored + shown, just unlabelled).
-        kind: classification?.kind ?? "property",
-        ...(classification?.label !== undefined ? { label: classification.label } : {}),
-        ...(classification?.chanote !== undefined ? { chanote: classification.chanote } : {}),
-        ...(classification?.ocrText !== undefined ? { ocrText: classification.ocrText } : {}),
-      });
-    }
-    return out;
+        return {
+          s3Key: attachment.s3Key,
+          contentType: attachment.contentType,
+          // A failed classify defaults to a plain property photo (stored + shown, just unlabelled).
+          kind: classification?.kind ?? "property",
+          ...(classification?.label !== undefined ? { label: classification.label } : {}),
+          ...(classification?.chanote !== undefined ? { chanote: classification.chanote } : {}),
+          ...(classification?.ocrText !== undefined ? { ocrText: classification.ocrText } : {}),
+        };
+      },
+    );
+    return settled.filter((c): c is ClassifiedMedia => c !== null);
   }
 
   /** The labelled gallery images for a single-property batch: only renderable images (PDFs can't show
@@ -712,6 +794,24 @@ export class IngestionSweep {
       await this.deps.gateway.push(pushTarget(ref), [buildConfirmation(applied)]);
     } catch (error) {
       this.deps.logger.warn("ingestion sweep: push confirmation failed", {
+        conversationKey: key,
+        error: String(error),
+      });
+    }
+  }
+
+  /** Tell the user once that we gave up on their last batch (best-effort — derives the push target
+   * straight from the conversation key, since we deliberately don't load/extract the batch here). */
+  private async pushFailureNotice(key: string): Promise<void> {
+    try {
+      await this.deps.gateway.push(pushTargetFromKey(key), [
+        {
+          type: "text",
+          text: "⚠️ Sorry — I couldn't process your recent messages after several tries. Please try resending them.",
+        },
+      ]);
+    } catch (error) {
+      this.deps.logger.warn("ingestion sweep: push failure notice failed", {
         conversationKey: key,
         error: String(error),
       });

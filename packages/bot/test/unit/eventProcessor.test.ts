@@ -1,3 +1,4 @@
+import { HTTPFetchError } from "@line/bot-sdk";
 import { describe, expect, it } from "vitest";
 import { EventProcessor, type EventProcessorDeps } from "../../src/app/eventProcessor.js";
 import { type ConversationRef, conversationKey } from "../../src/core/domain/conversation.js";
@@ -29,10 +30,16 @@ interface Spies {
   pushes: { to: string; messages: OutboundMessage[] }[];
   postbacks: { data: string }[];
   warns: string[];
+  errors: string[];
 }
 
 function makeProcessor(
-  opts: { replyThrows?: boolean; contentThrows?: boolean; contentBytes?: Buffer } = {},
+  opts: {
+    replyThrows?: boolean;
+    contentThrows?: boolean;
+    contentBytes?: Buffer;
+    pushError?: unknown;
+  } = {},
 ) {
   const spies: Spies = {
     archived: [],
@@ -46,6 +53,7 @@ function makeProcessor(
     pushes: [],
     postbacks: [],
     warns: [],
+    errors: [],
   };
   const deps: EventProcessorDeps = {
     archive: {
@@ -77,6 +85,7 @@ function makeProcessor(
       findPendingConversations: async () => [],
       claimConversation: async () => null,
       releaseConversation: async () => {},
+      failConversation: async () => {},
       getConversation: async () => null,
       armEdit: async () => {},
       getEditContext: async () => null,
@@ -122,6 +131,9 @@ function makeProcessor(
         spies.replies.push({ token, messages });
       },
       push: async (to, messages) => {
+        if (opts.pushError !== undefined) {
+          throw opts.pushError;
+        }
         spies.pushes.push({ to, messages });
       },
     },
@@ -130,7 +142,9 @@ function makeProcessor(
       warn: (message) => {
         spies.warns.push(message);
       },
-      error: () => {},
+      error: (message) => {
+        spies.errors.push(message);
+      },
     },
     clock: { now: () => 12345 },
   };
@@ -324,5 +338,43 @@ describe("EventProcessor", () => {
     expect(spies.replies).toHaveLength(0);
     expect(spies.pushes).toHaveLength(0);
     expect(spies.saved).toHaveLength(0);
+  });
+
+  const lineHttpError = (status: number) =>
+    new HTTPFetchError(String(status), {
+      status,
+      statusText: "",
+      headers: new Headers(),
+      body: "",
+    });
+
+  it("drops the event (no retry) when LINE permanently rejects delivery (4xx)", async () => {
+    const { processor, spies } = makeProcessor({
+      replyThrows: true,
+      pushError: lineHttpError(400),
+    });
+    // Resolves rather than throws → the SQS record is acked, so it is not redelivered.
+    await expect(
+      processor.process({ webhookEventId: "e6", raw: textEvent({ replyToken: "r" }) }),
+    ).resolves.toBeUndefined();
+
+    expect(spies.errors).toHaveLength(1);
+    // The undelivered reply is not written to the message log — only the inbound message.
+    expect(spies.saved.map((m) => m.direction)).toEqual(["in"]);
+  });
+
+  it("rethrows a transient LINE failure (5xx) so the record is retried", async () => {
+    const { processor } = makeProcessor({ replyThrows: true, pushError: lineHttpError(500) });
+    await expect(
+      processor.process({ webhookEventId: "e7", raw: textEvent({ replyToken: "r" }) }),
+    ).rejects.toThrow();
+  });
+
+  it("drops an unparseable event without retrying", async () => {
+    const { processor, spies } = makeProcessor();
+    await expect(processor.process({ webhookEventId: "bad", raw: null })).resolves.toBeUndefined();
+
+    expect(spies.errors).toHaveLength(1);
+    expect(spies.archived).toHaveLength(0); // never got past the parse
   });
 });

@@ -46,6 +46,7 @@ export class FakeCatalog implements CatalogRepository {
     return null;
   }
   async releaseConversation(): Promise<void> {}
+  async failConversation(): Promise<void> {}
   async getConversation(): Promise<ConversationTracker | null> {
     return null;
   }

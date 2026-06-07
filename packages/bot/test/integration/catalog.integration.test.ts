@@ -205,6 +205,44 @@ describe("conversation tracker", () => {
     ).toContain("conv-D");
   });
 
+  it("counts ingestion attempts, abandons to FAILED, and recovers on a new message", async () => {
+    await repo.touchConversation("conv-fail", 1000);
+
+    // Each claim atomically bumps ingestAttempts (committed before any work → counts timeouts too).
+    const first = await repo.claimConversation("conv-fail", 100_000, 60_000);
+    expect(first?.ingestAttempts).toBe(1);
+    const second = await repo.claimConversation("conv-fail", 1_000_000, 60_000); // stale-reclaim
+    expect(second?.ingestAttempts).toBe(2);
+
+    // Give up → FAILED + dropped off the pending index so no sweep reclaims it (loop stops).
+    await repo.failConversation("conv-fail");
+    const failed = await repo.getConversation("conv-fail");
+    expect(failed?.status).toBe("FAILED");
+    expect(failed?.claimedAt).toBeUndefined();
+    expect(failed?.pendingSince).toBeUndefined();
+    expect(
+      (await repo.findPendingConversations(iso(10_000_000), 50)).map((t) => t.conversationKey),
+    ).not.toContain("conv-fail");
+
+    // A new inbound re-arms it for a fresh attempt budget (attempts reset, back on the index).
+    await repo.touchConversation("conv-fail", 2_000_000);
+    const rearmed = await repo.getConversation("conv-fail");
+    expect(rearmed?.ingestAttempts).toBe(0);
+    expect(
+      (await repo.findPendingConversations(iso(10_000_000), 50)).map((t) => t.conversationKey),
+    ).toContain("conv-fail");
+    const reclaimed = await repo.claimConversation("conv-fail", 3_000_000, 60_000);
+    expect(reclaimed?.status).toBe("INGESTING"); // FAILED → claimable again
+    expect(reclaimed?.ingestAttempts).toBe(1); // fresh streak, not 3
+
+    // A clean release clears the counter entirely.
+    await repo.releaseConversation("conv-fail", {
+      watermark: 2_000_000,
+      claimSeenInboundAt: 2_000_000,
+    });
+    expect((await repo.getConversation("conv-fail"))?.ingestAttempts).toBeUndefined();
+  });
+
   it("arms / reads / clears an edit context without enqueueing ingestion", async () => {
     // Arm on a conversation that has never had a message: it seeds the META item but must NOT make
     // the conversation eligible for the ingestion sweep (it writes no GSI1 keys).

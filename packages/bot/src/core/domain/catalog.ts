@@ -134,10 +134,17 @@ export interface ConversationTracker {
   readonly lastInboundAt: number;
   /** Ingest watermark: epoch ms of the newest message included in the last successful ingest. */
   readonly lastIngestedAt: number;
-  readonly status: "IDLE" | "INGESTING";
+  /** `FAILED` is terminal: the sweep gave up after repeated failed attempts and dropped the
+   * conversation off the pending index so it stops looping (a new inbound message re-arms it). */
+  readonly status: "IDLE" | "INGESTING" | "FAILED";
   /** ISO8601 of when the current un-ingested streak began; present iff the conversation has
    * pending work (mirrors the sparse GSI1 sort key). Cleared on successful ingest. */
   readonly pendingSince?: string;
   /** Epoch ms of the current sweep claim, if any (the lock for at-most-one-worker). */
   readonly claimedAt?: number;
+  /** How many times the current streak has been claimed for ingestion. Incremented atomically on
+   * each claim; reset to 0 on a successful release or when a new inbound starts a fresh streak. The
+   * sweep abandons (→ FAILED) once this exceeds its cap, so a persistent failure can't loop forever
+   * burning inference + Lambda spend. */
+  readonly ingestAttempts?: number;
 }

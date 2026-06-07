@@ -27,15 +27,25 @@ export interface CatalogRepository {
 
   /**
    * Atomically claim a conversation for ingestion: set `status=INGESTING, claimedAt=now` only if
-   * it is not already claimed (or the claim is older than `staleTimeoutMs`). Returns the claimed
-   * tracker (so the caller knows the batch range `lastIngestedAt..lastInboundAt`), or `null` if
-   * another worker holds a live claim.
+   * it is not already claimed (or the claim is older than `staleTimeoutMs`). Also atomically
+   * increments `ingestAttempts` (committed before any work) so timeouts/crashes are counted; the
+   * returned tracker's `ingestAttempts` lets the caller give up after too many tries. Returns the
+   * claimed tracker (so the caller knows the batch range `lastIngestedAt..lastInboundAt`), or `null`
+   * if another worker holds a live claim.
    */
   claimConversation(
     conversationKey: string,
     nowMs: number,
     staleTimeoutMs: number,
   ): Promise<ConversationTracker | null>;
+
+  /**
+   * Abandon a conversation after repeated failed ingestion attempts: set `status=FAILED` and drop
+   * it off the pending index (so the sweep stops reclaiming + reprocessing it — the loop that would
+   * otherwise burn inference/Lambda spend indefinitely). A later inbound message re-arms it for a
+   * fresh attempt (see {@link touchConversation}).
+   */
+  failConversation(conversationKey: string): Promise<void>;
 
   /**
    * Finish an ingestion run. Advances `lastIngestedAt` to `watermark` and releases the claim.

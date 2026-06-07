@@ -1,5 +1,5 @@
 import type { Readable } from "node:stream";
-import { messagingApi } from "@line/bot-sdk";
+import { HTTPFetchError, messagingApi } from "@line/bot-sdk";
 import type {
   CardAction,
   OutboundMessage,
@@ -22,6 +22,20 @@ export interface LineApiClient {
 const MAX_QUICK_REPLIES = 13;
 const MAX_LABEL = 20;
 const MAX_BUBBLES = 12;
+
+/** Whether a LINE Messaging API failure is *permanent* — re-sending the identical request can never
+ * succeed, so the caller should drop the event rather than have SQS redeliver it (which would just
+ * 400 four more times before the DLQ, and fire a confusing delayed push minutes after the tap).
+ * True for 4xx rejections except 429 (rate-limit); false for 429 and 5xx (transient — worth a
+ * retry) and for non-HTTP errors (network/timeouts — also transient). */
+export function isPermanentLineError(error: unknown): boolean {
+  return (
+    error instanceof HTTPFetchError &&
+    error.status >= 400 &&
+    error.status < 500 &&
+    error.status !== 429
+  );
+}
 
 function toQuickReply(items?: readonly QuickReply[]): messagingApi.QuickReply | undefined {
   if (items === undefined || items.length === 0) {
@@ -127,8 +141,12 @@ function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexConta
     : { type: "carousel", contents: bubbles };
 }
 
-/** A photo gallery as a Flex carousel of image-only bubbles; tapping a bubble opens its full-size
- * image (the same presigned url). Reuses the Flex path rather than a separate template type. */
+/** A photo gallery as a Flex carousel of image-only bubbles. The bubbles carry NO tap `action`:
+ * a URI action's `uri` is capped at 1000 chars by LINE, but our presigned S3 GET URLs run longer
+ * (the Lambda role's STS `X-Amz-Security-Token` alone is ~1KB), so an action made LINE 400 the whole
+ * message ("size must be between 0 and 1000" on every `/contents/N/hero/action/uri`). The image
+ * `url` field tolerates up to 2000 chars, so the photos still render full-width — they just aren't
+ * tap-to-open. Reuses the Flex path rather than a separate template type. */
 function toImageCarousel(imageUrls: readonly string[]): messagingApi.FlexContainer {
   const bubbles: messagingApi.FlexBubble[] = imageUrls.slice(0, MAX_BUBBLES).map((url) => ({
     type: "bubble",
@@ -138,7 +156,6 @@ function toImageCarousel(imageUrls: readonly string[]): messagingApi.FlexContain
       size: "full",
       aspectRatio: "4:3",
       aspectMode: "cover",
-      action: { type: "uri", label: "Open", uri: url },
     },
   }));
   return bubbles.length === 1 && bubbles[0] !== undefined
