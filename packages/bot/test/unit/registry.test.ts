@@ -46,4 +46,47 @@ describe("createDefaultMessageHandler", () => {
     expect((await handler.handle(msg({ text: "my listings" })))[0]?.type).toBe("flex");
     expect(await handler.handle(msg({ text: "just chatting about nothing" }))).toEqual([]);
   });
+
+  it("appends the edit-reply handler only when an extractor is provided", async () => {
+    const catalog = new FakeCatalog().seedProperty({ propertyId: "p1", askingPrice: 1 });
+    await catalog.armEdit("user#U1", "p1", 1);
+    const extractor = {
+      extract: async () => ({
+        properties: [
+          {
+            existingPropertyId: "p1",
+            ambiguous: false,
+            ambiguousWith: null,
+            normalizedAddress: null,
+            rawAddress: null,
+            projectName: null,
+            lat: null,
+            long: null,
+            district: null,
+            subdistrict: null,
+            province: null,
+            propertyType: null,
+            status: "negotiating",
+            askingPrice: null,
+            currency: null,
+            tags: null,
+          },
+        ],
+      }),
+    };
+
+    // Without an extractor, an armed reply just falls through (no edit handler in the chain).
+    const noExtractor = createDefaultMessageHandler({ catalog, clock: { now: () => 1 } });
+    expect(await noExtractor.handle(msg({ text: "we're negotiating now" }))).toEqual([]);
+
+    // With one, the edit lands and is confirmed.
+    const withExtractor = createDefaultMessageHandler({
+      catalog,
+      clock: { now: () => 1 },
+      extractor,
+    });
+    const out = await withExtractor.handle(msg({ text: "we're negotiating now" }));
+    expect(out[0]?.type).toBe("text");
+    expect(catalog.properties.get("p1")?.status).toBe("negotiating");
+  });
 });

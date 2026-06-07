@@ -4,7 +4,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { SQSEvent, SQSHandler, SQSRecord } from "aws-lambda";
-import { loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
+import { createClaudeExtractor } from "../adapters/anthropic/claudeExtractor.js";
+import { loadAnthropicApiKey, loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
 import {
@@ -44,16 +45,24 @@ async function buildDeps(): Promise<Deps> {
   const s3 = new S3Client({});
   // Signs presigned GET URLs for property-card hero images (the archive bucket is private).
   const signer = new S3MediaUrlSigner(s3, env.ARCHIVE_BUCKET);
+  const logger = new PowertoolsLoggerAdapter();
+
+  // Enables the free-text "reply to update" edit path. Gated on the Anthropic key being wired to
+  // the processor (env + SSM read grant); absent → the handler chain is the command handler alone.
+  const extractor =
+    env.ANTHROPIC_API_KEY_PARAM !== undefined
+      ? createClaudeExtractor(await loadAnthropicApiKey(env), undefined, logger)
+      : undefined;
 
   const processor = new EventProcessor({
     archive: new S3RawArchive(s3, env.ARCHIVE_BUCKET),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     catalog,
     content: createLineContentClient(channelAccessToken),
-    handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK, signer }),
+    handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK, signer, extractor }),
     postback: createPostbackRouter({ catalog, clock: SYSTEM_CLOCK, signer }),
     gateway: createLineMessagingGateway(channelAccessToken),
-    logger: new PowertoolsLoggerAdapter(),
+    logger,
     clock: SYSTEM_CLOCK,
   });
 

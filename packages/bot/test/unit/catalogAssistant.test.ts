@@ -132,6 +132,20 @@ describe("CatalogAssistant — retrieval", () => {
     expect(gallery?.type).toBe("text"); // friendly "no photos" fallback
   });
 
+  it("arms an edit context for the conversation only when a conversationKey is given", async () => {
+    const catalog = new FakeCatalog().seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }));
+    const assistant = new CatalogAssistant(catalog, clock);
+
+    await assistant.viewProperty("p1"); // no convKey (e.g. a unit call) → nothing armed
+    expect(await catalog.getEditContext("user#U1")).toBeNull();
+
+    await assistant.viewProperty("p1", "user#U1");
+    expect(await catalog.getEditContext("user#U1")).toEqual({
+      propertyId: "p1",
+      armedAt: 1_000_000,
+    });
+  });
+
   it("returns help and search-prompt copy", () => {
     const assistant = new CatalogAssistant(new FakeCatalog(), clock);
     expect(assistant.help()[0]?.type).toBe("text");

@@ -204,6 +204,22 @@ describe("conversation tracker", () => {
       (await repo.findPendingConversations(iso(3000), 50)).map((t) => t.conversationKey),
     ).toContain("conv-D");
   });
+
+  it("arms / reads / clears an edit context without enqueueing ingestion", async () => {
+    // Arm on a conversation that has never had a message: it seeds the META item but must NOT make
+    // the conversation eligible for the ingestion sweep (it writes no GSI1 keys).
+    await repo.armEdit("conv-edit", "prop-1", 5000);
+    expect(await repo.getEditContext("conv-edit")).toEqual({ propertyId: "prop-1", armedAt: 5000 });
+    expect(
+      (await repo.findPendingConversations(iso(10_000_000), 50)).map((t) => t.conversationKey),
+    ).not.toContain("conv-edit");
+
+    // Re-arming overwrites the target; clearing removes it entirely.
+    await repo.armEdit("conv-edit", "prop-2", 6000);
+    expect(await repo.getEditContext("conv-edit")).toEqual({ propertyId: "prop-2", armedAt: 6000 });
+    await repo.clearEdit("conv-edit");
+    expect(await repo.getEditContext("conv-edit")).toBeNull();
+  });
 });
 
 describe("properties + edges + membership", () => {

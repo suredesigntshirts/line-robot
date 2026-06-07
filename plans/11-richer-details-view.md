@@ -1,6 +1,10 @@
 # Plan 11 — Richer "Details" view for a property
 
-Status: **in progress** (Increment A first, then Increment B).
+Status: **implemented — pending deploy.** Increment A committed (`ee3ecb4`). Increment B implemented
+(catalog edit-context + `EditReplyHandler` + processor extractor wiring + the one-line processor-policy
+SSM grant). 161 unit + 21 integration tests green; `pulumi preview` shows exactly 7 updates (3 Lambda
+code rebundles + 3 alias bumps + the processor-policy grant), 39 unchanged — no table/GSI/deploy-policy
+change. Deploy with `pulumi up` (Increment B needs it for the SSM grant).
 Predecessors: `plans/09-realestate-catalog-assistant.md` (build plan), `plans/10-deferred-gsi3-batch-api.md`.
 
 ## Context / why

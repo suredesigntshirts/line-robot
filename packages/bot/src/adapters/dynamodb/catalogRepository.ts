@@ -459,6 +459,53 @@ export class DynamoCatalogRepository implements CatalogRepository {
     return result.Item ? toTracker(result.Item) : null;
   }
 
+  // --- Edit context ---
+
+  async armEdit(conversationKey: string, propertyId: string, armedAtMs: number): Promise<void> {
+    await this.doc.send(
+      new UpdateCommand({
+        TableName: this.table,
+        Key: trackerKey(conversationKey),
+        // Set only the edit-context attrs (seeding identity if the META item doesn't exist yet — a
+        // view before any inbound message). Deliberately leaves gsi1/pending untouched, so arming an
+        // edit never enqueues the conversation for ingestion.
+        UpdateExpression:
+          "SET editPropertyId = :pid, editArmedAt = :at, " +
+          "entityType = if_not_exists(entityType, :etype), " +
+          "conversationKey = if_not_exists(conversationKey, :ckey)",
+        ExpressionAttributeValues: {
+          ":pid": propertyId,
+          ":at": armedAtMs,
+          ":etype": "conversationTracker",
+          ":ckey": conversationKey,
+        },
+      }),
+    );
+  }
+
+  async getEditContext(
+    conversationKey: string,
+  ): Promise<{ propertyId: string; armedAt: number } | null> {
+    const result = await this.doc.send(
+      new GetCommand({ TableName: this.table, Key: trackerKey(conversationKey) }),
+    );
+    const item = result.Item;
+    if (item === undefined || typeof item.editPropertyId !== "string") {
+      return null;
+    }
+    return { propertyId: item.editPropertyId, armedAt: Number(item.editArmedAt ?? 0) };
+  }
+
+  async clearEdit(conversationKey: string): Promise<void> {
+    await this.doc.send(
+      new UpdateCommand({
+        TableName: this.table,
+        Key: trackerKey(conversationKey),
+        UpdateExpression: "REMOVE editPropertyId, editArmedAt",
+      }),
+    );
+  }
+
   // --- Membership ---
 
   async recordMembership(userId: string, conversationKey: string, seenAtMs: number): Promise<void> {

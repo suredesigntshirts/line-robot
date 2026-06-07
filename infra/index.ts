@@ -206,7 +206,12 @@ new aws.iam.RolePolicy("processor-policy", {
         Action: ["s3:PutObject", "s3:GetObject"],
         Resource: pulumi.interpolate`${archiveBucket.arn}/*`,
       },
-      { Effect: "Allow", Action: ["ssm:GetParameter"], Resource: channelAccessTokenParam.arn },
+      {
+        // Channel access token (reply/push) + Anthropic key (free-text "reply to update" extraction).
+        Effect: "Allow",
+        Action: ["ssm:GetParameter"],
+        Resource: [channelAccessTokenParam.arn, anthropicApiKeyParam.arn],
+      },
       ssmKmsDecrypt,
     ],
   }),

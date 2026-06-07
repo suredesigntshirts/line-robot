@@ -50,6 +50,21 @@ export interface CatalogRepository {
 
   getConversation(conversationKey: string): Promise<ConversationTracker | null>;
 
+  // --- Edit context (last-viewed property → free-text "reply to update") ---
+
+  /**
+   * Arm a short-lived "edit context": the next plain-text reply in this conversation targets
+   * `propertyId` (see {@link ../handlers/editReplyHandler}). Stored on the tracker META item; it
+   * MUST NOT touch the ingestion (GSI1/pending) keys — viewing a listing isn't ingestion work.
+   */
+  armEdit(conversationKey: string, propertyId: string, armedAtMs: number): Promise<void>;
+
+  /** The conversation's armed edit context (most-recently-viewed property + when), or null. */
+  getEditContext(conversationKey: string): Promise<{ propertyId: string; armedAt: number } | null>;
+
+  /** Clear the armed edit context (after applying an edit, or when the reply didn't match it). */
+  clearEdit(conversationKey: string): Promise<void>;
+
   // --- User ↔ Conversation membership (read-access edges) ---
 
   /** Upsert a membership edge `USER#<userId> → CONV#<conversationKey>`. */

@@ -220,6 +220,64 @@ export function imageCarouselMessage(
   return { type: "imageCarousel", altText, imageUrls };
 }
 
+/**
+ * A short confirmation of what a free-text edit changed on a property, old→new. Only fields that
+ * actually changed are listed; an empty diff (the reply matched but moved nothing) says so plainly.
+ */
+export function editConfirmationMessage(before: Property, after: Property): OutboundMessage {
+  const changes: string[] = [];
+
+  const priceBefore = formatPrice(before.askingPrice, before.currency);
+  const priceAfter = formatPrice(after.askingPrice, after.currency);
+  if (priceAfter !== undefined && priceAfter !== priceBefore) {
+    changes.push(
+      priceBefore !== undefined
+        ? `Price ${priceAfter} (was ${priceBefore})`
+        : `Price ${priceAfter}`,
+    );
+  }
+  if (after.status !== undefined && after.status !== before.status) {
+    changes.push(
+      before.status !== undefined
+        ? `Status ${after.status} (was ${before.status})`
+        : `Status ${after.status}`,
+    );
+  }
+  if (after.propertyType !== undefined && after.propertyType !== before.propertyType) {
+    changes.push(`Type ${after.propertyType}`);
+  }
+  if (
+    after.normalizedAddress !== undefined &&
+    after.normalizedAddress !== before.normalizedAddress
+  ) {
+    changes.push(`Address ${after.normalizedAddress}`);
+  }
+  if (after.projectName !== undefined && after.projectName !== before.projectName) {
+    changes.push(`Project ${after.projectName}`);
+  }
+  const areaAfter = area(after);
+  if (areaAfter !== undefined && areaAfter !== area(before)) {
+    changes.push(`Area ${areaAfter}`);
+  }
+  const tagsAfter = (after.tags ?? []).join(", ");
+  if (tagsAfter !== "" && tagsAfter !== (before.tags ?? []).join(", ")) {
+    changes.push(`Tags ${tagsAfter}`);
+  }
+  if (
+    after.lat !== undefined &&
+    after.long !== undefined &&
+    (after.lat !== before.lat || after.long !== before.long)
+  ) {
+    changes.push("Location updated");
+  }
+
+  const title = propertyTitle(after);
+  if (changes.length === 0) {
+    return { type: "text", text: `Nothing changed on ${title}.` };
+  }
+  return { type: "text", text: `✏️ Updated ${title}:\n• ${changes.join("\n• ")}` };
+}
+
 export function helpMessage(): OutboundMessage {
   return {
     type: "text",
