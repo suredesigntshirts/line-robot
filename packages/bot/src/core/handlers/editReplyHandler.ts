@@ -53,10 +53,15 @@ export class EditReplyHandler implements MessageHandler {
     }
 
     // Scoped extraction: offer ONLY the viewed property as a candidate so the model decides
-    // "edit this listing" vs "something else". geoHints let a pasted map link move the pin.
+    // "edit this listing" vs "something else". geoHints let a pasted map link move the pin. The hint
+    // disambiguates common edit phrasing (so "update the name" doesn't land on the street address).
+    const editText =
+      "[The user is editing the property they just viewed — apply the change to THAT listing. " +
+      'Its "name"/"called" means the project name; "address" means the street address.]\n' +
+      text;
     const result = await this.extractor.extract({
       conversationKey: convKey,
-      text,
+      text: editText,
       media: [],
       geoHints: parseGeoLinks(text).map((g) => ({ lat: g.lat, long: g.long })),
       candidates: [
@@ -98,7 +103,10 @@ export class EditReplyHandler implements MessageHandler {
       lastActivityAt: now,
     };
     await this.catalog.upsertProperty(upsert);
-    await this.catalog.clearEdit(convKey);
+    // Keep the context armed (refresh the timer) rather than clearing it, so an immediate follow-up
+    // ("no, the project name" / "revert that") keeps targeting this listing. It's overwritten when a
+    // different listing is viewed, and expires on the TTL.
+    await this.catalog.armEdit(convKey, before.propertyId, now);
 
     const after = (await this.catalog.getProperty(before.propertyId)) ?? before;
     return [editConfirmationMessage(before, after)];

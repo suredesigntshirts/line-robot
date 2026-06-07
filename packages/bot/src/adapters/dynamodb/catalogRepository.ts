@@ -260,7 +260,7 @@ export interface DebouncePolicy {
 }
 
 const DEFAULT_DEBOUNCE: DebouncePolicy = {
-  quietDebounceMs: 5 * 60_000, // 5 min quiet
+  quietDebounceMs: 2 * 60_000, // 2 min quiet (snappier ingestion after a chat goes idle)
   maxWaitMs: 30 * 60_000, // 30 min cap
 };
 

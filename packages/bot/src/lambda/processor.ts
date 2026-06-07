@@ -49,9 +49,17 @@ async function buildDeps(): Promise<Deps> {
 
   // Enables the free-text "reply to update" edit path. Gated on the Anthropic key being wired to
   // the processor (env + SSM read grant); absent → the handler chain is the command handler alone.
+  // CRITICAL: this runs synchronously inside the 30s processor timeout, so it must stay fast — a
+  // single Haiku tier (NO escalation ladder) with a hard 12s client timeout and no retries. The
+  // ingestion sweep keeps the full Haiku→Sonnet→Opus ladder (it has its own longer-running Lambda).
   const extractor =
     env.ANTHROPIC_API_KEY_PARAM !== undefined
-      ? createClaudeExtractor(await loadAnthropicApiKey(env), undefined, logger)
+      ? createClaudeExtractor(
+          await loadAnthropicApiKey(env),
+          [{ model: "claude-haiku-4-5" }],
+          logger,
+          { timeout: 12_000, maxRetries: 0 },
+        )
       : undefined;
 
   const processor = new EventProcessor({

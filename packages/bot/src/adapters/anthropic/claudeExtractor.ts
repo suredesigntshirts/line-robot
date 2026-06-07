@@ -233,10 +233,19 @@ export class ClaudeExtractor implements PropertyExtractor {
   }
 }
 
+/** Anthropic client tuning passed through to the SDK. Used by the interactive (processor) edit path
+ * to bound the call so it can't exceed the Lambda's reply budget: a hard `timeout` + `maxRetries: 0`.
+ * The sweep omits these and keeps the SDK defaults. */
+export interface ExtractorClientOptions {
+  readonly timeout?: number;
+  readonly maxRetries?: number;
+}
+
 export function createClaudeExtractor(
   apiKey: string,
   ladder?: readonly ModelTier[],
   logger?: Logger,
+  clientOpts?: ExtractorClientOptions,
 ): ClaudeExtractor {
-  return new ClaudeExtractor(new Anthropic({ apiKey }), ladder, logger);
+  return new ClaudeExtractor(new Anthropic({ apiKey, ...clientOpts }), ladder, logger);
 }

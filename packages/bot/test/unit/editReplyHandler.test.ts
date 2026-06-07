@@ -88,9 +88,10 @@ describe("EditReplyHandler", () => {
     expect(text).toContain("Updated 1 Sukhumvit");
     expect(text).toContain("Price ฿4,200,000 (was ฿5,500,000)");
     expect(text).toContain("Status negotiating (was lead)");
-    // The property is actually updated, and the edit context is cleared.
+    // The property is updated, and the edit context stays armed (refreshed) so corrections/reverts
+    // keep targeting this listing.
     expect(catalog.properties.get("p1")?.askingPrice).toBe(4_200_000);
-    expect(await catalog.getEditContext(CONV)).toBeNull();
+    expect(await catalog.getEditContext(CONV)).toEqual({ propertyId: "p1", armedAt: NOW });
     // The viewed property was offered as the sole extraction candidate.
     expect(extractor.seen?.candidates).toEqual([
       {
