@@ -29,12 +29,14 @@ export interface ModelTier {
   readonly thinking?: boolean;
 }
 
-/** Haiku primary → Sonnet 4.6 (effort medium) → Opus 4.8 (effort high) — escalate only on low
- * confidence. `max` effort is Opus-tier only; Haiku rejects `effort`/`thinking` entirely. */
+/** Haiku primary → Sonnet 4.6 (effort medium) — escalate only on low confidence (hard chanote OCR,
+ * conflicting figures). We deliberately do NOT escalate to Opus: property extraction is not a
+ * reasoning-hard task, and Opus-with-thinking is slow + costly for no real gain here. Haiku rejects
+ * `effort`/`thinking` entirely, so only the Sonnet rung sets them. (The interactive edit path uses a
+ * Haiku-only ladder with no escalation at all — see `lambda/processor.ts`.) */
 const DEFAULT_LADDER: readonly ModelTier[] = [
   { model: "claude-haiku-4-5" },
   { model: "claude-sonnet-4-6", effort: "medium", thinking: true },
-  { model: "claude-opus-4-8", effort: "high", thinking: true },
 ];
 
 const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);

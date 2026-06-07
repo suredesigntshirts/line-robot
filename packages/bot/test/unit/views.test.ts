@@ -67,6 +67,11 @@ describe("propertyCard", () => {
       "https://signed.example/x.jpg",
     );
   });
+
+  it("surfaces tags on the summary card (the catch-all for unstructured detail)", () => {
+    const card = propertyCard(prop({ tags: ["sea-view", "renovated"] }));
+    expect(card.rows).toContainEqual({ label: "Tags", value: "sea-view, renovated" });
+  });
 });
 
 describe("listingsMessage", () => {

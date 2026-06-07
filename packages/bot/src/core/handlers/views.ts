@@ -59,6 +59,11 @@ export function propertyCard(property: Property, heroImageUrl?: string): Propert
   if (where !== undefined) {
     rows.push({ label: "Area", value: where });
   }
+  // Surface tags on the summary card too — they're the catch-all for extracted detail that has no
+  // structured field, so they shouldn't only appear after tapping Details.
+  if (property.tags !== undefined && property.tags.length > 0) {
+    rows.push({ label: "Tags", value: property.tags.join(", ") });
+  }
   return {
     title: propertyTitle(property),
     ...(property.status !== undefined ? { subtitle: property.status } : {}),
