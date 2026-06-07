@@ -124,3 +124,33 @@ export interface ConversationTracker {
    * burning inference + Lambda spend. */
   readonly ingestAttempts?: number;
 }
+
+// --- Pure listing queries (shared by the chat assistant and the mini-app read API) ---
+
+/** The timestamp a listing is sorted/stamped by: most-recent activity, falling back to the last
+ * update, then 0. Single source for the recency comparator. */
+export function activityTimestamp(p: Property): number {
+  return p.lastActivityAt ?? p.updatedAt ?? 0;
+}
+
+/** Sort comparator: most-recently-active first (descending), so the freshest listings lead. */
+export function byActivityDesc(a: Property, b: Property): number {
+  return activityTimestamp(b) - activityTimestamp(a);
+}
+
+/** Lowercased searchable haystack — the canonical address/area/project field list a free-text road
+ * query matches against. The mini-app's `PropertyListItem.search` is this exact string; the chat
+ * assistant matches a needle with `searchableText(p).includes(query.toLowerCase())`. */
+export function searchableText(p: Property): string {
+  return [
+    p.normalizedAddress,
+    p.projectName,
+    p.district,
+    p.subdistrict,
+    p.province,
+    ...(p.rawAddresses ?? []),
+  ]
+    .filter((s): s is string => s !== undefined && s !== "")
+    .join(" ")
+    .toLowerCase();
+}

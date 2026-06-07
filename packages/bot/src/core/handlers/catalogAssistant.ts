@@ -4,9 +4,15 @@
  * are thin parsers that delegate here, so the retrieval + merge logic lives — and is tested — once.
  */
 import { randomUUID } from "node:crypto";
-import type { PhotoKind, Property, PropertyPhoto, PropertyUpsert } from "../domain/catalog.js";
+import {
+  byActivityDesc,
+  type Property,
+  type PropertyUpsert,
+  searchableText,
+} from "../domain/catalog.js";
 import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
+import { heroPhotoKey, orderedPhotos } from "../domain/photos.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../ports/runtime.js";
@@ -21,44 +27,6 @@ import {
   type UpcomingFollowUp,
   upcomingMessage,
 } from "./views.js";
-
-/** Most-recently-active first, so the freshest listings lead the carousel. */
-/** Gallery order: property photos first, then chanote scans, then other documents (plan 13). */
-const PHOTO_KIND_ORDER: Record<PhotoKind, number> = { property: 0, chanote: 1, other: 2 };
-
-function orderedPhotos(photos: readonly PropertyPhoto[] | undefined): readonly PropertyPhoto[] {
-  if (photos === undefined) {
-    return [];
-  }
-  // Stable sort: within a kind, capture order is preserved.
-  return [...photos].sort((a, b) => PHOTO_KIND_ORDER[a.kind] - PHOTO_KIND_ORDER[b.kind]);
-}
-
-/** The hero image key: the first property photo, falling back to any image. */
-function heroPhotoKey(photos: readonly PropertyPhoto[] | undefined): string | undefined {
-  if (photos === undefined || photos.length === 0) {
-    return undefined;
-  }
-  return (photos.find((p) => p.kind === "property") ?? photos[0])?.s3Key;
-}
-
-function byActivityDesc(a: Property, b: Property): number {
-  return (b.lastActivityAt ?? b.updatedAt ?? 0) - (a.lastActivityAt ?? a.updatedAt ?? 0);
-}
-
-/** Does any of the property's address/area/project fields contain `query` (case-insensitive)? */
-function matchesQuery(property: Property, query: string): boolean {
-  const needle = query.toLowerCase();
-  const haystack = [
-    property.normalizedAddress,
-    property.projectName,
-    property.district,
-    property.subdistrict,
-    property.province,
-    ...(property.rawAddresses ?? []),
-  ];
-  return haystack.some((field) => field?.toLowerCase().includes(needle));
-}
 
 export class CatalogAssistant {
   private readonly newId: () => string;
@@ -88,8 +56,9 @@ export class CatalogAssistant {
 
   /** Filter the user's listings to those on a given road/area. */
   async listingsOnRoad(userId: string, query: string): Promise<OutboundMessage[]> {
+    const needle = query.toLowerCase();
     const properties = (await this.catalog.listPropertiesForUser(userId))
-      .filter((p) => matchesQuery(p, query))
+      .filter((p) => searchableText(p).includes(needle))
       .sort(byActivityDesc);
     return [
       listingsMessage(properties, {

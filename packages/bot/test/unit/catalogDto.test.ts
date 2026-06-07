@@ -59,6 +59,12 @@ describe("toListDto", () => {
   it("prefers updatedAt for recency when lastActivityAt is absent", () => {
     expect(toListDto(prop({ updatedAt: 900 })).updatedAt).toBe(900);
   });
+
+  it("omits updatedAt entirely when both timestamps are absent (no `updatedAt: 0` leak)", () => {
+    // Guards the present-only wire contract: the DTO must keep `?? undefined` semantics, NOT the
+    // domain activityTimestamp() which floors to 0 (compact() strips undefined but not 0).
+    expect(toListDto(prop({ projectName: "The Park" }))).not.toHaveProperty("updatedAt");
+  });
 });
 
 describe("toDetailDto", () => {

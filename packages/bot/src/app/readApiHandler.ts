@@ -10,7 +10,8 @@
  * conversations — so property ids are not enumerable.
  */
 import type { UpcomingItem } from "@line-robot/shared";
-import type { Property, PropertyPhoto } from "../core/domain/catalog.js";
+import { byActivityDesc, type Property } from "../core/domain/catalog.js";
+import { heroPhotoKey, orderedPhotos } from "../core/domain/photos.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { propertyTitle } from "../core/handlers/views.js";
 import type { CatalogRepository } from "../core/ports/catalog.js";
@@ -25,27 +26,6 @@ export interface ReadApiDeps {
   readonly verifier: LineTokenVerifier;
   readonly logger: Logger;
   readonly clock: Clock;
-}
-
-/** Gallery order: property photos first, then chanote scans, then other documents (matches the chat
- * gallery in {@link ../core/handlers/catalogAssistant}). */
-const PHOTO_KIND_ORDER: Record<string, number> = { property: 0, chanote: 1, other: 2 };
-
-function orderedPhotos(photos: readonly PropertyPhoto[] | undefined): readonly PropertyPhoto[] {
-  if (photos === undefined) {
-    return [];
-  }
-  return [...photos].sort(
-    (a, b) => (PHOTO_KIND_ORDER[a.kind] ?? 9) - (PHOTO_KIND_ORDER[b.kind] ?? 9),
-  );
-}
-
-/** Hero key: first `property` photo, falling back to any image. */
-function heroPhotoKey(photos: readonly PropertyPhoto[] | undefined): string | undefined {
-  if (photos === undefined || photos.length === 0) {
-    return undefined;
-  }
-  return (photos.find((p) => p.kind === "property") ?? photos[0])?.s3Key;
 }
 
 // NOTE: CORS headers are owned ENTIRELY by the Lambda Function URL's `cors` config (infra), which
@@ -130,9 +110,7 @@ async function allowedPropertyIds(
 }
 
 async function handleMyProperties(deps: ReadApiDeps, userId: string): Promise<HttpResponse> {
-  const properties = (await deps.catalog.listPropertiesForUser(userId)).sort(
-    (a, b) => (b.lastActivityAt ?? b.updatedAt ?? 0) - (a.lastActivityAt ?? a.updatedAt ?? 0),
-  );
+  const properties = (await deps.catalog.listPropertiesForUser(userId)).sort(byActivityDesc);
   const dtos = await Promise.all(
     properties.map(async (p) => {
       const heroUrl = await presignHero(deps.signer, p, deps.logger);

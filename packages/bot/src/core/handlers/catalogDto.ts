@@ -6,7 +6,7 @@
  * unit-testable in isolation.
  */
 import type { PhotoDto, PropertyDetailDto, PropertyListDto } from "@line-robot/shared";
-import type { Property } from "../domain/catalog.js";
+import { type Property, searchableText } from "../domain/catalog.js";
 import { area, formatPrice, mapsUri, propertyTitle, statusBadge } from "./views.js";
 
 // The DTO contract lives in the shared kernel; the mappers below produce these exact shapes. Re-export
@@ -19,21 +19,6 @@ function compact<T extends Record<string, unknown>>(obj: T): T {
   return Object.fromEntries(
     Object.entries(obj).filter(([, v]) => v !== undefined && !(Array.isArray(v) && v.length === 0)),
   ) as T;
-}
-
-/** Lowercased searchable haystack — the same fields `views`/`catalogAssistant` match a road query on. */
-function searchText(p: Property): string {
-  return [
-    p.normalizedAddress,
-    p.projectName,
-    p.district,
-    p.subdistrict,
-    p.province,
-    ...(p.rawAddresses ?? []),
-  ]
-    .filter((s): s is string => s !== undefined && s !== "")
-    .join(" ")
-    .toLowerCase();
 }
 
 export function toListDto(p: Property): PropertyListDto {
@@ -49,7 +34,7 @@ export function toListDto(p: Property): PropertyListDto {
     listingType: p.listingType,
     area: area(p),
     updatedAt: p.lastActivityAt ?? p.updatedAt,
-    search: searchText(p),
+    search: searchableText(p),
   }) as PropertyListDto;
 }
 
