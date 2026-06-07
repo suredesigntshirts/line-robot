@@ -40,6 +40,7 @@ const ExtractedPropertySchema = z.object({
 
 const ExtractionSchema = z.object({
   properties: z.array(ExtractedPropertySchema),
+  memoryUpdate: z.string().nullable(),
 });
 
 // Stable cached prefix: instructions + field taxonomy + a small Thai title-deed glossary. The
@@ -59,7 +60,36 @@ Field rules:
 - lat/long: if map coordinates are supplied in the request, attach them to the property they describe.
 - normalizedAddress: a clean single-line address; rawAddress: the address exactly as written in chat.
 
-Thai title-deed glossary (context only): โฉนด = Chanote (full title), น.ส.3ก = Nor Sor 3 Gor, ส.ป.ก. = Sor Por Kor (agricultural), ไร่/งาน/ตารางวา = rai/ngan/wah (land area: 1 rai = 4 ngan = 400 wah = 1600 sqm), ตำบล/tambon = subdistrict, อำเภอ/amphoe = district, จังหวัด = province.`;
+Thai title-deed glossary (context only): โฉนด = Chanote (full title), น.ส.3ก = Nor Sor 3 Gor, ส.ป.ก. = Sor Por Kor (agricultural), ไร่/งาน/ตารางวา = rai/ngan/wah (land area: 1 rai = 4 ngan = 400 wah = 1600 sqm), ตำบล/tambon = subdistrict, อำเภอ/amphoe = district, จังหวัด = province.
+
+Conversation memory:
+- A "Conversation memory" note may follow with durable context for THIS chat: known people, area aliases ("the Thonglor plot" → a specific property), terminology, and preferences. Use it to resolve references and aliases; do not contradict it.
+- In memoryUpdate, return the FULL updated note (≤ 1500 characters) only when you learn a durable fact worth remembering next time — otherwise null. Keep it terse: facts and aliases, not a transcript. Never record secrets or sensitive personal data.`;
+
+/** A label that introduces the per-conversation memory note in the system prefix. */
+const MEMORY_PREAMBLE =
+  "Conversation memory (durable context learned earlier in this chat) — use it to resolve references:";
+
+/**
+ * Build the system prefix: a shared, conversation-independent instruction block (its own cache
+ * breakpoint, so it can be reused across conversations once large enough — Haiku's minimum cacheable
+ * prefix is 4096 tokens), plus the per-conversation memory note in a second block with a 1h TTL so a
+ * conversation re-ingesting within the hour reuses it. Exported (pure) so the shape is unit-testable.
+ */
+export function buildExtractionSystem(memory?: string): Anthropic.TextBlockParam[] {
+  const blocks: Anthropic.TextBlockParam[] = [
+    { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+  ];
+  const trimmed = memory?.trim();
+  if (trimmed !== undefined && trimmed !== "") {
+    blocks.push({
+      type: "text",
+      text: `${MEMORY_PREAMBLE}\n${trimmed}`,
+      cache_control: { type: "ephemeral", ttl: "1h" },
+    });
+  }
+  return blocks;
+}
 
 /** Build the volatile user-turn content: the batch text + candidates + geo hints, followed by any
  * media blocks. Exported (pure) so the prompt shape is unit-testable without hitting the API. */
@@ -121,7 +151,7 @@ export class ClaudeExtractor implements PropertyExtractor {
     const response = await this.client.messages.parse({
       model: this.model,
       max_tokens: MAX_TOKENS,
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+      system: buildExtractionSystem(request.memory),
       messages: [{ role: "user", content: buildExtractionContent(request) }],
       output_config: { format: zodOutputFormat(ExtractionSchema) },
     });

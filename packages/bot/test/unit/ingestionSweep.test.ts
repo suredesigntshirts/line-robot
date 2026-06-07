@@ -25,6 +25,7 @@ interface Spies {
   links: { key: string; propertyId: string }[];
   pushes: { to: string; messages: OutboundMessage[] }[];
   mediaReads: string[];
+  memoryWrites: { key: string; content: string }[];
   errors: string[];
   warns: string[];
 }
@@ -44,6 +45,8 @@ interface Options {
   convProperties?: Record<string, string[]>;
   /** s3Key → bytes; a missing key throws (simulating a vanished object). */
   mediaBytes?: Record<string, Buffer>;
+  /** conversationKey → existing memory note fed to the extractor. */
+  memory?: Record<string, string>;
   pushThrows?: boolean;
 }
 
@@ -103,6 +106,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
     links: [],
     pushes: [],
     mediaReads: [],
+    memoryWrites: [],
     errors: [],
     warns: [],
   };
@@ -125,6 +129,10 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
     },
     linkConversationProperty: async (key, propertyId) => {
       spies.links.push({ key, propertyId });
+    },
+    getMemoryDoc: async (key) => opts.memory?.[key] ?? null,
+    putMemoryDoc: async (key, content) => {
+      spies.memoryWrites.push({ key, content });
     },
   };
   const messages: Partial<MessageRepository> = {
@@ -272,6 +280,43 @@ describe("IngestionSweep — extraction", () => {
     // Geo mined from the maps link + (empty) candidate set reach the extractor.
     expect(spies.extractRequests[0]?.geoHints).toEqual([{ lat: 13.7, long: 100.5 }]);
     expect(spies.extractRequests[0]?.candidates).toEqual([]);
+  });
+
+  it("feeds the stored memory note to the extractor and persists a proposed update", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#M"), claim: tracker("user#M"), batch }],
+      {
+        memory: { "user#M": "Khun Mali is the seller." },
+        extract: () => ({
+          properties: [extracted({ normalizedAddress: "123 Sukhumvit" })],
+          memoryUpdate: "Khun Mali is the seller. Prefers viewings on weekends.",
+        }),
+      },
+    );
+    await sweep.run();
+
+    expect(spies.extractRequests[0]?.memory).toBe("Khun Mali is the seller.");
+    expect(spies.memoryWrites).toEqual([
+      { key: "user#M", content: "Khun Mali is the seller. Prefers viewings on weekends." },
+    ]);
+  });
+
+  it("persists a memory update even when no properties changed, and skips a null update", async () => {
+    const aliasOnly = makeSweep(
+      [{ tracker: tracker("user#M2"), claim: tracker("user#M2"), batch: [textMsg(200, "fyi")] }],
+      { extract: () => ({ properties: [], memoryUpdate: "'the plot' = PROP#abc." }) },
+    );
+    expect(await aliasOnly.sweep.run()).toMatchObject({ ingested: 1, properties: 0 });
+    expect(aliasOnly.spies.memoryWrites).toEqual([
+      { key: "user#M2", content: "'the plot' = PROP#abc." },
+    ]);
+
+    const nullUpdate = makeSweep(
+      [{ tracker: tracker("user#M3"), claim: tracker("user#M3"), batch: [textMsg(200, "fyi")] }],
+      { extract: () => ({ properties: [], memoryUpdate: null }) },
+    );
+    await nullUpdate.sweep.run();
+    expect(nullUpdate.spies.memoryWrites).toEqual([]); // null update → no write
   });
 
   it("updates a matched property without stamping a new origin/createdAt", async () => {

@@ -129,4 +129,13 @@ export class FakeCatalog implements CatalogRepository {
     );
     return true;
   }
+
+  // --- Per-conversation memory ---
+  readonly memoryDocs = new Map<string, string>();
+  async getMemoryDoc(conversationKey: string): Promise<string | null> {
+    return this.memoryDocs.get(conversationKey) ?? null;
+  }
+  async putMemoryDoc(conversationKey: string, content: string): Promise<void> {
+    this.memoryDocs.set(conversationKey, content);
+  }
 }

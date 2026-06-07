@@ -109,4 +109,12 @@ export interface CatalogRepository {
    * the reminder), `false` if another sweep already handled it — so a reminder is sent at most once.
    */
   markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean>;
+
+  // --- Per-conversation memory (durable learned context) ---
+
+  /** The conversation's memory note (people, area aliases, terminology, preferences), or null. */
+  getMemoryDoc(conversationKey: string): Promise<string | null>;
+
+  /** Replace the conversation's memory note. Callers bound the length before storing. */
+  putMemoryDoc(conversationKey: string, content: string): Promise<void>;
 }

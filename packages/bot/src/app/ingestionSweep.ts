@@ -75,6 +75,9 @@ interface AppliedProperty {
 const DEFAULT_MAX_CONVERSATIONS = 25;
 const DEFAULT_STALE_TIMEOUT_MS = 5 * 60_000;
 const DEFAULT_MAX_MEDIA = 8;
+/** Storage cap for the per-conversation memory note (mirrors the extractor's ≤1500-char prompt
+ * instruction) — a backstop so a runaway note can't grow the cached prefix unbounded. */
+const MAX_MEMORY_CHARS = 1500;
 const MEDIA_CONTENT_TYPES: ReadonlySet<string> = new Set([
   "image/jpeg",
   "image/png",
@@ -200,14 +203,26 @@ export class IngestionSweep {
 
     const geoHints = parseGeoLinks(text).map((g) => ({ lat: g.lat, long: g.long }));
     const candidates = await this.loadCandidates(key);
+    const memory = nullToUndef(await this.deps.catalog.getMemoryDoc(key));
     const result = await this.deps.extractor.extract({
       conversationKey: key,
       text,
       media,
       geoHints,
       candidates,
+      memory,
     });
-    if (result === null || result.properties.length === 0) {
+    if (result === null) {
+      this.deps.logger.info("ingestion sweep: extractor returned nothing", {
+        conversationKey: key,
+        messageCount: batch.length,
+      });
+      return [];
+    }
+    // Apply a proposed memory update even when no properties changed (the model may have learned an
+    // alias without a property edit).
+    await this.applyMemoryUpdate(key, result.memoryUpdate);
+    if (result.properties.length === 0) {
       this.deps.logger.info("ingestion sweep: extractor returned no properties", {
         conversationKey: key,
         messageCount: batch.length,
@@ -276,6 +291,23 @@ export class IngestionSweep {
       // properties (the just-created one is brand new, so it's never in the candidate set).
       ...(property.ambiguous && mergeTargets.length > 0 ? { mergeTargets } : {}),
     };
+  }
+
+  /** Persist a model-proposed memory note (bounded), if it learned anything durable this run. */
+  private async applyMemoryUpdate(
+    key: string,
+    memoryUpdate: string | null | undefined,
+  ): Promise<void> {
+    const next = memoryUpdate?.trim();
+    if (next === undefined || next === "") {
+      return;
+    }
+    const bounded = next.slice(0, MAX_MEMORY_CHARS);
+    await this.deps.catalog.putMemoryDoc(key, bounded);
+    this.deps.logger.info("ingestion sweep: memory updated", {
+      conversationKey: key,
+      length: bounded.length,
+    });
   }
 
   /** Fetch the bytes for every media attachment in the batch, capped at `maxMedia`. A missing or

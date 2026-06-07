@@ -88,6 +88,8 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
       listPropertyEvents: async () => [],
       findDueEvents: async () => [],
       markEventNotified: async () => false,
+      getMemoryDoc: async () => null,
+      putMemoryDoc: async () => {},
     },
     content: {
       getContent: async (id) => {

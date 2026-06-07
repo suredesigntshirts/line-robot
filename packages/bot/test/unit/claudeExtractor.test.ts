@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildExtractionContent } from "../../src/adapters/anthropic/claudeExtractor.js";
+import {
+  buildExtractionContent,
+  buildExtractionSystem,
+} from "../../src/adapters/anthropic/claudeExtractor.js";
 import type { ExtractionRequest } from "../../src/core/ports/extraction.js";
 
 function request(over: Partial<ExtractionRequest> = {}): ExtractionRequest {
@@ -80,5 +83,24 @@ describe("buildExtractionContent", () => {
     // Only the text block + the one image — the audio is dropped.
     expect(content).toHaveLength(2);
     expect(content[1]).toMatchObject({ type: "image" });
+  });
+});
+
+describe("buildExtractionSystem", () => {
+  it("is a single cached block when there's no memory", () => {
+    const blocks = buildExtractionSystem();
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toMatchObject({ type: "text", cache_control: { type: "ephemeral" } });
+    expect(buildExtractionSystem("   ")).toHaveLength(1); // blank memory → no second block
+  });
+
+  it("appends the memory note as a second 1h-TTL cached block", () => {
+    const blocks = buildExtractionSystem("Khun Mali is the seller. 'Thonglor plot' = PROP#abc.");
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1]).toMatchObject({
+      type: "text",
+      cache_control: { type: "ephemeral", ttl: "1h" },
+    });
+    expect(blocks[1]?.type === "text" && blocks[1].text).toContain("Thonglor plot");
   });
 });

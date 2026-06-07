@@ -173,6 +173,30 @@ function buildEventEntity(client: DynamoDBDocumentClient, table: string) {
   );
 }
 
+function buildMemoryEntity(client: DynamoDBDocumentClient, table: string) {
+  return new Entity(
+    {
+      model: { entity: "conversationMemory", version: "1", service: "catalog" },
+      attributes: {
+        conversationKey: { type: "string", required: true },
+        content: { type: "string", required: true },
+      },
+      indexes: {
+        byConversation: {
+          pk: {
+            field: "pk",
+            composite: ["conversationKey"],
+            template: "CONV#${conversationKey}",
+            casing: "none",
+          },
+          sk: { field: "sk", composite: [], template: "MEMORY", casing: "none" },
+        },
+      },
+    },
+    { client, table },
+  );
+}
+
 type PropertyItem = EntityItem<ReturnType<typeof buildPropertyEntity>>;
 
 function toProperty(item: PropertyItem): Property {
@@ -262,6 +286,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
   private readonly convProperty: ReturnType<typeof buildConvPropertyEntity>;
   private readonly membership: ReturnType<typeof buildMembershipEntity>;
   private readonly event: ReturnType<typeof buildEventEntity>;
+  private readonly memory: ReturnType<typeof buildMemoryEntity>;
 
   private readonly debounce: DebouncePolicy;
 
@@ -274,6 +299,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
     this.convProperty = buildConvPropertyEntity(doc, table);
     this.membership = buildMembershipEntity(doc, table);
     this.event = buildEventEntity(doc, table);
+    this.memory = buildMemoryEntity(doc, table);
     this.debounce = { ...DEFAULT_DEBOUNCE, ...debounce };
   }
 
@@ -530,6 +556,17 @@ export class DynamoCatalogRepository implements CatalogRepository {
       }),
     );
     return (result.Items ?? []).map(toEvent);
+  }
+
+  // --- Per-conversation memory ---
+
+  async getMemoryDoc(conversationKey: string): Promise<string | null> {
+    const result = await this.memory.get({ conversationKey }).go();
+    return result.data?.content ?? null;
+  }
+
+  async putMemoryDoc(conversationKey: string, content: string): Promise<void> {
+    await this.memory.upsert({ conversationKey, content }).go();
   }
 
   async markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean> {

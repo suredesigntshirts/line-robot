@@ -38,6 +38,9 @@ export interface ExtractionRequest {
   readonly media: readonly ExtractionMedia[];
   readonly geoHints: readonly ExtractionGeoHint[];
   readonly candidates: readonly ExtractionCandidate[];
+  /** The conversation's durable memory note (known people, area aliases, terminology), if any.
+   * Injected into the cached prefix so the model can resolve references and aliases. */
+  readonly memory?: string;
 }
 
 /**
@@ -66,6 +69,9 @@ export interface ExtractedProperty {
 
 export interface ExtractionResult {
   readonly properties: readonly ExtractedProperty[];
+  /** A full updated memory note the model proposes for this conversation (durable context only), or
+   * null when nothing changed. The sweep bounds the length and replaces the stored note. */
+  readonly memoryUpdate?: string | null;
 }
 
 export interface PropertyExtractor {

@@ -328,3 +328,15 @@ describe("property events (calendar / reminders)", () => {
     expect(remaining?.notifiedAt).toBe(1000);
   });
 });
+
+describe("conversation memory", () => {
+  it("round-trips and replaces the per-conversation memory note", async () => {
+    expect(await repo.getMemoryDoc("conv-mem")).toBeNull();
+
+    await repo.putMemoryDoc("conv-mem", "Khun Mali is the seller.");
+    expect(await repo.getMemoryDoc("conv-mem")).toBe("Khun Mali is the seller.");
+
+    await repo.putMemoryDoc("conv-mem", "Khun Mali is the seller. Weekends only.");
+    expect(await repo.getMemoryDoc("conv-mem")).toBe("Khun Mali is the seller. Weekends only.");
+  });
+});
