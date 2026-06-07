@@ -1,6 +1,9 @@
 # Plan 12 — Listing depth, photo association, edit-path hardening, original maps link, delete, blank-slate reset
 
-Status: **in progress.** Follows plan 11 (richer Details, deployed). Driven by post-deploy feedback.
+Status: **DONE & deployed.** Increment 1 (`b2fe1fa`) + Increment 2 (`6c4b84f`) committed and live on
+staging (code-only `pulumi up`s). Increment 3 full reset executed via the admin profile — catalog,
+messages, and the S3 archive are all empty (blank slate). Follows plan 11. Driven by post-deploy
+feedback.
 
 ## Context / why
 
