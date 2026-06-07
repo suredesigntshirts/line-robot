@@ -322,4 +322,21 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     expect(textOf(pushes[0]?.messages[0])).toContain("123 Sukhumvit (new)");
     expect((await catalog.getConversation(key))?.pendingSince).toBeUndefined();
   });
+
+  it("ingests a mixed-case GROUP conversation end-to-end after the casing fix", async () => {
+    const ref = { kind: "group", groupId: "CGroupXYZ7", senderUserId: "Umember" } as const;
+    const key = "group#CGroupXYZ7";
+    await arrive(ref, key, "gm1", 1000);
+    await arrive(ref, key, "gm2", 1500);
+
+    // findSince (the sweep's read path) must find both messages under the case-preserved key.
+    expect((await messages.findSince(key, 0)).map((m) => m.text)).toEqual(["gm1", "gm2"]);
+
+    clock.value = 3000;
+    const swept = await makeSweep().run();
+    // due=1 (the group conversation is past its quiet window) and both messages are batched —
+    // proving the catalog tracker key (raw CONV#<key>) and the messages key now agree on case.
+    expect(swept).toMatchObject({ due: 1, claimed: 1, ingested: 1, messages: 2 });
+    expect((await catalog.getConversation(key))?.lastIngestedAt).toBe(1500);
+  });
 });

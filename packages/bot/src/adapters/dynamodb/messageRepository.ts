@@ -46,8 +46,13 @@ function buildMessageEntity(client: DynamoDBDocumentClient, table: string) {
       },
       indexes: {
         byConversation: {
-          pk: { field: "pk", composite: ["conversationKey"] },
-          sk: { field: "sk", composite: ["timestamp", "messageId"] },
+          // `casing: "none"` preserves case-sensitive LINE conversation ids (group ids are
+          // uppercase `C…`-prefixed). ElectroDB's default key casing is `lower`, which would
+          // otherwise silently lowercase the whole pk/sk — mirrors every entity in
+          // catalogRepository.ts so messages and the raw-written CONV# tracker keys stay
+          // byte-comparable.
+          pk: { field: "pk", composite: ["conversationKey"], casing: "none" },
+          sk: { field: "sk", composite: ["timestamp", "messageId"], casing: "none" },
         },
       },
     },

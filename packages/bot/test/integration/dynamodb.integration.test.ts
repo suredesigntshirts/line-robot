@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { CreateTableCommand, DynamoDBClient, ListTablesCommand } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand } from "@aws-sdk/lib-dynamodb";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepository.js";
 import type { StoredMessage } from "../../src/core/domain/message.js";
@@ -172,6 +172,61 @@ describe("DynamoMessageRepository", () => {
     const recent = await repo.findRecent(userRef, 10);
     expect(recent).toHaveLength(1);
     expect(recent[0]?.text).toBe("solo");
+  });
+
+  // Regression guard for the silent GROUP-ID lowercasing bug (cleanup unit 06): LINE group ids
+  // are case-sensitive and uppercase-`C`-prefixed. ElectroDB's default key casing is `lower`, so
+  // without `casing: "none"` the stored pk is lowercased and unreachable by any non-ElectroDB
+  // reader built from the original (case-preserved) conversationKey. The attribute round-trip is
+  // NOT enough to catch this (groupId is stored un-cased), so we assert on the raw stored pk.
+  it("preserves the case of a mixed-case LINE group id in the stored key", async () => {
+    const repo = new DynamoMessageRepository(doc, MESSAGES_TABLE);
+    const ref = {
+      kind: "group",
+      groupId: "CGroupIdABCD1234",
+      senderUserId: "Usender",
+    } as const;
+    const key = "group#CGroupIdABCD1234";
+    await repo.save({
+      ref,
+      messageId: "g1",
+      direction: "in",
+      contentType: "text",
+      text: "hello",
+      webhookEventId: "eg1",
+      timestamp: 1000,
+    });
+    await repo.save({
+      ref,
+      messageId: "g2",
+      direction: "in",
+      contentType: "text",
+      text: "world",
+      webhookEventId: "eg2",
+      timestamp: 2000,
+    });
+
+    // (1) The raw stored partition key must retain the uppercase group id — this is the
+    //     assertion that fails on the unfixed entity (pk would be `…group#cgroupidabcd1234`).
+    const scan = await doc.send(new ScanCommand({ TableName: MESSAGES_TABLE }));
+    const groupRows = (scan.Items ?? []).filter(
+      (i) => typeof i.pk === "string" && i.pk.includes("CGroupIdABCD1234"),
+    );
+    expect(groupRows).toHaveLength(2);
+    const lowercased = (scan.Items ?? []).filter(
+      (i) => typeof i.pk === "string" && i.pk.includes("cgroupidabcd1234"),
+    );
+    expect(lowercased).toHaveLength(0);
+
+    // (2) findRecent still round-trips the ref correctly (was already true, kept as a guard).
+    const recent = await repo.findRecent(ref, 10);
+    expect(recent.map((m) => m.text)).toEqual(["world", "hello"]);
+    expect(recent[0]?.ref).toEqual(ref);
+
+    // (3) findSince with the case-preserved conversationKey finds the same messages — proving the
+    //     raw-key read path (used by the ingestion sweep) matches the case-preserved write path.
+    expect((await repo.findSince(key, 0)).map((m) => m.text)).toEqual(["hello", "world"]);
+    expect((await repo.findSince(key, 1000)).map((m) => m.text)).toEqual(["world"]);
   });
 });
 
