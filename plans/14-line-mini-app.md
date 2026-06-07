@@ -314,7 +314,8 @@ the read-api function env only, not the shared `commonEnv`).
 
 Gates: `npm run lint` ✅, `npm run typecheck` ✅ (bot+miniapp+infra), `npm run test` ✅ (215 bot + 19
 miniapp). The deploy policy gained CloudFront perms (`infra/deploy-user-policy.json` → v8 via the
-`default`/tea-admin profile). Pulumi `liffChannelId = 2010316764` is set.
+`default`/tea-admin profile). Pulumi `liffChannelId = 2010316767` is set (the **Published** channel —
+see the launch record below; we did **not** use Developing `2010316764`).
 
 ### Live staging values (Pulumi outputs)
 
@@ -327,39 +328,51 @@ site bucket                  : linerobot-staging-miniapp-20260607143557030500000
 Verified post-deploy: read-api `→ 401` with no/invalid token (the auth gate); CloudFront serves the
 SPA at `/` (200) and resolves deep links (`/p/abc-123 → 200` via the 403/404→`index.html` rule); the
 read-api IAM role is read-only (`dynamodb:Query`+`GetItem`, `s3:GetObject` — no write/secret/SQS).
-The SPA is currently built with the read-api URL baked in but **no LIFF ID**, so inside LINE it shows
-the "open from inside LINE" fallback until the steps below are done.
+The SPA is now built with **both** the read-api URL and the LIFF ID (`2010316767-rdtwc5y3`) baked in,
+re-uploaded, and verified loading inside LINE. See the launch record below.
 
-### Remaining (one-time, in the LINE Developers Console — needs the user)
+### Launch record (2026-06-07) — LIVE
 
-1. **Provider sanity check** — open the MINI App channel (`2010316764`) and the Messaging API channel
-   (`2010315419`); confirm both show the **same provider** (id-token `sub` == our stored `U…` ids
-   only if so; can't be changed later). User has confirmed same account.
-2. **Web app settings → Developing tab:** set **Endpoint URL = `https://d15tyvvqffrn4a.cloudfront.net/`**,
-   **Size = Full**, **Scope = `openid`**. (Optional: basic auth to lock staging.)
-3. **Copy the LIFF ID** shown there (format `2010316764-xxxxxxxx`; the LIFF URL is
-   `https://liff.line.me/<liffId>`).
-4. **Rebuild the SPA with the LIFF ID + re-upload** (build ONLY the miniapp so the bot Lambdas stay
-   untouched):
+All of the below is **done**; the app is live for end users inside LINE.
+
+1. **Published as an _unverified_ MINI App on the Published channel `2010316767`** — *not* the
+   Developing channel `2010316764`. The Developing channel only admits enrolled testers (opening its
+   LIFF URL 400'd: "this channel is in developing status, user needs developer role") and Preview is
+   LY-reviewers-only. Publishing **unverified** lets any LINE user open it immediately with no review.
+   Accepted trade-off: no Home/search discoverability, no simplified consent, no Service Messages —
+   all of which require **verification**, which is **deferred** (see below).
+2. **Endpoint URL = `https://d15tyvvqffrn4a.cloudfront.net/`** set on all three internal channels
+   (Developing/Review/Published); **Scope = `openid`**, **Size = Full**.
+3. **LIFF ID = `2010316767-rdtwc5y3`** (LIFF URL `https://miniapp.line.me/2010316767-rdtwc5y3`).
+4. **SPA rebuilt with `VITE_LIFF_ID=2010316767-rdtwc5y3` + the read-api URL and re-uploaded** (miniapp
+   build only; bot Lambdas untouched). **Pulumi `liffChannelId` set to `2010316767`**, so the read-api
+   verifies the id-token `aud == 2010316767`.
+5. **CORS duplicate-header bug found + fixed.** Symptom: "Something went wrong loading your listings."
+   Cause: the handler *and* the Function URL `cors` config each set `access-control-allow-origin` →
+   two ACAO headers → the browser rejects the response → the SPA's `fetch` throws. Fix: the handler
+   sets **no** CORS at all; the **Function URL `cors` config is the sole source** (origin-locked to the
+   CloudFront domain). Verified exactly one ACAO header; the app then loaded end-to-end in LINE.
+6. **Rich-menu Catalog tab installed** (data-plane, idempotent — note the token comes from `LINE.md`,
+   never echoed):
    ```bash
-   cd packages/miniapp
-   VITE_READ_API_URL="https://tmweeedm2t5nu4p3eyzywous6a0iwpia.lambda-url.ap-southeast-1.on.aws" \
-   VITE_LIFF_ID="<liffId>" npm run build
-   cd ../../infra
-   export PATH="$HOME/.pulumi/bin:$PATH"; export AWS_PROFILE=line-robot
-   export PULUMI_CONFIG_PASSPHRASE="$(cat ~/.line-robot-pulumi-passphrase)"
-   pulumi up                 # uploads the new dist (4 hashed objects); additive
+   export LINE_CHANNEL_ACCESS_TOKEN="$(sed -n 's/^- Channel Access token (long lived): //p' LINE.md)"
+   export LIFF_URL="https://miniapp.line.me/2010316767-rdtwc5y3"
+   npm --prefix packages/bot run build
+   node packages/bot/dist/scripts/setup-rich-menu.mjs assets/rich-menu.png
    ```
-5. **Confirm `aud`** — open the LIFF URL once in LINE, then check the read-api log
-   (`/aws/lambda/linerobot-staging-read-api`); decode the id-token's `aud` and confirm it equals
-   `2010316764`. If it differs, `pulumi config set liffChannelId <value>` and `pulumi up`.
-6. **Install the rich-menu Catalog tab** (data-plane, not Pulumi):
-   ```bash
-   export LINE_CHANNEL_ACCESS_TOKEN="$(cd infra && pulumi config get channelAccessToken)"
-   export LIFF_URL="https://liff.line.me/<liffId>"
-   npm --prefix packages/bot run build      # or just rebuild dist/scripts/setup-rich-menu.mjs
-   node packages/bot/dist/scripts/setup-rich-menu.mjs <menu-image.(png|jpeg)>
-   ```
+   Live default menu (all users) = `richmenu-93f42b48e6d3684cecb46ddd1de8ff68` — **5 tabs**:
+   My Listings · Upcoming · Search · **Catalog** · Help. The Catalog tab is a `uri` action →
+   `https://miniapp.line.me/2010316767-rdtwc5y3`. (Catalog sits 5th, before Help — least disruptive,
+   keeps the existing four.)
 
-**Open UX decision (Inc C):** the Catalog tab is added as a **5th tab before Help** (least
-disruptive — keeps the existing four). Say the word to instead replace Help/Search or reorder.
+Code committed on `feat/catalog-assistant` and merged to `main` (origin
+`git@suredesign-github:suredesigntshirts/line-robot.git`, established this session).
+
+### Deferred (intentional)
+
+- **MINI App verification** — needed only for Home/search discoverability, simplified consent, and
+  Service Messages. End users can already open the app via the LIFF URL and the Catalog tab without
+  it, so this stays deferred.
+- **In-chat deep links** — the bot's property cards don't yet carry a "View in Catalog" button or a
+  deep link to a specific property (`…/2010316767-rdtwc5y3/p/<id>`, which the SPA already resolves).
+  Easy follow-up if wanted.
