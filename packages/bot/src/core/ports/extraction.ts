@@ -44,43 +44,45 @@ export interface ExtractionRequest {
 }
 
 /**
- * One property the model extracted. `existingPropertyId` non-null → merge into that property;
- * null → create a new one. `ambiguous` flags an uncertain match: the sweep creates-new and notes
- * it (interactive quick-reply resolution lands with the retrieval slice). Absent fields are `null`
- * (the schema models "not mentioned" explicitly rather than as optional keys).
+ * One property the model extracted. `existingPropertyId` non-empty → merge into that property;
+ * `""` → create a new one. `ambiguous` flags an uncertain match: the sweep creates-new and notes
+ * it. To stay under Anthropic's 16-nullable-parameter limit (see
+ * {@link ../../adapters/anthropic/CLAUDE.md}) absent values are modelled with sentinels — `""` for
+ * text and `[]` for lists — and `null` ONLY for the numeric fields (which have no clean sentinel).
  */
 export interface ExtractedProperty {
-  readonly existingPropertyId: string | null;
+  /** `""` → create-new; otherwise the existing property id to update. */
+  readonly existingPropertyId: string;
   readonly ambiguous: boolean;
   /** When `ambiguous`, the candidate property id(s) this might be the same as (a subset of the
    * provided candidates), so the merge confirmation can offer exactly those rather than every
-   * listing. Null/empty → the sweep falls back to offering all candidates. */
-  readonly ambiguousWith: readonly string[] | null;
-  readonly normalizedAddress: string | null;
-  readonly rawAddress: string | null;
-  readonly projectName: string | null;
+   * listing. Empty `[]` → the sweep falls back to offering all candidates. */
+  readonly ambiguousWith: readonly string[];
+  readonly normalizedAddress: string;
+  readonly rawAddress: string;
+  readonly projectName: string;
   readonly lat: number | null;
   readonly long: number | null;
-  readonly district: string | null;
-  readonly subdistrict: string | null;
-  readonly province: string | null;
-  readonly propertyType: string | null;
-  readonly status: string | null;
+  readonly district: string;
+  readonly subdistrict: string;
+  readonly province: string;
+  readonly propertyType: string;
+  readonly status: string;
   readonly askingPrice: number | null;
-  readonly currency: string | null;
-  readonly tags: readonly string[] | null;
-  // Physical / commercial detail (null when not stated).
+  readonly currency: string;
+  readonly tags: readonly string[];
+  // Physical / commercial detail ("" / [] / null when not stated).
   readonly bedrooms: number | null;
   readonly bathrooms: number | null;
   readonly usableAreaSqm: number | null;
-  readonly landArea: string | null;
+  readonly landArea: string;
   readonly floors: number | null;
-  readonly furnishing: string | null;
-  readonly notes: string | null;
-  readonly listingType: string | null;
+  readonly furnishing: string;
+  readonly notes: string;
+  readonly listingType: string;
   readonly rentPrice: number | null;
-  readonly contact: string | null;
-  readonly source: string | null;
+  readonly contact: string;
+  readonly source: string;
 }
 
 export interface ExtractionResult {

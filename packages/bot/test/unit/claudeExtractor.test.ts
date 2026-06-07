@@ -1,9 +1,11 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import {
   buildExtractionContent,
   buildExtractionSystem,
   ClaudeExtractor,
+  ExtractionSchema,
   type ModelTier,
 } from "../../src/adapters/anthropic/claudeExtractor.js";
 import type { ExtractionRequest } from "../../src/core/ports/extraction.js";
@@ -105,6 +107,60 @@ describe("buildExtractionSystem", () => {
       cache_control: { type: "ephemeral", ttl: "1h" },
     });
     expect(blocks[1]?.type === "text" && blocks[1].text).toContain("Thonglor plot");
+  });
+});
+
+describe("ExtractionSchema — Anthropic 16-union-parameter limit (REGRESSION GUARD)", () => {
+  // Anthropic strict structured output rejects a schema with > 16 union (nullable) parameters with a
+  // hard 400 on EVERY call — and our other tests use a fake extractor, so only this guard catches it.
+  // It already caused a full extraction outage once (plan 12 → 27 nullables). See
+  // src/adapters/anthropic/CLAUDE.md. Count every `anyOf`/`["...","null"]` node in the serialized
+  // schema; keep it ≤ 16.
+  const ANTHROPIC_UNION_LIMIT = 16;
+
+  /** Count parameters whose JSON schema is a union (a `.nullable()` → `anyOf` with a null branch, or
+   * a `type` array containing "null"), recursively across the whole schema. */
+  function countUnionParams(node: unknown): number {
+    if (node === null || typeof node !== "object") {
+      return 0;
+    }
+    const schema = node as Record<string, unknown>;
+    let count = 0;
+    const branches = schema.anyOf ?? schema.oneOf;
+    if (Array.isArray(branches)) {
+      count += 1; // this parameter is a union
+      for (const b of branches) {
+        count += countUnionParams(b);
+      }
+    } else if (Array.isArray(schema.type) && schema.type.includes("null")) {
+      count += 1;
+    }
+    for (const key of ["properties", "$defs", "definitions"] as const) {
+      const map = schema[key];
+      if (map !== null && typeof map === "object") {
+        for (const child of Object.values(map as Record<string, unknown>)) {
+          count += countUnionParams(child);
+        }
+      }
+    }
+    if (schema.items !== undefined) {
+      count += countUnionParams(schema.items);
+    }
+    return count;
+  }
+
+  it("stays within the 16-union limit (only numeric fields are nullable)", () => {
+    const json = z.toJSONSchema(ExtractionSchema);
+    const unions = countUnionParams(json);
+    // Sanity: the counter must see the numeric nullables (lat/long/prices/counts) — guards against a
+    // silently-broken counter making the limit check vacuous.
+    expect(unions).toBeGreaterThanOrEqual(8);
+    expect(
+      unions,
+      `Extraction schema has ${unions} union/nullable params; Anthropic strict output allows ` +
+        `${ANTHROPIC_UNION_LIMIT}. Use "" / [] sentinels instead of .nullable() — see ` +
+        "src/adapters/anthropic/CLAUDE.md.",
+    ).toBeLessThanOrEqual(ANTHROPIC_UNION_LIMIT);
   });
 });
 

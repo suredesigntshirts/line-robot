@@ -23,6 +23,14 @@ const EDIT_TTL_MS = 15 * 60_000;
 function nullToUndef<T>(value: T | null): T | undefined {
   return value === null ? undefined : value;
 }
+/** Extraction uses sentinels for absent values (`""` text, `[]` list); map them to undefined so a
+ * set-if-present upsert never clobbers a stored value. Numbers keep `null` → use nullToUndef. */
+function emptyToUndef(value: string): string | undefined {
+  return value === "" ? undefined : value;
+}
+function listToUndef(value: readonly string[]): string[] | undefined {
+  return value.length > 0 ? [...value] : undefined;
+}
 
 export class EditReplyHandler implements MessageHandler {
   constructor(
@@ -87,30 +95,30 @@ export class EditReplyHandler implements MessageHandler {
     const mapUrl = parseMapUrls(text)[0];
     const upsert: PropertyUpsert = {
       propertyId: before.propertyId,
-      normalizedAddress: nullToUndef(edit.normalizedAddress),
-      rawAddresses: edit.rawAddress ? [edit.rawAddress] : undefined,
-      projectName: nullToUndef(edit.projectName),
+      normalizedAddress: emptyToUndef(edit.normalizedAddress),
+      rawAddresses: emptyToUndef(edit.rawAddress) ? [edit.rawAddress] : undefined,
+      projectName: emptyToUndef(edit.projectName),
       lat: nullToUndef(edit.lat),
       long: nullToUndef(edit.long),
-      district: nullToUndef(edit.district),
-      subdistrict: nullToUndef(edit.subdistrict),
-      province: nullToUndef(edit.province),
-      propertyType: nullToUndef(edit.propertyType),
-      status: nullToUndef(edit.status),
+      district: emptyToUndef(edit.district),
+      subdistrict: emptyToUndef(edit.subdistrict),
+      province: emptyToUndef(edit.province),
+      propertyType: emptyToUndef(edit.propertyType),
+      status: emptyToUndef(edit.status),
       askingPrice: nullToUndef(edit.askingPrice),
-      currency: nullToUndef(edit.currency),
-      tags: edit.tags ? [...edit.tags] : undefined,
+      currency: emptyToUndef(edit.currency),
+      tags: listToUndef(edit.tags),
       bedrooms: nullToUndef(edit.bedrooms),
       bathrooms: nullToUndef(edit.bathrooms),
       usableAreaSqm: nullToUndef(edit.usableAreaSqm),
-      landArea: nullToUndef(edit.landArea),
+      landArea: emptyToUndef(edit.landArea),
       floors: nullToUndef(edit.floors),
-      furnishing: nullToUndef(edit.furnishing),
-      notes: nullToUndef(edit.notes),
-      listingType: nullToUndef(edit.listingType),
+      furnishing: emptyToUndef(edit.furnishing),
+      notes: emptyToUndef(edit.notes),
+      listingType: emptyToUndef(edit.listingType),
       rentPrice: nullToUndef(edit.rentPrice),
-      contact: nullToUndef(edit.contact),
-      source: nullToUndef(edit.source),
+      contact: emptyToUndef(edit.contact),
+      source: emptyToUndef(edit.source),
       ...(mapUrl !== undefined ? { mapUrl } : {}),
       updatedAt: now,
       lastActivityAt: now,

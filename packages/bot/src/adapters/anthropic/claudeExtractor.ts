@@ -41,39 +41,45 @@ const DEFAULT_LADDER: readonly ModelTier[] = [
 
 const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
+// IMPORTANT: Anthropic strict structured output caps a schema at 16 UNION (nullable) parameters —
+// see ./CLAUDE.md. We therefore keep `.nullable()` ONLY for numbers (no clean empty sentinel) and
+// model every other "not stated" as a required field with a sentinel: text → "" , list → [] .
+// Strict mode forces every key to be present anyway, so this keeps the same determinism without
+// spending the nullable budget. Current nullable count = 8 (the numbers below). A regression test
+// (`claudeExtractor.schema.test.ts`) asserts this stays ≤ 16.
 const ExtractedPropertySchema = z.object({
-  existingPropertyId: z.string().nullable(),
+  existingPropertyId: z.string(), // "" → create-new; otherwise the id to update
   ambiguous: z.boolean(),
-  ambiguousWith: z.array(z.string()).nullable(),
-  normalizedAddress: z.string().nullable(),
-  rawAddress: z.string().nullable(),
-  projectName: z.string().nullable(),
+  ambiguousWith: z.array(z.string()), // [] → none
+  normalizedAddress: z.string(),
+  rawAddress: z.string(),
+  projectName: z.string(),
   lat: z.number().nullable(),
   long: z.number().nullable(),
-  district: z.string().nullable(),
-  subdistrict: z.string().nullable(),
-  province: z.string().nullable(),
-  propertyType: z.string().nullable(),
-  status: z.string().nullable(),
+  district: z.string(),
+  subdistrict: z.string(),
+  province: z.string(),
+  propertyType: z.string(),
+  status: z.string(),
   askingPrice: z.number().nullable(),
-  currency: z.string().nullable(),
-  tags: z.array(z.string()).nullable(),
+  currency: z.string(),
+  tags: z.array(z.string()), // [] → none
   bedrooms: z.number().nullable(),
   bathrooms: z.number().nullable(),
   usableAreaSqm: z.number().nullable(),
-  landArea: z.string().nullable(),
+  landArea: z.string(),
   floors: z.number().nullable(),
-  furnishing: z.string().nullable(),
-  notes: z.string().nullable(),
-  listingType: z.string().nullable(),
+  furnishing: z.string(),
+  notes: z.string(),
+  listingType: z.string(),
   rentPrice: z.number().nullable(),
-  contact: z.string().nullable(),
-  source: z.string().nullable(),
+  contact: z.string(),
+  source: z.string(),
 });
 
-const ExtractionSchema = z.object({
+export const ExtractionSchema = z.object({
   properties: z.array(ExtractedPropertySchema),
-  memoryUpdate: z.string().nullable(),
+  memoryUpdate: z.string(), // "" → no durable update this run
   lowConfidence: z.boolean(),
 });
 
@@ -85,9 +91,9 @@ const SYSTEM_PROMPT = `You are a real-estate catalog assistant for a Thai/Englis
 
 Method:
 - First segment the batch into per-property buckets, then emit one entry per DISTINCT property.
-- Decide update-vs-create per property: if it clearly matches one of the existing properties provided, set existingPropertyId to that id; otherwise set existingPropertyId to null (a new property).
-- If a match is plausible but you are not confident, set existingPropertyId to null AND ambiguous to true, and set ambiguousWith to the id(s) of the existing candidate(s) it might actually be (from the provided candidates). Never guess a merge across ambiguity.
-- Use null for every field not stated. Do NOT invent values.
+- Decide update-vs-create per property: if it clearly matches one of the existing properties provided, set existingPropertyId to that id; otherwise set existingPropertyId to "" (empty string = a new property).
+- If a match is plausible but you are not confident, set existingPropertyId to "" AND ambiguous to true, and set ambiguousWith to the id(s) of the existing candidate(s) it might actually be (from the provided candidates). Never guess a merge across ambiguity.
+- For any value NOT stated: use "" for text fields, [] for list fields, and null for the numeric fields (lat, long, askingPrice, rentPrice, bedrooms, bathrooms, usableAreaSqm, floors). Do NOT invent values.
 - Set lowConfidence to true only if this batch is genuinely hard to extract — unreadable handwriting/OCR, conflicting or contradictory figures, or you are unsure of the overall structure. A stronger model then re-reads it. Otherwise set lowConfidence to false; do NOT set it merely because some fields are absent.
 
 Field rules:
@@ -104,7 +110,7 @@ Thai title-deed glossary (context only): โฉนด = Chanote (full title), �
 
 Conversation memory:
 - A "Conversation memory" note may follow with durable context for THIS chat: known people, area aliases ("the Thonglor plot" → a specific property), terminology, and preferences. Use it to resolve references and aliases; do not contradict it.
-- In memoryUpdate, return the FULL updated note (≤ 1500 characters) only when you learn a durable fact worth remembering next time — otherwise null. Keep it terse: facts and aliases, not a transcript. Never record secrets or sensitive personal data.`;
+- In memoryUpdate, return the FULL updated note (≤ 1500 characters) only when you learn a durable fact worth remembering next time — otherwise "" (empty string). Keep it terse: facts and aliases, not a transcript. Never record secrets or sensitive personal data.`;
 
 /** A label that introduces the per-conversation memory note in the system prefix. */
 const MEMORY_PREAMBLE =

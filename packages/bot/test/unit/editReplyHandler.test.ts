@@ -16,33 +16,33 @@ const CONV = "user#U1";
 
 function extracted(over: Partial<ExtractedProperty> = {}): ExtractedProperty {
   return {
-    existingPropertyId: null,
+    existingPropertyId: "",
     ambiguous: false,
-    ambiguousWith: null,
-    normalizedAddress: null,
-    rawAddress: null,
-    projectName: null,
+    ambiguousWith: [],
+    normalizedAddress: "",
+    rawAddress: "",
+    projectName: "",
     lat: null,
     long: null,
-    district: null,
-    subdistrict: null,
-    province: null,
-    propertyType: null,
-    status: null,
+    district: "",
+    subdistrict: "",
+    province: "",
+    propertyType: "",
+    status: "",
     askingPrice: null,
-    currency: null,
-    tags: null,
+    currency: "",
+    tags: [],
     bedrooms: null,
     bathrooms: null,
     usableAreaSqm: null,
-    landArea: null,
+    landArea: "",
     floors: null,
-    furnishing: null,
-    notes: null,
-    listingType: null,
+    furnishing: "",
+    notes: "",
+    listingType: "",
     rentPrice: null,
-    contact: null,
-    source: null,
+    contact: "",
+    source: "",
     ...over,
   };
 }
@@ -118,11 +118,11 @@ describe("EditReplyHandler", () => {
   it("falls through (and clears) when the model doesn't resolve an update to the armed property", async () => {
     const catalog = new FakeCatalog().seedProperty({ propertyId: "p1", askingPrice: 1 });
     await catalog.armEdit(CONV, "p1", NOW);
-    // Model decides this is a NEW property (existingPropertyId null), not an edit of p1.
+    // Model decides this is a NEW property (existingPropertyId ""), not an edit of p1.
     const handler = new EditReplyHandler(
       catalog,
       fakeExtractor({
-        properties: [extracted({ existingPropertyId: null, projectName: "Other" })],
+        properties: [extracted({ existingPropertyId: "", projectName: "Other" })],
       }),
       clock,
     );

@@ -90,6 +90,15 @@ function nullToUndef<T>(value: T | null): T | undefined {
   return value === null ? undefined : value;
 }
 
+/** Extraction now uses sentinels (see ports/extraction.ts): `""` for absent text, `[]` for absent
+ * lists — so set-if-present upserts never clobber a stored value with an empty one. */
+function emptyToUndef(value: string): string | undefined {
+  return value === "" ? undefined : value;
+}
+function listToUndef(value: readonly string[]): string[] | undefined {
+  return value.length > 0 ? [...value] : undefined;
+}
+
 /** S3 keys of the image attachments in a batch (chanote PDFs and other media are excluded — only
  * photos are card-hero candidates). */
 function collectPhotoKeys(batch: StoredMessage[]): string[] {
@@ -277,8 +286,8 @@ export class IngestionSweep {
   ): Promise<AppliedProperty> {
     // Ambiguous-but-unmatched → create new (never auto-merge across ambiguity); the confirmation
     // flags it so a human can correct it. Interactive quick-reply resolution is a later slice.
-    const isNew = property.existingPropertyId === null;
-    const propertyId = property.existingPropertyId ?? this.newId();
+    const isNew = property.existingPropertyId === "";
+    const propertyId = isNew ? this.newId() : property.existingPropertyId;
     const now = this.deps.clock.now();
 
     // Accumulate photos (a property's gallery grows across batches) — merge this batch's keys with
@@ -287,30 +296,30 @@ export class IngestionSweep {
 
     const upsert: PropertyUpsert = {
       propertyId,
-      normalizedAddress: nullToUndef(property.normalizedAddress),
-      rawAddresses: property.rawAddress ? [property.rawAddress] : undefined,
-      projectName: nullToUndef(property.projectName),
+      normalizedAddress: emptyToUndef(property.normalizedAddress),
+      rawAddresses: emptyToUndef(property.rawAddress) ? [property.rawAddress] : undefined,
+      projectName: emptyToUndef(property.projectName),
       lat: nullToUndef(property.lat),
       long: nullToUndef(property.long),
-      district: nullToUndef(property.district),
-      subdistrict: nullToUndef(property.subdistrict),
-      province: nullToUndef(property.province),
-      propertyType: nullToUndef(property.propertyType),
-      status: nullToUndef(property.status),
+      district: emptyToUndef(property.district),
+      subdistrict: emptyToUndef(property.subdistrict),
+      province: emptyToUndef(property.province),
+      propertyType: emptyToUndef(property.propertyType),
+      status: emptyToUndef(property.status),
       askingPrice: nullToUndef(property.askingPrice),
-      currency: nullToUndef(property.currency),
-      tags: property.tags ? [...property.tags] : undefined,
+      currency: emptyToUndef(property.currency),
+      tags: listToUndef(property.tags),
       bedrooms: nullToUndef(property.bedrooms),
       bathrooms: nullToUndef(property.bathrooms),
       usableAreaSqm: nullToUndef(property.usableAreaSqm),
-      landArea: nullToUndef(property.landArea),
+      landArea: emptyToUndef(property.landArea),
       floors: nullToUndef(property.floors),
-      furnishing: nullToUndef(property.furnishing),
-      notes: nullToUndef(property.notes),
-      listingType: nullToUndef(property.listingType),
+      furnishing: emptyToUndef(property.furnishing),
+      notes: emptyToUndef(property.notes),
+      listingType: emptyToUndef(property.listingType),
       rentPrice: nullToUndef(property.rentPrice),
-      contact: nullToUndef(property.contact),
-      source: nullToUndef(property.source),
+      contact: emptyToUndef(property.contact),
+      source: emptyToUndef(property.source),
       // Keep the original shared map link (set-if-present, so it isn't cleared when none this batch).
       ...(mapUrl !== undefined ? { mapUrl } : {}),
       // Only set photos when this batch had images — never clobber existing photos with an empty list.
@@ -323,10 +332,10 @@ export class IngestionSweep {
     await this.deps.catalog.linkConversationProperty(key, propertyId, now);
 
     const label =
-      nullToUndef(property.normalizedAddress) ?? nullToUndef(property.projectName) ?? propertyId;
+      emptyToUndef(property.normalizedAddress) ?? emptyToUndef(property.projectName) ?? propertyId;
     // Narrow the merge offer to the model's `ambiguousWith` hint when it named valid candidates;
     // otherwise fall back to offering every candidate (the safe original behaviour).
-    const hinted = new Set(property.ambiguousWith ?? []);
+    const hinted = new Set(property.ambiguousWith);
     const filtered = mergeTargets.filter((t) => hinted.has(t.id));
     const offered = filtered.length > 0 ? filtered : mergeTargets;
     return {
