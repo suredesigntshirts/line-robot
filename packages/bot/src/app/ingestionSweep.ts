@@ -9,6 +9,8 @@ import { pushTarget, pushTargetFromKey } from "../core/domain/conversation.js";
 import { formatShortDateTime } from "../core/domain/datetime.js";
 import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { OutboundMessage, StoredMessage } from "../core/domain/message.js";
+import { emptyToUndef, nullToUndef } from "../core/domain/sentinel.js";
+import { extractedToBaseUpsert } from "../core/handlers/propertyMapping.js";
 import { mergePromptQuickReplies } from "../core/handlers/views.js";
 import type { CatalogRepository } from "../core/ports/catalog.js";
 import type {
@@ -134,19 +136,6 @@ const MEDIA_CONTENT_TYPES: ReadonlySet<string> = new Set([
   "image/webp",
   "application/pdf",
 ]);
-
-function nullToUndef<T>(value: T | null): T | undefined {
-  return value === null ? undefined : value;
-}
-
-/** Extraction now uses sentinels (see ports/extraction.ts): `""` for absent text, `[]` for absent
- * lists — so set-if-present upserts never clobber a stored value with an empty one. */
-function emptyToUndef(value: string): string | undefined {
-  return value === "" ? undefined : value;
-}
-function listToUndef(value: readonly string[]): string[] | undefined {
-  return value.length > 0 ? [...value] : undefined;
-}
 
 /** Merge title-deed reads across a chanote's pages (front carries the parcel fields, the back the
  * encumbrances) — prefer the first non-empty value per field; union the encumbrances. */
@@ -581,31 +570,7 @@ export class IngestionSweep {
 
     const upsert: PropertyUpsert = {
       propertyId,
-      normalizedAddress: emptyToUndef(property.normalizedAddress),
-      rawAddresses: emptyToUndef(property.rawAddress) ? [property.rawAddress] : undefined,
-      projectName: emptyToUndef(property.projectName),
-      lat: nullToUndef(property.lat),
-      long: nullToUndef(property.long),
-      // Backfill location from the title deed when the chat text didn't state it.
-      district: emptyToUndef(property.district) ?? chanote?.district,
-      subdistrict: emptyToUndef(property.subdistrict) ?? chanote?.subdistrict,
-      province: emptyToUndef(property.province) ?? chanote?.province,
-      propertyType: emptyToUndef(property.propertyType),
-      status: emptyToUndef(property.status),
-      askingPrice: nullToUndef(property.askingPrice),
-      currency: emptyToUndef(property.currency),
-      tags: listToUndef(property.tags),
-      bedrooms: nullToUndef(property.bedrooms),
-      bathrooms: nullToUndef(property.bathrooms),
-      usableAreaSqm: nullToUndef(property.usableAreaSqm),
-      landArea: emptyToUndef(property.landArea) ?? chanote?.landArea,
-      floors: nullToUndef(property.floors),
-      furnishing: emptyToUndef(property.furnishing),
-      notes: emptyToUndef(property.notes),
-      listingType: emptyToUndef(property.listingType),
-      rentPrice: nullToUndef(property.rentPrice),
-      contact: emptyToUndef(property.contact),
-      source: emptyToUndef(property.source),
+      ...extractedToBaseUpsert(property, chanote),
       // Keep the original shared map link (set-if-present, so it isn't cleared when none this batch).
       ...(mapUrl !== undefined ? { mapUrl } : {}),
       // Title-deed data from a chanote scan this batch (set-if-present).

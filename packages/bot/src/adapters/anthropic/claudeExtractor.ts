@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 import type { Chanote } from "../../core/domain/catalog.js";
+import { emptyToUndef } from "../../core/domain/sentinel.js";
 import type {
   ExtractionMedia,
   ExtractionRequest,
@@ -393,8 +394,6 @@ export function createClaudeExtractor(
 ): ClaudeExtractor {
   return new ClaudeExtractor(new Anthropic({ apiKey, ...clientOpts }), ladder, logger);
 }
-
-const emptyToUndef = (v: string): string | undefined => (v === "" ? undefined : v);
 
 /** Map the model's sentinel-filled chanote object to the domain shape (drop "" / [] fields). Returns
  * undefined if nothing legible was captured. */
