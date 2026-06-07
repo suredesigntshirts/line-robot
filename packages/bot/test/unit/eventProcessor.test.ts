@@ -84,6 +84,10 @@ function makeProcessor(opts: { replyThrows?: boolean; contentThrows?: boolean } 
       unlinkConversationProperty: async () => {},
       listConversationProperties: async () => [],
       listPropertiesForUser: async () => [],
+      addEvent: async () => {},
+      listPropertyEvents: async () => [],
+      findDueEvents: async () => [],
+      markEventNotified: async () => false,
     },
     content: {
       getContent: async (id) => {

@@ -1,4 +1,9 @@
-import type { ConversationTracker, Property, PropertyUpsert } from "../domain/catalog.js";
+import type {
+  ConversationTracker,
+  Property,
+  PropertyEvent,
+  PropertyUpsert,
+} from "../domain/catalog.js";
 
 /**
  * Persistence seam for the catalog. Keyed by raw string ids (conversationKey / userId /
@@ -84,4 +89,24 @@ export interface CatalogRepository {
   /** "Show my listings": resolve user → their conversations → those conversations' properties
    * (deduped). Read-access follows the user across chats. */
   listPropertiesForUser(userId: string): Promise<Property[]>;
+
+  // --- Property events (calendar / reminders) ---
+
+  /** Create a follow-up event on a property. Its sparse GSI2 key makes it visible to the reminder
+   * sweep until it is notified. */
+  addEvent(event: PropertyEvent): Promise<void>;
+
+  /** Every event on a property (past + future), for the "upcoming" view. */
+  listPropertyEvents(propertyId: string): Promise<PropertyEvent[]>;
+
+  /** Un-notified events whose due time is at or before `nowIso` — the reminder sweep's work list,
+   * sourced from the sparse GSI2 (no scan). */
+  findDueEvents(nowIso: string, limit: number): Promise<PropertyEvent[]>;
+
+  /**
+   * Atomically claim an event for notification: stamp `notifiedAt` and clear its GSI2 keys, but only
+   * if it has not been notified already. Returns `true` if this worker won the claim (and must push
+   * the reminder), `false` if another sweep already handled it — so a reminder is sent at most once.
+   */
+  markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean>;
 }

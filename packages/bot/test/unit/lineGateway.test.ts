@@ -127,6 +127,32 @@ describe("LineMessagingGateway", () => {
     expect(multi.contents.contents).toHaveLength(2);
   });
 
+  it("renders a `mode: datetime` card action as a LINE datetime-picker", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+
+    await gateway.reply("rt", [
+      {
+        type: "flex",
+        altText: "card",
+        cards: [
+          {
+            title: "123 Sukhumvit",
+            rows: [],
+            actions: [
+              { label: "📅 Follow-up", data: "action=setfollowup&id=p1", mode: "datetime" },
+            ],
+          },
+        ],
+      },
+    ]);
+    expect(firstMessage(client.replyMessage).contents.footer.contents[0].action).toMatchObject({
+      type: "datetimepicker",
+      mode: "datetime",
+      data: "action=setfollowup&id=p1",
+    });
+  });
+
   it("caps a carousel at 12 bubbles", async () => {
     const client = fakeClient();
     const gateway = new LineMessagingGateway(client);

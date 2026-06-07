@@ -8,12 +8,21 @@ import {
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { Entity, type EntityItem } from "electrodb";
-import type { ConversationTracker, Property, PropertyUpsert } from "../../core/domain/catalog.js";
+import type {
+  ConversationTracker,
+  Property,
+  PropertyEvent,
+  PropertyUpsert,
+} from "../../core/domain/catalog.js";
 import type { CatalogRepository } from "../../core/ports/catalog.js";
 
 /** DynamoDB GSI for finding conversations with pending ingestion work (sparse — only the tracker
  * writes `gsi1pk`/`gsi1sk`, and only while it has un-ingested messages). */
 const GSI1 = "gsi1";
+
+/** DynamoDB GSI for finding follow-up events due for a reminder (sparse — a PropertyEvent writes
+ * `gsi2pk`/`gsi2sk` on creation, and the reminder sweep clears them once it pushes the reminder). */
+const GSI2 = "gsi2";
 
 // ---------------------------------------------------------------------------
 // ElectroDB entities (simple CRUD/query). `casing: "none"` preserves case-sensitive LINE ids and
@@ -114,6 +123,56 @@ function buildMembershipEntity(client: DynamoDBDocumentClient, table: string) {
   );
 }
 
+function buildEventEntity(client: DynamoDBDocumentClient, table: string) {
+  return new Entity(
+    {
+      model: { entity: "propertyEvent", version: "1", service: "catalog" },
+      attributes: {
+        eventId: { type: "string", required: true },
+        propertyId: { type: "string", required: true },
+        // `dueIso` is the ISO form of `dueAt`, kept as an attribute because it composes the keys
+        // (DynamoDB keys are strings); the domain works in epoch ms via `dueAt`.
+        dueIso: { type: "string", required: true },
+        dueAt: { type: "number", required: true },
+        title: { type: "string" },
+        notifyConversationKey: { type: "string", required: true },
+        notifiedAt: { type: "number" },
+        createdAt: { type: "number" },
+      },
+      indexes: {
+        byProperty: {
+          pk: {
+            field: "pk",
+            composite: ["propertyId"],
+            template: "PROP#${propertyId}",
+            casing: "none",
+          },
+          sk: {
+            field: "sk",
+            composite: ["dueIso", "eventId"],
+            template: "EVT#${dueIso}#${eventId}",
+            casing: "none",
+          },
+        },
+        // Sparse "due" index for the reminder sweep. Constant partition + dueIso sort key, so the
+        // sweep query is `gsi2pk = "DUE" AND gsi2sk <= now`. The keys are cleared on notify (raw
+        // UpdateItem in markEventNotified) so a notified event drops out of the index.
+        byDueDate: {
+          index: GSI2,
+          pk: { field: "gsi2pk", composite: [], template: "DUE", casing: "none" },
+          sk: {
+            field: "gsi2sk",
+            composite: ["dueIso", "eventId"],
+            template: "${dueIso}#${eventId}",
+            casing: "none",
+          },
+        },
+      },
+    },
+    { client, table },
+  );
+}
+
 type PropertyItem = EntityItem<ReturnType<typeof buildPropertyEntity>>;
 
 function toProperty(item: PropertyItem): Property {
@@ -141,6 +200,20 @@ function toProperty(item: PropertyItem): Property {
 
 function stripUndefined<T extends Record<string, unknown>>(obj: T): T {
   return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T;
+}
+
+/** Map a stored event item (ElectroDB item or a raw GSI2 row) onto the domain {@link PropertyEvent};
+ * `dueIso` is a keys-only derivation of `dueAt`, so it's dropped here. */
+function toEvent(item: Record<string, unknown>): PropertyEvent {
+  return {
+    eventId: String(item.eventId ?? ""),
+    propertyId: String(item.propertyId ?? ""),
+    dueAt: Number(item.dueAt ?? 0),
+    title: typeof item.title === "string" ? item.title : undefined,
+    notifyConversationKey: String(item.notifyConversationKey ?? ""),
+    notifiedAt: typeof item.notifiedAt === "number" ? item.notifiedAt : undefined,
+    createdAt: typeof item.createdAt === "number" ? item.createdAt : undefined,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -188,6 +261,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
   private readonly property: ReturnType<typeof buildPropertyEntity>;
   private readonly convProperty: ReturnType<typeof buildConvPropertyEntity>;
   private readonly membership: ReturnType<typeof buildMembershipEntity>;
+  private readonly event: ReturnType<typeof buildEventEntity>;
 
   private readonly debounce: DebouncePolicy;
 
@@ -199,6 +273,7 @@ export class DynamoCatalogRepository implements CatalogRepository {
     this.property = buildPropertyEntity(doc, table);
     this.convProperty = buildConvPropertyEntity(doc, table);
     this.membership = buildMembershipEntity(doc, table);
+    this.event = buildEventEntity(doc, table);
     this.debounce = { ...DEFAULT_DEBOUNCE, ...debounce };
   }
 
@@ -418,6 +493,68 @@ export class DynamoCatalogRepository implements CatalogRepository {
     const uniqueIds = [...new Set(idLists.flat())];
     const properties = await Promise.all(uniqueIds.map((id) => this.getProperty(id)));
     return properties.filter((p): p is Property => p !== null);
+  }
+
+  // --- Property events (calendar / reminders) ---
+
+  async addEvent(event: PropertyEvent): Promise<void> {
+    const data = stripUndefined({
+      eventId: event.eventId,
+      propertyId: event.propertyId,
+      dueIso: new Date(event.dueAt).toISOString(),
+      dueAt: event.dueAt,
+      title: event.title,
+      notifyConversationKey: event.notifyConversationKey,
+      notifiedAt: event.notifiedAt,
+      createdAt: event.createdAt,
+    });
+    await this.event.create(data).go();
+  }
+
+  async listPropertyEvents(propertyId: string): Promise<PropertyEvent[]> {
+    const result = await this.event.query.byProperty({ propertyId }).go();
+    return result.data.map(toEvent);
+  }
+
+  async findDueEvents(nowIso: string, limit: number): Promise<PropertyEvent[]> {
+    // Raw GSI2 query (mirrors findPendingConversations on GSI1): the sort key is `<dueIso>#<eventId>`
+    // so `gsi2sk <= now` returns every un-notified event past its due time (notified events have had
+    // their GSI keys cleared, so they never appear). Events due exactly now fire on the next tick.
+    const result = await this.doc.send(
+      new QueryCommand({
+        TableName: this.table,
+        IndexName: GSI2,
+        KeyConditionExpression: "gsi2pk = :p AND gsi2sk <= :now",
+        ExpressionAttributeValues: { ":p": "DUE", ":now": nowIso },
+        Limit: limit,
+      }),
+    );
+    return (result.Items ?? []).map(toEvent);
+  }
+
+  async markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean> {
+    const dueIso = new Date(event.dueAt).toISOString();
+    try {
+      // Atomic claim-and-mark: stamp notifiedAt and drop the sparse GSI2 keys, but only if no other
+      // sweep already notified. Winning the condition is the licence to push exactly one reminder;
+      // losing it means another worker has it. (A push failure after winning loses that one reminder
+      // — acceptable, and far rarer than the double-send a non-atomic check would risk.)
+      await this.doc.send(
+        new UpdateCommand({
+          TableName: this.table,
+          Key: { pk: `PROP#${event.propertyId}`, sk: `EVT#${dueIso}#${event.eventId}` },
+          UpdateExpression: "SET notifiedAt = :now REMOVE gsi2pk, gsi2sk",
+          ConditionExpression: "attribute_exists(pk) AND attribute_not_exists(notifiedAt)",
+          ExpressionAttributeValues: { ":now": nowMs },
+        }),
+      );
+      return true;
+    } catch (error) {
+      if (isConditionalCheckFailed(error)) {
+        return false;
+      }
+      throw error;
+    }
   }
 }
 

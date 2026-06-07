@@ -21,6 +21,9 @@ export const ACTIONS = {
   merge: "merge",
   /** Keep a confirmation-flagged property as its own listing (param: `id`). */
   keep: "keep",
+  /** Set a follow-up date on a property (param: `id`; the chosen datetime arrives in the LINE
+   * datetime-picker's `params.datetime`, not in `data`). */
+  setFollowUp: "setfollowup",
 } as const;
 
 export type ActionName = (typeof ACTIONS)[keyof typeof ACTIONS];

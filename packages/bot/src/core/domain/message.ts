@@ -55,10 +55,13 @@ export interface QuickReply {
   readonly displayText?: string;
 }
 
-/** One action button on a property card, rendered as a postback button in the Flex footer. */
+/** One action button on a property card, rendered in the Flex footer. Defaults to a postback button;
+ * `mode: "datetime"` renders a LINE datetime-picker instead, which delivers the chosen time back as
+ * a postback with the same `data` plus a `datetime` param. */
 export interface CardAction {
   readonly label: string;
   readonly data: string;
+  readonly mode?: "postback" | "datetime";
 }
 
 /** A single `label: value` line inside a property card body. */

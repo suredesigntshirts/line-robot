@@ -26,7 +26,7 @@ export class CommandHandler implements MessageHandler {
           this.assistant.listingsOnRoad(userId, command.query),
         );
       case "upcoming":
-        return this.assistant.upcoming();
+        return this.withUser(message, (userId) => this.assistant.upcoming(userId));
       case "help":
         return this.assistant.help();
     }

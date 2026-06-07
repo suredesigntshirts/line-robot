@@ -188,7 +188,11 @@ export class EventProcessor {
     if (uid !== undefined) {
       await this.deps.catalog.recordMembership(uid, conversationKey(event.ref), event.timestamp);
     }
-    const replies = await this.deps.postback.route({ ref: event.ref, data: event.data });
+    const replies = await this.deps.postback.route({
+      ref: event.ref,
+      data: event.data,
+      params: event.params,
+    });
     if (replies.length === 0) {
       return;
     }

@@ -23,6 +23,11 @@ await Promise.all([
     outfile: "dist/processor/index.mjs",
   }),
   build({ ...common, entryPoints: ["src/lambda/sweep.ts"], outfile: "dist/sweep/index.mjs" }),
+  build({
+    ...common,
+    entryPoints: ["src/lambda/reminder.ts"],
+    outfile: "dist/reminder/index.mjs",
+  }),
   // Operational CLI (not deployed): the rich-menu setup. Bundled so it can be run with plain `node`.
   build({
     ...common,
@@ -32,4 +37,6 @@ await Promise.all([
   }),
 ]);
 
-console.log("Built dist/{ingest,processor,sweep}/index.mjs + dist/scripts/setup-rich-menu.mjs");
+console.log(
+  "Built dist/{ingest,processor,sweep,reminder}/index.mjs + dist/scripts/setup-rich-menu.mjs",
+);

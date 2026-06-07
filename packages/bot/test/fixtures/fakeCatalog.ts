@@ -1,19 +1,23 @@
 import type {
   ConversationTracker,
   Property,
+  PropertyEvent,
   PropertyUpsert,
 } from "../../src/core/domain/catalog.js";
 import type { CatalogRepository } from "../../src/core/ports/catalog.js";
 
 /**
  * A small in-memory {@link CatalogRepository} for handler/assistant tests: real property + edge +
- * membership semantics (so listPropertiesForUser / merge behave), with the ingestion-tracker ops
- * stubbed (those have their own DynamoDB-backed tests). Exposes the backing maps for assertions.
+ * membership + event semantics (so listPropertiesForUser / merge / follow-ups behave), with the
+ * ingestion-tracker ops stubbed (those have their own DynamoDB-backed tests). Exposes the backing
+ * maps for assertions.
  */
 export class FakeCatalog implements CatalogRepository {
   readonly properties = new Map<string, Property>();
   readonly convProps = new Map<string, Set<string>>();
   readonly userConvs = new Map<string, Set<string>>();
+  /** Follow-up events, keyed by propertyId. */
+  readonly events = new Map<string, PropertyEvent[]>();
 
   seedProperty(property: Property): this {
     this.properties.set(property.propertyId, property);
@@ -93,5 +97,36 @@ export class FakeCatalog implements CatalogRepository {
     return [...ids]
       .map((id) => this.properties.get(id))
       .filter((p): p is Property => p !== undefined);
+  }
+
+  // --- Property events ---
+  seedEvent(event: PropertyEvent): this {
+    this.events.set(event.propertyId, [...(this.events.get(event.propertyId) ?? []), event]);
+    return this;
+  }
+  async addEvent(event: PropertyEvent): Promise<void> {
+    this.seedEvent(event);
+  }
+  async listPropertyEvents(propertyId: string): Promise<PropertyEvent[]> {
+    return [...(this.events.get(propertyId) ?? [])];
+  }
+  async findDueEvents(nowIso: string, limit: number): Promise<PropertyEvent[]> {
+    return [...this.events.values()]
+      .flat()
+      .filter((e) => e.notifiedAt === undefined && new Date(e.dueAt).toISOString() <= nowIso)
+      .sort((a, b) => a.dueAt - b.dueAt)
+      .slice(0, limit);
+  }
+  async markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean> {
+    const list = this.events.get(event.propertyId) ?? [];
+    const target = list.find((e) => e.eventId === event.eventId);
+    if (target === undefined || target.notifiedAt !== undefined) {
+      return false;
+    }
+    this.events.set(
+      event.propertyId,
+      list.map((e) => (e.eventId === event.eventId ? { ...e, notifiedAt: nowMs } : e)),
+    );
+    return true;
   }
 }

@@ -75,6 +75,27 @@ describe("CatalogPostbackRouter", () => {
     expect(catalog.properties.get("into")?.askingPrice).toBe(9_000_000);
   });
 
+  it("sets a follow-up from a datetime-picker postback, ignoring one with no datetime", async () => {
+    const catalog = new FakeCatalog().seedProperty({
+      propertyId: "p1",
+      normalizedAddress: "1 Sukhumvit",
+    });
+    const out = await routerWith(catalog).route({
+      ref: DM,
+      data: encodePostback(ACTIONS.setFollowUp, { id: "p1" }),
+      params: { datetime: "2999-06-10T09:00" },
+    });
+    expect(textOf(out[0])).toContain("Follow-up set");
+    expect(await catalog.listPropertyEvents("p1")).toHaveLength(1);
+
+    // No datetime param (e.g. the user dismissed the picker) → nothing happens.
+    const none = await routerWith(catalog).route({
+      ref: DM,
+      data: encodePostback(ACTIONS.setFollowUp, { id: "p1" }),
+    });
+    expect(none).toEqual([]);
+  });
+
   it("acknowledges keep-separate and ignores an unknown/garbled action", async () => {
     const router = routerWith();
     expect(

@@ -13,7 +13,11 @@ import { ACTIONS, decodePostback } from "./commands.js";
 export class CatalogPostbackRouter implements PostbackRouter {
   constructor(private readonly assistant: CatalogAssistant) {}
 
-  async route({ ref, data }: PostbackInteraction): Promise<OutboundMessage[]> {
+  async route({
+    ref,
+    data,
+    params: pickerParams,
+  }: PostbackInteraction): Promise<OutboundMessage[]> {
     const { action, params } = decodePostback(data);
     switch (action) {
       case ACTIONS.listings:
@@ -21,7 +25,7 @@ export class CatalogPostbackRouter implements PostbackRouter {
       case ACTIONS.search:
         return this.assistant.searchPrompt();
       case ACTIONS.upcoming:
-        return this.assistant.upcoming();
+        return this.withUser(ref, (userId) => this.assistant.upcoming(userId));
       case ACTIONS.help:
         return this.assistant.help();
       case ACTIONS.view:
@@ -35,6 +39,14 @@ export class CatalogPostbackRouter implements PostbackRouter {
       }
       case ACTIONS.keep:
         return this.assistant.keepSeparate();
+      case ACTIONS.setFollowUp: {
+        // The chosen time comes from the LINE datetime-picker's `params.datetime`, not the `data`.
+        const id = params.get("id");
+        const datetime = pickerParams?.datetime;
+        return id !== null && datetime !== undefined
+          ? this.assistant.setFollowUp(conversationKey(ref), id, datetime)
+          : [];
+      }
       default:
         return [];
     }

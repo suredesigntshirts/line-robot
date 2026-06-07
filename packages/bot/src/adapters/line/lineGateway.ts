@@ -1,6 +1,11 @@
 import type { Readable } from "node:stream";
 import { messagingApi } from "@line/bot-sdk";
-import type { OutboundMessage, PropertyCard, QuickReply } from "../../core/domain/message.js";
+import type {
+  CardAction,
+  OutboundMessage,
+  PropertyCard,
+  QuickReply,
+} from "../../core/domain/message.js";
 import type { LineContentClient } from "../../core/ports/lineContent.js";
 import type { LineGateway } from "../../core/ports/lineGateway.js";
 
@@ -35,8 +40,19 @@ function toQuickReply(items?: readonly QuickReply[]): messagingApi.QuickReply | 
   };
 }
 
+/** Render a card action as the matching LINE action: a `datetimepicker` for `mode: "datetime"`
+ * (used by "Set follow-up"), otherwise a plain `postback`. The picker delivers its result back as a
+ * postback carrying the same `data` plus a `datetime` param. */
+function toCardAction(action: CardAction): messagingApi.Action {
+  const label = action.label.slice(0, MAX_LABEL);
+  if (action.mode === "datetime") {
+    return { type: "datetimepicker", label, data: action.data, mode: "datetime" };
+  }
+  return { type: "postback", label, data: action.data, displayText: action.label };
+}
+
 /** Build a Flex bubble from a semantic {@link PropertyCard}: title/subtitle, `label: value` rows,
- * and postback action buttons; an optional hero image is included only when a url is present. */
+ * and action buttons; an optional hero image is included only when a url is present. */
 function toBubble(card: PropertyCard): messagingApi.FlexBubble {
   const body: messagingApi.FlexComponent[] = [
     { type: "text", text: card.title, weight: "bold", size: "lg", wrap: true },
@@ -77,12 +93,7 @@ function toBubble(card: PropertyCard): messagingApi.FlexBubble {
         type: "button",
         style: "primary",
         height: "sm",
-        action: {
-          type: "postback",
-          label: a.label.slice(0, MAX_LABEL),
-          data: a.data,
-          displayText: a.label,
-        },
+        action: toCardAction(a),
       })),
     };
   }

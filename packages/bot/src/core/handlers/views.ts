@@ -4,6 +4,7 @@
  * (the Flex JSON is built later in the gateway), so every shape here is unit-testable in isolation.
  */
 import type { Property } from "../domain/catalog.js";
+import { formatDueDate } from "../domain/datetime.js";
 import type {
   OutboundMessage,
   PropertyCard,
@@ -14,6 +15,7 @@ import { ACTIONS, encodePostback } from "./commands.js";
 
 const MAX_CARDS = 12; // LINE carousel cap (mirrored in the gateway; we also note when we truncate).
 const MAX_MERGE_CHOICES = 3; // keep the confirmation quick-reply row short
+const MAX_UPCOMING_CHIPS = 13; // LINE quick-reply cap (gateway also enforces this)
 
 /** A property's display title: clean address, else project name, else a short id. */
 export function propertyTitle(property: Property): string {
@@ -61,6 +63,11 @@ export function propertyCard(property: Property): PropertyCard {
     rows,
     actions: [
       { label: "Details", data: encodePostback(ACTIONS.view, { id: property.propertyId }) },
+      {
+        label: "📅 Follow-up",
+        data: encodePostback(ACTIONS.setFollowUp, { id: property.propertyId }),
+        mode: "datetime",
+      },
     ],
   };
 }
@@ -127,7 +134,59 @@ export function searchPromptMessage(): OutboundMessage {
 export function upcomingEmptyMessage(): OutboundMessage {
   return {
     type: "text",
-    text: "No upcoming follow-ups yet — set a follow-up date on a listing and I'll remind you (coming soon).",
+    text: "No upcoming follow-ups. Open a listing and tap 📅 Follow-up to set a reminder.",
+  };
+}
+
+/** One due follow-up, resolved to display strings for the "Upcoming" list. */
+export interface UpcomingFollowUp {
+  readonly propertyId: string;
+  readonly propertyTitle: string;
+  readonly dueAt: number;
+  readonly title?: string;
+}
+
+/** Render the user's upcoming follow-ups as a dated list, with a "View" chip per distinct property
+ * (so a row stays tappable). Falls back to the empty-state when there are none. */
+export function upcomingMessage(items: readonly UpcomingFollowUp[]): OutboundMessage {
+  if (items.length === 0) {
+    return upcomingEmptyMessage();
+  }
+  const lines = ["⏰ Upcoming follow-ups:"];
+  for (const item of items) {
+    lines.push(
+      `• ${formatDueDate(item.dueAt)} — ${item.title ?? "Follow-up"} · ${item.propertyTitle}`,
+    );
+  }
+
+  const seen = new Set<string>();
+  const chips: QuickReply[] = [];
+  for (const item of items) {
+    if (seen.has(item.propertyId) || chips.length >= MAX_UPCOMING_CHIPS) {
+      continue;
+    }
+    seen.add(item.propertyId);
+    chips.push({
+      label: `View ${item.propertyTitle}`,
+      data: encodePostback(ACTIONS.view, { id: item.propertyId }),
+    });
+  }
+  return { type: "text", text: lines.join("\n"), quickReplies: chips };
+}
+
+/** The push reminder sent when a follow-up falls due, with a chip to open the listing. */
+export function reminderMessage(
+  propertyId: string,
+  propertyTitle: string,
+  dueAt: number,
+  title?: string,
+): OutboundMessage {
+  return {
+    type: "text",
+    text: `⏰ Follow-up due: ${title ?? "Follow-up"}\n📍 ${propertyTitle} · ${formatDueDate(dueAt)}`,
+    quickReplies: [
+      { label: "View listing", data: encodePostback(ACTIONS.view, { id: propertyId }) },
+    ],
   };
 }
 

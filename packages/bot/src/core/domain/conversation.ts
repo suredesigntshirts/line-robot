@@ -31,6 +31,13 @@ export function pushTarget(ref: ConversationRef): string {
   }
 }
 
+/** The push recipient id for a stored `conversationKey` (`<kind>#<id>`) — the reminder sweep holds
+ * the key string, not a {@link ConversationRef}. Ids never contain `#`, so the id is everything
+ * after the first one. */
+export function pushTargetFromKey(conversationKey: string): string {
+  return conversationKey.slice(conversationKey.indexOf("#") + 1);
+}
+
 /**
  * The user who sent/owns a message or interaction: the peer in a DM, the sender in a group/room
  * (undefined when LINE didn't include a sender). Drives membership edges and "show *my* listings".

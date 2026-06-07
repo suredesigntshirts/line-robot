@@ -6,6 +6,8 @@ export interface PostbackInteraction {
   readonly ref: ConversationRef;
   /** The action `data` payload the UI element carried (decoded by the router). */
   readonly data: string;
+  /** LINE-supplied params — notably the datetime-picker's `datetime` value for follow-ups. */
+  readonly params?: Record<string, string>;
 }
 
 /**

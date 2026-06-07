@@ -57,6 +57,8 @@ async function createTable(client: DynamoDBClient): Promise<void> {
         { AttributeName: "sk", AttributeType: "S" },
         { AttributeName: "gsi1pk", AttributeType: "S" },
         { AttributeName: "gsi1sk", AttributeType: "S" },
+        { AttributeName: "gsi2pk", AttributeType: "S" },
+        { AttributeName: "gsi2sk", AttributeType: "S" },
       ],
       KeySchema: [
         { AttributeName: "pk", KeyType: "HASH" },
@@ -68,6 +70,14 @@ async function createTable(client: DynamoDBClient): Promise<void> {
           KeySchema: [
             { AttributeName: "gsi1pk", KeyType: "HASH" },
             { AttributeName: "gsi1sk", KeyType: "RANGE" },
+          ],
+          Projection: { ProjectionType: "ALL" },
+        },
+        {
+          IndexName: "gsi2",
+          KeySchema: [
+            { AttributeName: "gsi2pk", KeyType: "HASH" },
+            { AttributeName: "gsi2sk", KeyType: "RANGE" },
           ],
           Projection: { ProjectionType: "ALL" },
         },
@@ -252,5 +262,69 @@ describe("properties + edges + membership", () => {
 
     expect(await repo.getProperty("pMerge")).toBeNull();
     expect(await repo.listConversationProperties("conv-merge")).toEqual([]);
+  });
+});
+
+// PropertyEvents live under the property partition (sk EVT#<dueIso>#<id>) and surface to the reminder
+// sweep via the sparse GSI2 (gsi2sk = <dueIso>#<id>). markEventNotified clears the GSI keys so a
+// notified event drops out of findDueEvents — exercised end-to-end below.
+describe("property events (calendar / reminders)", () => {
+  it("lists a property's events and finds only those due, soonest-first", async () => {
+    const early = { dueAt: Date.parse("2026-06-10T03:00:00Z") };
+    const late = { dueAt: Date.parse("2026-06-10T05:00:00Z") };
+    const future = { dueAt: Date.parse("2026-09-01T00:00:00Z") };
+    await repo.addEvent({
+      eventId: "evtB",
+      propertyId: "pEvt",
+      dueAt: late.dueAt,
+      notifyConversationKey: "group#G",
+      title: "Call seller",
+    });
+    await repo.addEvent({
+      eventId: "evtA",
+      propertyId: "pEvt",
+      dueAt: early.dueAt,
+      notifyConversationKey: "group#G",
+    });
+    await repo.addEvent({
+      eventId: "evtF",
+      propertyId: "pEvt",
+      dueAt: future.dueAt,
+      notifyConversationKey: "group#G",
+    });
+
+    expect((await repo.listPropertyEvents("pEvt")).map((e) => e.eventId).sort()).toEqual([
+      "evtA",
+      "evtB",
+      "evtF",
+    ]);
+
+    const due = await repo.findDueEvents(iso(Date.parse("2026-06-10T06:00:00Z")), 50);
+    expect(due.map((e) => e.eventId)).toEqual(["evtA", "evtB"]); // future excluded, ordered by dueAt
+    expect(due[0]).toMatchObject({ notifyConversationKey: "group#G" });
+  });
+
+  it("claims an event at most once and drops it from the due index on notify", async () => {
+    await repo.addEvent({
+      eventId: "evtOnce",
+      propertyId: "pOnce",
+      dueAt: Date.parse("2026-06-10T03:00:00Z"),
+      notifyConversationKey: "user#U1",
+    });
+    // The GSI2 partition is shared across all properties, so pick our event out by id (other tests'
+    // un-notified events are due here too).
+    const due = await repo.findDueEvents(iso(Date.parse("2026-06-10T06:00:00Z")), 50);
+    const event = due.find((e) => e.eventId === "evtOnce");
+    expect(event).toBeDefined();
+
+    // First claim wins; a racing second claim loses.
+    expect(await repo.markEventNotified(event as never, 1000)).toBe(true);
+    expect(await repo.markEventNotified(event as never, 1001)).toBe(false);
+
+    // Notified → GSI keys cleared → no longer due, but the row remains (notifiedAt stamped).
+    const stillDue = await repo.findDueEvents(iso(Date.parse("2026-06-10T06:00:00Z")), 50);
+    expect(stillDue.map((e) => e.eventId)).not.toContain("evtOnce");
+    const remaining = (await repo.listPropertyEvents("pOnce")).find((e) => e.eventId === "evtOnce");
+    expect(remaining?.notifiedAt).toBe(1000);
   });
 });

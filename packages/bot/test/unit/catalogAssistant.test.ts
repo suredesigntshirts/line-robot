@@ -69,11 +69,43 @@ describe("CatalogAssistant — retrieval", () => {
     expect(textOf((await assistant.viewProperty("missing"))[0])).toContain("couldn't find");
   });
 
-  it("returns help, search-prompt, and upcoming copy", () => {
+  it("returns help and search-prompt copy", () => {
     const assistant = new CatalogAssistant(new FakeCatalog(), clock);
     expect(assistant.help()[0]?.type).toBe("text");
     expect(assistant.searchPrompt()[0]?.type).toBe("text");
-    expect(textOf(assistant.upcoming()[0])).toContain("No upcoming follow-ups");
+  });
+
+  it("shows an empty upcoming list, then lists follow-ups soonest-first", async () => {
+    const catalog = new FakeCatalog()
+      .seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }))
+      .seedEdge("user#U1", "p1")
+      .seedMembership("U1", "user#U1");
+    const assistant = new CatalogAssistant(catalog, clock);
+
+    expect(textOf((await assistant.upcoming("U1"))[0])).toContain("No upcoming follow-ups");
+
+    await catalog.addEvent({
+      eventId: "e1",
+      propertyId: "p1",
+      dueAt: Date.parse("2026-06-10T07:30:00Z"), // 14:30 ICT
+      notifyConversationKey: "user#U1",
+    });
+    const [list] = await assistant.upcoming("U1");
+    expect(textOf(list)).toContain("Upcoming follow-ups");
+    expect(textOf(list)).toContain("1 Rama IX");
+  });
+
+  it("sets a follow-up from a datetime pick and rejects a past time", async () => {
+    const catalog = new FakeCatalog().seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }));
+    const modernClock = { now: () => Date.parse("2026-06-07T00:00:00Z") };
+    const assistant = new CatalogAssistant(catalog, modernClock, () => "evt-1");
+
+    const [ok] = await assistant.setFollowUp("user#U1", "p1", "2026-06-10T09:00");
+    expect(textOf(ok)).toContain("Follow-up set");
+    expect((await catalog.listPropertyEvents("p1"))[0]?.eventId).toBe("evt-1");
+
+    const [past] = await assistant.setFollowUp("user#U1", "p1", "2020-01-01T09:00");
+    expect(textOf(past)).toContain("already passed");
   });
 });
 

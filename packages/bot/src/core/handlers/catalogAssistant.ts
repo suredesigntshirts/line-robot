@@ -3,7 +3,9 @@
  * {@link ./commandHandler} (typed text) and the {@link ./postbackRouter} (button/quick-reply taps)
  * are thin parsers that delegate here, so the retrieval + merge logic lives — and is tested — once.
  */
+import { randomUUID } from "node:crypto";
 import type { Property, PropertyUpsert } from "../domain/catalog.js";
+import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { Clock } from "../ports/runtime.js";
@@ -13,7 +15,8 @@ import {
   propertyDetail,
   propertyTitle,
   searchPromptMessage,
-  upcomingEmptyMessage,
+  type UpcomingFollowUp,
+  upcomingMessage,
 } from "./views.js";
 
 /** Most-recently-active first, so the freshest listings lead the carousel. */
@@ -36,10 +39,15 @@ function matchesQuery(property: Property, query: string): boolean {
 }
 
 export class CatalogAssistant {
+  private readonly newId: () => string;
+
   constructor(
     private readonly catalog: CatalogRepository,
     private readonly clock: Clock,
-  ) {}
+    newId?: () => string,
+  ) {
+    this.newId = newId ?? randomUUID;
+  }
 
   /** "Show my listings" — read-access follows the user across every chat they're a member of. */
   async myListings(userId: string): Promise<OutboundMessage[]> {
@@ -66,8 +74,65 @@ export class CatalogAssistant {
     ];
   }
 
-  upcoming(): OutboundMessage[] {
-    return [upcomingEmptyMessage()];
+  /** "Upcoming" — the user's outstanding follow-ups across every listing they can see, soonest
+   * first. Notified events drop out (their reminder already fired). */
+  async upcoming(userId: string): Promise<OutboundMessage[]> {
+    const properties = await this.catalog.listPropertiesForUser(userId);
+    const rows: UpcomingFollowUp[] = [];
+    await Promise.all(
+      properties.map(async (property) => {
+        const events = await this.catalog.listPropertyEvents(property.propertyId);
+        for (const event of events) {
+          if (event.notifiedAt === undefined) {
+            rows.push({
+              propertyId: property.propertyId,
+              propertyTitle: propertyTitle(property),
+              dueAt: event.dueAt,
+              title: event.title,
+            });
+          }
+        }
+      }),
+    );
+    rows.sort((a, b) => a.dueAt - b.dueAt);
+    return [upcomingMessage(rows)];
+  }
+
+  /**
+   * Set a follow-up reminder on a property from the datetime-picker tap. The picked value is
+   * Bangkok-local (LINE sends no timezone). The reminder is pushed to the conversation it was set
+   * in. Rejects a past time so the sweep doesn't fire an instant, confusing reminder.
+   */
+  async setFollowUp(
+    conversationKey: string,
+    propertyId: string,
+    datetimeLocal: string,
+  ): Promise<OutboundMessage[]> {
+    const property = await this.catalog.getProperty(propertyId);
+    if (property === null) {
+      return [{ type: "text", text: "I couldn't find that listing to set a follow-up on." }];
+    }
+    const dueAt = parseBangkokLocal(datetimeLocal);
+    if (dueAt === null) {
+      return [{ type: "text", text: "That follow-up time didn't look valid — please try again." }];
+    }
+    const now = this.clock.now();
+    if (dueAt <= now) {
+      return [{ type: "text", text: "That time has already passed — pick a future time." }];
+    }
+    await this.catalog.addEvent({
+      eventId: this.newId(),
+      propertyId,
+      dueAt,
+      notifyConversationKey: conversationKey,
+      createdAt: now,
+    });
+    return [
+      {
+        type: "text",
+        text: `📅 Follow-up set for ${formatDueDate(dueAt)} on ${propertyTitle(property)}. I'll remind you here.`,
+      },
+    ];
   }
 
   help(): OutboundMessage[] {

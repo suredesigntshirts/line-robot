@@ -36,6 +36,25 @@ export type PropertyUpsert = { readonly propertyId: string } & Partial<
   Omit<Property, "propertyId">
 >;
 
+/**
+ * A calendar follow-up attached to a property (P2). Fires a single push reminder to
+ * `notifyConversationKey` at `dueAt`. `notifiedAt` is stamped once the reminder is pushed — which
+ * also clears the sparse GSI2 keys, so a notified event drops out of the reminder sweep's due-query.
+ */
+export interface PropertyEvent {
+  readonly eventId: string;
+  readonly propertyId: string;
+  /** Epoch ms the follow-up is due. */
+  readonly dueAt: number;
+  /** Short label, e.g. "Site visit"; rendered as a generic "Follow-up" when absent. */
+  readonly title?: string;
+  /** The conversation the reminder is pushed to (where the follow-up was set). */
+  readonly notifyConversationKey: string;
+  /** Epoch ms the reminder was pushed; absent until then. */
+  readonly notifiedAt?: number;
+  readonly createdAt?: number;
+}
+
 /** The lifecycle/ingestion state of one conversation. Drives the debounced ingestion sweep. */
 export interface ConversationTracker {
   readonly conversationKey: string;
