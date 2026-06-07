@@ -70,10 +70,18 @@ function bearerToken(request: HttpRequest): string {
 
 /** Presign one key, swallowing failure (mirrors the chat assistant — a bad/expired key never 500s
  * the whole listing; it's simply dropped). */
-async function presign(signer: MediaUrlSigner, key: string): Promise<string | null> {
+async function presign(
+  signer: MediaUrlSigner,
+  key: string,
+  logger: Logger,
+): Promise<string | null> {
   try {
     return await signer.presignGet(key);
-  } catch {
+  } catch (error) {
+    logger.warn("read-api: presign failed; dropping photo", {
+      s3Key: key,
+      error: String(error),
+    });
     return null;
   }
 }
@@ -81,17 +89,22 @@ async function presign(signer: MediaUrlSigner, key: string): Promise<string | nu
 async function presignHero(
   signer: MediaUrlSigner,
   property: Property,
+  logger: Logger,
 ): Promise<string | undefined> {
   const key = heroPhotoKey(property.photos);
   if (key === undefined) {
     return undefined;
   }
-  return (await presign(signer, key)) ?? undefined;
+  return (await presign(signer, key, logger)) ?? undefined;
 }
 
-async function presignGallery(signer: MediaUrlSigner, property: Property): Promise<PhotoDto[]> {
+async function presignGallery(
+  signer: MediaUrlSigner,
+  property: Property,
+  logger: Logger,
+): Promise<PhotoDto[]> {
   const photos = orderedPhotos(property.photos);
-  const urls = await Promise.all(photos.map((p) => presign(signer, p.s3Key)));
+  const urls = await Promise.all(photos.map((p) => presign(signer, p.s3Key, logger)));
   const out: PhotoDto[] = [];
   photos.forEach((photo, i) => {
     const url = urls[i];
@@ -122,7 +135,7 @@ async function handleMyProperties(deps: ReadApiDeps, userId: string): Promise<Ht
   );
   const dtos = await Promise.all(
     properties.map(async (p) => {
-      const heroUrl = await presignHero(deps.signer, p);
+      const heroUrl = await presignHero(deps.signer, p, deps.logger);
       return { ...toListDto(p), ...(heroUrl !== undefined ? { heroUrl } : {}) };
     }),
   );
@@ -143,7 +156,7 @@ async function handlePropertyDetail(
   if (property === null) {
     return json(404, { error: "not_found" });
   }
-  const photos = await presignGallery(deps.signer, property);
+  const photos = await presignGallery(deps.signer, property, deps.logger);
   return json(200, { ...toDetailDto(property), photos });
 }
 

@@ -9,7 +9,7 @@ import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
-import type { Clock } from "../ports/runtime.js";
+import type { Clock, Logger } from "../ports/runtime.js";
 import {
   deletePromptMessage,
   helpMessage,
@@ -68,6 +68,7 @@ export class CatalogAssistant {
     private readonly clock: Clock,
     newId?: () => string,
     private readonly signer?: MediaUrlSigner,
+    private readonly logger?: Logger,
   ) {
     this.newId = newId ?? randomUUID;
   }
@@ -114,7 +115,12 @@ export class CatalogAssistant {
         }
         try {
           return [property.propertyId, await signer.presignGet(key)] as const;
-        } catch {
+        } catch (error) {
+          this.logger?.warn("catalog: hero presign failed; dropping photo", {
+            propertyId: property.propertyId,
+            s3Key: key,
+            error: String(error),
+          });
           return null;
         }
       }),
@@ -254,7 +260,12 @@ export class CatalogAssistant {
       keys.map(async (key): Promise<string | null> => {
         try {
           return await signer.presignGet(key);
-        } catch {
+        } catch (error) {
+          this.logger?.warn("catalog: gallery presign failed; dropping photo", {
+            propertyId: property.propertyId,
+            s3Key: key,
+            error: String(error),
+          });
           return null;
         }
       }),

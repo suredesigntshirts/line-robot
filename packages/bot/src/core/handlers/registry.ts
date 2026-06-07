@@ -4,7 +4,7 @@ import type { PropertyExtractor } from "../ports/extraction.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { MessageHandler } from "../ports/messageHandler.js";
 import type { PostbackRouter } from "../ports/postbackRouter.js";
-import type { Clock } from "../ports/runtime.js";
+import type { Clock, Logger } from "../ports/runtime.js";
 import { CatalogAssistant } from "./catalogAssistant.js";
 import { CommandHandler } from "./commandHandler.js";
 import { EditReplyHandler } from "./editReplyHandler.js";
@@ -39,13 +39,21 @@ export interface HandlerDeps {
   /** When present, enables {@link EditReplyHandler} (free-text edits of the last-viewed listing).
    * Absent (e.g. no Anthropic key wired) → the chain is the command handler alone, as before. */
   readonly extractor?: PropertyExtractor;
+  /** When present, presign-failure warns are emitted from the assistant's photo boundaries. */
+  readonly logger?: Logger;
 }
 
 /** The default message-handler wiring: the catalog command handler behind the composite seam, with
  * the free-text edit handler appended after it (so typed commands always win) when an extractor is
  * available. */
 export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
-  const assistant = new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer);
+  const assistant = new CatalogAssistant(
+    deps.catalog,
+    deps.clock,
+    undefined,
+    deps.signer,
+    deps.logger,
+  );
   const handlers: MessageHandler[] = [new CommandHandler(assistant)];
   if (deps.extractor !== undefined) {
     handlers.push(new EditReplyHandler(deps.catalog, deps.extractor, deps.clock));
@@ -56,6 +64,6 @@ export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
 /** The default postback router: resolves card-button / quick-reply / rich-menu taps. */
 export function createPostbackRouter(deps: HandlerDeps): PostbackRouter {
   return new CatalogPostbackRouter(
-    new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer),
+    new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer, deps.logger),
   );
 }

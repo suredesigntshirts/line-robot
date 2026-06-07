@@ -6,6 +6,19 @@ import { textOf } from "../fixtures/outbound.js";
 
 const clock = { now: () => 1_000_000 };
 
+/** A logger spy that records every warn call for assertion. */
+function spyLogger() {
+  const warns: Array<{ msg: string; ctx?: Record<string, unknown> }> = [];
+  return {
+    warns,
+    info() {},
+    warn(msg: string, ctx?: Record<string, unknown>) {
+      warns.push({ msg, ctx });
+    },
+    error() {},
+  };
+}
+
 function prop(id: string, over: Partial<Property> = {}): Property {
   return { propertyId: id, ...over };
 }
@@ -170,6 +183,64 @@ describe("CatalogAssistant — retrieval", () => {
     }
     const [gallery] = await assistant.showPhotos("p1");
     expect(gallery?.type).toBe("text"); // friendly "no photos" fallback
+  });
+
+  it("warns and drops the hero when a property's presign throws, keeping the others", async () => {
+    const catalog = new FakeCatalog();
+    seedUserListings(catalog, "U1", "user#U1", [
+      prop("good", {
+        normalizedAddress: "1 Good Rd",
+        lastActivityAt: 2,
+        photos: [{ s3Key: "good/hero.jpg", kind: "property" }],
+      }),
+      prop("bad", {
+        normalizedAddress: "2 Boom Rd",
+        lastActivityAt: 1,
+        photos: [{ s3Key: "bad/boom.jpg", kind: "property" }],
+      }),
+    ]);
+    const signer = {
+      presignGet: async (key: string) => {
+        if (key.includes("boom")) throw new Error("presign failed");
+        return `signed:${key}`;
+      },
+    };
+    const logger = spyLogger();
+
+    const [msg] = await new CatalogAssistant(catalog, clock, undefined, signer, logger).myListings(
+      "U1",
+    );
+    if (msg?.type !== "flex") throw new Error("expected a flex carousel");
+    expect(msg.cards[0]?.heroImageUrl).toBe("signed:good/hero.jpg"); // good survives
+    expect(msg.cards[1]?.heroImageUrl).toBeUndefined(); // bad dropped
+    expect(logger.warns).toHaveLength(1);
+    expect(logger.warns[0]?.ctx).toMatchObject({ propertyId: "bad", s3Key: "bad/boom.jpg" });
+  });
+
+  it("warns once per failed photo in the gallery and drops only the bad ones", async () => {
+    const catalog = new FakeCatalog().seedProperty(
+      prop("p1", {
+        normalizedAddress: "1 Rama IX",
+        photos: [
+          { s3Key: "ok.jpg", kind: "property" },
+          { s3Key: "boom.jpg", kind: "property" },
+        ],
+      }),
+    );
+    const signer = {
+      presignGet: async (key: string) => {
+        if (key.includes("boom")) throw new Error("presign failed");
+        return `signed:${key}`;
+      },
+    };
+    const logger = spyLogger();
+    const assistant = new CatalogAssistant(catalog, clock, undefined, signer, logger);
+
+    const [gallery] = await assistant.showPhotos("p1");
+    if (gallery?.type !== "imageCarousel") throw new Error("expected an image carousel");
+    expect(gallery.imageUrls).toEqual(["signed:ok.jpg"]); // boom dropped
+    expect(logger.warns).toHaveLength(1);
+    expect(logger.warns[0]?.ctx).toMatchObject({ propertyId: "p1", s3Key: "boom.jpg" });
   });
 
   it("arms an edit context for the conversation only when a conversationKey is given", async () => {

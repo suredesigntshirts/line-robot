@@ -25,12 +25,22 @@ const signer: MediaUrlSigner = {
   },
 };
 
+/** Capturing logger spy: tests read `warns` and reset it per-case. */
+const logSpy = { warns: [] as Array<{ msg: string; ctx?: Record<string, unknown> }> };
+const captureLogger = {
+  info() {},
+  warn(msg: string, ctx?: Record<string, unknown>) {
+    logSpy.warns.push({ msg, ctx });
+  },
+  error() {},
+};
+
 function deps(catalog: FakeCatalog): ReadApiDeps {
   return {
     catalog,
     signer,
     verifier,
-    logger: { info() {}, warn() {}, error() {} },
+    logger: captureLogger,
     clock: { now: () => 1_000_000 },
   };
 }
@@ -99,6 +109,24 @@ describe("GET /me/properties", () => {
     expect(list[0]?.heroUrl).toBe("signed:p1/hero.jpg"); // first `property` photo
     expect(list[1]?.heroUrl).toBeUndefined(); // p2 has no photos
   });
+
+  it("warns and omits the hero (no 500) when a listing's hero presign fails", async () => {
+    logSpy.warns.length = 0;
+    const catalog = seeded();
+    catalog
+      .seedProperty({
+        propertyId: "p9",
+        normalizedAddress: "boom hero",
+        lastActivityAt: 300, // newest → sorts first
+        photos: [{ s3Key: "p9/boom.jpg", kind: "property" }],
+      })
+      .seedEdge(CONV, "p9");
+    const res = await handleReadApi(deps(catalog), event("GET", "/me/properties", AUTH));
+    const list = body(res) as Array<{ propertyId: string; heroUrl?: string }>;
+    const p9 = list.find((p) => p.propertyId === "p9");
+    expect(p9?.heroUrl).toBeUndefined(); // dropped, not a 500
+    expect(logSpy.warns.some((w) => w.ctx?.s3Key === "p9/boom.jpg")).toBe(true);
+  });
 });
 
 describe("GET /properties/{id}", () => {
@@ -126,6 +154,7 @@ describe("GET /properties/{id}", () => {
   });
 
   it("does not 500 when one photo fails to presign — it drops the bad one", async () => {
+    logSpy.warns.length = 0;
     const catalog = seeded();
     catalog.seedProperty({
       propertyId: "p3",
@@ -140,6 +169,8 @@ describe("GET /properties/{id}", () => {
     expect(res.statusCode).toBe(200);
     const detail = body(res) as { photos: Array<{ url: string }> };
     expect(detail.photos).toEqual([{ url: "signed:p3/ok.jpg", kind: "property" }]);
+    expect(logSpy.warns.length).toBeGreaterThanOrEqual(1);
+    expect(logSpy.warns.some((w) => w.ctx?.s3Key === "p3/boom.jpg")).toBe(true);
   });
 });
 
