@@ -52,6 +52,10 @@ export interface ExtractionRequest {
 export interface ExtractedProperty {
   readonly existingPropertyId: string | null;
   readonly ambiguous: boolean;
+  /** When `ambiguous`, the candidate property id(s) this might be the same as (a subset of the
+   * provided candidates), so the merge confirmation can offer exactly those rather than every
+   * listing. Null/empty → the sweep falls back to offering all candidates. */
+  readonly ambiguousWith: readonly string[] | null;
   readonly normalizedAddress: string | null;
   readonly rawAddress: string | null;
   readonly projectName: string | null;

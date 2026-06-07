@@ -248,6 +248,7 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
           {
             existingPropertyId: null,
             ambiguous: false,
+            ambiguousWith: null,
             normalizedAddress: "123 Sukhumvit",
             rawAddress: "123 sukhumvit rd",
             projectName: null,

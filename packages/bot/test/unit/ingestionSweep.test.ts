@@ -80,6 +80,7 @@ function extracted(over: Partial<ExtractedProperty> = {}): ExtractedProperty {
   return {
     existingPropertyId: null,
     ambiguous: false,
+    ambiguousWith: null,
     normalizedAddress: null,
     rawAddress: null,
     projectName: null,
@@ -399,6 +400,34 @@ describe("IngestionSweep — extraction", () => {
       label: "Keep separate",
       data: "action=keep&id=gen-1",
     });
+  });
+
+  it("narrows the merge offer to the model's ambiguousWith hint", async () => {
+    const { sweep, spies } = makeSweep(
+      [{ tracker: tracker("user#GH"), claim: tracker("user#GH"), batch }],
+      {
+        convProperties: { "user#GH": ["p-thonglor", "p-rama9"] },
+        properties: {
+          "p-thonglor": { propertyId: "p-thonglor", normalizedAddress: "Thonglor plot" },
+          "p-rama9": { propertyId: "p-rama9", normalizedAddress: "Rama IX condo" },
+        },
+        // The model is only torn between the Thonglor plot — not the Rama IX condo.
+        extract: () => ({
+          properties: [extracted({ ambiguous: true, ambiguousWith: ["p-thonglor"] })],
+        }),
+      },
+    );
+    await sweep.run();
+
+    const msg = spies.pushes[0]?.messages[0];
+    if (msg?.type !== "text" || msg.quickReplies === undefined) {
+      throw new Error("expected a text confirmation with quick replies");
+    }
+    // Only the hinted candidate is offered (plus Keep separate) — the Rama IX condo is excluded.
+    const mergeChips = msg.quickReplies.filter((q) => q.label.startsWith("Merge →"));
+    expect(mergeChips).toEqual([
+      { label: "Merge → Thonglor plot", data: "action=merge&from=gen-1&into=p-thonglor" },
+    ]);
   });
 
   it("feeds S3 media bytes to the extractor as base64", async () => {

@@ -25,13 +25,14 @@ async function buildSweep(): Promise<IngestionSweep> {
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
+  const logger = new PowertoolsLoggerAdapter();
   return new IngestionSweep({
     catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
     messages: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
-    extractor: createClaudeExtractor(anthropicApiKey),
+    extractor: createClaudeExtractor(anthropicApiKey, undefined, logger),
     media: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
     gateway: createLineMessagingGateway(channelAccessToken),
-    logger: new PowertoolsLoggerAdapter(),
+    logger,
     clock: SYSTEM_CLOCK,
   });
 }

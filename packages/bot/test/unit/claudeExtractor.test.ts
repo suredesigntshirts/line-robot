@@ -122,8 +122,11 @@ describe("ClaudeExtractor — escalation ladder", () => {
     maxTokens: number;
   }
 
-  /** Fake the SDK client: each model returns its scripted parsed_output (or null). */
-  function extractorWith(script: Record<string, { lowConfidence: boolean } | null>) {
+  /** Fake the SDK client: each model returns its scripted parsed_output (or null) + usage. */
+  function extractorWith(
+    script: Record<string, { lowConfidence: boolean } | null>,
+    logs?: { msg: string; ctx: unknown }[],
+  ) {
     const calls: Call[] = [];
     const client = {
       messages: {
@@ -140,11 +143,27 @@ describe("ClaudeExtractor — escalation ladder", () => {
             maxTokens: params.max_tokens,
           });
           const out = script[params.model];
-          return { parsed_output: out ? { properties: [], memoryUpdate: null, ...out } : null };
+          return {
+            parsed_output: out ? { properties: [], memoryUpdate: null, ...out } : null,
+            usage: {
+              cache_read_input_tokens: 7,
+              cache_creation_input_tokens: 0,
+              input_tokens: 3,
+              output_tokens: 9,
+            },
+          };
         },
       },
     } as unknown as Anthropic;
-    return { extractor: new ClaudeExtractor(client, LADDER), calls };
+    const logger =
+      logs === undefined
+        ? undefined
+        : {
+            info: (msg: string, ctx?: unknown) => logs.push({ msg, ctx }),
+            warn: () => {},
+            error: () => {},
+          };
+    return { extractor: new ClaudeExtractor(client, LADDER, logger), calls };
   }
 
   it("uses the primary plain when it is confident — no escalation", async () => {
@@ -184,5 +203,13 @@ describe("ClaudeExtractor — escalation ladder", () => {
     const allNull = extractorWith({});
     expect(await allNull.extractor.extract(request())).toBeNull();
     expect(allNull.calls.map((c) => c.model)).toEqual(["m1", "m2", "m3"]);
+  });
+
+  it("logs token usage per call (so cache hits are verifiable)", async () => {
+    const logs: { msg: string; ctx: unknown }[] = [];
+    const { extractor } = extractorWith({ m1: { lowConfidence: false } }, logs);
+    await extractor.extract(request());
+    const usageLog = logs.find((l) => l.msg === "extraction call");
+    expect(usageLog?.ctx).toMatchObject({ model: "m1", cacheReadTokens: 7, inputTokens: 3 });
   });
 });

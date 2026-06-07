@@ -6,6 +6,7 @@ import type {
   ExtractionResult,
   PropertyExtractor,
 } from "../../core/ports/extraction.js";
+import type { Logger } from "../../core/ports/runtime.js";
 
 /**
  * Property extraction via one structured-output call per tier (no agent loop — cheapest). The cheap
@@ -41,6 +42,7 @@ const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "imag
 const ExtractedPropertySchema = z.object({
   existingPropertyId: z.string().nullable(),
   ambiguous: z.boolean(),
+  ambiguousWith: z.array(z.string()).nullable(),
   normalizedAddress: z.string().nullable(),
   rawAddress: z.string().nullable(),
   projectName: z.string().nullable(),
@@ -71,7 +73,7 @@ const SYSTEM_PROMPT = `You are a real-estate catalog assistant for a Thai/Englis
 Method:
 - First segment the batch into per-property buckets, then emit one entry per DISTINCT property.
 - Decide update-vs-create per property: if it clearly matches one of the existing properties provided, set existingPropertyId to that id; otherwise set existingPropertyId to null (a new property).
-- If a match is plausible but you are not confident, set existingPropertyId to null AND ambiguous to true. Never guess a merge across ambiguity.
+- If a match is plausible but you are not confident, set existingPropertyId to null AND ambiguous to true, and set ambiguousWith to the id(s) of the existing candidate(s) it might actually be (from the provided candidates). Never guess a merge across ambiguity.
 - Use null for every field not stated. Do NOT invent values.
 - Set lowConfidence to true only if this batch is genuinely hard to extract — unreadable handwriting/OCR, conflicting or contradictory figures, or you are unsure of the overall structure. A stronger model then re-reads it. Otherwise set lowConfidence to false; do NOT set it merely because some fields are absent.
 
@@ -94,13 +96,17 @@ const MEMORY_PREAMBLE =
 
 /**
  * Build the system prefix: a shared, conversation-independent instruction block (its own cache
- * breakpoint, so it can be reused across conversations once large enough — Haiku's minimum cacheable
- * prefix is 4096 tokens), plus the per-conversation memory note in a second block with a 1h TTL so a
- * conversation re-ingesting within the hour reuses it. Exported (pure) so the shape is unit-testable.
+ * breakpoint, so it can be reused across conversations once large enough), plus the per-conversation
+ * memory note in a second block. Both use a **1h** TTL because re-ingests of the same conversation
+ * are spaced by the debounce window (5–30 min), which would expire the default 5-min cache before
+ * the next sweep. NOTE: Haiku's minimum cacheable prefix is **4096 tokens** — today's system+memory
+ * prefix is well under that, so these breakpoints don't actually cache yet; they're placed correctly
+ * for when the prefix grows (verify with `cache_read_input_tokens` in the logs). Exported (pure) so
+ * the shape is unit-testable.
  */
 export function buildExtractionSystem(memory?: string): Anthropic.TextBlockParam[] {
   const blocks: Anthropic.TextBlockParam[] = [
-    { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+    { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral", ttl: "1h" } },
   ];
   const trimmed = memory?.trim();
   if (trimmed !== undefined && trimmed !== "") {
@@ -167,6 +173,7 @@ export class ClaudeExtractor implements PropertyExtractor {
   constructor(
     private readonly client: Anthropic,
     private readonly ladder: readonly ModelTier[] = DEFAULT_LADDER,
+    private readonly logger?: Logger,
   ) {}
 
   async extract(request: ExtractionRequest): Promise<ExtractionResult | null> {
@@ -208,6 +215,19 @@ export class ClaudeExtractor implements PropertyExtractor {
       },
       ...(tier.thinking === true ? { thinking: { type: "adaptive" as const } } : {}),
     });
+    // Log token usage so cache effectiveness (cache_read_input_tokens > 0) and per-tier cost are
+    // observable in CloudWatch — the cheapest way to verify prompt caching once the prefix is large
+    // enough to cache.
+    const usage = response.usage;
+    if (this.logger !== undefined && usage !== undefined) {
+      this.logger.info("extraction call", {
+        model: tier.model,
+        cacheReadTokens: usage.cache_read_input_tokens ?? 0,
+        cacheCreationTokens: usage.cache_creation_input_tokens ?? 0,
+        inputTokens: usage.input_tokens,
+        outputTokens: usage.output_tokens,
+      });
+    }
     // parsed_output is null if the model refused or produced unparseable output — guard it.
     return response.parsed_output ?? null;
   }
@@ -216,6 +236,7 @@ export class ClaudeExtractor implements PropertyExtractor {
 export function createClaudeExtractor(
   apiKey: string,
   ladder?: readonly ModelTier[],
+  logger?: Logger,
 ): ClaudeExtractor {
-  return new ClaudeExtractor(new Anthropic({ apiKey }), ladder);
+  return new ClaudeExtractor(new Anthropic({ apiKey }), ladder, logger);
 }

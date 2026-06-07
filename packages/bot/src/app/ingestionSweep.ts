@@ -289,6 +289,11 @@ export class IngestionSweep {
 
     const label =
       nullToUndef(property.normalizedAddress) ?? nullToUndef(property.projectName) ?? propertyId;
+    // Narrow the merge offer to the model's `ambiguousWith` hint when it named valid candidates;
+    // otherwise fall back to offering every candidate (the safe original behaviour).
+    const hinted = new Set(property.ambiguousWith ?? []);
+    const filtered = mergeTargets.filter((t) => hinted.has(t.id));
+    const offered = filtered.length > 0 ? filtered : mergeTargets;
     return {
       propertyId,
       isNew,
@@ -296,7 +301,7 @@ export class IngestionSweep {
       label,
       // Only an ambiguous create-new gets merge offers, and only against *other* existing
       // properties (the just-created one is brand new, so it's never in the candidate set).
-      ...(property.ambiguous && mergeTargets.length > 0 ? { mergeTargets } : {}),
+      ...(property.ambiguous && offered.length > 0 ? { mergeTargets: offered } : {}),
     };
   }
 
