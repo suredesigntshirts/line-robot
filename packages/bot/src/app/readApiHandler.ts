@@ -9,6 +9,7 @@
  * additionally enforces membership — a caller can only fetch a listing reachable through one of their
  * conversations — so property ids are not enumerable.
  */
+import type { UpcomingItem } from "@line-robot/shared";
 import type { Property, PropertyPhoto } from "../core/domain/catalog.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { propertyTitle } from "../core/handlers/views.js";
@@ -148,12 +149,7 @@ async function handlePropertyDetail(
 
 async function handleUpcoming(deps: ReadApiDeps, userId: string): Promise<HttpResponse> {
   const properties = await deps.catalog.listPropertiesForUser(userId);
-  const rows: Array<{
-    propertyId: string;
-    propertyTitle: string;
-    dueAt: number;
-    title?: string;
-  }> = [];
+  const rows: UpcomingItem[] = [];
   await Promise.all(
     properties.map(async (property) => {
       const events = await deps.catalog.listPropertyEvents(property.propertyId);

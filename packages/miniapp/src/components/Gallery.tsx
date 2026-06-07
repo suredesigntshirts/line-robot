@@ -1,8 +1,9 @@
 /** A swipeable photo strip (scroll-snap) with per-photo kind/label captions, in the API's
  * property → chanote → other order. Tapping a photo opens a full-screen lightbox that allows native
  * pinch-zoom (`touch-action: pinch-zoom`). */
+
+import type { Photo } from "@line-robot/shared";
 import { useState } from "preact/hooks";
-import type { Photo } from "../types.js";
 
 const KIND_LABEL: Record<string, string> = {
   property: "Photo",

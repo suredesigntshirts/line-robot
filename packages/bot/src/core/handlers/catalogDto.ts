@@ -5,70 +5,13 @@
  * attached by {@link ../../app/readApiHandler} (which has the signer); these mappers stay
  * unit-testable in isolation.
  */
-import type { Chanote, Property } from "../domain/catalog.js";
+import type { PhotoDto, PropertyDetailDto, PropertyListDto } from "@line-robot/shared";
+import type { Property } from "../domain/catalog.js";
 import { area, formatPrice, mapsUri, propertyTitle, statusBadge } from "./views.js";
 
-/** One presigned photo in a detail response (kept in the API's `property → chanote → other` order). */
-export interface PhotoDto {
-  readonly url: string;
-  readonly kind: string;
-  readonly label?: string;
-}
-
-/** A listing as it appears in the scrollable List screen. `heroUrl` is presigned by the handler;
- * `priceValue`/`updatedAt`/`area`/`propertyType`/`status` back the client-side sort + filter chips,
- * and `search` is the lowercased haystack the search box matches (mirrors `listingsOnRoad`). */
-export interface PropertyListDto {
-  readonly propertyId: string;
-  readonly title: string;
-  readonly status?: string;
-  readonly statusBadge?: string;
-  readonly price?: string;
-  readonly priceValue?: number;
-  readonly currency?: string;
-  readonly propertyType?: string;
-  readonly listingType?: string;
-  readonly area?: string;
-  readonly updatedAt?: number;
-  /** Lowercased concatenation of address/area/project fields for the free-text search box. */
-  readonly search: string;
-  /** Presigned hero image (attached by the handler when the listing has a photo). */
-  readonly heroUrl?: string;
-}
-
-/** A listing's full detail (the Detail/Gallery/Map screen). `photos` is attached by the handler with
- * presigned URLs; everything else is a pure projection of the stored {@link Property}. */
-export interface PropertyDetailDto {
-  readonly propertyId: string;
-  readonly title: string;
-  readonly status?: string;
-  readonly statusBadge?: string;
-  readonly price?: string;
-  readonly rent?: string;
-  readonly currency?: string;
-  readonly propertyType?: string;
-  readonly listingType?: string;
-  readonly bedrooms?: number;
-  readonly bathrooms?: number;
-  readonly usableAreaSqm?: number;
-  readonly landArea?: string;
-  readonly floors?: number;
-  readonly furnishing?: string;
-  readonly projectName?: string;
-  readonly address?: string;
-  readonly area?: string;
-  readonly contact?: string;
-  readonly source?: string;
-  readonly tags?: readonly string[];
-  readonly notes?: string;
-  readonly chanote?: Chanote;
-  readonly lat?: number;
-  readonly long?: number;
-  readonly mapsUri?: string;
-  readonly createdAt?: number;
-  readonly updatedAt?: number;
-  readonly photos: readonly PhotoDto[];
-}
+// The DTO contract lives in the shared kernel; the mappers below produce these exact shapes. Re-export
+// so readApiHandler + tests keep importing these from the catalogDto barrel.
+export type { PhotoDto, PropertyDetailDto, PropertyListDto };
 
 /** Drop keys whose value is `undefined` (or an empty array) so the JSON carries only present fields —
  * the webview renders exactly what we have, same as the Flex cards' `pushRow` omits empties. */

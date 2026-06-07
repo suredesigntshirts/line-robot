@@ -3,7 +3,7 @@
  * the Function URL base is baked at build time (`VITE_READ_API_URL`). A non-2xx throws {@link
  * ApiError} carrying the status so screens can show 401 (re-open in LINE) vs 404 (gone) vs other.
  */
-import type { PropertyDetail, PropertyListItem, UpcomingItem } from "./types.js";
+import type { PropertyDetail, PropertyListItem, UpcomingItem } from "@line-robot/shared";
 
 const BASE = (import.meta.env.VITE_READ_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
 

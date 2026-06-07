@@ -4,7 +4,7 @@
  * locally with filter chips (status / type / area), a free-text box (the server-built `search`
  * haystack), and a sort selector.
  */
-import type { PropertyListItem } from "../types.js";
+import type { PropertyListItem } from "@line-robot/shared";
 
 export interface Filters {
   readonly status?: string;

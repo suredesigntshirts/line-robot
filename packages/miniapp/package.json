@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@line-robot/shared": "*",
     "@line/liff": "2.29.0",
     "leaflet": "^1.9.4",
     "preact": "^10.29.2"

@@ -1,6 +1,6 @@
+import type { PropertyListItem } from "@line-robot/shared";
 import { describe, expect, it } from "vitest";
 import { applyFilters, distinctValues, sortItems } from "../src/lib/predicates.js";
-import type { PropertyListItem } from "../src/types.js";
 
 function item(over: Partial<PropertyListItem> & { propertyId: string }): PropertyListItem {
   return { title: over.propertyId, search: "", ...over };

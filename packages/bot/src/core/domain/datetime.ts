@@ -6,11 +6,12 @@
  * and avoids depending on the Lambda runtime's tz data).
  */
 
-/** Asia/Bangkok is UTC+7 with no daylight saving. */
-export const BANGKOK_OFFSET_MS = 7 * 60 * 60_000;
+import { BANGKOK_OFFSET_MS, MONTHS } from "@line-robot/shared";
+
+/** Re-exported for existing bot importers so the module surface stays stable. */
+export { BANGKOK_OFFSET_MS };
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Parse a LINE datetime-picker value (`YYYY-MM-DDTHH:mm`, Bangkok-local) into epoch ms. Returns
  * `null` for anything that isn't that exact shape. */

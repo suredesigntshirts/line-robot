@@ -4,6 +4,13 @@
  * single-table layout. See `plans/09-realestate-catalog-assistant.md` for the access model.
  */
 
+// Chanote lives in the shared kernel (it is part of the read-API contract). Imported for local use
+// (Property.chanote) and re-exported so existing importers (claudeExtractor, catalogRepository,
+// ports/extraction, catalogDto, ingestionMedia) keep importing it from the domain.
+import type { Chanote } from "@line-robot/shared";
+
+export type { Chanote };
+
 /** How a stored image was classified by the per-image OCR pass (plan 13). The gallery shows all
  * three the same on LINE but ordered property → chanote → other. */
 export type PhotoKind = "property" | "chanote" | "other";
@@ -16,37 +23,6 @@ export interface PropertyPhoto {
   readonly kind: PhotoKind;
   /** A loose descriptor of the specific shot/page, omitted when the classifier had nothing useful. */
   readonly label?: string;
-}
-
-/** Structured data OCR'd from a Thai land title-deed (chanote / นส.3ก / etc.). Captured by the
- * per-image classifier (plan 13) and attached to the property; rendered as its own Details section.
- * Every field is optional — keep whatever was legible, omit the rest. */
-export interface Chanote {
-  /** chanote (Nor Sor 4 Jor) | nor-sor-3-gor | nor-sor-3 | sor-por-kor | other (best guess by the
-   * document's content/layout, NOT the Garuda colour or file type). */
-  readonly titleType?: string;
-  /** Title-deed number (เลขที่โฉนด). */
-  readonly deedNumber?: string;
-  /** Land/parcel number (เลขที่ดิน). */
-  readonly landNumber?: string;
-  /** Survey page (หน้าสำรวจ). */
-  readonly surveyPage?: string;
-  /** Map-sheet / ระวาง number. */
-  readonly mapSheet?: string;
-  /** Issuing Land Office (สำนักงานที่ดิน). */
-  readonly landOffice?: string;
-  /** Location as printed on the deed (also used to backfill the property's own location). */
-  readonly province?: string;
-  readonly district?: string;
-  readonly subdistrict?: string;
-  /** Area as written, in Thai units (e.g. "1 rai 2 ngan 30 wah"). */
-  readonly landArea?: string;
-  /** Registered owner name(s). */
-  readonly ownerName?: string;
-  /** Encumbrances from the reverse side: mortgages, leases, usufructs, servitudes. */
-  readonly encumbrances?: readonly string[];
-  /** A note when text was not fully legible / low-confidence reads, so a human can double-check. */
-  readonly confidenceNote?: string;
 }
 
 /** A catalogued property. Slice 1 models the identity/location/commercial core that the access

@@ -1,5 +1,7 @@
 /** The List screen: every one of the caller's listings (no 12-card cap), narrowed by a search box +
  * status/type/area chips and ordered by a sort selector — all client-side over the fetched set. */
+
+import type { PropertyListItem } from "@line-robot/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, api } from "../api.js";
 import { detailPath } from "../lib/deeplink.js";
@@ -11,7 +13,6 @@ import {
   sortItems,
 } from "../lib/predicates.js";
 import { getIdToken } from "../liff.js";
-import type { PropertyListItem } from "../types.js";
 import { type AsyncState, Badge, ErrorView, Spinner } from "../ui.js";
 
 export function ListScreen({ navigate }: { navigate: (path: string) => void }) {

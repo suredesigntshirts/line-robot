@@ -1,12 +1,13 @@
 /** The Detail screen: every field of one listing, its photo gallery, the chanote (title-deed) block,
  * an in-app map pin, and an "Open in Maps" deep link. Read-only — editing stays in chat. */
+
+import type { Chanote, PropertyDetail } from "@line-robot/shared";
 import { useEffect, useState } from "preact/hooks";
 import { ApiError, api } from "../api.js";
 import { Gallery } from "../components/Gallery.js";
 import { MapPin } from "../components/MapPin.js";
 import { formatDate } from "../lib/format.js";
 import { getIdToken } from "../liff.js";
-import type { Chanote, PropertyDetail } from "../types.js";
 import { type AsyncState, Badge, ErrorView, Field, Spinner } from "../ui.js";
 
 export function DetailScreen({ id, navigate }: { id: string; navigate: (path: string) => void }) {
