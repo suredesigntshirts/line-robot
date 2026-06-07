@@ -28,7 +28,7 @@ describe("CatalogPostbackRouter", () => {
     expect(out[0]?.type).toBe("flex");
   });
 
-  it("routes view to a property's detail", async () => {
+  it("routes view to a property's detail (rich flex card)", async () => {
     const catalog = new FakeCatalog().seedProperty({
       propertyId: "p1",
       normalizedAddress: "9 Rama IX",
@@ -37,7 +37,30 @@ describe("CatalogPostbackRouter", () => {
       ref: DM,
       data: encodePostback(ACTIONS.view, { id: "p1" }),
     });
-    expect(textOf(out[0])).toContain("9 Rama IX");
+    expect(out[0]?.type).toBe("flex");
+    if (out[0]?.type === "flex") {
+      expect(out[0].cards[0]?.title).toBe("9 Rama IX");
+    }
+  });
+
+  it("routes photos to an image carousel of the property's photos", async () => {
+    const catalog = new FakeCatalog().seedProperty({
+      propertyId: "p1",
+      normalizedAddress: "9 Rama IX",
+      photos: ["a.jpg", "b.jpg"],
+    });
+    const signer = { presignGet: async (k: string) => `https://signed.example/${k}` };
+    const router = new CatalogPostbackRouter(
+      new CatalogAssistant(catalog, clock, undefined, signer),
+    );
+    const out = await router.route({ ref: DM, data: encodePostback(ACTIONS.photos, { id: "p1" }) });
+    expect(out[0]?.type).toBe("imageCarousel");
+    if (out[0]?.type === "imageCarousel") {
+      expect(out[0].imageUrls).toEqual([
+        "https://signed.example/a.jpg",
+        "https://signed.example/b.jpg",
+      ]);
+    }
   });
 
   it("routes search, upcoming, and help to text", async () => {

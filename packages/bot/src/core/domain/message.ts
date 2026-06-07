@@ -57,11 +57,14 @@ export interface QuickReply {
 
 /** One action button on a property card, rendered in the Flex footer. Defaults to a postback button;
  * `mode: "datetime"` renders a LINE datetime-picker instead, which delivers the chosen time back as
- * a postback with the same `data` plus a `datetime` param. */
+ * a postback with the same `data` plus a `datetime` param; `mode: "uri"` renders a link button that
+ * opens `uri` (e.g. a Google-Maps deep link) — `data` is unused for that mode. */
 export interface CardAction {
   readonly label: string;
   readonly data: string;
-  readonly mode?: "postback" | "datetime";
+  readonly mode?: "postback" | "datetime" | "uri";
+  /** Target for `mode: "uri"` buttons (ignored otherwise). */
+  readonly uri?: string;
 }
 
 /** A single `label: value` line inside a property card body. */
@@ -78,16 +81,22 @@ export interface PropertyCardRow {
 export interface PropertyCard {
   readonly title: string;
   readonly subtitle?: string;
-  /** HTTPS hero image url. Omitted until properties carry public photo urls (extraction doesn't
-   * record photo keys yet); the card renders without a hero in the meantime. */
+  /** A prominent line under the title/subtitle (e.g. the price on a detail card). Rendered larger
+   * and bolder than a row. Carousel cards omit it; the detail card uses it. */
+  readonly headline?: string;
+  /** HTTPS hero image url. Omitted when a property has no photo; the card renders without a hero. */
   readonly heroImageUrl?: string;
   readonly rows: readonly PropertyCardRow[];
+  /** Muted footnote lines shown after the rows (e.g. a "reply to update" hint and saved/updated
+   * dates on the detail card). Separated from the rows by a divider when present. */
+  readonly notes?: readonly string[];
   readonly actions: readonly CardAction[];
 }
 
 /**
  * A provider-agnostic outbound message the bot wants to send. `text` is the original path (now with
- * optional quick replies); `flex` renders a carousel of {@link PropertyCard}s. Both carry optional
+ * optional quick replies); `flex` renders a carousel of {@link PropertyCard}s; `imageCarousel`
+ * renders a swipeable gallery of images, each tappable to open at full size. All carry optional
  * quick replies, which the gateway attaches to the LINE message.
  */
 export type OutboundMessage =
@@ -97,6 +106,14 @@ export type OutboundMessage =
       /** Fallback text shown in notifications and on clients that can't render Flex. */
       readonly altText: string;
       readonly cards: readonly PropertyCard[];
+      readonly quickReplies?: readonly QuickReply[];
+    }
+  | {
+      readonly type: "imageCarousel";
+      /** Fallback text shown in notifications and on clients that can't render the gallery. */
+      readonly altText: string;
+      /** HTTPS image urls (e.g. presigned S3 GETs); each bubble opens its image at full size. */
+      readonly imageUrls: readonly string[];
       readonly quickReplies?: readonly QuickReply[];
     };
 

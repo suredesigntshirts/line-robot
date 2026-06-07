@@ -277,5 +277,6 @@ export class EventProcessor {
 
 /** A plain-text representation of an outbound message for the message-log row. */
 function outboundText(message: OutboundMessage): string {
+  // text → its text; flex / imageCarousel → their altText (the meaningful audit summary).
   return message.type === "text" ? message.text : message.altText;
 }

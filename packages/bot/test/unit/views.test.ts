@@ -4,7 +4,9 @@ import { decodePostback } from "../../src/core/handlers/commands.js";
 import {
   formatPrice,
   helpMessage,
+  imageCarouselMessage,
   listingsMessage,
+  mapsUri,
   mergePromptQuickReplies,
   propertyCard,
   propertyDetail,
@@ -104,25 +106,89 @@ describe("listingsMessage", () => {
   });
 });
 
-describe("text views", () => {
-  it("renders a property detail with the salient fields", () => {
+describe("propertyDetail", () => {
+  it("renders a rich flex card with the salient fields, status badge, and price headline", () => {
     const msg = propertyDetail(
       prop({
         normalizedAddress: "123 Sukhumvit",
+        projectName: "The Park",
         askingPrice: 6_000_000,
+        propertyType: "condo",
         status: "visited",
+        district: "Watthana",
+        province: "Bangkok",
         tags: ["near-bts"],
+        createdAt: Date.UTC(2026, 5, 2),
+        updatedAt: Date.UTC(2026, 5, 6),
       }),
+      { heroImageUrl: "https://signed.example/a.jpg", photoCount: 3 },
     );
-    expect(msg.type).toBe("text");
-    if (msg.type === "text") {
-      expect(msg.text).toContain("123 Sukhumvit");
-      expect(msg.text).toContain("฿6,000,000");
-      expect(msg.text).toContain("visited");
-      expect(msg.text).toContain("near-bts");
+    expect(msg.type).toBe("flex");
+    if (msg.type !== "flex") {
+      return;
     }
+    const card = msg.cards[0];
+    expect(card?.title).toBe("123 Sukhumvit"); // address wins the title
+    expect(card?.subtitle).toBe("👀 Visited"); // status badge
+    expect(card?.headline).toBe("฿6,000,000"); // prominent price
+    expect(card?.heroImageUrl).toBe("https://signed.example/a.jpg");
+    // The title was the address, so the *project* surfaces as a row (not the address again).
+    expect(card?.rows).toContainEqual({ label: "Project", value: "The Park" });
+    expect(card?.rows).not.toContainEqual({ label: "Address", value: "123 Sukhumvit" });
+    expect(card?.rows).toContainEqual({ label: "Type", value: "condo" });
+    expect(card?.rows).toContainEqual({ label: "Area", value: "Watthana, Bangkok" });
+    expect(card?.rows).toContainEqual({ label: "Tags", value: "near-bts" });
+    // Reply-to-update hint + saved/updated stamps.
+    expect(card?.notes?.[0]).toContain("Reply to update");
+    expect(card?.notes?.[1]).toBe("Saved 2 Jun · Updated 6 Jun");
   });
 
+  it("shows the Photos button only with ≥2 photos, and Maps + Follow-up always-ish", () => {
+    const withPhotos = propertyDetail(prop({ lat: 13.7, long: 100.5 }), { photoCount: 3 });
+    const onePhoto = propertyDetail(prop({ lat: 13.7, long: 100.5 }), { photoCount: 1 });
+    const labels = (m: typeof withPhotos): string[] =>
+      m.type === "flex" ? (m.cards[0]?.actions.map((a) => a.label) ?? []) : [];
+    expect(labels(withPhotos)).toEqual(["🗺 Open in Maps", "🖼 Photos (3)", "📅 Follow-up"]);
+    expect(labels(onePhoto)).toEqual(["🗺 Open in Maps", "📅 Follow-up"]); // no Photos button
+  });
+
+  it("omits the Maps button when there is no location or address at all", () => {
+    const msg = propertyDetail(prop({ askingPrice: 1 }));
+    if (msg.type === "flex") {
+      const labels = msg.cards[0]?.actions.map((a) => a.label) ?? [];
+      expect(labels).not.toContain("🗺 Open in Maps");
+    }
+  });
+});
+
+describe("mapsUri", () => {
+  it("prefers lat/long coordinates", () => {
+    expect(mapsUri(prop({ lat: 13.736, long: 100.523 }))).toBe(
+      "https://www.google.com/maps/search/?api=1&query=13.736,100.523",
+    );
+  });
+  it("falls back to a URL-encoded address when there are no coordinates", () => {
+    expect(mapsUri(prop({ normalizedAddress: "123 Sukhumvit Rd" }))).toBe(
+      "https://www.google.com/maps/search/?api=1&query=123%20Sukhumvit%20Rd",
+    );
+  });
+  it("is undefined when we have neither coordinates nor any address/area/project", () => {
+    expect(mapsUri(prop())).toBeUndefined();
+  });
+});
+
+describe("imageCarouselMessage", () => {
+  it("builds an imageCarousel from urls", () => {
+    const msg = imageCarouselMessage(["u1", "u2"], "Photos · X");
+    expect(msg).toEqual({ type: "imageCarousel", altText: "Photos · X", imageUrls: ["u1", "u2"] });
+  });
+  it("falls back to friendly text when there are no photos", () => {
+    const msg = imageCarouselMessage([], "Photos · X");
+    expect(msg.type).toBe("text");
+  });
+});
+
+describe("text views", () => {
   it("provides help, search-prompt, and upcoming empty-state copy", () => {
     expect(helpMessage().type).toBe("text");
     expect(searchPromptMessage().type).toBe("text");

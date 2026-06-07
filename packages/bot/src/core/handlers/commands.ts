@@ -17,6 +17,8 @@ export const ACTIONS = {
   help: "help",
   /** Show one property's details (param: `id`). */
   view: "view",
+  /** Show a property's full photo gallery as an image carousel (param: `id`). */
+  photos: "photos",
   /** Merge a just-created property into an existing one (params: `from`, `into`). */
   merge: "merge",
   /** Keep a confirmation-flagged property as its own listing (param: `id`). */

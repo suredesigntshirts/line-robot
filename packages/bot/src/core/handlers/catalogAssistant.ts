@@ -12,6 +12,7 @@ import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock } from "../ports/runtime.js";
 import {
   helpMessage,
+  imageCarouselMessage,
   listingsMessage,
   propertyDetail,
   propertyTitle,
@@ -175,7 +176,40 @@ export class CatalogAssistant {
     if (property === null) {
       return [{ type: "text", text: "I couldn't find that listing — it may have been merged." }];
     }
-    return [propertyDetail(property)];
+    // Presign every photo so the detail's hero and its "Photos (N)" count reflect what we can
+    // actually show (no signer / all presigns failed → no hero, no Photos button).
+    const photos = await this.presignPhotos(property);
+    return [propertyDetail(property, { heroImageUrl: photos[0], photoCount: photos.length })];
+  }
+
+  /** The full photo gallery for a property, as a swipeable image carousel (the "Photos" button). */
+  async showPhotos(propertyId: string): Promise<OutboundMessage[]> {
+    const property = await this.catalog.getProperty(propertyId);
+    if (property === null) {
+      return [{ type: "text", text: "I couldn't find that listing — it may have been merged." }];
+    }
+    const photos = await this.presignPhotos(property);
+    return [imageCarouselMessage(photos, `Photos · ${propertyTitle(property)}`)];
+  }
+
+  /** Presign every photo of one property (in order), dropping any that fail or when there's no
+   * signer — so one bad key never breaks the gallery. Mirrors {@link heroUrls} for a single listing. */
+  private async presignPhotos(property: Property): Promise<string[]> {
+    const signer = this.signer;
+    const keys = property.photos;
+    if (signer === undefined || keys === undefined) {
+      return [];
+    }
+    const urls = await Promise.all(
+      keys.map(async (key): Promise<string | null> => {
+        try {
+          return await signer.presignGet(key);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return urls.filter((u): u is string => u !== null);
   }
 
   /**

@@ -30,6 +30,12 @@ export function parseBangkokLocal(local: string): number | null {
   return Date.UTC(y, mo - 1, d, h, min) - BANGKOK_OFFSET_MS;
 }
 
+/** Format an instant as a compact Bangkok-local date, e.g. `2 Jun` (no time). */
+export function formatShortDate(at: number): string {
+  const d = new Date(at + BANGKOK_OFFSET_MS); // shift so UTC getters read Bangkok wall-clock
+  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+}
+
 /** Format an instant as a short Bangkok-local label, e.g. `Tue Jun 10, 14:30 ICT`. */
 export function formatDueDate(dueAt: number): string {
   const d = new Date(dueAt + BANGKOK_OFFSET_MS); // shift so UTC getters read Bangkok wall-clock

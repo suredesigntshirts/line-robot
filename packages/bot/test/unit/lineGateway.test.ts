@@ -153,6 +153,60 @@ describe("LineMessagingGateway", () => {
     });
   });
 
+  it("renders a `mode: uri` card action as a LINE uri button, plus headline + notes", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+
+    await gateway.reply("rt", [
+      {
+        type: "flex",
+        altText: "card",
+        cards: [
+          {
+            title: "123 Sukhumvit",
+            subtitle: "🟡 Negotiating",
+            headline: "฿4,500,000",
+            rows: [{ label: "Type", value: "condo" }],
+            notes: ["💬 Reply to update", "Saved 2 Jun · Updated 6 Jun"],
+            actions: [
+              { label: "🗺 Open in Maps", data: "", mode: "uri", uri: "https://maps.example/x" },
+            ],
+          },
+        ],
+      },
+    ]);
+    const bubble = firstMessage(client.replyMessage).contents;
+    expect(bubble.footer.contents[0].action).toMatchObject({
+      type: "uri",
+      label: "🗺 Open in Maps",
+      uri: "https://maps.example/x",
+    });
+    // headline + the two note lines (after a separator) are present in the body.
+    const texts = bubble.body.contents
+      .filter((c: { type: string; text?: string }) => c.type === "text")
+      .map((c: { text?: string }) => c.text);
+    expect(texts).toContain("฿4,500,000");
+    expect(texts).toContain("💬 Reply to update");
+    expect(bubble.body.contents.some((c: { type: string }) => c.type === "separator")).toBe(true);
+  });
+
+  it("renders an imageCarousel as a flex carousel of tappable image bubbles", async () => {
+    const client = fakeClient();
+    const gateway = new LineMessagingGateway(client);
+
+    await gateway.reply("rt", [
+      { type: "imageCarousel", altText: "Photos", imageUrls: ["https://i/1", "https://i/2"] },
+    ]);
+    const sent = firstMessage(client.replyMessage);
+    expect(sent.type).toBe("flex");
+    expect(sent.altText).toBe("Photos");
+    expect(sent.contents.type).toBe("carousel");
+    expect(sent.contents.contents).toHaveLength(2);
+    const hero = sent.contents.contents[0].hero;
+    expect(hero).toMatchObject({ type: "image", url: "https://i/1" });
+    expect(hero.action).toMatchObject({ type: "uri", uri: "https://i/1" });
+  });
+
   it("caps a carousel at 12 bubbles", async () => {
     const client = fakeClient();
     const gateway = new LineMessagingGateway(client);

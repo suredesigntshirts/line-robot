@@ -4,8 +4,9 @@
  * (the Flex JSON is built later in the gateway), so every shape here is unit-testable in isolation.
  */
 import type { Property } from "../domain/catalog.js";
-import { formatDueDate } from "../domain/datetime.js";
+import { formatDueDate, formatShortDate } from "../domain/datetime.js";
 import type {
+  CardAction,
   OutboundMessage,
   PropertyCard,
   PropertyCardRow,
@@ -95,27 +96,128 @@ export function listingsMessage(
   };
 }
 
-/** A one-message text detail of a single property. */
-export function propertyDetail(property: Property): OutboundMessage {
-  const lines = [`📍 ${propertyTitle(property)}`];
-  const price = formatPrice(property.askingPrice, property.currency);
-  if (price !== undefined) {
-    lines.push(`Price: ${price}`);
+/** Per-status emoji "badge" — a provider-agnostic way to make the status read as a chip. */
+const STATUS_EMOJI: Record<string, string> = {
+  lead: "🔵",
+  researching: "🔎",
+  visited: "👀",
+  negotiating: "🟡",
+  offer: "✉️",
+  "under-contract": "🟠",
+  closed: "🟢",
+  dropped: "⚪",
+};
+
+/** "🟡 Negotiating" — the status with a leading emoji badge and a capitalized label. */
+function statusBadge(status?: string): string | undefined {
+  if (status === undefined || status === "") {
+    return undefined;
   }
+  const emoji = STATUS_EMOJI[status] ?? "•";
+  return `${emoji} ${status.charAt(0).toUpperCase()}${status.slice(1)}`;
+}
+
+/**
+ * A Google-Maps deep link for the property: by coordinates when we have them, else by the best
+ * address/area string we can build. Undefined when we have neither — the Maps button is then omitted.
+ */
+export function mapsUri(property: Property): string | undefined {
+  if (property.lat !== undefined && property.long !== undefined) {
+    return `https://www.google.com/maps/search/?api=1&query=${property.lat},${property.long}`;
+  }
+  const address =
+    property.normalizedAddress ??
+    property.rawAddresses?.[0] ??
+    area(property) ??
+    property.projectName;
+  return address === undefined
+    ? undefined
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
+/**
+ * A rich, single-bubble Flex detail of one property: hero photo, status badge, prominent price,
+ * full location (project / address / area), tags, a "reply to update" hint + saved/updated dates,
+ * and footer actions (Open in Maps · Photos · Follow-up). The caller resolves `heroImageUrl` and
+ * `photoCount` (presigning happens in the assistant); the Photos button shows only with ≥2 photos.
+ */
+export function propertyDetail(
+  property: Property,
+  opts: { heroImageUrl?: string; photoCount?: number } = {},
+): OutboundMessage {
+  const title = propertyTitle(property);
+
+  const rows: PropertyCardRow[] = [];
   if (property.propertyType !== undefined) {
-    lines.push(`Type: ${property.propertyType}`);
+    rows.push({ label: "Type", value: property.propertyType });
   }
-  if (property.status !== undefined) {
-    lines.push(`Status: ${property.status}`);
+  // Surface the *other* identifier rather than repeating the heading: propertyTitle prefers the
+  // address then the project, so show whichever the title didn't already use.
+  if (property.projectName !== undefined && property.projectName !== title) {
+    rows.push({ label: "Project", value: property.projectName });
+  }
+  if (property.normalizedAddress !== undefined && property.normalizedAddress !== title) {
+    rows.push({ label: "Address", value: property.normalizedAddress });
   }
   const where = area(property);
   if (where !== undefined) {
-    lines.push(`Area: ${where}`);
+    rows.push({ label: "Area", value: where });
   }
   if (property.tags !== undefined && property.tags.length > 0) {
-    lines.push(`Tags: ${property.tags.join(", ")}`);
+    rows.push({ label: "Tags", value: property.tags.join(", ") });
   }
-  return { type: "text", text: lines.join("\n") };
+
+  const notes = ['💬 Reply to update — e.g. "price 4.5M" or "now sold"'];
+  const stamps = [
+    property.createdAt !== undefined ? `Saved ${formatShortDate(property.createdAt)}` : undefined,
+    property.updatedAt !== undefined ? `Updated ${formatShortDate(property.updatedAt)}` : undefined,
+  ].filter((s): s is string => s !== undefined);
+  if (stamps.length > 0) {
+    notes.push(stamps.join(" · "));
+  }
+
+  const actions: CardAction[] = [];
+  const maps = mapsUri(property);
+  if (maps !== undefined) {
+    actions.push({ label: "🗺 Open in Maps", data: "", mode: "uri", uri: maps });
+  }
+  const photoCount = opts.photoCount ?? 0;
+  if (photoCount >= 2) {
+    actions.push({
+      label: `🖼 Photos (${photoCount})`,
+      data: encodePostback(ACTIONS.photos, { id: property.propertyId }),
+    });
+  }
+  actions.push({
+    label: "📅 Follow-up",
+    data: encodePostback(ACTIONS.setFollowUp, { id: property.propertyId }),
+    mode: "datetime",
+  });
+
+  const badge = statusBadge(property.status);
+  const price = formatPrice(property.askingPrice, property.currency);
+  const card: PropertyCard = {
+    title,
+    ...(badge !== undefined ? { subtitle: badge } : {}),
+    ...(price !== undefined ? { headline: price } : {}),
+    ...(opts.heroImageUrl !== undefined ? { heroImageUrl: opts.heroImageUrl } : {}),
+    rows,
+    notes,
+    actions,
+  };
+  return { type: "flex", altText: `📍 ${title}`, cards: [card] };
+}
+
+/** Render (presigned) image urls as a swipeable gallery; each bubble opens its image at full size.
+ * Empty list → a friendly text fallback (e.g. a listing with no photos). */
+export function imageCarouselMessage(
+  imageUrls: readonly string[],
+  altText: string,
+): OutboundMessage {
+  if (imageUrls.length === 0) {
+    return { type: "text", text: "No photos saved for this listing yet." };
+  }
+  return { type: "imageCarousel", altText, imageUrls };
 }
 
 export function helpMessage(): OutboundMessage {

@@ -30,6 +30,8 @@ export class CatalogPostbackRouter implements PostbackRouter {
         return this.assistant.help();
       case ACTIONS.view:
         return this.assistant.viewProperty(params.get("id") ?? "");
+      case ACTIONS.photos:
+        return this.assistant.showPhotos(params.get("id") ?? "");
       case ACTIONS.merge: {
         const from = params.get("from");
         const into = params.get("into");

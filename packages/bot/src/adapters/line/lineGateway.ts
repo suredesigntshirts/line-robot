@@ -48,6 +48,9 @@ function toCardAction(action: CardAction): messagingApi.Action {
   if (action.mode === "datetime") {
     return { type: "datetimepicker", label, data: action.data, mode: "datetime" };
   }
+  if (action.mode === "uri" && action.uri !== undefined) {
+    return { type: "uri", label, uri: action.uri };
+  }
   return { type: "postback", label, data: action.data, displayText: action.label };
 }
 
@@ -60,6 +63,16 @@ function toBubble(card: PropertyCard): messagingApi.FlexBubble {
   if (card.subtitle !== undefined) {
     body.push({ type: "text", text: card.subtitle, size: "sm", color: "#888888", wrap: true });
   }
+  if (card.headline !== undefined) {
+    body.push({
+      type: "text",
+      text: card.headline,
+      weight: "bold",
+      size: "xl",
+      color: "#1DB446",
+      wrap: true,
+    });
+  }
   for (const row of card.rows) {
     body.push({
       type: "box",
@@ -70,6 +83,12 @@ function toBubble(card: PropertyCard): messagingApi.FlexBubble {
         { type: "text", text: row.value, size: "sm", color: "#555555", flex: 5, wrap: true },
       ],
     });
+  }
+  if (card.notes !== undefined && card.notes.length > 0) {
+    body.push({ type: "separator", margin: "md" });
+    for (const note of card.notes) {
+      body.push({ type: "text", text: note, size: "xs", color: "#999999", wrap: true });
+    }
   }
   const bubble: messagingApi.FlexBubble = {
     type: "bubble",
@@ -108,6 +127,25 @@ function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexConta
     : { type: "carousel", contents: bubbles };
 }
 
+/** A photo gallery as a Flex carousel of image-only bubbles; tapping a bubble opens its full-size
+ * image (the same presigned url). Reuses the Flex path rather than a separate template type. */
+function toImageCarousel(imageUrls: readonly string[]): messagingApi.FlexContainer {
+  const bubbles: messagingApi.FlexBubble[] = imageUrls.slice(0, MAX_BUBBLES).map((url) => ({
+    type: "bubble",
+    hero: {
+      type: "image",
+      url,
+      size: "full",
+      aspectRatio: "4:3",
+      aspectMode: "cover",
+      action: { type: "uri", label: "Open", uri: url },
+    },
+  }));
+  return bubbles.length === 1 && bubbles[0] !== undefined
+    ? bubbles[0]
+    : { type: "carousel", contents: bubbles };
+}
+
 function toSdkMessage(message: OutboundMessage): messagingApi.Message {
   const quickReply = toQuickReply(message.quickReplies);
   const withQuickReply = <T extends messagingApi.Message>(m: T): T =>
@@ -121,6 +159,12 @@ function toSdkMessage(message: OutboundMessage): messagingApi.Message {
         type: "flex",
         altText: message.altText,
         contents: toFlexContainer(message.cards),
+      });
+    case "imageCarousel":
+      return withQuickReply({
+        type: "flex",
+        altText: message.altText,
+        contents: toImageCarousel(message.imageUrls),
       });
   }
 }

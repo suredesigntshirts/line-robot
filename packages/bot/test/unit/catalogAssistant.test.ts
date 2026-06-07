@@ -84,12 +84,52 @@ describe("CatalogAssistant — retrieval", () => {
     expect(textOf(miss)).toContain("No listings matching");
   });
 
-  it("shows property detail, or an explanation when it's gone", async () => {
+  it("shows property detail as a rich flex card, or an explanation when it's gone", async () => {
     const catalog = new FakeCatalog().seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }));
     const assistant = new CatalogAssistant(catalog, clock);
 
-    expect(textOf((await assistant.viewProperty("p1"))[0])).toContain("1 Rama IX");
+    const [detail] = await assistant.viewProperty("p1");
+    expect(detail?.type).toBe("flex");
+    if (detail?.type === "flex") {
+      expect(detail.cards[0]?.title).toBe("1 Rama IX");
+    }
     expect(textOf((await assistant.viewProperty("missing"))[0])).toContain("couldn't find");
+  });
+
+  it("presigns all photos for the detail hero/count and the photo gallery", async () => {
+    const catalog = new FakeCatalog().seedProperty(
+      prop("p1", { normalizedAddress: "1 Rama IX", photos: ["a.jpg", "b.jpg", "c.jpg"] }),
+    );
+    const signer = { presignGet: async (key: string) => `signed:${key}` };
+    const assistant = new CatalogAssistant(catalog, clock, undefined, signer);
+
+    const [detail] = await assistant.viewProperty("p1");
+    if (detail?.type === "flex") {
+      expect(detail.cards[0]?.heroImageUrl).toBe("signed:a.jpg");
+      // 3 photos → the "Photos (3)" button is present.
+      expect(detail.cards[0]?.actions.map((a) => a.label)).toContain("🖼 Photos (3)");
+    }
+
+    const [gallery] = await assistant.showPhotos("p1");
+    expect(gallery?.type).toBe("imageCarousel");
+    if (gallery?.type === "imageCarousel") {
+      expect(gallery.imageUrls).toEqual(["signed:a.jpg", "signed:b.jpg", "signed:c.jpg"]);
+    }
+  });
+
+  it("renders no hero/Photos button and an empty gallery without a signer", async () => {
+    const catalog = new FakeCatalog().seedProperty(
+      prop("p1", { normalizedAddress: "1 Rama IX", photos: ["a.jpg", "b.jpg"] }),
+    );
+    const assistant = new CatalogAssistant(catalog, clock); // no signer
+
+    const [detail] = await assistant.viewProperty("p1");
+    if (detail?.type === "flex") {
+      expect(detail.cards[0]?.heroImageUrl).toBeUndefined();
+      expect(detail.cards[0]?.actions.map((a) => a.label)).not.toContain("🖼 Photos (2)");
+    }
+    const [gallery] = await assistant.showPhotos("p1");
+    expect(gallery?.type).toBe("text"); // friendly "no photos" fallback
   });
 
   it("returns help and search-prompt copy", () => {
