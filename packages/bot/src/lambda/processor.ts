@@ -11,6 +11,7 @@ import {
   createLineContentClient,
   createLineMessagingGateway,
 } from "../adapters/line/lineGateway.js";
+import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
 import { createDefaultMessageHandler, createPostbackRouter } from "../core/handlers/registry.js";
@@ -40,14 +41,17 @@ async function buildDeps(): Promise<Deps> {
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
   const catalog = new DynamoCatalogRepository(doc, env.CATALOG_TABLE);
+  const s3 = new S3Client({});
+  // Signs presigned GET URLs for property-card hero images (the archive bucket is private).
+  const signer = new S3MediaUrlSigner(s3, env.ARCHIVE_BUCKET);
 
   const processor = new EventProcessor({
-    archive: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
+    archive: new S3RawArchive(s3, env.ARCHIVE_BUCKET),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     catalog,
     content: createLineContentClient(channelAccessToken),
-    handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK }),
-    postback: createPostbackRouter({ catalog, clock: SYSTEM_CLOCK }),
+    handler: createDefaultMessageHandler({ catalog, clock: SYSTEM_CLOCK, signer }),
+    postback: createPostbackRouter({ catalog, clock: SYSTEM_CLOCK, signer }),
     gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,

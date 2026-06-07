@@ -58,6 +58,13 @@ describe("propertyCard", () => {
     expect(propertyCard(prop({ projectName: "The Park" })).title).toBe("The Park");
     expect(propertyCard(prop()).title).toBe("Property p-012345");
   });
+
+  it("includes a hero image only when a url is supplied", () => {
+    expect(propertyCard(prop()).heroImageUrl).toBeUndefined();
+    expect(propertyCard(prop(), "https://signed.example/x.jpg").heroImageUrl).toBe(
+      "https://signed.example/x.jpg",
+    );
+  });
 });
 
 describe("listingsMessage", () => {
@@ -83,6 +90,16 @@ describe("listingsMessage", () => {
     if (msg.type === "flex") {
       expect(msg.cards).toHaveLength(12);
       expect(msg.altText).toContain("showing 12");
+    }
+  });
+
+  it("attaches a hero image to the matching card from the heroUrls map", () => {
+    const msg = listingsMessage([prop({ propertyId: "p-a" }), prop({ propertyId: "p-b" })], {
+      heroUrls: new Map([["p-a", "https://signed.example/a.jpg"]]),
+    });
+    if (msg.type === "flex") {
+      expect(msg.cards[0]?.heroImageUrl).toBe("https://signed.example/a.jpg");
+      expect(msg.cards[1]?.heroImageUrl).toBeUndefined(); // no url for p-b
     }
   });
 });

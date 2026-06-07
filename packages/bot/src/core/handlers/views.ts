@@ -43,8 +43,9 @@ function area(property: Property): string | undefined {
   return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
-/** A single property "card" for a carousel: title, status subtitle, a few rows, a Details button. */
-export function propertyCard(property: Property): PropertyCard {
+/** A single property "card" for a carousel: title, status subtitle, a few rows, a Details button,
+ * and an optional hero image (a presigned URL resolved by the caller). */
+export function propertyCard(property: Property, heroImageUrl?: string): PropertyCard {
   const rows: PropertyCardRow[] = [];
   const price = formatPrice(property.askingPrice, property.currency);
   if (price !== undefined) {
@@ -60,6 +61,7 @@ export function propertyCard(property: Property): PropertyCard {
   return {
     title: propertyTitle(property),
     ...(property.status !== undefined ? { subtitle: property.status } : {}),
+    ...(heroImageUrl !== undefined ? { heroImageUrl } : {}),
     rows,
     actions: [
       { label: "Details", data: encodePostback(ACTIONS.view, { id: property.propertyId }) },
@@ -72,10 +74,11 @@ export function propertyCard(property: Property): PropertyCard {
   };
 }
 
-/** Render a set of listings as a Flex carousel, or a friendly empty-state when there are none. */
+/** Render a set of listings as a Flex carousel, or a friendly empty-state when there are none.
+ * `heroUrls` maps a property id to a presigned hero-image URL (resolved by the caller). */
 export function listingsMessage(
   properties: readonly Property[],
-  opts: { emptyText?: string; altText?: string } = {},
+  opts: { emptyText?: string; altText?: string; heroUrls?: ReadonlyMap<string, string> } = {},
 ): OutboundMessage {
   if (properties.length === 0) {
     return { type: "text", text: opts.emptyText ?? "You don't have any saved listings yet." };
@@ -85,7 +88,11 @@ export function listingsMessage(
   const altText =
     (opts.altText ?? `${properties.length} listing${properties.length === 1 ? "" : "s"}`) +
     (more > 0 ? ` (showing ${shown.length})` : "");
-  return { type: "flex", altText, cards: shown.map(propertyCard) };
+  return {
+    type: "flex",
+    altText,
+    cards: shown.map((p) => propertyCard(p, opts.heroUrls?.get(p.propertyId))),
+  };
 }
 
 /** A one-message text detail of a single property. */

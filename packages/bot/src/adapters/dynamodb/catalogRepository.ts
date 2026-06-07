@@ -48,6 +48,7 @@ function buildPropertyEntity(client: DynamoDBDocumentClient, table: string) {
         askingPrice: { type: "number" },
         currency: { type: "string" },
         tags: { type: "list", items: { type: "string" } },
+        photos: { type: "list", items: { type: "string" } },
         createdAt: { type: "number" },
         updatedAt: { type: "number" },
         lastActivityAt: { type: "number" },
@@ -216,6 +217,7 @@ function toProperty(item: PropertyItem): Property {
     askingPrice: item.askingPrice,
     currency: item.currency,
     tags: item.tags,
+    photos: item.photos,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
     lastActivityAt: item.lastActivityAt,
@@ -476,11 +478,12 @@ export class DynamoCatalogRepository implements CatalogRepository {
 
   async upsertProperty(input: PropertyUpsert): Promise<void> {
     // Copy the readonly domain arrays into the mutable shape ElectroDB's writer expects.
-    const { rawAddresses, tags, ...rest } = input;
+    const { rawAddresses, tags, photos, ...rest } = input;
     const data = stripUndefined({
       ...rest,
       ...(rawAddresses ? { rawAddresses: [...rawAddresses] } : {}),
       ...(tags ? { tags: [...tags] } : {}),
+      ...(photos ? { photos: [...photos] } : {}),
     });
     await this.property.upsert(data).go();
   }

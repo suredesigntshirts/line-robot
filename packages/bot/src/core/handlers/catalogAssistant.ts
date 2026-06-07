@@ -8,6 +8,7 @@ import type { Property, PropertyUpsert } from "../domain/catalog.js";
 import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
+import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock } from "../ports/runtime.js";
 import {
   helpMessage,
@@ -45,6 +46,7 @@ export class CatalogAssistant {
     private readonly catalog: CatalogRepository,
     private readonly clock: Clock,
     newId?: () => string,
+    private readonly signer?: MediaUrlSigner,
   ) {
     this.newId = newId ?? randomUUID;
   }
@@ -57,6 +59,7 @@ export class CatalogAssistant {
         altText: "Your listings",
         emptyText:
           "You don't have any saved listings yet. Chat about a property and I'll catalog it.",
+        heroUrls: await this.heroUrls(properties),
       }),
     ];
   }
@@ -70,8 +73,32 @@ export class CatalogAssistant {
       listingsMessage(properties, {
         altText: `Listings on ${query}`,
         emptyText: `No listings matching “${query}” yet.`,
+        heroUrls: await this.heroUrls(properties),
       }),
     ];
+  }
+
+  /** Presign a hero image (first photo) for each property that has one. No signer → no heroes; a
+   * presign failure for one property is swallowed so it never breaks the whole listing. */
+  private async heroUrls(properties: readonly Property[]): Promise<Map<string, string>> {
+    const signer = this.signer;
+    if (signer === undefined) {
+      return new Map();
+    }
+    const entries = await Promise.all(
+      properties.map(async (property): Promise<readonly [string, string] | null> => {
+        const key = property.photos?.[0];
+        if (key === undefined) {
+          return null;
+        }
+        try {
+          return [property.propertyId, await signer.presignGet(key)] as const;
+        } catch {
+          return null;
+        }
+      }),
+    );
+    return new Map(entries.filter((e): e is readonly [string, string] => e !== null));
   }
 
   /** "Upcoming" — the user's outstanding follow-ups across every listing they can see, soonest

@@ -430,6 +430,47 @@ describe("IngestionSweep — extraction", () => {
     ]);
   });
 
+  it("attributes a single-property batch's photo to that property", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#P"),
+          claim: tracker("user#P"),
+          batch: [textMsg(100, "a condo"), imageMsg(200, "conv/P/img/content")],
+        },
+      ],
+      {
+        mediaBytes: { "conv/P/img/content": Buffer.from("jpg") },
+        extract: () => ({ properties: [extracted({ normalizedAddress: "1 Sukhumvit" })] }),
+      },
+    );
+    await sweep.run();
+    expect(spies.upserts[0]?.photos).toEqual(["conv/P/img/content"]);
+  });
+
+  it("does not attribute photos when a batch yields multiple properties (ambiguous)", async () => {
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("user#PM"),
+          claim: tracker("user#PM"),
+          batch: [textMsg(100, "two places"), imageMsg(200, "conv/PM/img/content")],
+        },
+      ],
+      {
+        mediaBytes: { "conv/PM/img/content": Buffer.from("jpg") },
+        extract: () => ({
+          properties: [
+            extracted({ normalizedAddress: "A" }),
+            extracted({ normalizedAddress: "B" }),
+          ],
+        }),
+      },
+    );
+    await sweep.run();
+    expect(spies.upserts.every((u) => u.photos === undefined)).toBe(true);
+  });
+
   it("feeds S3 media bytes to the extractor as base64", async () => {
     const { sweep, spies } = makeSweep(
       [

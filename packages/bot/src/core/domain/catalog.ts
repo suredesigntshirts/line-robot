@@ -25,6 +25,8 @@ export interface Property {
   readonly askingPrice?: number;
   readonly currency?: string;
   readonly tags?: readonly string[];
+  /** S3 keys of photos captured for this property (the first is used as the card hero). */
+  readonly photos?: readonly string[];
   readonly createdAt?: number;
   readonly updatedAt?: number;
   readonly lastActivityAt?: number;

@@ -201,8 +201,9 @@ new aws.iam.RolePolicy("processor-policy", {
         ],
       },
       {
+        // PutObject: eager media capture. GetObject: presign hero-image URLs for property cards.
         Effect: "Allow",
-        Action: ["s3:PutObject"],
+        Action: ["s3:PutObject", "s3:GetObject"],
         Resource: pulumi.interpolate`${archiveBucket.arn}/*`,
       },
       { Effect: "Allow", Action: ["ssm:GetParameter"], Resource: channelAccessTokenParam.arn },

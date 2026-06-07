@@ -1,5 +1,6 @@
 import type { IncomingMessage, OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
+import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { MessageHandler } from "../ports/messageHandler.js";
 import type { PostbackRouter } from "../ports/postbackRouter.js";
 import type { Clock } from "../ports/runtime.js";
@@ -26,19 +27,23 @@ export class CompositeMessageHandler implements MessageHandler {
   }
 }
 
-/** Dependencies the interactive handlers need (the catalog data layer + a clock). */
+/** Dependencies the interactive handlers need (the catalog data layer, a clock, and — optionally — a
+ * media URL signer for presigning property-card hero images). */
 export interface HandlerDeps {
   readonly catalog: CatalogRepository;
   readonly clock: Clock;
+  readonly signer?: MediaUrlSigner;
 }
 
 /** The default message-handler wiring: the catalog command handler behind the composite seam. */
 export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
-  const assistant = new CatalogAssistant(deps.catalog, deps.clock);
+  const assistant = new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer);
   return new CompositeMessageHandler([new CommandHandler(assistant)]);
 }
 
 /** The default postback router: resolves card-button / quick-reply / rich-menu taps. */
 export function createPostbackRouter(deps: HandlerDeps): PostbackRouter {
-  return new CatalogPostbackRouter(new CatalogAssistant(deps.catalog, deps.clock));
+  return new CatalogPostbackRouter(
+    new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer),
+  );
 }

@@ -209,6 +209,7 @@ describe("conversation tracker", () => {
 describe("properties + edges + membership", () => {
   it("merges property upserts without clobbering prior fields", async () => {
     await repo.upsertProperty({ propertyId: "pM", normalizedAddress: "a", tags: ["x"] });
+    await repo.upsertProperty({ propertyId: "pM", photos: ["conv/x/1/content"] });
     await repo.upsertProperty({ propertyId: "pM", askingPrice: 5_000_000, currency: "THB" });
 
     const prop = await repo.getProperty("pM");
@@ -216,6 +217,7 @@ describe("properties + edges + membership", () => {
       propertyId: "pM",
       normalizedAddress: "a",
       tags: ["x"],
+      photos: ["conv/x/1/content"],
       askingPrice: 5_000_000,
       currency: "THB",
     });

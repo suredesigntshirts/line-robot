@@ -45,6 +45,29 @@ describe("CatalogAssistant — retrieval", () => {
     expect(textOf(msg)).toContain("don't have any saved listings");
   });
 
+  it("presigns a hero image for listings with photos, and none without a signer", async () => {
+    const catalog = new FakeCatalog();
+    seedUserListings(catalog, "U1", "user#U1", [
+      prop("withPhoto", { normalizedAddress: "1 Sukhumvit", photos: ["conv/x/1/content"] }),
+      prop("noPhoto", { normalizedAddress: "2 Rama IX", lastActivityAt: -1 }),
+    ]);
+    const signer = { presignGet: async (key: string) => `signed:${key}` };
+
+    const [withSigner] = await new CatalogAssistant(catalog, clock, undefined, signer).myListings(
+      "U1",
+    );
+    if (withSigner?.type !== "flex") {
+      throw new Error("expected a flex carousel");
+    }
+    expect(withSigner.cards[0]?.heroImageUrl).toBe("signed:conv/x/1/content"); // withPhoto sorts first
+    expect(withSigner.cards[1]?.heroImageUrl).toBeUndefined(); // noPhoto
+
+    const [noSigner] = await new CatalogAssistant(catalog, clock).myListings("U1");
+    if (noSigner?.type === "flex") {
+      expect(noSigner.cards[0]?.heroImageUrl).toBeUndefined(); // no signer → no heroes
+    }
+  });
+
   it("filters listings by road/area query", async () => {
     const catalog = new FakeCatalog();
     seedUserListings(catalog, "U1", "user#U1", [

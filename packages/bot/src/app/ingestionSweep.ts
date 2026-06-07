@@ -90,6 +90,15 @@ function nullToUndef<T>(value: T | null): T | undefined {
   return value === null ? undefined : value;
 }
 
+/** S3 keys of the image attachments in a batch (chanote PDFs and other media are excluded — only
+ * photos are card-hero candidates). */
+function collectPhotoKeys(batch: StoredMessage[]): string[] {
+  return batch.flatMap((m) => {
+    const a = m.attachment;
+    return a?.contentType.startsWith("image/") ? [a.s3Key] : [];
+  });
+}
+
 /**
  * The debounced-ingestion sweep, invoked on an EventBridge cron. Finds conversations whose
  * quiet-debounce/cap window has elapsed (sparse GSI1, no scan), claims each one atomically, batches
@@ -242,9 +251,12 @@ export class IngestionSweep {
       id: c.propertyId,
       label: c.normalizedAddress ?? c.projectName ?? c.propertyId,
     }));
+    // Attribute the batch's photos only when it produced exactly one property — otherwise which
+    // property a photo belongs to is ambiguous, so we attach none (never misattribute).
+    const photoKeys = result.properties.length === 1 ? collectPhotoKeys(batch) : [];
     const applied: AppliedProperty[] = [];
     for (const property of result.properties) {
-      applied.push(await this.applyProperty(key, property, mergeTargets));
+      applied.push(await this.applyProperty(key, property, mergeTargets, photoKeys));
     }
     this.deps.logger.info("ingestion sweep: extracted properties", {
       conversationKey: key,
@@ -258,6 +270,7 @@ export class IngestionSweep {
     key: string,
     property: ExtractedProperty,
     mergeTargets: readonly MergeTarget[],
+    photoKeys: readonly string[],
   ): Promise<AppliedProperty> {
     // Ambiguous-but-unmatched → create new (never auto-merge across ambiguity); the confirmation
     // flags it so a human can correct it. Interactive quick-reply resolution is a later slice.
@@ -280,6 +293,8 @@ export class IngestionSweep {
       askingPrice: nullToUndef(property.askingPrice),
       currency: nullToUndef(property.currency),
       tags: property.tags ? [...property.tags] : undefined,
+      // Only set photos when this batch had images — never clobber existing photos with an empty list.
+      ...(photoKeys.length > 0 ? { photos: [...photoKeys] } : {}),
       updatedAt: now,
       lastActivityAt: now,
       ...(isNew ? { originConversationKey: key, createdAt: now } : {}),
