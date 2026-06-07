@@ -90,24 +90,10 @@ function makeProcessor(
       releaseConversation: async () => {},
       failConversation: async () => {},
       getConversation: async () => null,
-      armEdit: async () => {},
-      getEditContext: async () => null,
-      clearEdit: async () => {},
       listUserConversations: async () => [],
-      upsertProperty: async () => {},
-      getProperty: async () => null,
-      deleteProperty: async () => {},
-      deletePropertyEvents: async () => {},
-      linkConversationProperty: async () => {},
-      unlinkConversationProperty: async () => {},
-      listConversationProperties: async () => [],
-      listPropertiesForUser: async () => [],
-      addEvent: async () => {},
-      listPropertyEvents: async () => [],
-      findDueEvents: async () => [],
-      markEventNotified: async () => false,
-      getMemoryDoc: async () => null,
-      putMemoryDoc: async () => {},
+      // EventProcessorDeps.catalog narrowed to ConversationIngestionStore & MembershipStore
+      // (cleanup unit 07): the processor only touches the tracker + membership edges, so the
+      // property/event/edit/memory methods are intentionally absent here.
     },
     content: {
       getContent: async (id) => {

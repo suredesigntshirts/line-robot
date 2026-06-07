@@ -11,7 +11,7 @@ import type {
   OutboundMessage,
   StoredMessage,
 } from "../core/domain/message.js";
-import type { CatalogRepository } from "../core/ports/catalog.js";
+import type { ConversationIngestionStore, MembershipStore } from "../core/ports/catalog.js";
 import type { LineContentClient } from "../core/ports/lineContent.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
 import type { MessageHandler } from "../core/ports/messageHandler.js";
@@ -30,7 +30,7 @@ export interface EventProcessorDeps {
   readonly archive: RawArchive;
   readonly parser: WebhookParser;
   readonly repository: MessageRepository;
-  readonly catalog: CatalogRepository;
+  readonly catalog: ConversationIngestionStore & MembershipStore;
   readonly content: LineContentClient;
   readonly handler: MessageHandler;
   /** Routes card-button / quick-reply / rich-menu taps (postback events). */

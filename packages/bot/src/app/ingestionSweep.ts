@@ -15,7 +15,11 @@ import {
   buildConfirmation,
   type MergeTarget,
 } from "../core/handlers/views.js";
-import type { CatalogRepository } from "../core/ports/catalog.js";
+import type {
+  ConversationIngestionStore,
+  MemoryStore,
+  PropertyStore,
+} from "../core/ports/catalog.js";
 import type {
   ExtractedProperty,
   ExtractionCandidate,
@@ -39,7 +43,7 @@ import {
 } from "./ingestionMedia.js";
 
 export interface IngestionSweepDeps {
-  readonly catalog: CatalogRepository;
+  readonly catalog: ConversationIngestionStore & MemoryStore & PropertyStore;
   readonly messages: MessageRepository;
   readonly extractor: PropertyExtractor;
   /** Pass 1 of two-pass extraction (plan 13 inc 6): split the batch into distinct properties. */

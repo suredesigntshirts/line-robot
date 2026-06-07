@@ -14,14 +14,14 @@ import { byActivityDesc, type Property } from "../core/domain/catalog.js";
 import { heroPhotoKey, orderedPhotos } from "../core/domain/photos.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { propertyTitle } from "../core/handlers/views.js";
-import type { CatalogRepository } from "../core/ports/catalog.js";
+import type { FollowUpStore, MembershipStore, PropertyStore } from "../core/ports/catalog.js";
 import type { HttpRequest, HttpResponse } from "../core/ports/httpGateway.js";
 import type { LineTokenVerifier } from "../core/ports/lineTokenVerifier.js";
 import type { MediaUrlSigner } from "../core/ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
 
 export interface ReadApiDeps {
-  readonly catalog: CatalogRepository;
+  readonly catalog: MembershipStore & PropertyStore & FollowUpStore;
   readonly signer: MediaUrlSigner;
   readonly verifier: LineTokenVerifier;
   readonly logger: Logger;
@@ -101,7 +101,7 @@ async function presignGallery(
 
 /** The id set the caller may read: every property reachable through one of their conversations. */
 async function allowedPropertyIds(
-  catalog: CatalogRepository,
+  catalog: MembershipStore & Pick<PropertyStore, "listConversationProperties">,
   userId: string,
 ): Promise<Set<string>> {
   const convKeys = await catalog.listUserConversations(userId);

@@ -6,13 +6,16 @@ import type {
 } from "../domain/catalog.js";
 
 /**
- * Persistence seam for the catalog. Keyed by raw string ids (conversationKey / userId /
- * propertyId) rather than {@link ConversationRef} because the ingestion/reminder sweeps work
+ * Persistence seams for the catalog, split by concern. Keyed by raw string ids (conversationKey /
+ * userId / propertyId) rather than {@link ConversationRef} because the ingestion/reminder sweeps work
  * purely from keys discovered via GSIs; callers that hold a ref convert with `conversationKey()`.
+ *
+ * One DynamoDB adapter ({@link ../../adapters/dynamodb/catalogRepository.DynamoCatalogRepository})
+ * implements every store; app-layer consumers depend only on the store(s) they actually call.
  */
-export interface CatalogRepository {
-  // --- Conversation tracker (debounced-ingestion state machine) ---
 
+/** Conversation tracker — the debounced-ingestion state machine. */
+export interface ConversationIngestionStore {
   /**
    * Record an inbound message on the conversation tracker: always advance `lastInboundAt`, and
    * update the sparse GSI1 "ready-at" key per the quiet-debounce + max-wait policy — the sweep
@@ -59,9 +62,10 @@ export interface CatalogRepository {
   ): Promise<void>;
 
   getConversation(conversationKey: string): Promise<ConversationTracker | null>;
+}
 
-  // --- Edit context (last-viewed property → free-text "reply to update") ---
-
+/** Edit context — last-viewed property → free-text "reply to update". */
+export interface EditContextStore {
   /**
    * Arm a short-lived "edit context": the next plain-text reply in this conversation targets
    * `propertyId` (see {@link ../handlers/editReplyHandler}). Stored on the tracker META item; it
@@ -74,9 +78,10 @@ export interface CatalogRepository {
 
   /** Clear the armed edit context (after applying an edit, or when the reply didn't match it). */
   clearEdit(conversationKey: string): Promise<void>;
+}
 
-  // --- User ↔ Conversation membership (read-access edges) ---
-
+/** User ↔ Conversation membership — read-access edges. */
+export interface MembershipStore {
   /** Upsert a membership edge `USER#<userId> → CONV#<conversationKey>`. */
   recordMembership(userId: string, conversationKey: string, seenAtMs: number): Promise<void>;
 
@@ -85,9 +90,10 @@ export interface CatalogRepository {
 
   /** Conversation keys this user is (or has been) a member of. */
   listUserConversations(userId: string): Promise<string[]>;
+}
 
-  // --- Properties + Conv→Property edges (write-scope + listing) ---
-
+/** Properties + Conv→Property edges — write-scope + listing. */
+export interface PropertyStore {
   /** Create or merge a property (set-if-present; never clobbers fields the caller omits). */
   upsertProperty(input: PropertyUpsert): Promise<void>;
 
@@ -118,9 +124,10 @@ export interface CatalogRepository {
   /** "Show my listings": resolve user → their conversations → those conversations' properties
    * (deduped). Read-access follows the user across chats. */
   listPropertiesForUser(userId: string): Promise<Property[]>;
+}
 
-  // --- Property events (calendar / reminders) ---
-
+/** Property events — calendar / reminders. */
+export interface FollowUpStore {
   /** Create a follow-up event on a property. Its sparse GSI2 key makes it visible to the reminder
    * sweep until it is notified. */
   addEvent(event: PropertyEvent): Promise<void>;
@@ -138,12 +145,25 @@ export interface CatalogRepository {
    * the reminder), `false` if another sweep already handled it — so a reminder is sent at most once.
    */
   markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean>;
+}
 
-  // --- Per-conversation memory (durable learned context) ---
-
+/** Per-conversation memory — durable learned context. */
+export interface MemoryStore {
   /** The conversation's memory note (people, area aliases, terminology, preferences), or null. */
   getMemoryDoc(conversationKey: string): Promise<string | null>;
 
   /** Replace the conversation's memory note. Callers bound the length before storing. */
   putMemoryDoc(conversationKey: string, content: string): Promise<void>;
 }
+
+/**
+ * Backwards-compatible union of every catalog store. The DynamoDB adapter and the in-memory test
+ * double implement this; the broadest injection site ({@link ../handlers/registry.HandlerDeps}) uses
+ * it. Prefer depending on the narrowest store(s) you actually call.
+ */
+export type CatalogRepository = ConversationIngestionStore &
+  EditContextStore &
+  MembershipStore &
+  PropertyStore &
+  FollowUpStore &
+  MemoryStore;
