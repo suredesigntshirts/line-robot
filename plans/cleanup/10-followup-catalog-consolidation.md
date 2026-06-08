@@ -76,7 +76,24 @@ lambdas bundle (`catalogEntities` inlined, 0 runtime module refs); `claudeExtrac
 
 Re-verified against the **live tree** (the dossier's findings were generated at `b5d12a4`; units 01–11
 have since landed). Filtered to genuine *simplify-and-consolidate* moves — excluding renames, new
-features, type-safety redesigns, and bug fixes. **None of these are done; this is a survey only.**
+features, type-safety redesigns, and bug fixes.
+
+> **Status (updated after this round).** Everything below **except Tier 1 #1 (infra)** has since been
+> implemented as units 12–17 — each a separately-verified commit (typecheck + lint + 281 unit + 27
+> integration where applicable):
+>
+> | Candidate | Done as | Commit |
+> |---|---|---|
+> | Tier 1 #2 — claudeExtractor Set + `toMediaBlock` dedup | cleanup 12 | `daa13a2` |
+> | Tier 1 #3 — integration-harness dedup (`dynamodbLocal.ts`) | cleanup 13 | `81436de` |
+> | Tier 2 #5 — `collectUpcoming` fan-out | cleanup 14 | `acdbc14` |
+> | Tier 2 #4 — `createHandlers` (one shared assistant) | cleanup 15 | `32a203e` |
+> | Tier 2 #6 — LINE limit consts (`core/domain/lineLimits.ts`) | cleanup 16 | `1201cf3` |
+> | Tier 2 #7 — GSI/entity magic-string consts | cleanup 17 | `5777fe4` |
+>
+> **Tier 1 #1 (infra) is the only remaining item** — scoped separately because, unlike the bot work, it
+> can't be proven by the test suite (verified via `pulumi preview` = empty diff). The Tier 3 "do NOT
+> do" items stand.
 
 ### Tier 1 — clear wins, same spirit as 10–11 (real shared home, low risk)
 
