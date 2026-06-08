@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { IncomingMessage } from "../../src/core/domain/message.js";
-import {
-  CompositeMessageHandler,
-  createDefaultMessageHandler,
-} from "../../src/core/handlers/registry.js";
+import { CompositeMessageHandler, createHandlers } from "../../src/core/handlers/registry.js";
 import type { MessageHandler } from "../../src/core/ports/messageHandler.js";
 import { FakeCatalog } from "../fixtures/fakeCatalog.js";
 
@@ -34,14 +31,14 @@ describe("CompositeMessageHandler", () => {
   });
 });
 
-describe("createDefaultMessageHandler", () => {
+describe("createHandlers", () => {
   it("wires a working catalog command handler", async () => {
     const catalog = new FakeCatalog();
     catalog.seedMembership("U1", "user#U1");
     catalog
       .seedProperty({ propertyId: "p1", normalizedAddress: "1 Sukhumvit" })
       .seedEdge("user#U1", "p1");
-    const handler = createDefaultMessageHandler({ catalog, clock: { now: () => 1 } });
+    const handler = createHandlers({ catalog, clock: { now: () => 1 } }).messageHandler;
 
     expect((await handler.handle(msg({ text: "my listings" })))[0]?.type).toBe("flex");
     expect(await handler.handle(msg({ text: "just chatting about nothing" }))).toEqual([]);
@@ -87,15 +84,15 @@ describe("createDefaultMessageHandler", () => {
     };
 
     // Without an extractor, an armed reply just falls through (no edit handler in the chain).
-    const noExtractor = createDefaultMessageHandler({ catalog, clock: { now: () => 1 } });
+    const noExtractor = createHandlers({ catalog, clock: { now: () => 1 } }).messageHandler;
     expect(await noExtractor.handle(msg({ text: "we're negotiating now" }))).toEqual([]);
 
     // With one, the edit lands and is confirmed.
-    const withExtractor = createDefaultMessageHandler({
+    const withExtractor = createHandlers({
       catalog,
       clock: { now: () => 1 },
       extractor,
-    });
+    }).messageHandler;
     const out = await withExtractor.handle(msg({ text: "we're negotiating now" }));
     expect(out[0]?.type).toBe("text");
     expect(catalog.properties.get("p1")?.status).toBe("negotiating");

@@ -16,7 +16,7 @@ import { LineWebhookParser } from "../adapters/line/webhookParser.js";
 import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
-import { createDefaultMessageHandler, createPostbackRouter } from "../core/handlers/registry.js";
+import { createHandlers } from "../core/handlers/registry.js";
 import { SYSTEM_CLOCK } from "../lib/clock.js";
 import {
   createIdempotencyConfig,
@@ -61,20 +61,22 @@ async function buildDeps(): Promise<Deps> {
         )
       : undefined;
 
+  const { messageHandler, postbackRouter } = createHandlers({
+    catalog,
+    clock: SYSTEM_CLOCK,
+    signer,
+    extractor,
+    logger,
+  });
+
   const processor = new EventProcessor({
     archive: new S3RawArchive(s3, env.ARCHIVE_BUCKET),
     parser: new LineWebhookParser(),
     repository: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     catalog,
     content: createLineContentClient(channelAccessToken),
-    handler: createDefaultMessageHandler({
-      catalog,
-      clock: SYSTEM_CLOCK,
-      signer,
-      extractor,
-      logger,
-    }),
-    postback: createPostbackRouter({ catalog, clock: SYSTEM_CLOCK, signer, logger }),
+    handler: messageHandler,
+    postback: postbackRouter,
     gateway: createLineMessagingGateway(channelAccessToken),
     logger,
     clock: SYSTEM_CLOCK,

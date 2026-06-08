@@ -43,10 +43,17 @@ export interface HandlerDeps {
   readonly logger?: Logger;
 }
 
-/** The default message-handler wiring: the catalog command handler behind the composite seam, with
- * the free-text edit handler appended after it (so typed commands always win) when an extractor is
- * available. */
-export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
+/**
+ * Build both interactive entry points from a single shared {@link CatalogAssistant}: the
+ * message-handler chain (the catalog {@link CommandHandler} behind the composite seam, with the
+ * free-text {@link EditReplyHandler} appended after it — so typed commands always win — when an
+ * extractor is available) and the {@link CatalogPostbackRouter} for card-button / quick-reply /
+ * rich-menu taps. One assistant instance backs both, so the two paths share identical config.
+ */
+export function createHandlers(deps: HandlerDeps): {
+  messageHandler: MessageHandler;
+  postbackRouter: PostbackRouter;
+} {
   const assistant = new CatalogAssistant(
     deps.catalog,
     deps.clock,
@@ -58,12 +65,8 @@ export function createDefaultMessageHandler(deps: HandlerDeps): MessageHandler {
   if (deps.extractor !== undefined) {
     handlers.push(new EditReplyHandler(deps.catalog, deps.extractor, deps.clock));
   }
-  return new CompositeMessageHandler(handlers);
-}
-
-/** The default postback router: resolves card-button / quick-reply / rich-menu taps. */
-export function createPostbackRouter(deps: HandlerDeps): PostbackRouter {
-  return new CatalogPostbackRouter(
-    new CatalogAssistant(deps.catalog, deps.clock, undefined, deps.signer, deps.logger),
-  );
+  return {
+    messageHandler: new CompositeMessageHandler(handlers),
+    postbackRouter: new CatalogPostbackRouter(assistant),
+  };
 }
