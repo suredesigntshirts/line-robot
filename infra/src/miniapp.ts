@@ -77,9 +77,10 @@ export interface MiniApp {
 }
 
 /**
- * Mini app (plan 14): a read-only catalog viewer for a LINE MINI App (LIFF) webview.
+ * Mini app (plan 14 + 17): a catalog viewer for a LINE MINI App (LIFF) webview.
  *   • read-api Lambda + Function URL — turns a LIFF id-token into the caller's listings as JSON
- *     (presigned photos). READ-ONLY over the SAME catalog the bot uses.
+ *     (presigned photos). Read over the SAME catalog the bot uses, plus one narrow write: "book a
+ *     viewing" creates a follow-up event for the caller (plan 17).
  *   • S3 (private) + CloudFront (OAC) — static host for the SPA.
  * Purely additive: the bot path (ingest/processor/sweep/reminder) is untouched.
  *
@@ -95,9 +96,9 @@ export function createMiniApp(
   // PUBLIC, so plain config (not a secret). Staging = the Developing internal channel (2010316764).
   const liffChannelId = config.require("liffChannelId");
 
-  // read-api is READ-ONLY: only the catalog table, the archive bucket, and the public LIFF channel
-  // id (id-token aud). It has no IAM grant for the message/idempotency tables, SSM params, or queue,
-  // so it must not carry them — loadReadApiEnv() validates exactly this set.
+  // read-api is narrowly scoped: only the catalog table, the archive bucket, and the public LIFF
+  // channel id (id-token aud). It has no IAM grant for the message/idempotency tables, SSM params, or
+  // queue, so it must not carry them — loadReadApiEnv() validates exactly this set.
   const readApiEnv: Record<string, pulumi.Input<string>> = {
     CATALOG_TABLE: catalogTable.name,
     ARCHIVE_BUCKET: archiveBucket.bucket,
@@ -106,14 +107,17 @@ export function createMiniApp(
     POWERTOOLS_LOG_LEVEL: "INFO",
   };
 
-  // read-api role — READ-ONLY: Query/GetItem on the catalog (+ its GSIs) and GetObject on the archive
-  // (to presign photo URLs). No writes, no SSM, no SQS, no Anthropic — id-token verification is an
-  // outbound HTTPS call carrying only the public client_id, so it needs no AWS creds and no secret.
+  // read-api role — read + ONE narrow write: Query/GetItem on the catalog (+ its GSIs), PutItem to
+  // create a follow-up event ("book a viewing" — membership-gated in-handler, only ever the caller's
+  // own reminder), and GetObject on the archive (to presign photo URLs). No SSM, no SQS, no Anthropic
+  // — id-token verification is an outbound HTTPS call carrying only the public client_id, so it needs
+  // no AWS creds and no secret. PutItem is the ONLY mutation (no UpdateItem/DeleteItem).
   const readApiRole = lambdaRole("read-api", [
     {
-      // listPropertiesForUser/getProperty/listPropertyEvents (GetItem + Query incl. GSIs).
+      // listPropertiesForUser/getProperty/listPropertyEvents (GetItem + Query incl. GSIs) + addEvent
+      // (PutItem) for the booking route. PutItem applies to the table itself; index/* is harmless.
       Effect: "Allow",
-      Action: ["dynamodb:Query", "dynamodb:GetItem"],
+      Action: ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:PutItem"],
       Resource: [catalogTable.arn, pulumi.interpolate`${catalogTable.arn}/index/*`],
     },
     {
@@ -248,7 +252,8 @@ export function createMiniApp(
     authorizationType: "NONE",
     cors: {
       allowOrigins: [pulumi.interpolate`https://${siteDistribution.domainName}`],
-      allowMethods: ["GET"],
+      // POST is the "book a viewing" write; the browser preflights it (custom Authorization header).
+      allowMethods: ["GET", "POST"],
       allowHeaders: ["authorization", "content-type"],
       maxAge: 3600,
     },

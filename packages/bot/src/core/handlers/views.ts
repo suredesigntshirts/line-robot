@@ -146,6 +146,19 @@ export function mapsUri(property: Property): string | undefined {
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 }
 
+/** The MINI App deep link to a property's detail screen (`{base}/p/{id}`), or undefined when no base
+ * URL is configured. The webview's router resolves `/p/{id}` (directly or via `liff.state`), so this
+ * opens straight to the listing. Trailing slashes on the base are trimmed so we never emit `//p/`. */
+export function catalogDeepLink(
+  baseUrl: string | undefined,
+  propertyId: string,
+): string | undefined {
+  if (baseUrl === undefined || baseUrl === "") {
+    return undefined;
+  }
+  return `${baseUrl.replace(/\/+$/, "")}/p/${encodeURIComponent(propertyId)}`;
+}
+
 /** Push `{label, value}` only when `value` is a non-empty string (keeps the detail card to fields we
  * actually have — nulls are simply omitted). */
 function pushRow(rows: PropertyCardRow[], label: string, value?: string): void {
@@ -180,12 +193,13 @@ function pushChanoteRows(rows: PropertyCardRow[], chanote?: Chanote): void {
 /**
  * A rich, single-bubble Flex detail of one property: hero photo, status badge, prominent price,
  * full location (project / address / area), tags, a "reply to update" hint + saved/updated dates,
- * and footer actions (Open in Maps · Photos · Follow-up). The caller resolves `heroImageUrl` and
- * `photoCount` (presigning happens in the assistant); the Photos button shows only with ≥2 photos.
+ * and footer actions (Open in Catalog · Open in Maps · Photos · Follow-up). The caller resolves
+ * `heroImageUrl` and `photoCount` (presigning happens in the assistant); the Photos button shows only
+ * with ≥2 photos, and the "Open in Catalog" deep link only when `catalogBaseUrl` is configured.
  */
 export function propertyDetail(
   property: Property,
-  opts: { heroImageUrl?: string; photoCount?: number } = {},
+  opts: { heroImageUrl?: string; photoCount?: number; catalogBaseUrl?: string } = {},
 ): OutboundMessage {
   const title = propertyTitle(property);
   const sale = formatPrice(property.askingPrice, property.currency);
@@ -246,6 +260,12 @@ export function propertyDetail(
   }
 
   const actions: CardAction[] = [];
+  // The richest action leads: jump straight to this listing in the MINI App (full gallery, in-app
+  // map, booking). Only when a base URL is configured (else the in-chat buttons below stand alone).
+  const catalogUrl = catalogDeepLink(opts.catalogBaseUrl, property.propertyId);
+  if (catalogUrl !== undefined) {
+    actions.push({ label: "🔎 Open in Catalog", data: "", mode: "uri", uri: catalogUrl });
+  }
   const maps = mapsUri(property);
   if (maps !== undefined) {
     actions.push({ label: "🗺 Open in Maps", data: "", mode: "uri", uri: maps });

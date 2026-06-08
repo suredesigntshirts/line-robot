@@ -333,6 +333,62 @@ body {
   width: 100%;
   margin: 6px 0 4px;
 }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--line);
+}
+.btn[disabled] {
+  opacity: 0.55;
+}
+
+/* Detail action area: Book a viewing + Share */
+.actions {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.book-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.book-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.book-field input {
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+}
+.book-actions {
+  display: flex;
+  gap: 8px;
+}
+.book-actions .btn {
+  flex: 1;
+  margin: 0;
+}
+.action-msg {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+.action-msg.ok {
+  color: var(--accent);
+}
+.action-msg.err {
+  color: #d23f3f;
+}
 
 .stamps {
   display: flex;

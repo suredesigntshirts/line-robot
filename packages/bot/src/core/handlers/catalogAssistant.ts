@@ -10,7 +10,8 @@ import {
   type PropertyUpsert,
   searchableText,
 } from "../domain/catalog.js";
-import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
+import { formatDueDate } from "../domain/datetime.js";
+import { resolveFollowUpTime } from "../domain/followup.js";
 import type { OutboundMessage } from "../domain/message.js";
 import { heroPhotoKey, orderedPhotos } from "../domain/photos.js";
 import type { ConversationStore, PropertyStore } from "../ports/catalog.js";
@@ -37,6 +38,9 @@ export class CatalogAssistant {
     newId?: () => string,
     private readonly signer?: MediaUrlSigner,
     private readonly logger?: Logger,
+    /** MINI App base URL (`https://miniapp.line.me/{liffId}`). When set, the detail card carries an
+     * "Open in Catalog" deep link to this listing's webview screen. */
+    private readonly miniappUrl?: string,
   ) {
     this.newId = newId ?? randomUUID;
   }
@@ -117,14 +121,20 @@ export class CatalogAssistant {
     if (property === null) {
       return [{ type: "text", text: "I couldn't find that listing to set a follow-up on." }];
     }
-    const dueAt = parseBangkokLocal(datetimeLocal);
-    if (dueAt === null) {
-      return [{ type: "text", text: "That follow-up time didn't look valid — please try again." }];
-    }
     const now = this.clock.now();
-    if (dueAt <= now) {
-      return [{ type: "text", text: "That time has already passed — pick a future time." }];
+    const when = resolveFollowUpTime(datetimeLocal, now);
+    if (!when.ok) {
+      return [
+        {
+          type: "text",
+          text:
+            when.reason === "invalid"
+              ? "That follow-up time didn't look valid — please try again."
+              : "That time has already passed — pick a future time.",
+        },
+      ];
     }
+    const dueAt = when.dueAt;
     await this.catalog.addEvent({
       eventId: this.newId(),
       propertyId,
@@ -161,7 +171,13 @@ export class CatalogAssistant {
     // Presign every photo so the detail's hero and its "Photos (N)" count reflect what we can
     // actually show (no signer / all presigns failed → no hero, no Photos button).
     const photos = await this.presignPhotos(property);
-    return [propertyDetail(property, { heroImageUrl: photos[0], photoCount: photos.length })];
+    return [
+      propertyDetail(property, {
+        heroImageUrl: photos[0],
+        photoCount: photos.length,
+        catalogBaseUrl: this.miniappUrl,
+      }),
+    ];
   }
 
   /** Ask to confirm deleting a property (the 🗑 Delete button). */

@@ -2,6 +2,7 @@ import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { lambdaRole } from "./iam";
 import {
+  config,
   logRetentionDays,
   PROCESSOR_TIMEOUT_SECONDS,
   prefix,
@@ -166,6 +167,15 @@ export function createBotLambdas(storage: Storage): BotLambdas {
     POWERTOOLS_LOG_LEVEL: "INFO",
   };
 
+  // Only the processor renders the detail card, so the MINI App deep-link base lives on its env alone
+  // (not shared commonEnv). Optional — a missing `miniappUrl` config just omits the "Open in Catalog"
+  // button, mirroring the rich-menu Catalog tab's graceful-degrade.
+  const miniappUrl = config.get("miniappUrl");
+  const processorEnv: Record<string, pulumi.Input<string>> = {
+    ...commonEnv,
+    ...(miniappUrl !== undefined ? { MINIAPP_URL: miniappUrl } : {}),
+  };
+
   const ingestFn = new aws.lambda.Function(
     "ingest",
     {
@@ -196,7 +206,7 @@ export function createBotLambdas(storage: Storage): BotLambdas {
       timeout: PROCESSOR_TIMEOUT_SECONDS,
       memorySize: 512,
       publish: true,
-      environment: { variables: commonEnv },
+      environment: { variables: processorEnv },
       loggingConfig: { logFormat: "JSON", logGroup: processorLogGroup.name },
     },
     { dependsOn: [processorLogGroup] },

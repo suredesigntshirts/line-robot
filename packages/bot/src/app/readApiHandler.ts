@@ -1,15 +1,22 @@
 /**
- * The mini-app's read-only HTTP handler, independent of the Lambda Function URL plumbing. It turns a
- * LIFF id-token (the `Authorization: Bearer …` header) into the caller's LINE user id, then serves
- * three read routes over the SAME catalog the chat bot uses — no writes, no LLM. Provider-agnostic
- * and dependency-injected so it's fully unit-testable with fakes (no AWS, no network).
+ * The mini-app's HTTP handler, independent of the Lambda Function URL plumbing. It turns a LIFF
+ * id-token (the `Authorization: Bearer …` header) into the caller's LINE user id, then serves the
+ * read routes plus ONE narrow write — "book a viewing" — over the SAME catalog the chat bot uses (no
+ * LLM). Provider-agnostic and dependency-injected so it's fully unit-testable with fakes (no AWS, no
+ * network).
  *
  * Security posture mirrors the ingest Lambda's: the Function URL is public, and every route is gated
- * by the in-handler id-token verification (`aud` must equal our MINI App channel). `/properties/{id}`
- * additionally enforces membership — a caller can only fetch a listing reachable through one of their
- * conversations — so property ids are not enumerable.
+ * by the in-handler id-token verification (`aud` must equal our MINI App channel). The `/properties/{id}`
+ * routes additionally enforce membership — a caller can only touch a listing reachable through one of
+ * their conversations — so property ids are not enumerable. The only write (`POST
+ * /properties/{id}/viewings`) is membership-gated too and creates a follow-up event for the caller
+ * alone (its reminder goes to the caller's own 1:1 chat); it cannot edit or delete anything.
  */
+import { randomUUID } from "node:crypto";
+import type { BookViewingResponse } from "@line-robot/shared";
 import { byActivityDesc, type Property } from "../core/domain/catalog.js";
+import { conversationKey } from "../core/domain/conversation.js";
+import { resolveFollowUpTime } from "../core/domain/followup.js";
 import { heroPhotoKey, orderedPhotos } from "../core/domain/photos.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { collectUpcoming } from "../core/handlers/upcoming.js";
@@ -141,17 +148,84 @@ async function handleUpcoming(deps: ReadApiDeps, userId: string): Promise<HttpRe
   return json(200, await collectUpcoming(deps.catalog, userId));
 }
 
-/** Match `/properties/{id}` and return the (decoded) id, or null for any other path. */
-function propertyDetailId(path: string): string | null {
-  const match = /^\/properties\/([^/]+)$/.exec(path);
-  if (match?.[1] === undefined) {
+/** Parse a JSON request body into a plain object, or null when absent/not-an-object/malformed. */
+function parseJsonBody(rawBody: string): Record<string, unknown> | null {
+  if (rawBody === "") {
     return null;
   }
   try {
-    return decodeURIComponent(match[1]);
+    const value: unknown = JSON.parse(rawBody);
+    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
   } catch {
-    return match[1];
+    return null;
   }
+}
+
+/**
+ * Book a viewing: create a follow-up {@link PropertyEvent} on a property the caller can reach, due at
+ * a Bangkok-local time. Membership-gated like the detail read (same 404 for an unreachable id, so ids
+ * stay non-enumerable). The reminder is targeted at the caller's OWN 1:1 chat (`user#<userId>`), so
+ * the existing reminder sweep pushes it with no change. The same {@link resolveFollowUpTime} rule the
+ * chat datetime-picker uses validates the time, so the two paths can't drift.
+ */
+async function handleBookViewing(
+  deps: ReadApiDeps,
+  userId: string,
+  propertyId: string,
+  rawBody: string,
+): Promise<HttpResponse> {
+  const allowed = await allowedPropertyIds(deps.catalog, userId);
+  if (!allowed.has(propertyId)) {
+    return json(404, { error: "not_found" });
+  }
+  const property = await deps.catalog.getProperty(propertyId);
+  if (property === null) {
+    return json(404, { error: "not_found" });
+  }
+
+  const parsed = parseJsonBody(rawBody);
+  const datetimeLocal = typeof parsed?.datetimeLocal === "string" ? parsed.datetimeLocal : "";
+  const now = deps.clock.now();
+  const when = resolveFollowUpTime(datetimeLocal, now);
+  if (!when.ok) {
+    return json(400, { error: when.reason === "invalid" ? "invalid_time" : "past_time" });
+  }
+
+  const rawTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
+  const eventId = randomUUID();
+  await deps.catalog.addEvent({
+    eventId,
+    propertyId,
+    dueAt: when.dueAt,
+    title: rawTitle !== "" ? rawTitle : "Viewing",
+    // The caller's own 1:1 chat with the OA — derived from the verified id-token, not the request —
+    // so a booking can only schedule a reminder to oneself.
+    notifyConversationKey: conversationKey({ kind: "user", userId }),
+    createdAt: now,
+  });
+  const response: BookViewingResponse = { eventId, dueAt: when.dueAt };
+  return json(201, response);
+}
+
+/** Decode a single path segment, falling back to the raw segment if it isn't valid %-encoding. */
+function decodeSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+/** Match `/properties/{id}` and return the (decoded) id, or null for any other path. */
+function propertyDetailId(path: string): string | null {
+  const match = /^\/properties\/([^/]+)$/.exec(path);
+  return match?.[1] === undefined ? null : decodeSegment(match[1]);
+}
+
+/** Match `/properties/{id}/viewings` and return the (decoded) id, or null for any other path. */
+function viewingsPropertyId(path: string): string | null {
+  const match = /^\/properties\/([^/]+)\/viewings$/.exec(path);
+  return match?.[1] === undefined ? null : decodeSegment(match[1]);
 }
 
 export async function handleReadApi(
@@ -184,6 +258,10 @@ export async function handleReadApi(
     const detailId = propertyDetailId(path);
     if (method === "GET" && detailId !== null) {
       return await handlePropertyDetail(deps, userId, detailId);
+    }
+    const bookId = viewingsPropertyId(path);
+    if (method === "POST" && bookId !== null) {
+      return await handleBookViewing(deps, userId, bookId, request.rawBody);
     }
     return json(404, { error: "not_found" });
   } catch (error) {

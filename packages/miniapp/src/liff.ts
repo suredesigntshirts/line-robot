@@ -31,3 +31,28 @@ export function getIdToken(): string | null {
 export function isInClient(): boolean {
   return liff.isInClient();
 }
+
+/** A LINE message object accepted by the share target picker (text/image/flex/…). */
+export type ShareMessage = Parameters<typeof liff.shareTargetPicker>[0][number];
+
+/** A permanent, shareable MINI App link to an in-app path, e.g. `…/p/{id}` → opens that screen.
+ * Built from the baked-in LIFF ID; the webview router resolves the path (directly or via
+ * `liff.state`). LIFF_ID is guaranteed set here (init() already threw otherwise). */
+export function miniAppDeepLink(path: string): string {
+  return `https://miniapp.line.me/${LIFF_ID ?? ""}${path}`;
+}
+
+/** Whether the share target picker is usable in this environment (LINE version + the per-channel
+ * "Use of Information" agreement). Lets the UI hide the Share button when it can't work. */
+export function canShare(): boolean {
+  return liff.isApiAvailable("shareTargetPicker");
+}
+
+/** Open the native target picker to send `messages` to friends/groups the user chooses (on their
+ * behalf). Resolves `true` when sent, `false` when the user cancelled. */
+export async function shareListing(messages: ShareMessage[]): Promise<boolean> {
+  const result = await liff.shareTargetPicker(messages);
+  // The SDK returns `{ status: "success" }` when sent, or `undefined` (typed `void`) when the user
+  // cancelled — cast past the `void` to read the discriminant.
+  return (result as { status?: string } | undefined)?.status === "success";
+}

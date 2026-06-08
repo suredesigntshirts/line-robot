@@ -3,7 +3,12 @@
  * the Function URL base is baked at build time (`VITE_READ_API_URL`). A non-2xx throws {@link
  * ApiError} carrying the status so screens can show 401 (re-open in LINE) vs 404 (gone) vs other.
  */
-import type { PropertyDetail, PropertyListItem } from "@line-robot/shared";
+import type {
+  BookViewingRequest,
+  BookViewingResponse,
+  PropertyDetail,
+  PropertyListItem,
+} from "@line-robot/shared";
 
 const BASE = (import.meta.env.VITE_READ_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
 
@@ -24,9 +29,27 @@ async function get<T>(path: string, idToken: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+async function post<T>(path: string, idToken: string, payload: unknown): Promise<T> {
+  const response = await fetch(BASE + path, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${idToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status);
+  }
+  return (await response.json()) as T;
+}
+
 export const api = {
   myProperties: (idToken: string): Promise<PropertyListItem[]> =>
     get<PropertyListItem[]>("/me/properties", idToken),
   property: (id: string, idToken: string): Promise<PropertyDetail> =>
     get<PropertyDetail>(`/properties/${encodeURIComponent(id)}`, idToken),
+  bookViewing: (
+    id: string,
+    idToken: string,
+    req: BookViewingRequest,
+  ): Promise<BookViewingResponse> =>
+    post<BookViewingResponse>(`/properties/${encodeURIComponent(id)}/viewings`, idToken, req),
 };

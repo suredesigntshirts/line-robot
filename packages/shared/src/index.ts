@@ -1,5 +1,7 @@
 export { BANGKOK_OFFSET_MS, MONTHS } from "./datetime.js";
 export type {
+  BookViewingRequest,
+  BookViewingResponse,
   Chanote,
   Photo,
   PhotoDto,

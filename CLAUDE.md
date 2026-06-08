@@ -75,4 +75,21 @@ The image is a **2500×843 PNG/JPEG ≤1MB** the user supplies; its visuals are 
 zones are defined by bounds, not the picture). The script is idempotent — it deletes any prior menu
 named `line-robot-main` before creating + setting the new one as default.
 
-Current build plan: `plans/09-realestate-catalog-assistant.md`.
+## MINI App deep-chat integration (plan 17) — one-time steps
+
+Deeper chat ↔ MINI App loop on the **unverified** channel (no verification needed). Manual steps:
+
+- **Deep links on the detail card (R1):** set the MINI App base URL so the bot can put an "Open in
+  Catalog" button on the Flex detail card: `cd infra && pulumi config set miniappUrl
+  https://miniapp.line.me/<liffId>` (e.g. `…/2010316767-rdtwc5y3`). Optional — unset just omits the
+  button. Wired into the processor env as `MINIAPP_URL`.
+- **Share a listing (R3):** `liff.shareTargetPicker` requires a **one-time per-channel consent** —
+  LINE console → the MINI App/LIFF channel → **LIFF tab** → agree to **"Agreement Regarding Use of
+  Information"**. No new LIFF scope, no verification. (Recipients who share no conversation with the
+  sender see the card's self-contained summary but can't open the full listing — membership gate.)
+- **Book a viewing (R4):** adds `POST /properties/{id}/viewings` to the read-api (membership-gated,
+  creates a follow-up event whose reminder goes to the caller's own 1:1 chat). The read-api role now
+  also has `dynamodb:PutItem` and its Function URL CORS allows `POST` — both land via `pulumi up`.
+  Rebuild the SPA (`npm run build`) so the new Detail-screen booking/share UI ships.
+
+Current build plan: `plans/17-miniapp-deep-chat-integration.md`.

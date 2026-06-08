@@ -41,6 +41,9 @@ export interface HandlerDeps {
   readonly extractor?: PropertyExtractor;
   /** When present, presign-failure warns are emitted from the assistant's photo boundaries. */
   readonly logger?: Logger;
+  /** MINI App base URL (`https://miniapp.line.me/{liffId}`); when set, the detail card gains an
+   * "Open in Catalog" deep link. Absent → no button (the original in-chat-only detail card). */
+  readonly miniappUrl?: string;
 }
 
 /**
@@ -60,6 +63,7 @@ export function createHandlers(deps: HandlerDeps): {
     undefined,
     deps.signer,
     deps.logger,
+    deps.miniappUrl,
   );
   const handlers: MessageHandler[] = [new CommandHandler(assistant)];
   if (deps.extractor !== undefined) {

@@ -1,3 +1,4 @@
+import { BANGKOK_OFFSET_MS } from "@line-robot/shared";
 import { describe, expect, it } from "vitest";
 import { handleReadApi, type ReadApiDeps } from "../../src/app/readApiHandler.js";
 import type { HttpRequest, HttpResponse } from "../../src/core/ports/httpGateway.js";
@@ -194,11 +195,103 @@ describe("GET /me/upcoming", () => {
   });
 });
 
+describe("POST /properties/{id}/viewings", () => {
+  // The fixed deps clock is now=1_000_000ms; a 2026 Bangkok-local time is comfortably in the future.
+  const FUTURE_LOCAL = "2026-06-10T14:30";
+  const FUTURE_DUE = Date.UTC(2026, 5, 10, 14, 30) - BANGKOK_OFFSET_MS;
+
+  function post(
+    path: string,
+    payload: unknown,
+    headers: Record<string, string> = AUTH,
+  ): HttpRequest {
+    return { method: "POST", path, headers, rawBody: JSON.stringify(payload) };
+  }
+
+  it("books a viewing on a reachable listing → 201, with a self-targeted reminder + default title", async () => {
+    const catalog = seeded();
+    const res = await handleReadApi(
+      deps(catalog),
+      post("/properties/p1/viewings", { datetimeLocal: FUTURE_LOCAL }),
+    );
+    expect(res.statusCode).toBe(201);
+    const created = body(res) as { eventId: string; dueAt: number };
+    expect(typeof created.eventId).toBe("string");
+    expect(created.dueAt).toBe(FUTURE_DUE);
+
+    const events = catalog.events.get("p1") ?? [];
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      propertyId: "p1",
+      dueAt: FUTURE_DUE,
+      title: "Viewing", // defaulted
+      notifyConversationKey: `user#${USER}`, // the caller's own 1:1 chat
+    });
+  });
+
+  it("uses a provided note as the reminder title", async () => {
+    const catalog = seeded();
+    await handleReadApi(
+      deps(catalog),
+      post("/properties/p1/viewings", { datetimeLocal: FUTURE_LOCAL, title: "  Site visit  " }),
+    );
+    expect(catalog.events.get("p1")?.[0]?.title).toBe("Site visit"); // trimmed
+  });
+
+  it("404s a property the caller cannot reach (no event written, ids stay non-enumerable)", async () => {
+    const catalog = seeded();
+    catalog.seedProperty({ propertyId: "secret", normalizedAddress: "hidden" });
+    const res = (await handleReadApi(
+      deps(catalog),
+      post("/properties/secret/viewings", { datetimeLocal: FUTURE_LOCAL }),
+    )) as { statusCode: number };
+    expect(res.statusCode).toBe(404);
+    expect(catalog.events.get("secret")).toBeUndefined();
+  });
+
+  it("400s an invalid time and a past time, writing nothing", async () => {
+    const catalog = seeded();
+    const invalid = await handleReadApi(
+      deps(catalog),
+      post("/properties/p1/viewings", { datetimeLocal: "not-a-date" }),
+    );
+    expect(invalid.statusCode).toBe(400);
+    expect((body(invalid) as { error: string }).error).toBe("invalid_time");
+
+    const past = await handleReadApi(
+      deps(catalog),
+      post("/properties/p1/viewings", { datetimeLocal: "1970-01-01T00:00" }),
+    );
+    expect(past.statusCode).toBe(400);
+    expect((body(past) as { error: string }).error).toBe("past_time");
+
+    expect(catalog.events.get("p1")).toBeUndefined();
+  });
+
+  it("401s an unauthenticated booking before any membership/DB work", async () => {
+    const res = (await handleReadApi(
+      deps(seeded()),
+      post("/properties/p1/viewings", { datetimeLocal: FUTURE_LOCAL }, {}),
+    )) as { statusCode: number };
+    expect(res.statusCode).toBe(401);
+  });
+});
+
 describe("routing", () => {
   it("404s an unknown route", async () => {
     const res = (await handleReadApi(deps(seeded()), event("GET", "/nope", AUTH))) as {
       statusCode: number;
     };
+    expect(res.statusCode).toBe(404);
+  });
+
+  it("404s a POST to a read-only route (only the viewings route accepts POST)", async () => {
+    const res = (await handleReadApi(deps(seeded()), {
+      method: "POST",
+      path: "/properties/p1",
+      headers: AUTH,
+      rawBody: "{}",
+    })) as { statusCode: number };
     expect(res.statusCode).toBe(404);
   });
 });

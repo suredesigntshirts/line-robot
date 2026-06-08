@@ -3,6 +3,7 @@ import type { Property } from "../../src/core/domain/catalog.js";
 import { decodePostback } from "../../src/core/handlers/commands.js";
 import {
   buildConfirmation,
+  catalogDeepLink,
   formatPrice,
   helpMessage,
   imageCarouselMessage,
@@ -169,6 +170,37 @@ describe("propertyDetail", () => {
       const labels = msg.cards[0]?.actions.map((a) => a.label) ?? [];
       expect(labels).not.toContain("🗺 Open in Maps");
     }
+  });
+
+  it("adds an Open in Catalog deep link only when a catalog base URL is configured, leading the row", () => {
+    const base = "https://miniapp.line.me/123-abc";
+    const withLink = propertyDetail(prop({ lat: 13.7, long: 100.5 }), {
+      photoCount: 3,
+      catalogBaseUrl: base,
+    });
+    const noLink = propertyDetail(prop({ lat: 13.7, long: 100.5 }), { photoCount: 3 });
+    const actions = (m: typeof withLink) => (m.type === "flex" ? (m.cards[0]?.actions ?? []) : []);
+
+    const catalog = actions(withLink)[0];
+    expect(catalog?.label).toBe("🔎 Open in Catalog"); // richest action leads
+    expect(catalog?.mode).toBe("uri");
+    expect(catalog?.uri).toBe("https://miniapp.line.me/123-abc/p/p-0123456789");
+    expect(actions(noLink).some((a) => a.label === "🔎 Open in Catalog")).toBe(false);
+  });
+});
+
+describe("catalogDeepLink", () => {
+  it("builds `{base}/p/{id}`, trimming a trailing slash and encoding the id", () => {
+    expect(catalogDeepLink("https://miniapp.line.me/123-abc", "p1")).toBe(
+      "https://miniapp.line.me/123-abc/p/p1",
+    );
+    expect(catalogDeepLink("https://miniapp.line.me/123-abc/", "a b")).toBe(
+      "https://miniapp.line.me/123-abc/p/a%20b",
+    );
+  });
+  it("returns undefined without a base URL (button omitted)", () => {
+    expect(catalogDeepLink(undefined, "p1")).toBeUndefined();
+    expect(catalogDeepLink("", "p1")).toBeUndefined();
   });
 });
 

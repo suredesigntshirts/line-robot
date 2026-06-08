@@ -20,6 +20,10 @@ const EnvSchema = z.object({
   // MINI App (LIFF) channel id — the `aud` the read-api validates id-tokens against. Plain config
   // (a channel id is public), only required by the read-api Lambda.
   LIFF_CHANNEL_ID: z.string().min(1).optional(),
+  // MINI App (LIFF) base URL, e.g. `https://miniapp.line.me/{liffId}` — used ONLY by the processor to
+  // put an "Open in Catalog" deep link (`{base}/p/{propertyId}`) on the Flex detail card. Optional:
+  // absent simply omits the button (same graceful-degrade as the rich-menu Catalog tab).
+  MINIAPP_URL: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

@@ -102,6 +102,22 @@ export interface UpcomingItem {
   readonly title?: string;
 }
 
+/** Body of `POST /properties/{id}/viewings` — book a viewing/follow-up from the MINI App. */
+export interface BookViewingRequest {
+  /** Bangkok-local `YYYY-MM-DDTHH:mm` (a `<input type="datetime-local">` value), interpreted the same
+   * way the chat datetime-picker is. */
+  readonly datetimeLocal: string;
+  /** Optional note shown in the reminder (defaults to "Viewing" server-side). */
+  readonly title?: string;
+}
+
+/** Success response of `POST /properties/{id}/viewings`. */
+export interface BookViewingResponse {
+  readonly eventId: string;
+  /** The resolved due instant (epoch ms), echoed so the client can render its confirmation. */
+  readonly dueAt: number;
+}
+
 /** Miniapp-side aliases (historical names) — the SPA imports these; same shapes as the *Dto names. */
 export type PropertyListItem = PropertyListDto;
 export type PropertyDetail = PropertyDetailDto;

@@ -67,6 +67,8 @@ async function buildDeps(): Promise<Deps> {
     signer,
     extractor,
     logger,
+    // When set, the detail card gains an "Open in Catalog" deep link to the MINI App listing screen.
+    miniappUrl: env.MINIAPP_URL,
   });
 
   const processor = new EventProcessor({
