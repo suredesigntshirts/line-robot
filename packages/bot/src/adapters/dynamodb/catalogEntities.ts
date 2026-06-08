@@ -20,6 +20,18 @@ export const GSI1 = "gsi1";
  * `gsi2pk`/`gsi2sk` on creation, and the reminder sweep clears them once it pushes the reminder). */
 export const GSI2 = "gsi2";
 
+/** Constant GSI1 partition key for conversations with pending ingestion work (sweep query:
+ * `gsi1pk = GSI1_PENDING_PK AND gsi1sk <= now`). Written by the raw tracker UpdateCommands. */
+export const GSI1_PENDING_PK = "PENDING";
+
+/** Constant GSI2 partition key for un-notified due events (sweep query:
+ * `gsi2pk = GSI2_DUE_PK AND gsi2sk <= now`); also the event entity's `byDueDate` index template. */
+export const GSI2_DUE_PK = "DUE";
+
+/** The `entityType` discriminator stamped on the conversation tracker META item — the one item the
+ * raw UpdateCommands write outside ElectroDB (in `touchConversation` + `armEdit`). */
+export const TRACKER_ENTITY_TYPE = "conversationTracker";
+
 // ---------------------------------------------------------------------------
 // ElectroDB entities (simple CRUD/query). `casing: "none"` preserves case-sensitive LINE ids and
 // keeps these keys byte-identical to the raw-written tracker keys in the shared CONV# partition.
@@ -196,7 +208,7 @@ export function buildEventEntity(client: DynamoDBDocumentClient, table: string) 
         // UpdateItem in markEventNotified) so a notified event drops out of the index.
         byDueDate: {
           index: GSI2,
-          pk: { field: "gsi2pk", composite: [], template: "DUE", casing: "none" },
+          pk: { field: "gsi2pk", composite: [], template: GSI2_DUE_PK, casing: "none" },
           sk: {
             field: "gsi2sk",
             composite: ["dueIso", "eventId"],
