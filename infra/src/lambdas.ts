@@ -1,7 +1,13 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import { lambdaRole } from "./iam";
-import { logRetentionDays, prefix, ssmKmsDecrypt, stack } from "./naming";
+import {
+  logRetentionDays,
+  PROCESSOR_TIMEOUT_SECONDS,
+  prefix,
+  ssmKmsDecrypt,
+  stack,
+} from "./naming";
 import type { Storage } from "./storage";
 
 /** The bot-path handles `index.ts` must export or the mini-app does not touch. */
@@ -187,7 +193,7 @@ export function createBotLambdas(storage: Storage): BotLambdas {
       handler: "index.handler",
       code: new pulumi.asset.FileArchive("../packages/bot/dist/processor"),
       role: processorRole.arn,
-      timeout: 30,
+      timeout: PROCESSOR_TIMEOUT_SECONDS,
       memorySize: 512,
       publish: true,
       environment: { variables: commonEnv },

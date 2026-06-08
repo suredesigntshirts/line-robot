@@ -1,3 +1,3 @@
 name: line-robot
 runtime: nodejs
-description: LINE echo bot infrastructure — Lambda (ingest + processor), SQS, DynamoDB, S3, SSM
+description: LINE real-estate catalog assistant — Lambdas (ingest, processor, sweep, reminder, read-api), SQS, DynamoDB, S3, CloudFront (mini-app), SSM

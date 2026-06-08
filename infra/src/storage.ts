@@ -1,6 +1,6 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
-import { config, prefix } from "./naming";
+import { config, PROCESSOR_TIMEOUT_SECONDS, prefix } from "./naming";
 
 /** Handles the rest of the program references — tables, bucket, queues, and SSM params. */
 export interface Storage {
@@ -124,7 +124,7 @@ export function createStorage(): Storage {
 
   const eventsQueue = new aws.sqs.Queue("events", {
     name: `${prefix}-events`,
-    visibilityTimeoutSeconds: 180, // >= 6x the processor timeout
+    visibilityTimeoutSeconds: 6 * PROCESSOR_TIMEOUT_SECONDS, // 6× the processor timeout (can't redeliver mid-process)
     redrivePolicy: pulumi.jsonStringify({ deadLetterTargetArn: dlq.arn, maxReceiveCount: 5 }),
   });
 
