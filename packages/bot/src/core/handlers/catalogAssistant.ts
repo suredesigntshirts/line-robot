@@ -16,6 +16,7 @@ import { heroPhotoKey, orderedPhotos } from "../domain/photos.js";
 import type { ConversationStore, PropertyStore } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../ports/runtime.js";
+import { collectUpcoming } from "./upcoming.js";
 import {
   deletePromptMessage,
   helpMessage,
@@ -24,7 +25,6 @@ import {
   propertyDetail,
   propertyTitle,
   searchPromptMessage,
-  type UpcomingFollowUp,
   upcomingMessage,
 } from "./views.js";
 
@@ -100,25 +100,7 @@ export class CatalogAssistant {
   /** "Upcoming" — the user's outstanding follow-ups across every listing they can see, soonest
    * first. Notified events drop out (their reminder already fired). */
   async upcoming(userId: string): Promise<OutboundMessage[]> {
-    const properties = await this.catalog.listPropertiesForUser(userId);
-    const rows: UpcomingFollowUp[] = [];
-    await Promise.all(
-      properties.map(async (property) => {
-        const events = await this.catalog.listPropertyEvents(property.propertyId);
-        for (const event of events) {
-          if (event.notifiedAt === undefined) {
-            rows.push({
-              propertyId: property.propertyId,
-              propertyTitle: propertyTitle(property),
-              dueAt: event.dueAt,
-              title: event.title,
-            });
-          }
-        }
-      }),
-    );
-    rows.sort((a, b) => a.dueAt - b.dueAt);
-    return [upcomingMessage(rows)];
+    return [upcomingMessage(await collectUpcoming(this.catalog, userId))];
   }
 
   /**

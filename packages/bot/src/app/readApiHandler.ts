@@ -9,11 +9,10 @@
  * additionally enforces membership — a caller can only fetch a listing reachable through one of their
  * conversations — so property ids are not enumerable.
  */
-import type { UpcomingItem } from "@line-robot/shared";
 import { byActivityDesc, type Property } from "../core/domain/catalog.js";
 import { heroPhotoKey, orderedPhotos } from "../core/domain/photos.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
-import { propertyTitle } from "../core/handlers/views.js";
+import { collectUpcoming } from "../core/handlers/upcoming.js";
 import type { ConversationStore, PropertyStore } from "../core/ports/catalog.js";
 import type { HttpRequest, HttpResponse } from "../core/ports/httpGateway.js";
 import type { LineTokenVerifier } from "../core/ports/lineTokenVerifier.js";
@@ -139,25 +138,7 @@ async function handlePropertyDetail(
 }
 
 async function handleUpcoming(deps: ReadApiDeps, userId: string): Promise<HttpResponse> {
-  const properties = await deps.catalog.listPropertiesForUser(userId);
-  const rows: UpcomingItem[] = [];
-  await Promise.all(
-    properties.map(async (property) => {
-      const events = await deps.catalog.listPropertyEvents(property.propertyId);
-      for (const event of events) {
-        if (event.notifiedAt === undefined) {
-          rows.push({
-            propertyId: property.propertyId,
-            propertyTitle: propertyTitle(property),
-            dueAt: event.dueAt,
-            ...(event.title !== undefined ? { title: event.title } : {}),
-          });
-        }
-      }
-    }),
-  );
-  rows.sort((a, b) => a.dueAt - b.dueAt);
-  return json(200, rows);
+  return json(200, await collectUpcoming(deps.catalog, userId));
 }
 
 /** Match `/properties/{id}` and return the (decoded) id, or null for any other path. */
