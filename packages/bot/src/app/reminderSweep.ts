@@ -1,11 +1,11 @@
 import { pushTargetFromKey } from "../core/domain/conversation.js";
 import { propertyTitle, reminderMessage } from "../core/handlers/views.js";
-import type { FollowUpStore, PropertyStore } from "../core/ports/catalog.js";
+import type { PropertyStore } from "../core/ports/catalog.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
 
 export interface ReminderSweepDeps {
-  readonly catalog: FollowUpStore & PropertyStore;
+  readonly catalog: PropertyStore;
   readonly gateway: LineGateway;
   readonly logger: Logger;
   readonly clock: Clock;

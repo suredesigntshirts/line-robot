@@ -11,7 +11,7 @@ import type { PropertyUpsert } from "../domain/catalog.js";
 import { conversationKey } from "../domain/conversation.js";
 import { parseGeoLinks, parseMapUrls } from "../domain/geo.js";
 import type { IncomingMessage, OutboundMessage } from "../domain/message.js";
-import type { EditContextStore, PropertyStore } from "../ports/catalog.js";
+import type { ConversationStore, PropertyStore } from "../ports/catalog.js";
 import type { PropertyExtractor } from "../ports/extraction.js";
 import type { MessageHandler } from "../ports/messageHandler.js";
 import type { Clock } from "../ports/runtime.js";
@@ -23,7 +23,7 @@ const EDIT_TTL_MS = 15 * 60_000;
 
 export class EditReplyHandler implements MessageHandler {
   constructor(
-    private readonly catalog: EditContextStore & PropertyStore,
+    private readonly catalog: ConversationStore & PropertyStore,
     private readonly extractor: PropertyExtractor,
     private readonly clock: Clock,
   ) {}

@@ -6,16 +6,25 @@ import type {
 } from "../domain/catalog.js";
 
 /**
- * Persistence seams for the catalog, split by concern. Keyed by raw string ids (conversationKey /
- * userId / propertyId) rather than {@link ConversationRef} because the ingestion/reminder sweeps work
- * purely from keys discovered via GSIs; callers that hold a ref convert with `conversationKey()`.
+ * Persistence seams for the catalog, split into the two aggregates the single-table DynamoDB design
+ * actually has. Keyed by raw string ids (conversationKey / userId / propertyId) rather than
+ * {@link ConversationRef} because the ingestion/reminder sweeps work purely from keys discovered via
+ * GSIs; callers that hold a ref convert with `conversationKey()`.
  *
  * One DynamoDB adapter ({@link ../../adapters/dynamodb/catalogRepository.DynamoCatalogRepository})
- * implements every store; app-layer consumers depend only on the store(s) they actually call.
+ * implements both; app-layer consumers depend on the store(s) they actually call.
  */
 
-/** Conversation tracker — the debounced-ingestion state machine. */
-export interface ConversationIngestionStore {
+/**
+ * Everything keyed by a conversation or its user, sharing the `CONV#…` / `USER#…` partitions: the
+ * debounced-ingestion tracker, the edit context stored on that same tracker item, the
+ * user↔conversation membership edges (read-access), and the per-conversation memory note. One
+ * aggregate because these items co-locate and mutate together (e.g. the edit context lives on the
+ * tracker META item).
+ */
+export interface ConversationStore {
+  // --- Conversation tracker (debounced-ingestion state machine) ---
+
   /**
    * Record an inbound message on the conversation tracker: always advance `lastInboundAt`, and
    * update the sparse GSI1 "ready-at" key per the quiet-debounce + max-wait policy — the sweep
@@ -62,10 +71,9 @@ export interface ConversationIngestionStore {
   ): Promise<void>;
 
   getConversation(conversationKey: string): Promise<ConversationTracker | null>;
-}
 
-/** Edit context — last-viewed property → free-text "reply to update". */
-export interface EditContextStore {
+  // --- Edit context (last-viewed property → free-text "reply to update") ---
+
   /**
    * Arm a short-lived "edit context": the next plain-text reply in this conversation targets
    * `propertyId` (see {@link ../handlers/editReplyHandler}). Stored on the tracker META item; it
@@ -78,10 +86,9 @@ export interface EditContextStore {
 
   /** Clear the armed edit context (after applying an edit, or when the reply didn't match it). */
   clearEdit(conversationKey: string): Promise<void>;
-}
 
-/** User ↔ Conversation membership — read-access edges. */
-export interface MembershipStore {
+  // --- User ↔ Conversation membership (read-access edges) ---
+
   /** Upsert a membership edge `USER#<userId> → CONV#<conversationKey>`. */
   recordMembership(userId: string, conversationKey: string, seenAtMs: number): Promise<void>;
 
@@ -90,10 +97,26 @@ export interface MembershipStore {
 
   /** Conversation keys this user is (or has been) a member of. */
   listUserConversations(userId: string): Promise<string[]>;
+
+  // --- Per-conversation memory (durable learned context) ---
+
+  /** The conversation's memory note (people, area aliases, terminology, preferences), or null. */
+  getMemoryDoc(conversationKey: string): Promise<string | null>;
+
+  /** Replace the conversation's memory note. Callers bound the length before storing. */
+  putMemoryDoc(conversationKey: string, content: string): Promise<void>;
 }
 
-/** Properties + Conv→Property edges — write-scope + listing. */
+/**
+ * The property-catalog graph, all `PROP#…` / `CONV#…` keyed: property records, the
+ * conversation↔property edges that scope them, the user-facing listing fan-out
+ * (`listPropertiesForUser` stitches membership → edges → properties), and the follow-up events
+ * attached to a property. One aggregate because the listing/merge/reminder flows read and write
+ * across these items together.
+ */
 export interface PropertyStore {
+  // --- Properties + Conv→Property edges (write-scope + listing) ---
+
   /** Create or merge a property (set-if-present; never clobbers fields the caller omits). */
   upsertProperty(input: PropertyUpsert): Promise<void>;
 
@@ -102,10 +125,6 @@ export interface PropertyStore {
   /** Delete a property's META row. Used when merging a just-created (still single-conversation)
    * property into an existing one — the new row is removed after its fields move over. */
   deleteProperty(propertyId: string): Promise<void>;
-
-  /** Delete every follow-up event on a property (used when fully deleting a listing, so no orphan
-   * reminders fire afterwards). No-op when the property has none. */
-  deletePropertyEvents(propertyId: string): Promise<void>;
 
   /** Upsert a Conv→Property edge `CONV#<conversationKey> → PROP#<propertyId>`. */
   linkConversationProperty(
@@ -124,16 +143,19 @@ export interface PropertyStore {
   /** "Show my listings": resolve user → their conversations → those conversations' properties
    * (deduped). Read-access follows the user across chats. */
   listPropertiesForUser(userId: string): Promise<Property[]>;
-}
 
-/** Property events — calendar / reminders. */
-export interface FollowUpStore {
+  // --- Property events (calendar / reminders) ---
+
   /** Create a follow-up event on a property. Its sparse GSI2 key makes it visible to the reminder
    * sweep until it is notified. */
   addEvent(event: PropertyEvent): Promise<void>;
 
   /** Every event on a property (past + future), for the "upcoming" view. */
   listPropertyEvents(propertyId: string): Promise<PropertyEvent[]>;
+
+  /** Delete every follow-up event on a property (used when fully deleting a listing, so no orphan
+   * reminders fire afterwards). No-op when the property has none. */
+  deletePropertyEvents(propertyId: string): Promise<void>;
 
   /** Un-notified events whose due time is at or before `nowIso` — the reminder sweep's work list,
    * sourced from the sparse GSI2 (no scan). */
@@ -147,23 +169,9 @@ export interface FollowUpStore {
   markEventNotified(event: PropertyEvent, nowMs: number): Promise<boolean>;
 }
 
-/** Per-conversation memory — durable learned context. */
-export interface MemoryStore {
-  /** The conversation's memory note (people, area aliases, terminology, preferences), or null. */
-  getMemoryDoc(conversationKey: string): Promise<string | null>;
-
-  /** Replace the conversation's memory note. Callers bound the length before storing. */
-  putMemoryDoc(conversationKey: string, content: string): Promise<void>;
-}
-
 /**
- * Backwards-compatible union of every catalog store. The DynamoDB adapter and the in-memory test
- * double implement this; the broadest injection site ({@link ../handlers/registry.HandlerDeps}) uses
- * it. Prefer depending on the narrowest store(s) you actually call.
+ * Both stores together — implemented by the single DynamoDB adapter and the in-memory test double,
+ * and used by the broadest injection site ({@link ../handlers/registry.HandlerDeps}). A consumer
+ * that touches only one aggregate depends on just that store.
  */
-export type CatalogRepository = ConversationIngestionStore &
-  EditContextStore &
-  MembershipStore &
-  PropertyStore &
-  FollowUpStore &
-  MemoryStore;
+export type CatalogRepository = ConversationStore & PropertyStore;

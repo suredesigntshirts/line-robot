@@ -13,7 +13,7 @@ import {
 import { formatDueDate, parseBangkokLocal } from "../domain/datetime.js";
 import type { OutboundMessage } from "../domain/message.js";
 import { heroPhotoKey, orderedPhotos } from "../domain/photos.js";
-import type { EditContextStore, FollowUpStore, PropertyStore } from "../ports/catalog.js";
+import type { ConversationStore, PropertyStore } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../ports/runtime.js";
 import {
@@ -32,7 +32,7 @@ export class CatalogAssistant {
   private readonly newId: () => string;
 
   constructor(
-    private readonly catalog: PropertyStore & EditContextStore & FollowUpStore,
+    private readonly catalog: ConversationStore & PropertyStore,
     private readonly clock: Clock,
     newId?: () => string,
     private readonly signer?: MediaUrlSigner,
