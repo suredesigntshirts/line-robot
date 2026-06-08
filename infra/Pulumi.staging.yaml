@@ -23,4 +23,5 @@ config:
   line-robot:anthropicApiKey:
     secure: v1:mSO6TcGBP8UwfO/M:ab55iXXycWn3ZFOXN6BPx3YZp5joqI+JyB7o7abbcO0FZu592ZvBnGUZMqlzO1xWh6OVxXENO3XMnMAbr6tOn1jdA/BtVbAGQhZ/ci3tysCYxy0OnqR/O1356sjBXGPDjkDA9HOhjF90bCVey0Nv2AxtBXGmPLuT6KOWgw==
   line-robot:liffChannelId: "2010316767"
+  line-robot:miniappUrl: https://miniapp.line.me/2010316767-rdtwc5y3
 encryptionsalt: v1:BuAIHbVKRfA=:v1:8R81wMHonD29TnuL:PzcC3+AhNJ9PFpLCr6yywZnUG39rfg==
