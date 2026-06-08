@@ -10,6 +10,10 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "noEmit": true,
+    // Pulumi runs this program through ts-node, which *emits* (unlike our `tsc --noEmit`
+    // typecheck). With index.ts at the root and the rest under src/, TypeScript 6 can't infer a
+    // single output root and aborts with TS5011. Pin the root to infra/ so emit is deterministic.
+    "rootDir": ".",
     "types": ["node"]
   },
   "include": ["index.ts", "src/**/*.ts"]
