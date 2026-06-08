@@ -1,6 +1,5 @@
-import { execFileSync } from "node:child_process";
-import { CreateTableCommand, DynamoDBClient, ListTablesCommand } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { CreateTableCommand, type DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DynamoCatalogRepository } from "../../src/adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepository.js";
@@ -16,49 +15,11 @@ import type {
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { MediaReader } from "../../src/core/ports/mediaReader.js";
 import { textOf } from "../fixtures/outbound.js";
+import { startDynamoDBLocal, stopDynamoDBLocal } from "./dynamodbLocal.js";
 
 const CONTAINER = "linerobot-ddb-sweep-it";
 const CATALOG_TABLE = "catalog-test";
 const MESSAGES_TABLE = "messages-test";
-
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-function tryDocker(args: string[]): void {
-  try {
-    execFileSync("docker", args, { stdio: "ignore" });
-  } catch {
-    /* ignore — container may not exist yet */
-  }
-}
-
-function startContainer(): string {
-  tryDocker(["rm", "-f", CONTAINER]);
-  execFileSync(
-    "docker",
-    ["run", "-d", "--rm", "--name", CONTAINER, "-p", "127.0.0.1::8000", "amazon/dynamodb-local"],
-    { stdio: "ignore" },
-  );
-  const mapping = execFileSync("docker", ["port", CONTAINER, "8000/tcp"], {
-    encoding: "utf8",
-  }).trim();
-  const hostPort = (mapping.split("\n")[0] ?? "").split(":").pop();
-  if (hostPort === undefined || hostPort === "") {
-    throw new Error(`Could not resolve mapped port from docker output: ${mapping}`);
-  }
-  return `http://127.0.0.1:${hostPort}`;
-}
-
-async function waitForReady(client: DynamoDBClient): Promise<void> {
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    try {
-      await client.send(new ListTablesCommand({}));
-      return;
-    } catch {
-      await sleep(500);
-    }
-  }
-  throw new Error("DynamoDB Local did not become ready in time");
-}
 
 async function createTables(client: DynamoDBClient): Promise<void> {
   await client.send(
@@ -159,14 +120,9 @@ function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep
 }
 
 beforeAll(async () => {
-  const endpoint = startContainer();
-  ddb = new DynamoDBClient({
-    endpoint,
-    region: "us-east-1",
-    credentials: { accessKeyId: "test", secretAccessKey: "test" },
-  });
-  doc = DynamoDBDocumentClient.from(ddb);
-  await waitForReady(ddb);
+  const local = await startDynamoDBLocal(CONTAINER);
+  ddb = local.client;
+  doc = local.doc;
   await createTables(ddb);
   // Small debounce windows: quiet 1s, cap 5s.
   catalog = new DynamoCatalogRepository(doc, CATALOG_TABLE, {
@@ -177,7 +133,7 @@ beforeAll(async () => {
 });
 
 afterAll(() => {
-  tryDocker(["rm", "-f", CONTAINER]);
+  stopDynamoDBLocal(CONTAINER);
 });
 
 async function arrive(ref: ConversationRef, key: string, messageId: string, timestamp: number) {
