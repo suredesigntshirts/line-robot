@@ -46,7 +46,9 @@ const DEFAULT_LADDER: readonly ModelTier[] = [
   { model: "claude-sonnet-4-6", effort: "medium", thinking: true },
 ];
 
-const IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+/** Image MIME types we can send to the model as an `image` block (PDF → `document`; anything else is
+ * skipped). One set, shared by the extraction content builder and the per-image classifier. */
+const SUPPORTED_IMAGE_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 // IMPORTANT: Anthropic strict structured output caps a schema at 16 UNION (nullable) parameters —
 // see ./CLAUDE.md. We therefore keep `.nullable()` ONLY for numbers (no clean empty sentinel) and
@@ -266,22 +268,11 @@ export function buildExtractionContent(request: ExtractionRequest): Anthropic.Co
 
   const content: Anthropic.ContentBlockParam[] = [{ type: "text", text: sections.join("\n\n") }];
   for (const media of request.media) {
-    if (IMAGE_MEDIA_TYPES.has(media.mediaType)) {
-      content.push({
-        type: "image",
-        source: {
-          type: "base64",
-          media_type: media.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
-          data: media.base64,
-        },
-      });
-    } else if (media.mediaType === "application/pdf") {
-      content.push({
-        type: "document",
-        source: { type: "base64", media_type: "application/pdf", data: media.base64 },
-      });
+    // Image → image block, PDF → document block, anything else (audio/video/unknown) → skipped.
+    const block = mediaBlock(media);
+    if (block !== null) {
+      content.push(block);
     }
-    // Other types (audio, video, unknown) carry no extractable property data — skip them.
   }
   return content;
 }
@@ -417,7 +408,6 @@ function toChanote(c: z.infer<typeof ChanoteSchema>): Chanote | undefined {
 }
 
 const CLASSIFY_MAX_TOKENS = 1500;
-const IMAGE_TYPES_FOR_CLASSIFY = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 
 /** One Haiku vision call per image: classify property/chanote/other and, for documents, OCR. Kept
  * deliberately cheap + bounded so a listing's whole photo set can be processed independently. */
@@ -461,10 +451,11 @@ export class ClaudeImageClassifier implements ImageClassifier {
   }
 }
 
-/** Build the single image/document content block for a classify call, or null for an unsupported
- * media type. */
+/** Map an {@link ExtractionMedia} to the single Anthropic image/document content block for a model
+ * call (extraction or classify), or null for an unsupported media type. The one place this mapping
+ * lives — shared by {@link buildExtractionContent} and {@link ClaudeImageClassifier}. */
 function mediaBlock(media: ExtractionMedia): Anthropic.ContentBlockParam | null {
-  if (IMAGE_TYPES_FOR_CLASSIFY.has(media.mediaType)) {
+  if (SUPPORTED_IMAGE_MEDIA_TYPES.has(media.mediaType)) {
     return {
       type: "image",
       source: {
