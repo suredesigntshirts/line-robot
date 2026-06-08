@@ -26,6 +26,9 @@ outage; root-caused in `plans/13-chanote-ocr-and-image-pipeline.md`).
    present, so you don't need `.nullable()` for determinism:
    - text → `z.string()`, with `""` meaning "not stated"
    - lists → `z.array(z.string())`, with `[]` meaning "none"
+   - **Keep the prompt in sync with the sentinel:** instruct the model `else ""` / `else []`, never
+     `else null`. A prompt that says "null" while the schema is `z.string()` tells the model to emit a
+     value strict mode rejects (this drift was a real, shipped mismatch — see `buildExtractionContent`).
 3. **Spend nullables only on numbers** (no clean empty sentinel): lat, long, askingPrice, rentPrice,
    bedrooms, bathrooms, usableAreaSqm, floors ≈ the whole budget.
 4. **Adding a group of fields?** Put them in **one nullable nested object** (1 union for the group),

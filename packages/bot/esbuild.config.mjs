@@ -2,6 +2,10 @@ import { build } from "esbuild";
 
 // Bundle each Lambda entrypoint into a single ESM file. We bundle the AWS SDK too (rather than
 // rely on the runtime-provided copy) so deployed versions are pinned and reproducible.
+//
+// Build-host note: `@esbuild/linux-x64` is pinned as an explicit devDependency in package.json on
+// purpose — it's esbuild's native binary for the x86_64 build host. It looks like a redundant
+// platform-specific dep, but pruning it breaks this bundle on CI/deploy. Do not remove it.
 const common = {
   bundle: true,
   platform: "node",

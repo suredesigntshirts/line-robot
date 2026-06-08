@@ -365,6 +365,10 @@ export const DEFAULT_DEBOUNCE: DebouncePolicy = {
   maxWaitMs: 30 * 60_000, // 30 min cap
 };
 
+// Match by `.name`, NOT `instanceof ConditionalCheckFailedException`. In a bundled Lambda the SDK
+// error can cross a module boundary (duplicate SDK copies / middleware re-throw) where `instanceof`
+// silently returns false; the `.name` string is bundle-stable and is AWS's own guidance. It also
+// keeps this file free of a client-layer import. Do not "simplify" this to instanceof.
 export function isConditionalCheckFailed(error: unknown): boolean {
   return (
     typeof error === "object" &&
