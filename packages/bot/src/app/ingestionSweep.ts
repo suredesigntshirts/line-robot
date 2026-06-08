@@ -71,8 +71,6 @@ export interface SweepOptions {
 export interface SweepResult {
   /** Conversations the GSI reported as due. */
   readonly due: number;
-  /** Conversations this sweep claimed (won the lock for). */
-  readonly claimed: number;
   /** Conversations fully processed and released. */
   readonly ingested: number;
   /** Total messages batched across all processed conversations. */
@@ -134,7 +132,6 @@ export class IngestionSweep {
       this.deps.logger.info("ingestion sweep: nothing due", { nowIso });
       return {
         due: 0,
-        claimed: 0,
         ingested: 0,
         messages: 0,
         properties: 0,
@@ -147,7 +144,6 @@ export class IngestionSweep {
     const maxAttempts = this.opts.maxIngestAttempts ?? DEFAULT_MAX_INGEST_ATTEMPTS;
     const tally = {
       due: due.length,
-      claimed: 0,
       ingested: 0,
       messages: 0,
       properties: 0,
@@ -166,7 +162,6 @@ export class IngestionSweep {
           tally.abandoned += 1;
           continue;
         }
-        tally.claimed += 1;
         tally.ingested += 1;
         tally.messages += outcome.messageCount;
         tally.properties += outcome.propertyCount;
@@ -261,7 +256,7 @@ export class IngestionSweep {
       .map((m) => m.text)
       .filter((t): t is string => t !== undefined && t !== "")
       .join("\n");
-    const allGeoHints = parseGeoLinks(chatText).map((g) => ({ lat: g.lat, long: g.long }));
+    const allGeoHints = parseGeoLinks(chatText);
     const candidates = await this.loadCandidates(key);
     const memory = nullToUndef(await this.deps.catalog.getMemoryDoc(key));
 
@@ -302,10 +297,7 @@ export class IngestionSweep {
     for (const segment of seg.segments) {
       const mapUrl = segment.mapIndex >= 0 ? mapLinks[segment.mapIndex] : undefined;
       // Pass ONLY this property's own map coord to its focused extract (don't leak siblings' coords).
-      const segGeo =
-        mapUrl !== undefined
-          ? parseGeoLinks(mapUrl).map((g) => ({ lat: g.lat, long: g.long }))
-          : [];
+      const segGeo = mapUrl !== undefined ? parseGeoLinks(mapUrl) : [];
       // PASS 2 — a focused extraction filling all fields for THIS property only (no dilution).
       const result = await this.deps.extractor.extract({
         conversationKey: key,

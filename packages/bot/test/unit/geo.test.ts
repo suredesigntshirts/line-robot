@@ -4,12 +4,12 @@ import { parseGeoLinks, parseMapUrls } from "../../src/core/domain/geo.js";
 describe("parseGeoLinks", () => {
   it("parses the q= pin form (the real-data pattern users paste)", () => {
     const geo = parseGeoLinks("here it is https://maps.google.com/?q=13.7563,100.5018 take a look");
-    expect(geo).toEqual([{ lat: 13.7563, long: 100.5018, source: "q=13.7563,100.5018" }]);
+    expect(geo).toEqual([{ lat: 13.7563, long: 100.5018 }]);
   });
 
   it("parses the @ place-view form", () => {
     const geo = parseGeoLinks("https://www.google.com/maps/@13.7563,100.5018,17z");
-    expect(geo).toEqual([{ lat: 13.7563, long: 100.5018, source: "@13.7563,100.5018" }]);
+    expect(geo).toEqual([{ lat: 13.7563, long: 100.5018 }]);
   });
 
   it("parses ll=, query=, and loc:-prefixed forms", () => {
@@ -22,7 +22,6 @@ describe("parseGeoLinks", () => {
     expect(parseGeoLinks("?q=-33.8688,151.2093")[0]).toEqual({
       lat: -33.8688,
       long: 151.2093,
-      source: "q=-33.8688,151.2093",
     });
   });
 

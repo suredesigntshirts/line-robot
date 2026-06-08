@@ -60,7 +60,7 @@ export class EditReplyHandler implements MessageHandler {
       conversationKey: convKey,
       text: editText,
       media: [],
-      geoHints: parseGeoLinks(text).map((g) => ({ lat: g.lat, long: g.long })),
+      geoHints: parseGeoLinks(text),
       candidates: [
         {
           propertyId: before.propertyId,

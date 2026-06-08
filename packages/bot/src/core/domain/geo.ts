@@ -5,12 +5,10 @@
  * them to extraction as hints.
  */
 
-/** A coordinate pair parsed from a Google-Maps link, with the matched carrier kept for provenance. */
+/** A coordinate pair parsed from a Google-Maps link. */
 export interface ParsedGeo {
   readonly lat: number;
   readonly long: number;
-  /** The matched URL fragment that carried the coordinates (logging / audit). */
-  readonly source: string;
 }
 
 // A decimal degree, e.g. `13`, `-13`, `13.7563`.
@@ -48,8 +46,7 @@ export function parseGeoLinks(text: string): ParsedGeo[] {
         continue;
       }
       seen.add(key);
-      // Trim a leading `?`/`&` so the source reads as the bare carrier (e.g. `q=13.75,100.5`).
-      out.push({ lat, long, source: match[0].replace(/^[?&]/, "") });
+      out.push({ lat, long });
     }
   }
   return out;

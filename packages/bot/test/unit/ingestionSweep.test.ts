@@ -237,7 +237,7 @@ describe("IngestionSweep — mechanics", () => {
   it("does nothing when no conversations are due", async () => {
     const { sweep, spies } = makeSweep([]);
     const result = await sweep.run();
-    expect(result).toMatchObject({ due: 0, claimed: 0, ingested: 0, properties: 0 });
+    expect(result).toMatchObject({ due: 0, ingested: 0, properties: 0 });
     expect(spies.claims).toHaveLength(0);
   });
 
@@ -273,7 +273,7 @@ describe("IngestionSweep — mechanics", () => {
       },
     ]);
     const result = await sweep.run();
-    expect(result).toMatchObject({ abandoned: 1, ingested: 0, claimed: 0, skipped: 0, failed: 0 });
+    expect(result).toMatchObject({ abandoned: 1, ingested: 0, skipped: 0, failed: 0 });
     expect(spies.fails).toEqual(["user#X"]); // marked FAILED (dropped off the pending index)
     expect(spies.extractRequests).toHaveLength(0); // critical: no inference spent
     expect(spies.releases).toHaveLength(0); // not released — it's terminal

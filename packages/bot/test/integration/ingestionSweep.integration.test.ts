@@ -163,7 +163,7 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     // Past the quiet window: the whole burst ingests as one batch.
     clock.value = 3000;
     const swept = await makeSweep().run();
-    expect(swept).toMatchObject({ due: 1, claimed: 1, ingested: 1, messages: 2 });
+    expect(swept).toMatchObject({ due: 1, ingested: 1, messages: 2 });
 
     const tracker = await catalog.getConversation(key);
     expect(tracker?.lastIngestedAt).toBe(1500); // watermark = newest message
@@ -207,7 +207,7 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     // Either way the message is batched exactly once — never double-ingested.
     const [a, b] = await Promise.all([makeSweep().run(), makeSweep().run()]);
     expect(a.messages + b.messages).toBe(1);
-    expect(a.claimed + b.claimed).toBeGreaterThanOrEqual(1);
+    expect(a.ingested + b.ingested).toBeGreaterThanOrEqual(1);
     expect((await catalog.getConversation(key))?.lastIngestedAt).toBe(1000);
   });
 
@@ -293,7 +293,7 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     const swept = await makeSweep().run();
     // due=1 (the group conversation is past its quiet window) and both messages are batched —
     // proving the catalog tracker key (raw CONV#<key>) and the messages key now agree on case.
-    expect(swept).toMatchObject({ due: 1, claimed: 1, ingested: 1, messages: 2 });
+    expect(swept).toMatchObject({ due: 1, ingested: 1, messages: 2 });
     expect((await catalog.getConversation(key))?.lastIngestedAt).toBe(1500);
   });
 });
