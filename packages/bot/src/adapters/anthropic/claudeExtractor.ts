@@ -258,7 +258,7 @@ export function buildExtractionContent(request: ExtractionRequest): Anthropic.Co
       )
       .join("\n");
     sections.push(
-      `Existing properties in THIS conversation — match against these for updates (set existingPropertyId to the id if one matches, else null):\n${lines}`,
+      `Existing properties in THIS conversation — match against these for updates (set existingPropertyId to the id if one matches, else "" (empty string)):\n${lines}`,
     );
   } else {
     sections.push(
@@ -286,7 +286,11 @@ export class ClaudeExtractor implements PropertyExtractor, PropertySegmenter {
 
   /** Pass 1 of two-pass extraction: split + attribute, on the cheap primary tier (no field work). */
   async segment(request: ExtractionRequest): Promise<SegmentationResult | null> {
-    const model = this.ladder[0]?.model ?? "claude-haiku-4-5";
+    const primary = this.ladder[0];
+    if (primary === undefined) {
+      return null;
+    }
+    const model = primary.model;
     try {
       const response = await this.client.messages.parse({
         model,
