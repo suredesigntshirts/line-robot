@@ -1,5 +1,6 @@
 import type { Readable } from "node:stream";
 import { HTTPFetchError, messagingApi } from "@line/bot-sdk";
+import { LINE_MAX_CAROUSEL_BUBBLES, LINE_MAX_QUICK_REPLIES } from "../../core/domain/lineLimits.js";
 import type {
   CardAction,
   OutboundMessage,
@@ -18,10 +19,8 @@ export interface LineApiClient {
   pushMessage(request: messagingApi.PushMessageRequest): Promise<unknown>;
 }
 
-// LINE limits: ≤13 quick replies, label ≤20 chars; ≤12 bubbles per carousel.
-const MAX_QUICK_REPLIES = 13;
+// A LINE quick-reply label is ≤20 chars. The item-count caps live in core/domain/lineLimits.
 const MAX_LABEL = 20;
-const MAX_BUBBLES = 12;
 
 /** Whether a LINE Messaging API failure is *permanent* — re-sending the identical request can never
  * succeed, so the caller should drop the event rather than have SQS redeliver it (which would just
@@ -42,7 +41,7 @@ function toQuickReply(items?: readonly QuickReply[]): messagingApi.QuickReply | 
     return undefined;
   }
   return {
-    items: items.slice(0, MAX_QUICK_REPLIES).map((q) => ({
+    items: items.slice(0, LINE_MAX_QUICK_REPLIES).map((q) => ({
       type: "action",
       action: {
         type: "postback",
@@ -134,7 +133,7 @@ function toBubble(card: PropertyCard): messagingApi.FlexBubble {
 }
 
 function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexContainer {
-  const bubbles = cards.slice(0, MAX_BUBBLES).map(toBubble);
+  const bubbles = cards.slice(0, LINE_MAX_CAROUSEL_BUBBLES).map(toBubble);
   // A lone card renders as a single bubble; multiple cards as a swipeable carousel.
   return bubbles.length === 1 && bubbles[0] !== undefined
     ? bubbles[0]
@@ -148,16 +147,18 @@ function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexConta
  * `url` field tolerates up to 2000 chars, so the photos still render full-width — they just aren't
  * tap-to-open. Reuses the Flex path rather than a separate template type. */
 function toImageCarousel(imageUrls: readonly string[]): messagingApi.FlexContainer {
-  const bubbles: messagingApi.FlexBubble[] = imageUrls.slice(0, MAX_BUBBLES).map((url) => ({
-    type: "bubble",
-    hero: {
-      type: "image",
-      url,
-      size: "full",
-      aspectRatio: "4:3",
-      aspectMode: "cover",
-    },
-  }));
+  const bubbles: messagingApi.FlexBubble[] = imageUrls
+    .slice(0, LINE_MAX_CAROUSEL_BUBBLES)
+    .map((url) => ({
+      type: "bubble",
+      hero: {
+        type: "image",
+        url,
+        size: "full",
+        aspectRatio: "4:3",
+        aspectMode: "cover",
+      },
+    }));
   return bubbles.length === 1 && bubbles[0] !== undefined
     ? bubbles[0]
     : { type: "carousel", contents: bubbles };

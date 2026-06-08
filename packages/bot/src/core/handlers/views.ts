@@ -5,6 +5,7 @@
  */
 import type { Chanote, Property } from "../domain/catalog.js";
 import { formatDueDate, formatShortDate } from "../domain/datetime.js";
+import { LINE_MAX_CAROUSEL_BUBBLES, LINE_MAX_QUICK_REPLIES } from "../domain/lineLimits.js";
 import type {
   CardAction,
   OutboundMessage,
@@ -14,9 +15,7 @@ import type {
 } from "../domain/message.js";
 import { ACTIONS, encodePostback } from "./commands.js";
 
-const MAX_CARDS = 12; // LINE carousel cap (mirrored in the gateway; we also note when we truncate).
 const MAX_MERGE_CHOICES = 3; // keep the confirmation quick-reply row short
-const MAX_UPCOMING_CHIPS = 13; // LINE quick-reply cap (gateway also enforces this)
 
 /** A property's display title: clean address, else project name, else a short id. */
 export function propertyTitle(property: Property): string {
@@ -91,7 +90,7 @@ export function listingsMessage(
   if (properties.length === 0) {
     return { type: "text", text: opts.emptyText ?? "You don't have any saved listings yet." };
   }
-  const shown = properties.slice(0, MAX_CARDS);
+  const shown = properties.slice(0, LINE_MAX_CAROUSEL_BUBBLES);
   const more = properties.length - shown.length;
   const altText =
     (opts.altText ?? `${properties.length} listing${properties.length === 1 ? "" : "s"}`) +
@@ -422,7 +421,7 @@ export function upcomingMessage(items: readonly UpcomingFollowUp[]): OutboundMes
   const seen = new Set<string>();
   const chips: QuickReply[] = [];
   for (const item of items) {
-    if (seen.has(item.propertyId) || chips.length >= MAX_UPCOMING_CHIPS) {
+    if (seen.has(item.propertyId) || chips.length >= LINE_MAX_QUICK_REPLIES) {
       continue;
     }
     seen.add(item.propertyId);
