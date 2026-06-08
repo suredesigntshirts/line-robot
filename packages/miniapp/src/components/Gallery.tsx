@@ -26,14 +26,17 @@ export function Gallery({ photos }: { photos: readonly Photo[] }) {
   return (
     <>
       <div class="gallery">
-        {photos.map((photo, i) => (
-          <figure class="gallery-item" key={`${photo.url}-${i}`}>
-            <button type="button" class="gallery-btn" onClick={() => setFullscreen(photo.url)}>
-              <img src={photo.url} alt={caption(photo)} loading="lazy" />
-            </button>
-            <figcaption class="muted small">{caption(photo)}</figcaption>
-          </figure>
-        ))}
+        {photos.map((photo, i) => {
+          const cap = caption(photo);
+          return (
+            <figure class="gallery-item" key={`${photo.url}-${i}`}>
+              <button type="button" class="gallery-btn" onClick={() => setFullscreen(photo.url)}>
+                <img src={photo.url} alt={cap} loading="lazy" />
+              </button>
+              <figcaption class="muted small">{cap}</figcaption>
+            </figure>
+          );
+        })}
       </div>
 
       {fullscreen !== null ? (

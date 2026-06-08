@@ -4,7 +4,7 @@
  * here to read + mutate the URL.
  */
 import { useEffect, useState } from "preact/hooks";
-import { parseRoute, resolveInitialPath } from "./lib/deeplink.js";
+import { normalizePath, parseRoute, resolveInitialPath } from "./lib/deeplink.js";
 import { DetailScreen } from "./screens/Detail.js";
 import { ListScreen } from "./screens/List.js";
 
@@ -38,8 +38,4 @@ export function App() {
   ) : (
     <ListScreen navigate={navigate} />
   );
-}
-
-function normalizePath(pathname: string): string {
-  return pathname.replace(/\/+$/, "") || "/";
 }

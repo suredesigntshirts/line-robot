@@ -5,13 +5,7 @@ import type { PropertyListItem } from "@line-robot/shared";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, api } from "../api.js";
 import { detailPath } from "../lib/deeplink.js";
-import {
-  applyFilters,
-  distinctValues,
-  type Filters,
-  type SortKey,
-  sortItems,
-} from "../lib/predicates.js";
+import { applyFilters, distinctValues, type SortKey, sortItems } from "../lib/predicates.js";
 import { getIdToken } from "../liff.js";
 import { type AsyncState, Badge, ErrorView, Spinner } from "../ui.js";
 
@@ -51,9 +45,8 @@ export function ListScreen({ navigate }: { navigate: (path: string) => void }) {
   }, [reloadKey]);
 
   const items = state.status === "ready" ? state.data : [];
-  const filters: Filters = { status, propertyType, area, query };
   const visible = useMemo(
-    () => sortItems(applyFilters(items, filters), sort),
+    () => sortItems(applyFilters(items, { status, propertyType, area, query }), sort),
     [items, status, propertyType, area, query, sort],
   );
 

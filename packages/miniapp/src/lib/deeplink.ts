@@ -11,7 +11,7 @@
 export type Route = { readonly name: "list" } | { readonly name: "detail"; readonly id: string };
 
 /** Strip a trailing slash (but keep "/"). */
-function normalize(path: string): string {
+export function normalizePath(path: string): string {
   return path.replace(/\/+$/, "") || "/";
 }
 
@@ -21,7 +21,7 @@ function normalize(path: string): string {
  * Never returns an off-site path — anything not starting with "/" falls back to "/".
  */
 export function resolveInitialPath(pathname: string, search: string): string {
-  const path = normalize(pathname);
+  const path = normalizePath(pathname);
   if (path !== "/") {
     return path;
   }
@@ -35,7 +35,7 @@ export function resolveInitialPath(pathname: string, search: string): string {
     }
     const justPath = decoded.split(/[?#]/)[0] ?? "";
     if (justPath.startsWith("/")) {
-      return normalize(justPath);
+      return normalizePath(justPath);
     }
   }
   return "/";
@@ -43,7 +43,7 @@ export function resolveInitialPath(pathname: string, search: string): string {
 
 /** Parse a route path into a view descriptor. Unknown paths fall back to the List. */
 export function parseRoute(path: string): Route {
-  const match = /^\/p\/([^/]+)$/.exec(normalize(path));
+  const match = /^\/p\/([^/]+)$/.exec(normalizePath(path));
   if (match?.[1] !== undefined) {
     try {
       return { name: "detail", id: decodeURIComponent(match[1]) };
