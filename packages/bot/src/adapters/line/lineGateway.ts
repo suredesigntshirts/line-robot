@@ -132,12 +132,15 @@ function toBubble(card: PropertyCard): messagingApi.FlexBubble {
   return bubble;
 }
 
-function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexContainer {
-  const bubbles = cards.slice(0, LINE_MAX_CAROUSEL_BUBBLES).map(toBubble);
-  // A lone card renders as a single bubble; multiple cards as a swipeable carousel.
+/** A lone bubble renders on its own; multiple bubbles as a swipeable carousel. */
+function wrapBubbles(bubbles: messagingApi.FlexBubble[]): messagingApi.FlexContainer {
   return bubbles.length === 1 && bubbles[0] !== undefined
     ? bubbles[0]
     : { type: "carousel", contents: bubbles };
+}
+
+function toFlexContainer(cards: readonly PropertyCard[]): messagingApi.FlexContainer {
+  return wrapBubbles(cards.slice(0, LINE_MAX_CAROUSEL_BUBBLES).map(toBubble));
 }
 
 /** A photo gallery as a Flex carousel of image-only bubbles. The bubbles carry NO tap `action`:
@@ -159,9 +162,7 @@ function toImageCarousel(imageUrls: readonly string[]): messagingApi.FlexContain
         aspectMode: "cover",
       },
     }));
-  return bubbles.length === 1 && bubbles[0] !== undefined
-    ? bubbles[0]
-    : { type: "carousel", contents: bubbles };
+  return wrapBubbles(bubbles);
 }
 
 function toSdkMessage(message: OutboundMessage): messagingApi.Message {
