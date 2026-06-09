@@ -282,9 +282,9 @@ function ShareButton({ p, id }: { p: PropertyDetail; id: string }) {
   );
 }
 
-/** The Title-deed (chanote) block: collapsed by default — it's dense, secondary detail most end
- * users don't need up front. Holds the deed images (moved out of the main gallery) plus the OCR'd
- * fields, and tucks the low-confidence legibility note inside its own nested, collapsed disclosure. */
+/** The Title-deed (chanote) block: always expanded — it holds the deed images (moved out of the main
+ * gallery) plus the OCR'd fields. Only the low-confidence legibility note is tucked inside its own
+ * nested, collapsed disclosure (it's the one dense bit most end users don't need up front). */
 function ChanoteBlock({ c, photos }: { c?: Chanote; photos: readonly Photo[] }) {
   const encumbrances =
     c?.encumbrances !== undefined && c.encumbrances.length > 0
@@ -292,8 +292,8 @@ function ChanoteBlock({ c, photos }: { c?: Chanote; photos: readonly Photo[] }) 
       : undefined;
   const note = c?.confidenceNote;
   return (
-    <details class="chanote-block">
-      <summary class="section-title">Title deed</summary>
+    <section class="chanote-block">
+      <h2 class="section-title">Title deed</h2>
       {photos.length > 0 ? <Gallery photos={photos} /> : null}
       {c !== undefined ? (
         <section class="fields chanote">
@@ -314,6 +314,6 @@ function ChanoteBlock({ c, photos }: { c?: Chanote; photos: readonly Photo[] }) 
           <p class="muted small">{note}</p>
         </details>
       ) : null}
-    </details>
+    </section>
   );
 }

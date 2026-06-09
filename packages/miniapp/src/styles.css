@@ -253,24 +253,12 @@ body {
   color: var(--accent);
 }
 
-/* Title-deed block: collapsed by default (a <details>), with a tappable accent header + caret. */
+/* Title-deed block: always expanded; an accent header sits above the deed images + fields. */
 .chanote-block {
   margin: 12px 0;
 }
-.chanote-block > summary {
+.chanote-block > .section-title {
   color: var(--accent);
-  cursor: pointer;
-  list-style: none;
-  padding: 4px 0;
-}
-.chanote-block > summary::-webkit-details-marker {
-  display: none;
-}
-.chanote-block > summary::before {
-  content: "▸ ";
-}
-.chanote-block[open] > summary::before {
-  content: "▾ ";
 }
 /* The low-confidence legibility note: its own nested, collapsed disclosure inside the deed block. */
 .chanote-note {
