@@ -38,8 +38,8 @@ export class CatalogAssistant {
     newId?: () => string,
     private readonly signer?: MediaUrlSigner,
     private readonly logger?: Logger,
-    /** MINI App base URL (`https://miniapp.line.me/{liffId}`). When set, the detail card carries an
-     * "Open in Catalog" deep link to this listing's webview screen. */
+    /** MINI App base URL (`https://miniapp.line.me/{liffId}`). When set, the carousel cards and the
+     * detail card carry an "Open in Catalog" deep link to this listing's webview screen. */
     private readonly miniappUrl?: string,
   ) {
     this.newId = newId ?? randomUUID;
@@ -54,6 +54,7 @@ export class CatalogAssistant {
         emptyText:
           "You don't have any saved listings yet. Chat about a property and I'll catalog it.",
         heroUrls: await this.heroUrls(properties),
+        catalogBaseUrl: this.miniappUrl,
       }),
     ];
   }
@@ -69,6 +70,7 @@ export class CatalogAssistant {
         altText: `Listings on ${query}`,
         emptyText: `No listings matching “${query}” yet.`,
         heroUrls: await this.heroUrls(properties),
+        catalogBaseUrl: this.miniappUrl,
       }),
     ];
   }

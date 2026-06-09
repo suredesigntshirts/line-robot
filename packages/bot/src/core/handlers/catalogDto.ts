@@ -61,7 +61,6 @@ export function toDetailDto(p: Property): PropertyDetailDto {
       address: p.normalizedAddress,
       area: area(p),
       contact: p.contact,
-      source: p.source,
       tags: p.tags,
       notes: p.notes,
       chanote: p.chanote,

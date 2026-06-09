@@ -1,7 +1,7 @@
 /** The Detail screen: every field of one listing, its photo gallery, the chanote (title-deed) block,
  * an in-app map pin, and an "Open in Maps" deep link. Read-only — editing stays in chat. */
 
-import type { Chanote, PropertyDetail } from "@line-robot/shared";
+import type { Chanote, Photo, PropertyDetail } from "@line-robot/shared";
 import { useEffect, useState } from "preact/hooks";
 import { ApiError, api } from "../api.js";
 import { Gallery } from "../components/Gallery.js";
@@ -68,6 +68,10 @@ function DetailBody({ p, id }: { p: PropertyDetail; id: string }) {
   const baths = p.bathrooms !== undefined ? `${p.bathrooms} bath` : undefined;
   const rooms = [beds, baths].filter((s): s is string => s !== undefined).join(" · ");
   const headline = p.price ?? p.rent;
+  // Title-deed images belong with the deed data, not in the main gallery (which is the property's
+  // own photos). Split once so each surface renders only its kind.
+  const galleryPhotos = p.photos.filter((ph) => ph.kind !== "chanote");
+  const deedPhotos = p.photos.filter((ph) => ph.kind === "chanote");
 
   return (
     <article class="detail">
@@ -77,7 +81,7 @@ function DetailBody({ p, id }: { p: PropertyDetail; id: string }) {
         {headline !== undefined ? <span class="detail-price">{headline}</span> : null}
       </div>
 
-      {p.photos.length > 0 ? <Gallery photos={p.photos} /> : null}
+      {galleryPhotos.length > 0 ? <Gallery photos={galleryPhotos} /> : null}
 
       <section class="fields">
         <Field label="Type" value={p.propertyType} />
@@ -97,7 +101,6 @@ function DetailBody({ p, id }: { p: PropertyDetail; id: string }) {
         <Field label="Address" value={p.address} />
         <Field label="Area" value={p.area} />
         <Field label="Contact" value={p.contact} />
-        <Field label="Source" value={p.source} />
         <Field
           label="Tags"
           value={p.tags !== undefined && p.tags.length > 0 ? p.tags.join(", ") : undefined}
@@ -105,7 +108,9 @@ function DetailBody({ p, id }: { p: PropertyDetail; id: string }) {
         <Field label="Notes" value={p.notes} />
       </section>
 
-      {p.chanote !== undefined ? <ChanoteBlock c={p.chanote} /> : null}
+      {p.chanote !== undefined || deedPhotos.length > 0 ? (
+        <ChanoteBlock c={p.chanote} photos={deedPhotos} />
+      ) : null}
 
       {p.lat !== undefined && p.long !== undefined ? (
         <MapPin lat={p.lat} long={p.long} title={p.title} />
@@ -277,24 +282,38 @@ function ShareButton({ p, id }: { p: PropertyDetail; id: string }) {
   );
 }
 
-function ChanoteBlock({ c }: { c: Chanote }) {
+/** The Title-deed (chanote) block: collapsed by default — it's dense, secondary detail most end
+ * users don't need up front. Holds the deed images (moved out of the main gallery) plus the OCR'd
+ * fields, and tucks the low-confidence legibility note inside its own nested, collapsed disclosure. */
+function ChanoteBlock({ c, photos }: { c?: Chanote; photos: readonly Photo[] }) {
   const encumbrances =
-    c.encumbrances !== undefined && c.encumbrances.length > 0
+    c?.encumbrances !== undefined && c.encumbrances.length > 0
       ? c.encumbrances.join("; ")
       : undefined;
+  const note = c?.confidenceNote;
   return (
-    <section class="fields chanote">
-      <h2 class="section-title">Title deed</h2>
-      <Field label="Type" value={c.titleType} />
-      <Field label="Deed no." value={c.deedNumber} />
-      <Field label="Parcel no." value={c.landNumber} />
-      <Field label="Survey page" value={c.surveyPage} />
-      <Field label="Map sheet" value={c.mapSheet} />
-      <Field label="Land office" value={c.landOffice} />
-      <Field label="Owner" value={c.ownerName} />
-      <Field label="Land area" value={c.landArea} />
-      <Field label="Encumbrances" value={encumbrances} />
-      {c.confidenceNote !== undefined ? <Field label="⚠ Note" value={c.confidenceNote} /> : null}
-    </section>
+    <details class="chanote-block">
+      <summary class="section-title">Title deed</summary>
+      {photos.length > 0 ? <Gallery photos={photos} /> : null}
+      {c !== undefined ? (
+        <section class="fields chanote">
+          <Field label="Type" value={c.titleType} />
+          <Field label="Deed no." value={c.deedNumber} />
+          <Field label="Parcel no." value={c.landNumber} />
+          <Field label="Survey page" value={c.surveyPage} />
+          <Field label="Map sheet" value={c.mapSheet} />
+          <Field label="Land office" value={c.landOffice} />
+          <Field label="Owner" value={c.ownerName} />
+          <Field label="Land area" value={c.landArea} />
+          <Field label="Encumbrances" value={encumbrances} />
+        </section>
+      ) : null}
+      {note !== undefined && note !== "" ? (
+        <details class="chanote-note">
+          <summary class="muted small">⚠ Legibility note</summary>
+          <p class="muted small">{note}</p>
+        </details>
+      ) : null}
+    </details>
   );
 }

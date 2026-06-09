@@ -253,6 +253,33 @@ body {
   color: var(--accent);
 }
 
+/* Title-deed block: collapsed by default (a <details>), with a tappable accent header + caret. */
+.chanote-block {
+  margin: 12px 0;
+}
+.chanote-block > summary {
+  color: var(--accent);
+  cursor: pointer;
+  list-style: none;
+  padding: 4px 0;
+}
+.chanote-block > summary::-webkit-details-marker {
+  display: none;
+}
+.chanote-block > summary::before {
+  content: "▸ ";
+}
+.chanote-block[open] > summary::before {
+  content: "▾ ";
+}
+/* The low-confidence legibility note: its own nested, collapsed disclosure inside the deed block. */
+.chanote-note {
+  margin: 8px 0 2px;
+}
+.chanote-note > summary {
+  cursor: pointer;
+}
+
 /* Gallery */
 .gallery {
   display: flex;
@@ -269,6 +296,8 @@ body {
 .gallery-item {
   flex: 0 0 86%;
   scroll-snap-align: center;
+  /* Stop on every image — a fast flick advances exactly one, never skips several. */
+  scroll-snap-stop: always;
   margin: 0;
 }
 .gallery-btn {
@@ -292,18 +321,49 @@ body {
 .lightbox {
   position: fixed;
   inset: 0;
-  border: none;
   background: rgba(0, 0, 0, 0.92);
+  z-index: 50;
+}
+/* The viewer is itself a horizontal snap strip, so full-size images swipe left/right one at a time. */
+.lightbox-strip {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+.lightbox-strip::-webkit-scrollbar {
+  display: none;
+}
+.lightbox-slide {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
-  overflow: auto;
 }
 .lightbox-img {
   max-width: 100%;
   max-height: 100%;
-  touch-action: pinch-zoom;
+  object-fit: contain;
+}
+.lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 51;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 /* Map */

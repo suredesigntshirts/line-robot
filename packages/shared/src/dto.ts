@@ -82,7 +82,6 @@ export interface PropertyDetailDto {
   readonly address?: string;
   readonly area?: string;
   readonly contact?: string;
-  readonly source?: string;
   readonly tags?: readonly string[];
   readonly notes?: string;
   readonly chanote?: Chanote;

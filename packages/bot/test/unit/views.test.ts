@@ -34,28 +34,51 @@ describe("formatPrice", () => {
 });
 
 describe("propertyCard", () => {
-  it("builds a card with title, status subtitle, rows, and a Details postback", () => {
+  it("builds a teaser card: badge subtitle, combined rows, and an Open in Catalog link", () => {
     const card = propertyCard(
       prop({
         normalizedAddress: "123 Sukhumvit",
         status: "negotiating",
-        askingPrice: 5_500_000,
-        currency: "THB",
         propertyType: "condo",
-        district: "Watthana",
-        province: "Bangkok",
+        listingType: "sale",
+        floors: 2,
+        bedrooms: 3,
+        bathrooms: 2,
+        landArea: "1 rai",
+        notes: "Corner unit",
+        chanote: { deedNumber: "12345" },
       }),
+      undefined,
+      "https://miniapp.line.me/123-abc",
     );
     expect(card.title).toBe("123 Sukhumvit");
-    expect(card.subtitle).toBe("negotiating");
+    expect(card.subtitle).toBe("🟡 Negotiating"); // status badge, not a bare field value
     expect(card.rows).toEqual([
-      { label: "Price", value: "฿5,500,000" },
-      { label: "Type", value: "condo" },
-      { label: "Area", value: "Watthana, Bangkok" },
+      { label: "Type", value: "condo · sale" },
+      { label: "Layout", value: "2 floors · 3 bed · 2 bath" },
+      { label: "Land", value: "1 rai" },
+      { label: "Deed no.", value: "12345" },
+      { label: "Notes", value: "Corner unit" },
     ]);
+    expect(card.actions).toHaveLength(1); // no Details / Follow-up — those moved to the MINI App
+    expect(card.actions[0]?.label).toBe("🔎 Open in Catalog");
+    expect(card.actions[0]?.mode).toBe("uri");
+    expect(card.actions[0]?.uri).toBe("https://miniapp.line.me/123-abc/p/p-0123456789");
+  });
+
+  it("falls back to an in-chat Details postback when no catalog base URL is configured", () => {
+    const card = propertyCard(prop({ status: "lead" }));
+    expect(card.subtitle).toBe("🔵 Lead");
+    expect(card.actions).toHaveLength(1);
     const { action, params } = decodePostback(card.actions[0]?.data ?? "");
     expect(action).toBe("view");
     expect(params.get("id")).toBe("p-0123456789");
+  });
+
+  it("omits a row when all of its combined parts are absent", () => {
+    const card = propertyCard(prop({ propertyType: "house" })); // only a type, nothing else
+    expect(card.rows).toEqual([{ label: "Type", value: "house" }]);
+    expect(card.subtitle).toBeUndefined(); // no status → no badge
   });
 
   it("falls back through project name then a short id for the title", () => {
@@ -68,11 +91,6 @@ describe("propertyCard", () => {
     expect(propertyCard(prop(), "https://signed.example/x.jpg").heroImageUrl).toBe(
       "https://signed.example/x.jpg",
     );
-  });
-
-  it("surfaces tags on the summary card (the catch-all for unstructured detail)", () => {
-    const card = propertyCard(prop({ tags: ["sea-view", "renovated"] }));
-    expect(card.rows).toContainEqual({ label: "Tags", value: "sea-view, renovated" });
   });
 });
 
@@ -233,7 +251,7 @@ describe("propertyDetail — extended fields", () => {
     expect(rows.Furnishing).toBe("fully furnished");
     expect(rows.For).toBe("sale");
     expect(rows.Contact).toBe("Khun A 081-234");
-    expect(rows.Source).toBe("FB group");
+    expect(rows.Source).toBeUndefined(); // Source is developer info — dropped from the card
     expect(rows.Notes).toBe("Corner unit, quiet soi");
     expect(rows.Tags).toBeUndefined(); // no tags → omitted
   });

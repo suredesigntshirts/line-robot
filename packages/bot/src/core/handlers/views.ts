@@ -45,39 +45,55 @@ export function area(property: Property): string | undefined {
   return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
-/** A single property "card" for a carousel: title, status subtitle, a few rows, a Details button,
- * and an optional hero image (a presigned URL resolved by the caller). */
-export function propertyCard(property: Property, heroImageUrl?: string): PropertyCard {
+/** Join the present, non-empty parts with " · ", or undefined when none remain (so the row is
+ * omitted). Lets a card row degrade gracefully when only some of its parts are known. */
+function joinDot(parts: ReadonlyArray<string | undefined>): string | undefined {
+  const kept = parts.filter((p): p is string => p !== undefined && p !== "");
+  return kept.length > 0 ? kept.join(" · ") : undefined;
+}
+
+/**
+ * A single property "card" for a carousel: a best (hero) image, a status *badge* subtitle (emoji +
+ * label, so it doesn't read like a field row), a few compact teaser rows, and a single "Open in
+ * Catalog" deep link — full details, photos and follow-up now live in the MINI App, so the carousel
+ * just teases and hands off. When no catalog base URL is configured it falls back to the in-chat
+ * Details postback so the card still does something. Every row is omitted when its data is absent.
+ */
+export function propertyCard(
+  property: Property,
+  heroImageUrl?: string,
+  catalogBaseUrl?: string,
+): PropertyCard {
   const rows: PropertyCardRow[] = [];
-  const price = formatPrice(property.askingPrice, property.currency);
-  if (price !== undefined) {
-    rows.push({ label: "Price", value: price });
-  }
-  if (property.propertyType !== undefined) {
-    rows.push({ label: "Type", value: property.propertyType });
-  }
-  const where = area(property);
-  if (where !== undefined) {
-    rows.push({ label: "Area", value: where });
-  }
-  // Surface tags on the summary card too — they're the catch-all for extracted detail that has no
-  // structured field, so they shouldn't only appear after tapping Details.
-  if (property.tags !== undefined && property.tags.length > 0) {
-    rows.push({ label: "Tags", value: property.tags.join(", ") });
-  }
+  // Type · for sale/rent
+  pushRow(rows, "Type", joinDot([property.propertyType, property.listingType]));
+  // Floors · beds · baths
+  pushRow(
+    rows,
+    "Layout",
+    joinDot([
+      property.floors !== undefined ? `${property.floors} floors` : undefined,
+      property.bedrooms !== undefined ? `${property.bedrooms} bed` : undefined,
+      property.bathrooms !== undefined ? `${property.bathrooms} bath` : undefined,
+    ]),
+  );
+  pushRow(rows, "Land", property.landArea);
+  pushRow(rows, "Deed no.", property.chanote?.deedNumber);
+  pushRow(rows, "Notes", property.notes);
+
+  const catalogUrl = catalogDeepLink(catalogBaseUrl, property.propertyId);
+  const actions: CardAction[] =
+    catalogUrl !== undefined
+      ? [{ label: "🔎 Open in Catalog", data: "", mode: "uri", uri: catalogUrl }]
+      : [{ label: "Details", data: encodePostback(ACTIONS.view, { id: property.propertyId }) }];
+
+  const badge = statusBadge(property.status);
   return {
     title: propertyTitle(property),
-    ...(property.status !== undefined ? { subtitle: property.status } : {}),
+    ...(badge !== undefined ? { subtitle: badge } : {}),
     ...(heroImageUrl !== undefined ? { heroImageUrl } : {}),
     rows,
-    actions: [
-      { label: "Details", data: encodePostback(ACTIONS.view, { id: property.propertyId }) },
-      {
-        label: "📅 Follow-up",
-        data: encodePostback(ACTIONS.setFollowUp, { id: property.propertyId }),
-        mode: "datetime",
-      },
-    ],
+    actions,
   };
 }
 
@@ -85,7 +101,13 @@ export function propertyCard(property: Property, heroImageUrl?: string): Propert
  * `heroUrls` maps a property id to a presigned hero-image URL (resolved by the caller). */
 export function listingsMessage(
   properties: readonly Property[],
-  opts: { emptyText?: string; altText?: string; heroUrls?: ReadonlyMap<string, string> } = {},
+  opts: {
+    emptyText?: string;
+    altText?: string;
+    heroUrls?: ReadonlyMap<string, string>;
+    /** MINI App base URL — when set each card leads with an "Open in Catalog" deep link. */
+    catalogBaseUrl?: string;
+  } = {},
 ): OutboundMessage {
   if (properties.length === 0) {
     return { type: "text", text: opts.emptyText ?? "You don't have any saved listings yet." };
@@ -98,7 +120,7 @@ export function listingsMessage(
   return {
     type: "flex",
     altText,
-    cards: shown.map((p) => propertyCard(p, opts.heroUrls?.get(p.propertyId))),
+    cards: shown.map((p) => propertyCard(p, opts.heroUrls?.get(p.propertyId), opts.catalogBaseUrl)),
   };
 }
 
@@ -187,7 +209,8 @@ function pushChanoteRows(rows: PropertyCardRow[], chanote?: Chanote): void {
       ? chanote.encumbrances.join("; ")
       : undefined,
   );
-  pushRow(rows, "⚠ Deed note", chanote.confidenceNote);
+  // The legibility/confidence note is developer-facing noise on the card — dropped here. (The MINI
+  // App keeps it, but tucked inside a collapsed disclosure in the Title-deed section.)
 }
 
 /**
@@ -239,7 +262,6 @@ export function propertyDetail(
   );
   pushRow(rows, "Area", area(property));
   pushRow(rows, "Contact", property.contact);
-  pushRow(rows, "Source", property.source);
   pushRow(
     rows,
     "Tags",
