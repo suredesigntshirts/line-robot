@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@line-robot/db": "*",
-    "@line-robot/domain": "*"
+    "@line-robot/domain": "*",
+    "sharp": "^0.35.1"
   }
 }
