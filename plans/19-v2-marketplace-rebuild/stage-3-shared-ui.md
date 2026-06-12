@@ -65,3 +65,33 @@ Each increment ends with `/increment-review` (spec auditor + correctness + simpl
 | Date | What changed | Why |
 |---|---|---|
 | 2026-06-12 | Skeleton → fleshed spec; open questions resolved (D3.1–D3.9); placeholder token set (Baania-clean) wired with one-file swap procedure; i18n = typed TS catalogs (no library); gallery = in-package Vite app (no Storybook); 6 increments with TH-/CONV-/COPY- review IDs. | Built unattended; pending founder design-direction pick + spec approval. |
+
+## Stage gate (run 2026-06-13 ~02:15 — GATE-PASS with pending founder pick)
+
+- [x] TS strict clean; no circular deps; zero adapter imports in packages/ui (spec auditor grep-verified).
+- [x] Components accept `packages/domain` types directly; `Listing` entity added to domain with a
+  compile-time storage-row drift guard in db (which immediately caught and fixed pgEnum
+  string-widening — rows now carry literal enum types).
+- [x] Both themes × both locales render: Playwright smoke on the built gallery — theme toggle →
+  `data-theme="dark"`, locale toggle → English strings render, deed accordion default-open.
+- [x] No hardcoded colors (check-colors.mjs in `npm test`); **swap dry-run on Candidate B passed
+  with ZERO component edits** — and exposed that B's doc block doesn't match the
+  `oklch() /* #hex */` format, so emit-fallbacks now FAILS LOUDLY on 0 tokens (fix the candidate
+  block at swap time; the gate item improved the procedure).
+- [x] 19 RTL tests green; i18n typed catalogs th-default.
+- [x] /alignment-review run (fresh agent, full ID table): 2 violations found and FIXED (TH-08 lang
+  propagation via Screen/ListingCard; TH-03 price numerals to the Thai stack); COPY-02 judgment
+  kept: "แชทผ่าน LINE" is CONV-06's canonical named-channel CTA.
+- [ ] PENDING founder: morning design-direction pick → paste chosen candidate over theme.css,
+  `npm run tokens:fallbacks`, gallery review (the one-file procedure, now guard-railed).
+- Deviations on record: no shadcn init tonight (components hand-rolled on tokens, inline var()
+  styles; D3.1's shadcn adoption deferred to Stage 4/5 consumers); native <details> accordion.
+
+## Retro
+
+The token-lint + swap-dry-run combination is the stage's real deliverable — it PROVED the
+one-file-swap claim instead of asserting it, and the dry run found a procedure bug (silent
+0-token fallbacks) cheaply. The domain `Listing` drift guard paid for itself within minutes of
+existing. The alignment review caught two genuine Thai-typography violations (lang attribute,
+numeral font) that RTL tests structurally cannot see — keep running it on every design-bearing
+increment.

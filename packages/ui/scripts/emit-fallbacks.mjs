@@ -33,5 +33,13 @@ ${modern.join("\n")}
 }
 `;
 
+if (light.length === 0) {
+  // A swapped-in candidate whose tokens don't match `oklch(...) /* #hex */`
+  // would silently ship NO legacy-WebView fallbacks (TECH-06) — fail loudly.
+  console.error(
+    "emit-fallbacks: 0 tokens matched — the swapped theme.css doesn't follow the `--token: oklch(...) /* #hex */;` format. Fix the candidate block before shipping.",
+  );
+  process.exit(1);
+}
 writeFileSync(join(root, "../fallbacks.css"), output);
 console.log(`fallbacks.css: ${light.length} tokens emitted (hex-first + @supports oklch)`);
