@@ -48,3 +48,28 @@ Chronological record per charter (plans/19-v2-marketplace-rebuild/sprint-01-over
 - **S2-I9 buildable part SHIPPED flag-off (~02:17)** — PIPELINE_V2 wiring: sweep's extractAndApply delegates to packages/pipeline → Postgres behind `pulumi config pipelineV2` (default off); v1 path byte-identical when off (24 pre-existing sweep tests untouched + 1 new delegation test). v2-lite scope logged in the adapter header (no derivatives/classify until sharp packaging; conversation-keyed owner until Stage 4 auth). Infra preview verified in-place update only. allowImportingTsExtensions promoted to tsconfig.base (the S2 panel's cross-package altitude finding, now real and fixed).
 - **MORNING.md runbook** — deploy → migrate+seed → flip procedure (with rollback) → design pick + token swap → odds and ends. Founder time ≈ 30–45 min.
 - **LIVE e2e PASSED first run (~02:20)** — real Sonnet/Haiku over a MESSY_GROUP_CHAT two-property dump → Docker Postgres: both listings landed, th(+en) content rows, quick-sale urgency survived typo chaos; strict structured output accepted every step schema against the real API. Key-gated test committed (test/integration/live.e2e.test.ts). The morning flip's core path is now exercised end to end.
+
+## 02:39 — Sprint extension approved (founder, live)
+
+Founder approved working the remaining stages until 8:30 ("I approve this. Commit it to plans").
+Extension scope written into the charter (`sprint-01-overnight.md` §Sprint extension, commit
+c08cc7e): Stage 4 flesh+build (domain-agnostic; D19/console/deploy parked), flip de-riskers
+interleaved, stages 5–7 not started. Quality loop + guardrails unchanged.
+
+## 02:40 — Eval diagnosis: the "weak fields" were harness bugs
+
+Verbose run (EVAL_VERBOSE=1) over the committed baseline showed every titleDeedType miss
+(13×, all `got unknown`) and urgency miss (9×, all `got normal`) came from cases whose transcript
+NEVER states the field: CALM profile has `urgencyPhrases: false`, and mixed-language cases render
+English messages that never mention a deed — yet `expected` was copied straight from the spec.
+The model was being punished for refusing to hallucinate. The dup-case priceThb misses (~±2–5%)
+are the repost's drifted price pairing against the original's expectation — logged as a known
+scoring nuance (price-order pairing), not fixed tonight.
+
+Fix (generator.ts): `renderListing` reports `deedStated`/`urgencyStated`; `expectedProperty` sets
+the field to "" (scorer skips) when the transcript never states it — same principle the file
+already documented for photoCount. Oracle smoke still 1.00 across the board; 89 unit tests green.
+Real-model re-measure running in background (deliberate baseline rewrite; old values for the
+record: extract 0.954, titleDeedType 0.81, urgency 0.89 — measured against buggy truth).
+
+## 02:44 — usage: 5h window 52% used, resets ~03:10. Mode: normal build.
