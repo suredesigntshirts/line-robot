@@ -1,0 +1,84 @@
+{
+  "writtenAt": "2026-06-12T18:55:07.315Z",
+  "mode": "anthropic",
+  "caseCount": 62,
+  "perStep": {
+    "classify": {
+      "score": null,
+      "casesScored": 0
+    },
+    "segment": {
+      "score": 1,
+      "casesScored": 62
+    },
+    "extract": {
+      "score": 0.9548003072196617,
+      "casesScored": 62
+    },
+    "dedup": {
+      "score": 1,
+      "casesScored": 8
+    },
+    "translate": {
+      "score": null,
+      "casesScored": 0
+    },
+    "gate": {
+      "score": null,
+      "casesScored": 0
+    }
+  },
+  "perField": [
+    {
+      "field": "dealType",
+      "score": 1,
+      "casesScored": 74
+    },
+    {
+      "field": "propertyType",
+      "score": 1,
+      "casesScored": 74
+    },
+    {
+      "field": "titleDeedType",
+      "score": 0.8108108108108109,
+      "casesScored": 74
+    },
+    {
+      "field": "urgency",
+      "score": 0.8918918918918919,
+      "casesScored": 74
+    },
+    {
+      "field": "province",
+      "score": 1,
+      "casesScored": 74
+    },
+    {
+      "field": "amphoe",
+      "score": 1,
+      "casesScored": 74
+    },
+    {
+      "field": "tambon",
+      "score": 1,
+      "casesScored": 74
+    },
+    {
+      "field": "priceThb",
+      "score": 0.9054054054054054,
+      "casesScored": 74
+    },
+    {
+      "field": "bedrooms",
+      "score": 1,
+      "casesScored": 64
+    },
+    {
+      "field": "bathrooms",
+      "score": 1,
+      "casesScored": 64
+    }
+  ],
+  "costUsd": 0.8133369000000003
+}
