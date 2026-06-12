@@ -4,7 +4,10 @@
 			"Bash(aws iam create-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
 			"Bash(aws iam delete-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
 			"Bash(aws iam list-policy-versions --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
-			"Bash(aws iam get-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)"
+			"Bash(aws iam get-policy-version --policy-arn arn:aws:iam::259543826733:policy/line-robot-deploy:*)",
+      "Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)", "Bash(git:*)",
+      "Bash(docker:*)", "Bash(pulumi:*)", "Bash(aws:*)", "Bash(curl:*)",
+      "Bash(mkdir:*)", "Bash(psql:*)"
 		]
 	}
 }
