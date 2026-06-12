@@ -457,8 +457,3 @@ export const marketData = pgTable("market_data", {
   deedNo: text("deed_no"),
   observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
 });
-
-/** FIELD-01: Thai land units → m². 1 rai = 1600, 1 ngan = 400, 1 wah² = 4. */
-export function landToSqm(rai: number, ngan: number, wah: number): number {
-  return rai * 1600 + ngan * 400 + wah * 4;
-}

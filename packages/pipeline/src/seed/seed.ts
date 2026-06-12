@@ -6,9 +6,8 @@ import {
   createUserWithIdentity,
   type Db,
   ewktPoint,
-  landToSqm,
 } from "@line-robot/db";
-import { isSaleBlockedByDeed, type RoleKind } from "@line-robot/domain";
+import { isSaleBlockedByDeed, landToSqm, type RoleKind } from "@line-robot/domain";
 import type { ListingSpec } from "../synthetic/spec.ts";
 import type { SeedIngestor } from "./SeedIngestor.ts";
 
