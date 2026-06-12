@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as pulumi from "@pulumi/pulumi";
+import { createDatabase } from "./src/database";
 import { createBotLambdas } from "./src/lambdas";
 import { createMiniApp } from "./src/miniapp";
 import { createStorage } from "./src/storage";
@@ -18,6 +19,7 @@ const MINIAPP_DIST = path.resolve(__dirname, "../packages/miniapp/dist");
 const storage = createStorage();
 const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage);
 const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST);
+const database = createDatabase();
 
 // ---------------------------------------------------------------------------
 // Outputs
@@ -37,3 +39,7 @@ export const readApiUrlOutput = readApiUrl.functionUrl;
 export const miniAppCloudFrontDomain = siteDistribution.domainName;
 export const miniAppUrl = pulumi.interpolate`https://${siteDistribution.domainName}/`;
 export const miniAppSiteBucket = siteBucket.bucket;
+// Stage 1 (plan 19): the v2 Postgres catalog store.
+export const dbEndpoint = database.db.endpoint;
+export const dbConnectionString = database.connectionString; // secret
+

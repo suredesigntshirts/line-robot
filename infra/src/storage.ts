@@ -102,6 +102,11 @@ export function createStorage(): Storage {
     rules: [{ applyServerSideEncryptionByDefault: { sseAlgorithm: "AES256" } }],
   });
 
+  // Retention policy (Q-SA4, spine audit D24): raw chat archives (which contain Thai personal
+  // data — names, LINE IDs, phone numbers) are kept INDEFINITELY for now: they are the only
+  // re-extraction/eval source and volume is tiny. Decision recorded 2026-06-13; MUST be revisited
+  // before public launch (expiration rule + scrub-on-export for any data leaving the bucket).
+  // Access stays private-bucket + presigned reads only.
   new aws.s3.BucketLifecycleConfigurationV2("archive-lifecycle", {
     bucket: archiveBucket.id,
     rules: [
