@@ -43,7 +43,9 @@ function scoreCase(expectedProps: Array<Record<string, unknown>>, extracted: Ext
   // Pair expected↔extracted by price order (ids don't survive real extraction).
   const byPrice = <T>(items: T[], price: (t: T) => number) =>
     [...items].sort((a, b) => price(a) - price(b));
-  const sortedExpected = byPrice(expectedProps, (p) => Number(p.priceThb ?? 0));
+  // pairingPriceThb is never nulled (scored priceThb is, when a drifted repost makes the
+  // price ambiguous) — sorting by it keeps pairing stable in multi-spec dup cases.
+  const sortedExpected = byPrice(expectedProps, (p) => Number(p.pairingPriceThb ?? p.priceThb ?? 0));
   const sortedExtracted = byPrice(extracted, (l) => l.priceThb ?? 0);
 
   sortedExpected.forEach((expected, i) => {
@@ -184,6 +186,11 @@ for (const evalCase of cases) {
       extractScores.push(0);
     }
     const fieldScores = scoreCase(evalCase.expected.properties, extracted);
+    if (process.env.EVAL_VERBOSE === "1") {
+      for (const f of fieldScores.filter((s) => s.score < 1)) {
+        console.error(`MISS ${evalCase.id} ${f.field}: ${f.detail}`);
+      }
+    }
     if (fieldScores.length > 0) {
       extractScores.push(fieldScores.reduce((s, f) => s + f.score, 0) / fieldScores.length);
       for (const f of fieldScores) {

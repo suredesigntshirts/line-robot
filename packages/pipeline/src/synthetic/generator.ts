@@ -37,7 +37,9 @@ const TH_PROPERTY_WORD: Record<string, string> = {
   other: "อสังหาฯ",
 };
 
-const TH_DEED_WORD: Record<string, string> = {
+// Keyed by the full deed enum so a future enum addition is a compile error here,
+// not a silently-wrong `deedStated` ground truth.
+const TH_DEED_WORD: Record<ListingSpec["titleDeedType"], string> = {
   chanote: "โฉนด",
   ns3g: "น.ส.3ก",
   ns3k: "น.ส.3ข",
@@ -130,23 +132,49 @@ function renderEnglish(spec: ListingSpec, rng: Rng): string {
   return lines.filter((l) => l !== "").join("\n");
 }
 
-function renderListing(spec: ListingSpec, profile: ChaosProfile, rng: Rng): string {
+interface RenderedListing {
+  text: string;
+  /** The message actually names the deed type (Thai renders only; English never does). */
+  deedStated: boolean;
+  /** The message carries an urgency phrase (ขายด่วน — Thai quick_sale renders only). */
+  urgencyStated: boolean;
+}
+
+function renderListing(spec: ListingSpec, profile: ChaosProfile, rng: Rng): RenderedListing {
   const lang =
     profile.languageMix === "mixed" ? (chance(rng, 0.5) ? "th" : "en") : profile.languageMix;
   let text = lang === "th" ? renderThai(spec, profile, rng) : renderEnglish(spec, rng);
   if (chance(rng, profile.typoRate)) text = applyTypo(rng, text);
-  return text;
+  return {
+    text,
+    deedStated: lang === "th" && TH_DEED_WORD[spec.titleDeedType] !== "",
+    urgencyStated:
+      lang === "th" && profile.urgencyPhrases === true && spec.urgency === "quick_sale",
+  };
 }
 
-/** Expected fields the eval scorecard checks, straight from the spec (no parsing). */
-function expectedProperty(spec: ListingSpec, postedPhotos: number): Record<string, unknown> {
+/**
+ * Expected fields the eval scorecard checks. Ground truth is what the transcript
+ * actually STATES, not what the spec intended (same principle as photoCount below):
+ * a deed/urgency the chaos never rendered is set to "" so the scorer skips it —
+ * otherwise the eval punishes the model for refusing to hallucinate.
+ */
+function expectedProperty(
+  spec: ListingSpec,
+  postedPhotos: number,
+  stated: { deed: boolean; urgency: boolean; ambiguousPrice: boolean },
+): Record<string, unknown> {
   return {
     id: spec.id,
     dealType: spec.dealType,
     propertyType: spec.propertyType,
-    titleDeedType: spec.titleDeedType,
-    priceThb: spec.priceThb,
-    urgency: spec.urgency,
+    titleDeedType: spec.titleDeedType === "unknown" || stated.deed ? spec.titleDeedType : "",
+    // A drifted repost states a SECOND price for the same property — there is no single
+    // right answer (the model reasonably prefers the latest), so the scorer skips it.
+    // pairingPriceThb stays populated so the runner's price-order pairing still works.
+    priceThb: stated.ambiguousPrice ? null : spec.priceThb,
+    pairingPriceThb: spec.priceThb,
+    urgency: spec.urgency === "normal" || stated.urgency ? spec.urgency : "",
     province: spec.province,
     amphoe: spec.amphoe,
     tambon: spec.tambon,
@@ -168,7 +196,7 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
   const messages: TranscriptMessage[] = [];
   let minute = 0;
   const duplicatePairs: Array<[string, string]> = [];
-  const postedPhotos = new Map<string, number>();
+  const properties: Array<Record<string, unknown>> = [];
 
   for (const spec of specs) {
     // Mid-thread correction: the ORIGINAL post advertises a stale (higher) price;
@@ -182,9 +210,15 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
           priceThb: Math.round((spec.priceThb * (1 + (0.03 + rng() * 0.07))) / 100_000) * 100_000,
         }
       : spec;
+    const rendered = renderListing(staleSpec, profile, rng);
+    const stated = {
+      deed: rendered.deedStated,
+      urgency: rendered.urgencyStated,
+      ambiguousPrice: false,
+    };
     messages.push({
       sender: spec.ownerName,
-      text: renderListing(staleSpec, profile, rng),
+      text: rendered.text,
       atMinute: minute,
     });
     minute += 1;
@@ -193,7 +227,6 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
     const kept = Array.from({ length: spec.photoCount }, (_, i) => i).filter(
       () => !chance(rng, profile.photosMissingRate),
     );
-    postedPhotos.set(spec.id, kept.length);
     const order = profile.photosOutOfOrder ? shuffle(rng, kept) : kept;
     for (const index of order) {
       messages.push({
@@ -225,13 +258,18 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
         priceThb: driftedPrice,
         phone: profile.duplicateRepost.contactDrift ? spec.phone.replaceAll("-", " ") : spec.phone,
       };
+      const repostRendered = renderListing(repostSpec, profile, rng);
+      stated.deed ||= repostRendered.deedStated;
+      stated.urgency ||= repostRendered.urgencyStated;
+      stated.ambiguousPrice = driftedPrice !== spec.priceThb;
       messages.push({
         sender: spec.ownerName,
-        text: renderListing(repostSpec, profile, rng),
+        text: repostRendered.text,
         atMinute: minute,
       });
       duplicatePairs.push([spec.id, repostId]);
     }
+    properties.push(expectedProperty(spec, kept.length, stated));
     minute += 5;
   }
 
@@ -248,7 +286,7 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
     messages,
     transcript,
     expected: {
-      properties: specs.map((s) => expectedProperty(s, postedPhotos.get(s.id) ?? 0)),
+      properties,
       duplicatePairs,
     },
   };

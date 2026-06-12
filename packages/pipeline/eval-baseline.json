@@ -1,5 +1,5 @@
 {
-  "writtenAt": "2026-06-12T18:55:07.315Z",
+  "writtenAt": "2026-06-12T20:08:48.751Z",
   "mode": "anthropic",
   "caseCount": 62,
   "perStep": {
@@ -12,7 +12,7 @@
       "casesScored": 62
     },
     "extract": {
-      "score": 0.9548003072196617,
+      "score": 1,
       "casesScored": 62
     },
     "dedup": {
@@ -41,13 +41,13 @@
     },
     {
       "field": "titleDeedType",
-      "score": 0.8108108108108109,
-      "casesScored": 74
+      "score": 1,
+      "casesScored": 60
     },
     {
       "field": "urgency",
-      "score": 0.8918918918918919,
-      "casesScored": 74
+      "score": 1,
+      "casesScored": 66
     },
     {
       "field": "province",
@@ -66,8 +66,8 @@
     },
     {
       "field": "priceThb",
-      "score": 0.9054054054054054,
-      "casesScored": 74
+      "score": 1,
+      "casesScored": 66
     },
     {
       "field": "bedrooms",
@@ -80,5 +80,5 @@
       "casesScored": 64
     }
   ],
-  "costUsd": 0.8133369000000003
+  "costUsd": 0.7867812000000003
 }
