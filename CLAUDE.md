@@ -38,6 +38,24 @@ Review cadence (canonical: master plan §5.3):
 
 Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `docs/research/00-product-principles.md`.
 
+## Anthropic usage budget (long autonomous runs)
+
+`~/.claude/check-usage.sh` prints the subscription rate-limit windows (5h + 7d — same data as
+`/usage`, server-side authoritative). Check it roughly hourly during long autonomous runs; **never
+poll more often than every 5 minutes** (the endpoint 429s).
+
+Thresholds and mode switches (5h window):
+
+- **At 85%:** stop starting new build increments. Wrap current work to a clean committed state.
+- **Above 85%:** switch to waiting mode. Only run simple, low-token cleanup tasks delegated to
+  sub-agents on **smaller models (haiku/sonnet)** — use the ready-made prompts in
+  `.claude/low-token-cleanups.md`. Stay within ~10% more usage while waiting (these cleanups must
+  be cheap).
+- **At 95%: hard stop** — sleep until the window resets, then resume main work.
+
+**Log each reading + mode switch in `SPRINT-LOG.md`** when a sprint is active (timestamp, % used,
+current mode).
+
 ## ⚠️ Anthropic structured output — HARD 16-nullable-parameter limit (DO NOT REGRESS)
 
 Our extraction uses Anthropic **strict structured output** (`messages.parse` +
