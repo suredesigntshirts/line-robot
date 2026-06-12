@@ -201,3 +201,22 @@ bites. Hygiene note: the first cut of this code rode along in commit 37b66db (Q-
 careless `git add -A` — flagged by the panel, corrected scoring committed separately.
 
 ## 07:40 — usage: 5h window 25%. All de-riskers closed (batch ✅ / Q-SA1 ✅ / sharp ✅ / eval ✅).
+
+## 08:00 — SPRINT WRAP (extension included): clean endpoint reached
+
+**Extension tally (02:39 approval → 07:45):** 15 commits, 58 files, +16,187/−6,216 lines.
+**Full night: 68 commits.** Tree clean on `main`; every increment panel-reviewed; all logs current.
+
+Extension scoreboard:
+- ✅ Eval harness truth fix → **clean 1.00 real baseline**, then translate/gate coverage with
+  honest, panel-corrected scoring (final: 1.00/1.00/1.00/0.98/1.00, $1.12).
+- ✅ Stage 4 S4-I1..I6 BUILT: Astro SSR scaffold (12-check smoke) → consent-gated browse (LEGAL-02/10)
+  → detail+SEO (stored XSS killed, JSON-LD, 404/503 semantics) → pg_trgm search → sitemap → infra
+  (preview-verified +20/~3/−2 additive, immovable URLs untouched). 36-check Docker smoke total.
+  Open S4 scope on the gate: radius, price filter, LINE Login config, submission form.
+- ✅ De-riskers: live batch acceptance 9/9 (half-price verified), Q-SA1 executable inequality,
+  sharp mechanics proven, translate/gate scorecard rows live.
+- ✅ Stage 5 spec FLESHED (defaults logged; build awaits founder).
+- Founder queue: MORNING.md §1–6 (deploy → migrate/seed → flip → design pick → extension decisions).
+
+Usage at wrap: 25% of the 5h window — protocol never engaged above normal mode all night.
