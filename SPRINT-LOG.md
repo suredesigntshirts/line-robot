@@ -174,3 +174,13 @@ pulumi preview/up if violated. Sweep reservedConcurrency 3 (rate-2min × 180s �
 website SSR 20 → 46 of 60 budget consumed, headroom for migrations/seed/psql. SQS algebra
 documented v2-unchanged (processor never touches Postgres). Preview re-verified: +20/~3/−2, 0
 replaces. Spine-audit Q-SA1 marked resolved.
+
+## 06:25 — sharp-on-Lambda packaging mechanics PROVEN (spike, deliberately not wired)
+
+`spikes/sharp-lambda-packaging/FINDINGS.md`: (1) x86 host fetches arm64 binaries via
+`npm install --os=linux --cpu=arm64 sharp` (~29 MB unpacked, wasm32 prunable, zip ~10 MB — no
+layer needed); (2) the existing esbuild-external + createRequire banner resolves a sibling
+node_modules and ran the exact D2.7 derivative op (`RESIZED 1568 784 jpeg`). NOT wired into the
+build on purpose — v2-lite never imports sharp; the recipe lands with the classify-wiring
+increment so deploys don't carry dead binaries. De-risker list: batch ✅ live-passed, Q-SA1 ✅
+executable, sharp ✅ mechanics proven, translate/gate eval ⏳ real-model run in flight.
