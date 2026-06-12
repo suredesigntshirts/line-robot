@@ -45,7 +45,12 @@ Extraction rules (apply to every field):
   options, or you had to interpret heavily garbled text.
 `;
 
-/** Generic filler to clear the prompt-cache minimum; identical bytes every call. */
+/**
+ * Generic filler to clear the prompt-cache minimum (4096 tokens Haiku/Opus, 2048 Sonnet);
+ * identical bytes every call so the prefix stays cacheable. 40 repeats ≈ 1.2k tokens of pad on
+ * top of the taxonomy/glossary — sized to clear the floor with margin; confirm with
+ * usage.cache_read_input_tokens > 0 on the second call, never assume.
+ */
 const PREFIX_PAD = `
 Reference notes (stable, for terminology grounding): ${"Thai property listings in LINE group chats mix Thai and English freely, use regional abbreviations, and frequently omit fields. ".repeat(40)}
 `;

@@ -165,6 +165,10 @@ for (const evalCase of cases) {
       });
       if (listing) extracted.push(listing);
     }
+    if (extracted.length === 0 && evalCase.expected.properties.length > 0) {
+      // Total extraction miss scores 0 — silently skipping it would inflate the mean.
+      extractScores.push(0);
+    }
     const fieldScores = scoreCase(evalCase.expected.properties, extracted);
     if (fieldScores.length > 0) {
       extractScores.push(fieldScores.reduce((s, f) => s + f.score, 0) / fieldScores.length);

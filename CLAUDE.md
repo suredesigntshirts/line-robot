@@ -96,6 +96,14 @@ nullables → every sweep + edit 400'd; see `plans/13-chanote-ocr-and-image-pipe
 - Schema changes: edit zod enums in `packages/domain` first, then `packages/db/src/schema.ts`, then
   `npm run generate -w @line-robot/db` — and read `packages/db/CLAUDE.md` for the migration
   hand-fixes (geography quoting, postgis extension).
+- **Dedup thresholds (Stage 2, D2.6)** live in `packages/pipeline/src/dedup/config.ts` —
+  env-overridable (`DEDUP_GEOHASH_PRECISION` 6, `DEDUP_GEO_RADIUS_M` 1000,
+  `DEDUP_TRIGRAM_THRESHOLD` 0.55, `DEDUP_JACCARD_THRESHOLD` 0.50, `DEDUP_BLOCK_CAP` 8). Defaults
+  are validated by the synthetic dup-pair tests (P/R ≥ 0.90); retune via the eval scorecard, never
+  by hand in prod.
+- `npm run eval` — pipeline scorecard over 62 synthetic cases. `EVAL_LLM=oracle` (default) is a
+  harness smoke; `EVAL_LLM=anthropic` + `ANTHROPIC_API_KEY` runs the real model baseline (D21
+  advisory, always exits 0).
 
 ## Deploying (Pulumi → AWS staging)
 

@@ -153,12 +153,53 @@ describe("pipeline → Postgres round-trip (Increment 6 acceptance)", () => {
     });
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM listing");
     expect(rows[0].n).toBe(1); // no duplicate row
-    // The merge refreshed the price with an audit entry.
+    // Identical price on re-sweep → NO new audit row (idempotent, no history spam).
     const { rows: history } = await pool.query(
       "SELECT count(*)::int AS n FROM price_history WHERE listing_id = $1",
       [firstListingId],
     );
-    expect(history[0].n).toBe(2);
+    expect(history[0].n).toBe(1);
+  });
+
+  it("a merged re-post with a DIFFERENT price records exactly one audit entry", async () => {
+    const drifted = { ...EXTRACT_FIXTURE, priceThb: SPEC.priceThb - 100_000 };
+    const llm = new FakeStepLlm()
+      .enqueue("segment", {
+        segments: [
+          {
+            label: "บ้าน",
+            imageIndices: [0],
+            mapIndex: null,
+            existingPropertyId: "",
+            ambiguous: false,
+            ambiguousWith: [],
+          },
+        ],
+      })
+      .enqueue("extract", drifted)
+      .enqueue("dedup", {
+        decision: "merge",
+        intoId: firstListingId,
+        confidence: 0.95,
+        reason: "price reduced re-post",
+      })
+      .enqueue("gate", { pass: true, missing: [] });
+    const ctx: StepContext = { llm, costLog: new CostLog(), mode: "sync" };
+
+    await runPipeline(ctx, db, {
+      transcript: CASE.transcript,
+      ownerUserId: ownerId,
+      photos: [{ index: 0, s3Key: "conv/x/1/content.jpg" }],
+      geoHints: [],
+      contentLang: "th",
+    });
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM price_history WHERE listing_id = $1",
+      [firstListingId],
+    );
+    expect(rows[0].n).toBe(2);
+    const { rows: listings } = await pool.query("SELECT count(*)::int AS n FROM listing");
+    expect(listings[0].n).toBe(1);
   });
 
   it("FIELD-03: a ส.ป.ก. sale lands but is queued for moderation with the deed blocker", async () => {

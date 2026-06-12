@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod";
+import { toApiContent } from "../adapters/content.ts";
 import type { StepLlmRequest } from "../ports.ts";
 
 // ---------------------------------------------------------------------------
@@ -25,19 +26,7 @@ export function toBatchRequest(
       model: request.model,
       max_tokens: request.maxOutputTokens,
       system: [{ type: "text", text: request.system, cache_control: { type: "ephemeral" } }],
-      messages: [
-        {
-          role: "user",
-          content: request.content.map((block) =>
-            block.type === "text"
-              ? ({ type: "text", text: block.text } as const)
-              : ({
-                  type: "image",
-                  source: { type: "base64", media_type: block.mediaType, data: block.base64 },
-                } as const),
-          ),
-        },
-      ],
+      messages: [{ role: "user", content: toApiContent(request.content) }],
       output_config: { format: zodOutputFormat(request.schema) },
     },
   };

@@ -18,11 +18,7 @@ export interface DerivativeSet {
   visionJpeg: Uint8Array;
 }
 
-export function derivativeKey(
-  propertyId: string,
-  photoId: string,
-  kind: "vision" | "thumb",
-): string {
+function derivativeKey(propertyId: string, photoId: string, kind: "vision" | "thumb"): string {
   return `derivatives/${propertyId}/${photoId}-${kind}.jpg`;
 }
 

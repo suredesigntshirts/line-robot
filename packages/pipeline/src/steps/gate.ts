@@ -47,6 +47,11 @@ export async function runGate(ctx: StepContext, input: GateInput): Promise<GateR
   if (input.deedType === "unknown" && !missing.some((m) => m.field === "titleDeedType")) {
     missing.unshift({ field: "titleDeedType", severity: "required", promptKey: "ask_deed_type" });
   }
+  // A model fail with nothing to ask for would dead-end the DF-6 loop (the bot
+  // iterates on `missing`; blockers explain themselves) — route it to review.
+  if (!response.value.pass && missing.length === 0 && blockers.length === 0) {
+    missing.push({ field: "review", severity: "required", promptKey: "needs_review" });
+  }
 
   const pass =
     blockers.length === 0 && response.value.pass && !missing.some((m) => m.severity === "required");

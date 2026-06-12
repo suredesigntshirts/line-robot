@@ -4,6 +4,7 @@ import {
   createModerationItem,
   type Db,
   ewktPoint,
+  getListing,
   listDedupPool,
 } from "@line-robot/db";
 import type { ContentLang, GateResult } from "@line-robot/domain";
@@ -192,12 +193,14 @@ export async function runPipeline(
       continue;
     }
 
+    // Indices come from the model — tolerate hallucinated markers by lookup, never by position.
+    const photoByIndex = new Map(input.photos.map((p, i) => [p.index, { photo: p, slot: i }]));
     const segmentClassifications = segment.imageIndices.map(
-      (i) => classifications[input.photos.findIndex((p) => p.index === i)] ?? null,
+      (i) => classifications[photoByIndex.get(i)?.slot ?? -1] ?? null,
     );
     const deedNo = deedNoFrom(segmentClassifications);
     const photoKeys = segment.imageIndices
-      .map((i) => input.photos.find((p) => p.index === i)?.s3Key)
+      .map((i) => photoByIndex.get(i)?.photo.s3Key)
       .filter((k): k is string => k !== undefined);
 
     // 4. dedup: deterministic block → LLM verify; default new.
@@ -208,10 +211,14 @@ export async function runPipeline(
     let listingId: string;
     if (decision.decision === "merge" && decision.intoId !== undefined) {
       listingId = decision.intoId;
-      // Re-sweep / re-post: refresh the price with an audit trail; nothing else
-      // is overwritten without poster confirmation (LEGAL-06).
+      // Re-sweep / re-post: refresh the price with an audit trail — but only when
+      // it actually changed (idempotent re-sweeps must not spam price_history).
+      // Nothing else is overwritten without poster confirmation (LEGAL-06).
       if (extracted.dealType === "sale" && extracted.priceThb !== null) {
-        await changePrice(db, listingId, extracted.priceThb, "corrected");
+        const current = await getListing(db, listingId);
+        if (current && current.priceThb !== extracted.priceThb) {
+          await changePrice(db, listingId, extracted.priceThb, "corrected");
+        }
       }
     } else {
       listingId = await persistNewListing(db, ctx, input, extracted, deedNo, photoKeys);

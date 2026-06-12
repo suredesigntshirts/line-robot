@@ -5,6 +5,7 @@ import type { ListingSpec } from "../synthetic/spec.ts";
 const ZERO: LlmUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
 
 /**
+ * HARNESS ONLY — never instantiated in production code paths.
  * Harness-smoke mode: answers segment/extract from the case's own ground-truth
  * specs. A perfect pipeline scores 1.0 — running `npm run eval` with the
  * oracle validates the harness plumbing end-to-end (case generation → steps →
