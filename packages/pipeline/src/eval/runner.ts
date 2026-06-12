@@ -6,8 +6,11 @@ import { blockCandidates } from "../dedup/candidateFinder.ts";
 import { dedupConfig } from "../dedup/config.ts";
 import type { StepLlm } from "../ports.ts";
 import type { StepContext } from "../steps/context.ts";
+import { isSaleBlockedByDeed } from "@line-robot/domain";
 import { extractListing } from "../steps/extract.ts";
+import { runGate } from "../steps/gate.ts";
 import { segmentTranscript, singleSegmentFallback } from "../steps/segment.ts";
+import { translateContent } from "../steps/translate.ts";
 import type { ExtractedListing } from "../steps.ts";
 import { type EvalCase, loadCases } from "./cases.ts";
 import { OracleStepLlm } from "./oracle.ts";
@@ -21,9 +24,9 @@ import {
 } from "./scoring.ts";
 
 // ---------------------------------------------------------------------------
-// Eval runner (D21: advisory — always exits 0). Scores segment/extract/dedup
-// over the Tier B synthetic set; classify/translate/gate need image fixtures /
-// judge scoring and stay n/a until Stage 2's follow-up.
+// Eval runner (D21: advisory — always exits 0). Scores segment/extract/dedup +
+// translate (language/shape invariants) + gate (deterministic contract) over the
+// Tier B synthetic set; classify needs image fixtures and stays n/a for now.
 // EVAL_LLM=oracle (default, no API): harness smoke, perfect pipeline = 1.0.
 // EVAL_LLM=anthropic (needs ANTHROPIC_API_KEY): the real model baseline.
 // ---------------------------------------------------------------------------
@@ -69,6 +72,62 @@ function scoreCase(expectedProps: Array<Record<string, unknown>>, extracted: Ext
     }
   });
   return fieldScores;
+}
+
+const THAI_CHAR = /[฀-๿]/g;
+
+/**
+ * Translate scoring is INVARIANT-based, not adequacy-judged: non-null, non-empty
+ * title, and th→en output actually dominated by non-Thai script. Catches empty,
+ * garbled or wrong-language output — not nuance (Tier A judge work, later).
+ */
+function scoreTranslate(result: { lang: string; title: string; description: string } | null): {
+  score: number;
+  detail: string;
+} {
+  if (result === null) return { score: 0, detail: "translate returned null" };
+  const text = `${result.title} ${result.description}`;
+  const thaiRatio = (text.match(THAI_CHAR)?.length ?? 0) / Math.max(text.length, 1);
+  const checks: Array<[string, boolean]> = [
+    ["title non-empty", result.title.trim() !== ""],
+    ["lang flipped to en", result.lang === "en"],
+    ["output is not Thai-script", thaiRatio < 0.2],
+  ];
+  const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
+  return {
+    score: checks.filter(([, ok]) => ok).length / checks.length,
+    detail: failed.join(", ") || "ok",
+  };
+}
+
+/**
+ * Gate scoring checks the step's DETERMINISTIC contract against its own input
+ * (the extracted listing): the FIELD-03 sale blocker, the FIELD-02 unknown-deed
+ * ask, and pass-coherence. Extra model asks are never penalized — completeness
+ * judgment belongs to the model.
+ */
+function scoreGateResult(
+  got: ExtractedListing,
+  gate: { pass: boolean; missing: Array<{ field: string }>; blockers: Array<{ reason: string }> },
+): { score: number; detail: string } {
+  const blockerExpected = got.dealType === "sale" && isSaleBlockedByDeed(got.titleDeedType);
+  const askDeedExpected = got.titleDeedType === "unknown";
+  const checks: Array<[string, boolean]> = [
+    [
+      "deed blocker (FIELD-03)",
+      gate.blockers.some((b) => b.reason === "deed_not_transferable") === blockerExpected,
+    ],
+    [
+      "unknown-deed ask (FIELD-02)",
+      !askDeedExpected || gate.missing.some((m) => m.field === "titleDeedType"),
+    ],
+    ["pass coherence", !(blockerExpected || askDeedExpected) || gate.pass === false],
+  ];
+  const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
+  return {
+    score: checks.filter(([, ok]) => ok).length / checks.length,
+    detail: failed.join(", ") || "ok",
+  };
 }
 
 /** Dedup scoring is deterministic (blocking quality) — independent of the LLM under test. */
@@ -154,6 +213,8 @@ const costLog = new CostLog();
 const segmentScores: number[] = [];
 const extractScores: number[] = [];
 const dedupScores: number[] = [];
+const translateScores: number[] = [];
+const gateScores: number[] = [];
 const fieldAggregate = new Map<string, { total: number; count: number }>();
 
 for (const evalCase of cases) {
@@ -203,6 +264,35 @@ for (const evalCase of cases) {
       }
     }
 
+    // Translate (th→en) on the first extracted listing with a title; gate on every listing.
+    const first = extracted[0];
+    if (first && first.title !== "") {
+      const translated = await translateContent(ctx, {
+        fromLang: "th",
+        title: first.title,
+        description: first.description,
+        notes: "",
+      });
+      const t = scoreTranslate(translated);
+      translateScores.push(t.score);
+      if (t.score < 1 && process.env.EVAL_VERBOSE === "1") {
+        console.error(`MISS ${evalCase.id} translate: ${t.detail}`);
+      }
+    }
+    for (const got of extracted) {
+      const gate = await runGate(ctx, {
+        extracted: got,
+        photoCount: 0,
+        deedType: got.titleDeedType,
+        listingType: got.dealType,
+      });
+      const g = scoreGateResult(got, gate);
+      gateScores.push(g.score);
+      if (g.score < 1 && process.env.EVAL_VERBOSE === "1") {
+        console.error(`MISS ${evalCase.id} gate: ${g.detail}`);
+      }
+    }
+
     const dedup = scoreDedupCase(evalCase);
     if (dedup) dedupScores.push((dedup.pairPrecision + dedup.pairRecall) / 2);
   } catch (error) {
@@ -215,6 +305,8 @@ const mean = (xs: number[]) => (xs.length === 0 ? null : xs.reduce((a, b) => a +
 card.perStep.segment = { score: mean(segmentScores), casesScored: segmentScores.length };
 card.perStep.extract = { score: mean(extractScores), casesScored: extractScores.length };
 card.perStep.dedup = { score: mean(dedupScores), casesScored: dedupScores.length };
+card.perStep.translate = { score: mean(translateScores), casesScored: translateScores.length };
+card.perStep.gate = { score: mean(gateScores), casesScored: gateScores.length };
 card.perField = [...fieldAggregate.entries()].map(([field, agg]) => ({
   field,
   score: agg.total / agg.count,

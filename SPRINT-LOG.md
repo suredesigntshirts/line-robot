@@ -166,3 +166,11 @@ polled → `collectBatch`. 9/9: strict structured output accepted inside the bat
 round-trip, both properties segmented + extracted with prices, usage recorded, **batch cost
 exactly half of sync pricing** ($0.0118, 1.1 min end-to-end). The sweep's batch-mode routing can
 ship without API-shape risk.
+
+## 06:05 — Q-SA1 RESOLVED: the connection-budget inequality is now a deploy-time assertion
+
+`infra/src/naming.ts`: Σ(reservedConcurrency × pool-per-lambda) ≤ 60-connection budget THROWS at
+pulumi preview/up if violated. Sweep reservedConcurrency 3 (rate-2min × 180s ⇒ ≤2 overlaps),
+website SSR 20 → 46 of 60 budget consumed, headroom for migrations/seed/psql. SQS algebra
+documented v2-unchanged (processor never touches Postgres). Preview re-verified: +20/~3/−2, 0
+replaces. Spine-audit Q-SA1 marked resolved.

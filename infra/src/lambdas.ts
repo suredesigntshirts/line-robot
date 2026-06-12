@@ -6,6 +6,7 @@ import {
   logRetentionDays,
   PROCESSOR_TIMEOUT_SECONDS,
   prefix,
+  SWEEP_RESERVED_CONCURRENCY,
   ssmKmsDecrypt,
   stack,
 } from "./naming";
@@ -256,6 +257,8 @@ export function createBotLambdas(
       // that can escalate to Opus; a big multi-photo batch needs well over 60s end to end. Bounded
       // concurrency on classification cuts the bulk of it, but keep generous headroom for the tail.
       timeout: 180,
+      // Q-SA1: caps the sweep's share of the Postgres connection budget (see naming.ts).
+      reservedConcurrentExecutions: SWEEP_RESERVED_CONCURRENCY,
       memorySize: 512,
       publish: true,
       // PIPELINE_V2 (stage-2 D2.5): hard switch, default off. Flip with

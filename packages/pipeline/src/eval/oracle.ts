@@ -26,7 +26,11 @@ export class OracleStepLlm implements StepLlm {
         ? this.segment()
         : request.step === "extract"
           ? this.extract(request)
-          : null;
+          : request.step === "translate"
+            ? this.translate()
+            : request.step === "gate"
+              ? this.gate()
+              : null;
     const parsed = value === null ? null : request.schema.parse(value);
     return Promise.resolve({ value: parsed as z.infer<S> | null, usage: ZERO });
   }
@@ -42,6 +46,20 @@ export class OracleStepLlm implements StepLlm {
         ambiguousWith: [],
       })),
     };
+  }
+
+  /** A "perfect" translation for invariant scoring: target-language text, fields filled. */
+  private translate() {
+    return {
+      title: "Perfect translated title",
+      description: "Perfect translated description",
+      notes: "",
+    };
+  }
+
+  /** A "perfect" gate verdict — runGate layers the deterministic deed rules on top. */
+  private gate() {
+    return { pass: true, missing: [] };
   }
 
   private extract(request: StepLlmRequest<z.ZodType>) {

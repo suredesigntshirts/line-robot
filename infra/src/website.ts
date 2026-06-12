@@ -1,7 +1,14 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi";
 import type { DatabaseResources } from "./database";
-import { config, lambdaAssumeRole, logRetentionDays, prefix, stack } from "./naming";
+import {
+  config,
+  lambdaAssumeRole,
+  logRetentionDays,
+  prefix,
+  stack,
+  WEBSITE_RESERVED_CONCURRENCY,
+} from "./naming";
 import { listSiteFiles } from "./staticSite";
 
 // ---------------------------------------------------------------------------
@@ -58,6 +65,8 @@ export function createWebsite(
       code: new pulumi.asset.FileArchive("../packages/website/dist-lambda"),
       role: role.arn,
       timeout: 15,
+      // Q-SA1: caps the website's share of the Postgres connection budget (see naming.ts).
+      reservedConcurrentExecutions: WEBSITE_RESERVED_CONCURRENCY,
       memorySize: 512,
       publish: true,
       environment: {

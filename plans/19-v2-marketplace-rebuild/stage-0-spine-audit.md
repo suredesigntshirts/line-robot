@@ -166,6 +166,11 @@ for v2: keep per-suite container isolation (Postgres too); fakes/stubs implement
 - **Q-SA1 → stage-2**: re-derive SQS visibility timeout / maxReceiveCount / batch size from v2 step
   latencies and the Postgres connection budget (db.t4g.micro ≈ 85 connections); make the
   concurrency×pool≤budget inequality an acceptance criterion.
+  **RESOLVED 2026-06-13 (sprint-01 extension):** the inequality is now executable — `infra/src/naming.ts`
+  throws at preview time if Σ(reservedConcurrency × pool) > 60-connection budget; sweep capped at 3
+  (rate-2min cron × 180s ⇒ ≤2 natural overlaps), website SSR at 20. SQS algebra documented as
+  v2-unchanged: the processor never touches Postgres (interactive v1 path; Stage 5 revisits);
+  visibility 6×timeout, maxReceiveCount 5 → DLQ, batchSize 10 + partial-batch reporting stand.
 - **Q-SA2 → stage-2**: replace `extractAndApply` orchestration + conversation-level retry cap with
   per-step failure semantics and partial success; decide Batch-completion trigger (poll vs push).
 - **Q-SA3 → stage-2**: extend the `RawArchive` port with the image-derivatives contract (D2.7) and
