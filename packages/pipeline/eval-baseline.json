@@ -1,5 +1,5 @@
 {
-  "writtenAt": "2026-06-12T20:08:48.751Z",
+  "writtenAt": "2026-06-12T21:55:10.587Z",
   "mode": "anthropic",
   "caseCount": 62,
   "perStep": {
@@ -20,12 +20,12 @@
       "casesScored": 8
     },
     "translate": {
-      "score": null,
-      "casesScored": 0
+      "score": 0.9838709677419355,
+      "casesScored": 62
     },
     "gate": {
-      "score": null,
-      "casesScored": 0
+      "score": 1,
+      "casesScored": 62
     }
   },
   "perField": [
@@ -80,5 +80,5 @@
       "casesScored": 64
     }
   ],
-  "costUsd": 0.7867812000000003
+  "costUsd": 1.1194442000000002
 }

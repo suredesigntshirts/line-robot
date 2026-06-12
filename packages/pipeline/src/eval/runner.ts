@@ -1,12 +1,12 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
+import { isSaleBlockedByDeed } from "@line-robot/domain";
 import { evalConfig } from "../../eval.config.ts";
 import { CostLog } from "../cost.ts";
 import { blockCandidates } from "../dedup/candidateFinder.ts";
 import { dedupConfig } from "../dedup/config.ts";
 import type { StepLlm } from "../ports.ts";
 import type { StepContext } from "../steps/context.ts";
-import { isSaleBlockedByDeed } from "@line-robot/domain";
 import { extractListing } from "../steps/extract.ts";
 import { runGate } from "../steps/gate.ts";
 import { segmentTranscript, singleSegmentFallback } from "../steps/segment.ts";
@@ -76,22 +76,27 @@ function scoreCase(expectedProps: Array<Record<string, unknown>>, extracted: Ext
 
 const THAI_CHAR = /[฀-๿]/g;
 
+const thaiRatio = (text: string) => (text.match(THAI_CHAR)?.length ?? 0) / Math.max(text.length, 1);
+
 /**
  * Translate scoring is INVARIANT-based, not adequacy-judged: non-null, non-empty
- * title, and th→en output actually dominated by non-Thai script. Catches empty,
- * garbled or wrong-language output — not nuance (Tier A judge work, later).
+ * title, and the output actually written in the TARGET script (direction-aware —
+ * mixed-language transcripts yield English sources too, so en→th is exercised).
+ * Catches empty, garbled or wrong-language output, not nuance (Tier A judge work).
+ * Retained Thai proper nouns (soi/landmark names) make the en-target threshold
+ * lenient (<0.35) by design.
  */
-function scoreTranslate(result: { lang: string; title: string; description: string } | null): {
-  score: number;
-  detail: string;
-} {
+function scoreTranslate(
+  fromLang: "th" | "en",
+  result: { title: string; description: string } | null,
+): { score: number; detail: string } {
   if (result === null) return { score: 0, detail: "translate returned null" };
-  const text = `${result.title} ${result.description}`;
-  const thaiRatio = (text.match(THAI_CHAR)?.length ?? 0) / Math.max(text.length, 1);
+  const ratio = thaiRatio(`${result.title} ${result.description}`);
   const checks: Array<[string, boolean]> = [
     ["title non-empty", result.title.trim() !== ""],
-    ["lang flipped to en", result.lang === "en"],
-    ["output is not Thai-script", thaiRatio < 0.2],
+    fromLang === "th"
+      ? ["en output not Thai-script", ratio < 0.35]
+      : ["th output Thai-script-dominant", ratio > 0.5],
   ];
   const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
   return {
@@ -101,10 +106,12 @@ function scoreTranslate(result: { lang: string; title: string; description: stri
 }
 
 /**
- * Gate scoring checks the step's DETERMINISTIC contract against its own input
- * (the extracted listing): the FIELD-03 sale blocker, the FIELD-02 unknown-deed
- * ask, and pass-coherence. Extra model asks are never penalized — completeness
- * judgment belongs to the model.
+ * HONESTY NOTE: this is a CONTRACT + PARSE-HEALTH smoke, not a model-quality
+ * metric — the three checks recompute runGate's own deterministic floors, so a
+ * well-parsing model scores 1.0 by construction. Its value against the REAL API
+ * is catching schema-acceptance failures (the 16-union outage class: a 400 on
+ * every call would null-fallback and miss the FIELD-02 ask on unknown-deed
+ * cases) and floor regressions. Model gate judgment is Tier A judge work.
  */
 function scoreGateResult(
   got: ExtractedListing,
@@ -264,29 +271,30 @@ for (const evalCase of cases) {
       }
     }
 
-    // Translate (th→en) on the first extracted listing with a title; gate on every listing.
+    // Translate + gate on the FIRST extracted listing per case (cost cap — the
+    // sampling is visible in casesScored). Source language detected by script.
     const first = extracted[0];
     if (first && first.title !== "") {
+      const fromLang = thaiRatio(`${first.title} ${first.description}`) >= 0.5 ? "th" : "en";
       const translated = await translateContent(ctx, {
-        fromLang: "th",
+        fromLang,
         title: first.title,
         description: first.description,
         notes: "",
       });
-      const t = scoreTranslate(translated);
+      const t = scoreTranslate(fromLang, translated);
       translateScores.push(t.score);
       if (t.score < 1 && process.env.EVAL_VERBOSE === "1") {
-        console.error(`MISS ${evalCase.id} translate: ${t.detail}`);
+        console.error(`MISS ${evalCase.id} translate(${fromLang}): ${t.detail}`);
       }
-    }
-    for (const got of extracted) {
+
       const gate = await runGate(ctx, {
-        extracted: got,
+        extracted: first,
         photoCount: 0,
-        deedType: got.titleDeedType,
-        listingType: got.dealType,
+        deedType: first.titleDeedType,
+        listingType: first.dealType,
       });
-      const g = scoreGateResult(got, gate);
+      const g = scoreGateResult(first, gate);
       gateScores.push(g.score);
       if (g.score < 1 && process.env.EVAL_VERBOSE === "1") {
         console.error(`MISS ${evalCase.id} gate: ${g.detail}`);

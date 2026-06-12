@@ -184,3 +184,20 @@ node_modules and ran the exact D2.7 derivative op (`RESIZED 1568 784 jpeg`). NOT
 build on purpose — v2-lite never imports sharp; the recipe lands with the classify-wiring
 increment so deploys don't carry dead binaries. De-risker list: batch ✅ live-passed, Q-SA1 ✅
 executable, sharp ✅ mechanics proven, translate/gate eval ⏳ real-model run in flight.
+
+## 07:40 — translate/gate eval coverage SHIPPED with corrected, honest scoring
+
+Panel caught two scoring flaws before the baseline was trusted: the gate metric was SELF-CONFIRMING
+(checks recomputed runGate's own deterministic floors → 1.0 by construction) and translate had a
+vacuous "lang flipped" check + a direction blind spot (fromLang hardcoded th while ~1 in 6
+transcripts is English). Fixes: gate row reframed + documented as a CONTRACT/PARSE-HEALTH smoke
+(it would catch another 16-union-class outage: API 400s → null fallback → FIELD-02 ask missing on
+unknown-deed cases), translate is now direction-aware (source detected by script ratio; en→th
+demands Thai-dominant output), oracle fakes direction-aware, gate sampled once per case (cost).
+The stale-scoring run was killed mid-flight; the corrected re-run is the committed baseline:
+**segment 1.00 / extract 1.00 / dedup 1.00 / translate 0.98 / gate 1.00, $1.12** — the two
+translate misses are REAL en→th signal (output not Thai-dominant), proof the corrected metric
+bites. Hygiene note: the first cut of this code rode along in commit 37b66db (Q-SA1) via a
+careless `git add -A` — flagged by the panel, corrected scoring committed separately.
+
+## 07:40 — usage: 5h window 25%. All de-riskers closed (batch ✅ / Q-SA1 ✅ / sharp ✅ / eval ✅).

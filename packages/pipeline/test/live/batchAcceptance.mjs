@@ -109,4 +109,6 @@ for (const [id, r] of responses) {
 check("batch price is exactly half of sync", Math.abs(syncLog.totalUsd() - total * 2) < 1e-9);
 
 const minutes = ((Date.now() - started) / 60_000).toFixed(1);
-console.log(`ALL ${pass} BATCH ACCEPTANCE CHECKS PASSED — ${minutes} min, $${total.toFixed(4)} (batch-priced)`);
+console.log(
+  `ALL ${pass} BATCH ACCEPTANCE CHECKS PASSED — ${minutes} min, $${total.toFixed(4)} (batch-priced)`,
+);
