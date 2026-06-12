@@ -40,7 +40,8 @@ const h1 = decode(r1);
 check("dynamic /p/42 returns 200", () => assert.equal(r1.statusCode, 200));
 check("dynamic renders the path id", () => assert.match(h1, /Property id: 42/));
 check("dynamic carries a renderedAt timestamp", () =>
-  assert.match(h1, /Rendered at: \d{4}-\d{2}-\d{2}T/));
+  assert.match(h1, /Rendered at: \d{4}-\d{2}-\d{2}T/),
+);
 
 const ts1 = h1.match(/Rendered at: ([^<]+)</)?.[1];
 const nonce1 = h1.match(/Request nonce: ([^<]+)</)?.[1];
@@ -54,7 +55,8 @@ const ts2 = h2.match(/Rendered at: ([^<]+)</)?.[1];
 const nonce2 = h2.match(/Request nonce: ([^<]+)</)?.[1];
 
 check("timestamp differs across requests (real per-request SSR, not prerender)", () =>
-  assert.notEqual(ts1, ts2));
+  assert.notEqual(ts1, ts2),
+);
 check("nonce differs across requests", () => assert.notEqual(nonce1, nonce2));
 
 console.log(`\nrenderedAt #1: ${ts1}\nrenderedAt #2: ${ts2}`);

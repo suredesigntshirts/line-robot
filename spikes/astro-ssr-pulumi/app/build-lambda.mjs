@@ -7,8 +7,9 @@
 // into a path that CONTAINS a `server/` segment, and provide a sibling (here empty) `client/` dir.
 //
 // Run AFTER `astro build` (needs app/dist/server/entry.mjs to exist).
+
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { build } from "esbuild";
-import { rmSync, existsSync, mkdirSync } from "node:fs";
 
 if (!existsSync(new URL("./dist/server/entry.mjs", import.meta.url))) {
   console.error("Missing dist/server/entry.mjs — run `npm run build` (astro build) first.");
