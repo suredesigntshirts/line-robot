@@ -2,6 +2,10 @@
 
 Project-specific guidance for Claude. (The global `~/.claude/CLAUDE.md` also applies.)
 
+## Browser automation — always run headed, as a real user
+
+When capturing or auditing external websites (playwright-cli or any browser tooling): **always run HEADED (not headless) with a current standard Chrome user-agent, realistic viewport, locale `th-TH` / timezone Asia/Bangkok for Thai sites, and human pacing** (load homepage, wait, then navigate deeper). We are on a residential IP; headless mode + bot UA is what gets blocked — headed-as-real-user got us past walls (DDproperty et al.) that hard-blocked headless runs. Never attempt to solve CAPTCHAs; screenshot the challenge as evidence and move on.
+
 ## V2 rebuild — plan & product research
 
 The v2 marketplace rebuild is governed by `plans/19-v2-marketplace-rebuild.md` (master plan,
