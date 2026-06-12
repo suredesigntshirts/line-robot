@@ -42,4 +42,32 @@ Park it: write the blocker (what, why, exact error, what was tried) to **BLOCKER
 
 ## Parked (not tonight)
 
-Golden set Tier A labeling; broker-group validation questions (§5 of the register); design-direction choice; Stage 4+ (website, mini-app rebuild, groups/dealflow, AVM); production hardening of DB network posture (documented staging posture: public + forced TLS + strong creds).
+Golden set Tier A labeling; broker-group validation questions (§5 of the register); design-direction choice; ~~Stage 4+ (website, mini-app rebuild, groups/dealflow, AVM)~~ **superseded by the extension below**; production hardening of DB network posture (documented staging posture: public + forced TLS + strong creds).
+
+## Sprint extension — approved 2026-06-13 ~02:39
+
+Founder (verbatim): *"After stage 3 is done. We need to work on the other stages until 8:30am. We
+need to update the plan to continue to work and iterate on what we can to use this extra time
+after stage 3 is done. I want to work on as many things as possible until 8:30am. I approve this.
+Commit it to plans."*
+
+Stages 0–3 closed their gates ahead of schedule, so the original charter's "Stage 4+ parked"
+ruling is lifted for the remainder of the night. Extension scope, in priority order:
+
+1. **Eval harness truth fix** (in flight at approval time): synthetic `expected` now reflects what
+   the transcript actually states (deed/urgency misses were harness bugs, not model failures);
+   real-model baseline re-measured and rewritten deliberately.
+2. **Stage 4 (public website) — flesh + build what is buildable unattended.** The skeleton's open
+   questions get defensible defaults recorded in the spec's iteration log (founder can overrule in
+   the morning — all cheap to change). Build proceeds domain-agnostic: Astro 6 SSR app per the
+   DF-2 spike, browse/search/detail with Stage 3 components, SEO (JSON-LD, sitemap, hreflang),
+   Pulumi resources coded + preview only. **Parked for founder:** domain (D19), LINE Login
+   console config, Google OAuth verification, the deploy itself.
+3. **Flip de-riskers interleaved** (background-friendly): Message Batches live acceptance,
+   sharp-on-Lambda packaging, translate/gate eval coverage, Q-SA1 SQS timeout algebra.
+4. Stages 5–7 remain out of reach tonight; not started.
+
+Same quality loop applies (increment panels, alignment review on design-bearing increments, stage
+gate if Stage 4 completes — it likely won't; partial work is committed increment-by-increment, each
+leaving `main` shippable). Hard guardrails above remain in force, unchanged: immovable URLs,
+additive-only Pulumi, no secrets in repo, 85/95% usage protocol, wrap to a clean endpoint by 8:30.
