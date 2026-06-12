@@ -74,15 +74,36 @@ Each increment is a PR-sized unit; its own `/increment-review` runs before the n
 
 ## Stage gate checklist
 
-- [ ] Free checks green: `npm run typecheck`, `npm run lint` (Biome), `npm run test`.
-- [ ] `/increment-review` runs end-to-end on a sample diff → 3 reports + skeptic + verdict.
-- [ ] `/alignment-review` runs on a sample surface → per-ID pass/violation/n-a against the real register.
-- [ ] `npm run eval` exits 0 with `0 cases, 0 failures` + cost line.
-- [ ] `CLAUDE.md` quality section present, cadence matches §5.3, 5 anti-over-eng rules listed, both skills + eval + register linked.
-- [ ] `stage-0-spine-audit.md` complete: verdict+justification per §7 component; REBUILDs threaded into Stage 1/2; endpoints treated immovable.
-- [ ] High-effort review of Stage 0's own full diff confirms **no scope creep into product code** (no schema, pipeline, or UI).
-- [ ] No Playwright smoke (Stage 0 is not user-facing).
-- [ ] Retro notes appended below.
+- [x] Free checks green: `npm run typecheck`, `npm run lint` (Biome), `npm run test`. *(2026-06-13 gate run: all exit 0; 300+ unit tests incl. 12 new pipeline tests.)*
+- [x] `/increment-review` runs end-to-end on a sample diff → 3 reports + skeptic + verdict. *(Procedure executed end-to-end on I3/I4/I5 diffs — fresh-agent reports + skeptic + verdicts each time. Session-boundary note: the skill FILE loads at session start, so `/`-invocation is verified next session; the gate reviewer judged the procedure execution satisfies the intent.)*
+- [x] `/alignment-review` runs on a sample surface → per-ID pass/violation/n-a against the real register. *(Ran in the S0-I2 session as that increment's acceptance test; same session-boundary note.)*
+- [x] `npm run eval` exits 0 with `0 cases, 0 failures` + cost line. *(Verified: all six steps listed, `cost: $0.00`, exit 0.)*
+- [x] `CLAUDE.md` quality section present, cadence matches §5.3, 5 anti-over-eng rules listed, both skills + eval + register linked.
+- [x] `stage-0-spine-audit.md` complete: verdict+justification per §7 component (10 verdicts: 7 KEEP, 3 scoped REBUILD); REBUILDs threaded into Stage 1/2 (Q-SA1..4); endpoints treated immovable in every verdict.
+- [x] High-effort review of Stage 0's own full diff confirms **no scope creep into product code** — `git diff 9416fd8..HEAD -- packages/bot/src packages/miniapp/src packages/shared/src` is empty; gate reviewer verified independently. Verdict: GATE-PASS.
+- [x] No Playwright smoke (Stage 0 is not user-facing).
+- [x] Retro notes appended below.
+
+## Retro (appended at gate, 2026-06-13 ~00:45)
+
+**What worked.** The panel earns its cost: every increment shipped with at least one
+skeptic-confirmed fix (I3 wording, I4 tests + 7 review-pass fixes, I5 coverage gap), and the
+convergent-finding pattern (two reviewers independently demanding the same change) proved a
+reliable severity signal. Delegating the correctness seat to the installed `/code-review` engine
+gave us 7 finder angles for free. The spec-amendment-with-iteration-log discipline kept deviations
+honest (node-native TS over tsx; implemented-and-tested scorers over stubs) instead of silent.
+
+**What to watch.** (1) Verifier quality: one /code-review refutation was factually wrong about
+JS optional-chaining semantics — skeptics/verifiers get overridden only with a stated mechanical
+reason, which happened and is logged; keep that bar. (2) Panel cost: ~4–6 sub-agents per increment
+is right for Stage 0's foundational artifacts; for Stage 1's six code increments, batch the bespoke
+seats where diffs are small and let `/code-review` carry correctness. (3) The two project skills
+still need one real `/`-invocation next session to close the loop (morning founder action: run
+`/increment-review` on any Stage 1 increment).
+
+**Gate verdict: PASS** — full-diff reviewer found 0 BLOCKERs, 2 MAJOR-with-mitigation (both
+documentation-of-constraint, no action), 3 MINORs (spike warnings pre-date the stage; cosmetic).
+Stage 1 unblocked.
 
 ## Risks
 
