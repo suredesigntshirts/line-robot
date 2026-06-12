@@ -20,6 +20,24 @@ the numbered, falsifiable rules every design-bearing change is reviewed against 
 load the register and check the applicable heuristic IDs. (A `/alignment-review` skill that does
 this mechanically is a Stage 0 deliverable.)
 
+## Quality system (Stage 0 onward)
+
+Review cadence (canonical: master plan §5.3):
+
+- **Every change (free, non-negotiable):** `npm run typecheck`, `npm run lint` (Biome), `npm run test`, coverage threshold.
+- **Every increment (PR-sized unit):** run `/increment-review` — three fresh-context reviewers that did not write the code (spec auditor vs the stage spec; correctness via the installed `/code-review` skill; simplicity critic vs the rules below), then a skeptic verifies bespoke findings before anything is acted on; judgment calls surface to the founder. Design-bearing increments (UI, copy, schema, flows) also run `/alignment-review` against the heuristic register.
+- **Every stage gate:** high-effort review of the stage's full diff; architecture-conformance check (hexagonal boundaries, no adapter imports in core, file-size watchlist); eval scorecard vs baseline; Playwright smoke on critical user flows (user-facing stages); docs and `CLAUDE.md` updated.
+
+**Anti-over-engineering rules** (canonical copy — the simplicity critic loads these at review time; findings carry the same weight as bugs):
+
+1. No interface until the second implementation exists.
+2. Ports only at real seams (LLM, DB, LINE).
+3. No one-caller abstractions.
+4. No config nobody sets.
+5. The deliverable is code a human developer reads without a guide.
+
+Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `docs/research/00-product-principles.md`.
+
 ## ⚠️ Anthropic structured output — HARD 16-nullable-parameter limit (DO NOT REGRESS)
 
 Our extraction uses Anthropic **strict structured output** (`messages.parse` +
