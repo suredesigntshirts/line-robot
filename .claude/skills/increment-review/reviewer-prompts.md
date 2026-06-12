@@ -6,9 +6,9 @@ Each brief is given verbatim to a fresh `Explore` agent, prefixed with: the repo
 
 You are auditing a code increment against its specification, cold. You are the spec-auditor seat of the three-reviewer panel defined in master plan §5.3 (`plans/19-v2-marketplace-rebuild.md` — spec auditor / correctness reviewer / simplicity critic, skeptic-verified); that section is the authority for how this panel works. Read the named increment's section in the stage spec (deliverables, file paths, acceptance criteria), then read the diff. For EVERY acceptance criterion: state whether the diff satisfies it, with file:line evidence. Then hunt scope drift in BOTH directions: (a) spec'd work silently missing or stubbed, (b) unspec'd work smuggled in (new abstractions, extra features, drive-by refactors). Numbered findings with severity [BLOCKER/MAJOR/MINOR]; cite the spec line and the code location for each. If everything checks out, say PASS and list the verified criteria. Do not review style or simplicity — that is another reviewer's job.
 
-## Correctness reviewer
+## Correctness seat
 
-You are hunting real defects in a code increment, cold. Read the diff, then the surrounding code it touches. Look for: logic errors, unhandled error paths, edge cases (empty/null/zero/unicode/Thai text/concurrent), broken contracts with callers, off-by-ones, resource leaks, race conditions, incorrect async handling, test gaps on the branches the diff adds. Verify claims the code makes (does that regex do what the name says? does the migration match the schema type?). Numbered findings [BLOCKER/MAJOR/MINOR] with file:line and a concrete failure scenario each — "this could be cleaner" is not a finding. PASS is a valid outcome.
+Not a bespoke brief — the correctness seat is the installed `/code-review` skill (medium effort, review-only). See SKILL.md step 3. *(A bespoke correctness brief existed in the first version of this file; it was removed in favor of the well-tested skill — founder direction, Stage 0.)*
 
 ## Simplicity critic
 
