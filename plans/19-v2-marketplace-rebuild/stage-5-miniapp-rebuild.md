@@ -1,6 +1,9 @@
 # Stage 5 — MINI App Rebuild
 
-**Spec status: SKELETON.** This document is fleshed into a full spec, iterated with the user, and approved before any code for this stage is written. (Lifecycle: skeleton → fleshed spec → user approval → build with increment reviews → stage gate → retro.)
+**Spec status: FLESHED (sprint-01 extension, 2026-06-13) — BUILD NOT STARTED.** Open questions
+below are resolved with defensible defaults under the founder's extension ruling; every default is
+cheap to reverse and flagged for morning review. No Stage 5 code was written tonight — the flesh
+exists so the founder can approve (or amend) the defaults and the build can start next session.
 
 ## Purpose
 
@@ -60,14 +63,31 @@ Rebuilds the LINE MINI App (LIFF SPA) from Preact with bespoke CSS to React on `
 - v1 read-api is unreachable (Lambda deleted or returning 410) and no existing mini-app URL relies on it
 - TypeScript strict-mode clean; no LIFF SDK calls outside `packages/miniapp`
 
-## Open questions (resolve when fleshing this spec)
+## Open questions — RESOLVED (sprint-01 extension defaults; founder review before build)
 
-- **LIFF deep-link compatibility**: the existing LIFF links from plan 17 (miniappUrl config, deep links in Flex cards) use specific LIFF URL patterns — will the rebuilt mini-app's routing be compatible, or do the Flex card templates in `packages/bot` need to be updated? A broken deep link silently fails for users already in chats
-- **Rich menu updates**: do any of the current rich menu tabs need to change to point to new mini-app routes? If yes, the rich menu must be re-deployed (manual step with the setup script from CLAUDE.md) — this must be identified before Stage 5 starts
-- **v1 read-api cutover**: when exactly is the v1 read-api Lambda removed? Is there a parallel-run period or a hard cutover? Any external clients (bots, scripts) depending on it must be identified
-- **Stage 4 auth dependency**: can Stage 5 proceed with a stubbed LIFF token validator before Stage 4's `packages/api` auth is complete, or is Stage 4 a hard prerequisite?
-- **Claim flow bot DM trigger**: what exactly triggers the bot to send the claim DM? Is it every new extracted listing, or only listings above a quality threshold? Does the poster receive a DM for every listing they've ever posted, or only new ones after Stage 2 goes live?
-- **Publish to group-private vs public**: the claim flow offers both options (D7); what does "group-private" mean in the mini-app UI — visible to which groups? Only the group where it was originally posted?
+- **LIFF deep-link compatibility → route-shape freeze.** The rebuilt SPA keeps the EXACT v1 route
+  shapes (`/` list, `/p/{id}` detail — the shapes plan 17's Flex deep links and the rich menu
+  already use); new screens are additive routes. Existing chat links and the LIFF id keep working;
+  no Flex template changes. A route-compat check (grep bot card builders for miniapp paths → assert
+  each exists in the SPA router) becomes a Stage 5 unit test.
+- **Rich menu → no re-deploy by default.** Tab routes are stable under the route-shape freeze. If
+  a new tab is wanted (e.g. "My Listings" direct), that is a founder choice + the documented
+  one-time setup-script run — listed as an optional manual step, never a blocker.
+- **v1 read-api cutover → parallel-run, delete at the Stage 6 gate.** The new `packages/api`
+  serves the rebuilt SPA from day one; the v1 read-api stays deployed (zero callers after cutover)
+  through the Stage 5 gate as rollback, and its deletion is an explicit Stage 6 checklist item.
+  Known callers: only the v1 SPA (grep-verified at flesh time; re-verify at build).
+- **Stage 4 auth dependency → NOT a prerequisite.** Stage 4 deferred website auth entirely (logged
+  in its iteration table), so Stage 5 builds `packages/api` itself, porting the PROVEN LIFF
+  id-token verifier from the v1 read-api adapter (spine-audit row 7: KEEP). LIFF token is the only
+  mini-app auth mechanism; no coupling to the website's LINE Login flow.
+- **Claim DM trigger → gate-passing listings only, once, prospectively.** The DM is sent on a
+  listing's FIRST DF-6 gate pass after Stage 5 ships (no retroactive blast — push quota + spam
+  risk), exactly once per listing (a `claim_invited_at` timestamp guards re-sends). Listings that
+  never pass the gate surface through the DF-6 ask loop instead.
+- **Group-private semantics → source group only.** "Keep group-private" = visible to members of
+  `listing.source_group_id` only (matches the exclusivity model). Cross-group visibility is Stage 6
+  dealflow scope; the claim UI copy says "เฉพาะสมาชิกกลุ่มเดิม" to make the boundary explicit.
 
 ## Review process
 
@@ -82,4 +102,4 @@ Stage-5-specific review notes:
 
 | Date | What changed | Why |
 |---|---|---|
-| (empty — filled during flesh-out and build) |
+| 2026-06-13 | SKELETON→FLESHED under the sprint-01 extension; defaults: v1 route-shape freeze (deep links keep working), no rich-menu re-deploy, read-api parallel-run until Stage 6, packages/api built in-stage with the ported v1 LIFF verifier, claim DM = first gate-pass / once / prospective, group-private = source group only. **No build started** | Founder cascade ruling ("keep doing that until time is finished"); flesh-only because the remaining sprint window could not fit a reviewed Stage 5 increment |
