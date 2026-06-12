@@ -1,0 +1,9 @@
+name: linerobot-spike-astro
+runtime:
+  name: nodejs
+  options:
+    typescript: false
+description: >
+  Spike (DF-2): deploy an Astro 6 SSR app to AWS Lambda via OUR OWN Pulumi code — no SST CLI.
+  Resources are named linerobot-spike-* to stay within the scoped deploy identity. Standalone
+  local-file-backend project; NOT part of infra/. Destroy after evidence is captured.

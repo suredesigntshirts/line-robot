@@ -1,0 +1,14 @@
+{
+  "name": "astro-ssr-pulumi-spike",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build"
+  },
+  "dependencies": {
+    "astro": "6.4.6",
+    "@astrojs/node": "10.1.4"
+  }
+}

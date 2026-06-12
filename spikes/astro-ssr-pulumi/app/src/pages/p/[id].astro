@@ -1,0 +1,22 @@
+---
+// Dynamic SSR route. Proves *real per-request* server rendering, not prerender:
+//  - `id` comes from the URL path at request time
+//  - `renderedAt` is captured at render time, so two requests yield two different timestamps
+// If Astro accidentally prerendered this, the timestamp would be frozen at build time and
+// identical across requests — our test asserts it changes.
+export const prerender = false;
+const { id } = Astro.params;
+const renderedAt = new Date().toISOString();
+const nonce = Math.random().toString(36).slice(2, 10);
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Property {id}</title>
+  </head>
+  <body>
+    <h1 data-test="id">Property id: {id}</h1>
+    <p data-test="renderedAt">Rendered at: {renderedAt}</p>
+    <p data-test="nonce">Request nonce: {nonce}</p>
+  </body>
+</html>

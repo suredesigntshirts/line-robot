@@ -1,0 +1,16 @@
+---
+// Static-ish landing page. Even in `output: server` this renders on the server per request,
+// but it carries no per-request inputs — the dynamic proof lives in /p/[id].
+const buildNote = "astro-ssr-pulumi spike";
+---
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Astro SSR + Pulumi spike</title>
+  </head>
+  <body>
+    <h1 data-test="home">Hello from Astro SSR</h1>
+    <p>{buildNote}</p>
+    <p><a href="/p/42">Dynamic SSR route: /p/42</a></p>
+  </body>
+</html>
