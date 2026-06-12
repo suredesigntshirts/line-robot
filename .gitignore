@@ -37,3 +37,4 @@ Pulumi.*.yaml.bak
 # Astro generated types + bundled lambda output (rebuildable)
 .astro/
 dist-lambda/
+packages/ui/gallery/dist
