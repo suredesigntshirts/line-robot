@@ -157,3 +157,12 @@ immovable URLs among the 57 unchanged**; deletes are miniapp asset-hash rotation
 authType NONE behind CloudFront is unverifiable pre-deploy (guardrail may 403 CloudFront's
 anonymous fetch — OAC-lambda fallback documented in MORNING.md), SITE_URL one-time rebuild note,
 build-before-up note. websiteUrl/websiteCloudFrontDomain stack outputs added.
+
+## 05:40 — Message Batches LIVE acceptance PASSED (B2 item closed)
+
+`test/live/batchAcceptance.mjs`: real batch (msgbatch_01QTcBc8heiFikEQPPjBkbQJ, 3 entries — 1
+segment + 2 extract over a messy synthetic dump) submitted via the production `submitBatch` →
+polled → `collectBatch`. 9/9: strict structured output accepted inside the batch, schema
+round-trip, both properties segmented + extracted with prices, usage recorded, **batch cost
+exactly half of sync pricing** ($0.0118, 1.1 min end-to-end). The sweep's batch-mode routing can
+ship without API-shape risk.
