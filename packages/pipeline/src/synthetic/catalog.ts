@@ -103,7 +103,11 @@ function pinnedSpecs(): ListingSpec[] {
   ];
 }
 
-/** Deterministically expand to `count` specs (seeded; same output every run). */
+/**
+ * Deterministically expand to `count` specs (seeded; same output every run).
+ * The 3 pinned hard cases are always included, so the result is
+ * max(count, 3) — callers asking for fewer than the pinned set still get it.
+ */
 export function specCatalog(count = 24): ListingSpec[] {
   const pinned = pinnedSpecs();
   const rng = mulberry32(20260613);

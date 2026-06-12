@@ -171,9 +171,20 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
   const postedPhotos = new Map<string, number>();
 
   for (const spec of specs) {
+    // Mid-thread correction: the ORIGINAL post advertises a stale (higher) price;
+    // a later message corrects it to the spec truth. Rendering the original from a
+    // stale-price spec (instead of string-replacing afterwards) keeps the chaos
+    // independent of RNG state.
+    const correcting = profile.midThreadCorrection && spec.dealType === "sale";
+    const staleSpec: ListingSpec = correcting
+      ? {
+          ...spec,
+          priceThb: Math.round((spec.priceThb * (1 + (0.03 + rng() * 0.07))) / 100_000) * 100_000,
+        }
+      : spec;
     messages.push({
       sender: spec.ownerName,
-      text: renderListing(spec, profile, rng),
+      text: renderListing(staleSpec, profile, rng),
       atMinute: minute,
     });
     minute += 1;
@@ -193,29 +204,13 @@ export function generateCase(specs: ListingSpec[], profile: ChaosProfile): Gener
       minute += 1;
     }
 
-    if (profile.midThreadCorrection && spec.dealType === "sale") {
-      // Correction supersedes the original price; expected truth stays spec.priceThb,
-      // so the ORIGINAL message advertises a stale (higher) price instead.
-      const staleFactor = 1 + (0.03 + rng() * 0.07);
-      const stale = Math.round((spec.priceThb * staleFactor) / 100_000) * 100_000;
-      const original = messages.find((m) => m.text?.includes("ราคา") || m.text?.includes("THB"));
-      if (original?.text) {
-        original.text = original.text
-          .replace(
-            formatPriceTh(spec.priceThb, profile.thaiAbbreviations, mulberry32(profile.seed)),
-            `${stale.toLocaleString("en-US")} บาท`,
-          )
-          .replace(
-            `${(spec.priceThb / 1_000_000).toFixed(1)}M THB`,
-            `${(stale / 1_000_000).toFixed(1)}M THB`,
-          );
-        minute += 30;
-        messages.push({
-          sender: spec.ownerName,
-          text: `แก้ไขครับ ราคา ${spec.priceThb.toLocaleString("en-US")} บาท`,
-          atMinute: minute,
-        });
-      }
+    if (correcting) {
+      minute += 30;
+      messages.push({
+        sender: spec.ownerName,
+        text: `แก้ไขครับ ราคา ${spec.priceThb.toLocaleString("en-US")} บาท`,
+        atMinute: minute,
+      });
     }
 
     if (profile.duplicateRepost.enabled) {

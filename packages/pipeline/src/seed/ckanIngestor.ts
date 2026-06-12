@@ -10,7 +10,7 @@ import type { SeedIngestor } from "./SeedIngestor.ts";
 // ---------------------------------------------------------------------------
 
 /** The CKAN datastore row fields this adapter understands (LED auction shape). */
-export interface CkanPropertyRecord {
+interface CkanPropertyRecord {
   title?: string;
   province?: string;
   amphoe?: string;
@@ -39,7 +39,7 @@ const DEED_WORDS: Array<[string, TitleDeedType]> = [
 ];
 
 function num(value: number | string | undefined): number | undefined {
-  if (value === undefined) return undefined;
+  if (value === undefined || value === "") return undefined; // Number("") is 0 — don't invent data
   const n = typeof value === "number" ? value : Number(String(value).replaceAll(",", ""));
   return Number.isFinite(n) ? n : undefined;
 }

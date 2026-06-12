@@ -80,6 +80,23 @@ nullables → every sweep + edit 400'd; see `plans/13-chanote-ocr-and-image-pipe
 - There is a **regression test** that serialises the schema and asserts ≤16 unions — keep it green.
 - See `packages/bot/src/adapters/anthropic/CLAUDE.md` for the same rule next to the code.
 
+## v2 data layer (Stage 1)
+
+- **Postgres (RDS `linerobot-staging-pg`)** is the v2 catalog store; DynamoDB stays for ingestion
+  plumbing only (messages, idempotency, debounce state). Connection string: Pulumi output
+  `dbConnectionString` (secret) / password in config secret `dbPassword`.
+- **Staging connectivity posture (D-S1-2):** publicly accessible + TLS forced at the engine
+  (`rds.force_ssl=1`) + 44-char generated secret. **Production hardening (pre-launch task): move to
+  private subnets + VPC endpoints/NAT, restrict the SG.** Lambdas connect directly — the single
+  `pg.Pool` (max 2) lives in `packages/db/src/pool.ts`; keep Lambda concurrency × 2 well under
+  t4g.micro's ~85 max_connections.
+- `npm run db:seed` — load synthetic fixtures (24+ listings, 3 groups, role spread) into
+  `DATABASE_URL`. `npm run test:integration -w @line-robot/db` / `-w @line-robot/pipeline` — Docker
+  `postgis/postgis` suites (harness: `@line-robot/db/testing`).
+- Schema changes: edit zod enums in `packages/domain` first, then `packages/db/src/schema.ts`, then
+  `npm run generate -w @line-robot/db` — and read `packages/db/CLAUDE.md` for the migration
+  hand-fixes (geography quoting, postgis extension).
+
 ## Deploying (Pulumi → AWS staging)
 
 Pulumi state is on a **local file backend** (`file://~`); secrets use a **passphrase** provider.

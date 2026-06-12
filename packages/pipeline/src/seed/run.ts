@@ -10,10 +10,15 @@ const ingestors = [syntheticIngestor()];
 const ckanUrl = process.env.CKAN_DATASTORE_URL;
 if (ckanUrl) ingestors.push(ckanIngestor(ckanUrl));
 
-const db = getDb();
-const summary = await seed(db, ingestors);
-console.log(
-  `seeded: ${summary.listings} listings, ${summary.users} users, ${summary.groups} groups` +
-    ` (${summary.moderationFlagged} sale listings on no-sale deeds — FIELD-03 moderation candidates)`,
-);
-await closeDb();
+try {
+  const summary = await seed(getDb(), ingestors);
+  console.log(
+    `seeded: ${summary.listings} listings, ${summary.users} users, ${summary.groups} groups` +
+      ` (${summary.moderationFlagged} sale listings on no-sale deeds — FIELD-03 moderation candidates)`,
+  );
+} catch (error) {
+  console.error("db:seed failed:", error);
+  process.exitCode = 1;
+} finally {
+  await closeDb();
+}

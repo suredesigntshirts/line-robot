@@ -48,6 +48,7 @@ export async function seed(db: Db, ingestors: SeedIngestor[]): Promise<SeedSumma
   }
 
   const userIdByName = new Map<string, string>();
+  const groupIdByUser = new Map<string, string>();
   let userIndex = 0;
   let moderationFlagged = 0;
   let listings = 0;
@@ -75,7 +76,10 @@ export async function seed(db: Db, ingestors: SeedIngestor[]): Promise<SeedSumma
         });
       }
       const group = groups[userIndex % groups.length];
-      if (group) await addMembership(db, { groupId: group.id, userId: ownerId });
+      if (group) {
+        await addMembership(db, { groupId: group.id, userId: ownerId });
+        groupIdByUser.set(ownerId, group.id);
+      }
       userIndex += 1;
     }
 
@@ -87,12 +91,14 @@ export async function seed(db: Db, ingestors: SeedIngestor[]): Promise<SeedSumma
     await createListing(db, {
       listing: {
         ownerUserId: ownerId,
-        sourceGroupId: groups[listings % groups.length]?.id,
+        // A listing's source group is one its owner is actually a member of.
+        sourceGroupId: groupIdByUser.get(ownerId),
         dealType: spec.dealType,
         saleStage: isRent ? null : "available",
         rentalStatus: isRent ? "available" : null,
         titleDeedType: spec.titleDeedType,
         propertyType: spec.propertyType,
+        // Rentals price on listing_rental.monthly_rent; listing.price_thb is sale-only.
         priceThb: isRent ? null : spec.priceThb,
         urgency: spec.urgency,
         province: spec.province,

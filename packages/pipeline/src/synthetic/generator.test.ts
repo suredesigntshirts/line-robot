@@ -115,6 +115,36 @@ describe("generateCase", () => {
     expect(c.expected.properties[0]?.priceThb).toBe(URGENT_HOUSE.priceThb);
   });
 
+  it("typoRate=1 perturbs the text while keeping it recoverable", () => {
+    if (!URGENT_HOUSE) throw new Error("catalog missing");
+    const clean = generateCase([URGENT_HOUSE], CALM);
+    const typod = generateCase([URGENT_HOUSE], { ...CALM, typoRate: 1 });
+    expect(typod.transcript).not.toBe(clean.transcript);
+    expect(typod.transcript.length).toBe(clean.transcript.length); // transposition, not deletion
+  });
+
+  it("thaiAbbreviations renders ล้าน and ตร.ว. forms", () => {
+    if (!URGENT_HOUSE) throw new Error("catalog missing");
+    const c = generateCase([URGENT_HOUSE], { ...CALM, thaiAbbreviations: true });
+    expect(c.transcript).toMatch(/ล้าน|ลบ\./);
+    expect(c.transcript).toMatch(/ตร\.ว\.|ตร\.ม\./);
+    expect(c.transcript).toContain("นอน"); // 3นอน 2น้ำ short form
+  });
+
+  it("languageMix=en renders an English listing; mixed renders per-RNG", () => {
+    if (!URGENT_HOUSE) throw new Error("catalog missing");
+    const en = generateCase([URGENT_HOUSE], { ...CALM, languageMix: "en" });
+    expect(en.transcript).toContain("For sale");
+    expect(en.transcript).toContain("M THB");
+    const mixed = generateCase(specCatalog(24).slice(0, 6), {
+      ...CALM,
+      languageMix: "mixed",
+      seed: 5,
+    });
+    expect(mixed.transcript).toMatch(/ขาย|ให้เช่า/);
+    expect(mixed.transcript).toMatch(/For sale|For rent/);
+  });
+
   it("catalog: ≥24 stable specs, hard cases pinned, all CNX-landmarked (FIELD-06)", () => {
     const specs = specCatalog(24);
     expect(specs.length).toBeGreaterThanOrEqual(24);
