@@ -7,7 +7,16 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!docs", "!spikes", "!**/dist", "!**/coverage", "!.claude"]
+    "includes": [
+      "**",
+      "!docs",
+      "!spikes",
+      "!**/dist",
+      "!**/coverage",
+      "!.claude",
+      "!packages/ui/theme.css",
+      "!packages/ui/fallbacks.css"
+    ]
   },
   "formatter": {
     "enabled": true,
