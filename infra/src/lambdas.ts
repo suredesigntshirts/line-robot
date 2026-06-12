@@ -21,7 +21,10 @@ export interface BotLambdas {
 /** The four bot Lambdas (ingest / processor / sweep / reminder): one least-privilege role each, an
  * explicit retained log group, the Function + its per-stack alias, and the trigger wiring (ingest
  * Function URL, processor SQS source mapping, sweep/reminder EventBridge cron). */
-export function createBotLambdas(storage: Storage): BotLambdas {
+export function createBotLambdas(
+  storage: Storage,
+  database?: { connectionString: pulumi.Output<string> },
+): BotLambdas {
   const {
     messagesTable,
     idempotencyTable,
@@ -255,7 +258,17 @@ export function createBotLambdas(storage: Storage): BotLambdas {
       timeout: 180,
       memorySize: 512,
       publish: true,
-      environment: { variables: commonEnv },
+      // PIPELINE_V2 (stage-2 D2.5): hard switch, default off. Flip with
+      // `pulumi config set pipelineV2 on` once staging verification passes.
+      environment: {
+        variables: database
+          ? {
+              ...commonEnv,
+              PIPELINE_V2: config.get("pipelineV2") ?? "off",
+              DATABASE_URL: database.connectionString,
+            }
+          : commonEnv,
+      },
       loggingConfig: { logFormat: "JSON", logGroup: sweepLogGroup.name },
     },
     { dependsOn: [sweepLogGroup] },

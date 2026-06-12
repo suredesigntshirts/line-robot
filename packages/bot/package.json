@@ -21,8 +21,11 @@
     "@aws-sdk/client-ssm": "^3.1063.0",
     "@aws-sdk/lib-dynamodb": "^3.1063.0",
     "@aws-sdk/s3-request-presigner": "^3.1063.0",
-    "@line/bot-sdk": "^11.0.1",
+    "@line-robot/db": "*",
+    "@line-robot/domain": "*",
+    "@line-robot/pipeline": "*",
     "@line-robot/shared": "*",
+    "@line/bot-sdk": "^11.0.1",
     "electrodb": "^3.9.0",
     "zod": "^4.4.3"
   },

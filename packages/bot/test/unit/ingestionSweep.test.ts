@@ -44,6 +44,8 @@ interface ConvScript {
 }
 
 interface Options {
+  /** PIPELINE_V2 port — when set, extract-and-apply is delegated wholesale. */
+  v2?: import("../../src/app/pipelineV2Sweep.js").PipelineV2Port;
   /** Per-conversation extraction behavior; returns the result or throws. Default: null (no props). */
   extract?: (req: ExtractionRequest) => ExtractionResult | null;
   /** Existing properties keyed by id (for dedup candidate loading). */
@@ -223,6 +225,7 @@ function makeSweep(scripts: ConvScript[], opts: Options = {}, nowMs = 10_000) {
         error: (m) => spies.errors.push(m),
       },
       clock: { now: () => nowMs },
+      v2: opts.v2,
       newId: () => {
         idCounter += 1;
         return `gen-${idCounter}`;
@@ -818,5 +821,40 @@ describe("IngestionSweep — extraction", () => {
     );
     // And focus is still per-segment (we didn't break the two-pass attribution).
     expect(spies.extractRequests.map((r) => r.focus)).toEqual(["Baan Lak Chai", "Mooban Wangtan"]);
+  });
+});
+
+describe("PIPELINE_V2 delegation (stage-2 increment 9)", () => {
+  it("routes extract-and-apply to the v2 port; claim/release/push machinery unchanged", async () => {
+    const v2Calls: Array<{ key: string; batchSize: number }> = [];
+    const { sweep, spies } = makeSweep(
+      [
+        {
+          tracker: tracker("group#G1"),
+          claim: tracker("group#G1", { lastInboundAt: 500, lastIngestedAt: 100 }),
+          batch: [textMsg(200, "ขายบ้าน 4.5 ล้าน")],
+        },
+      ],
+      {
+        v2: {
+          run: async (key, batch) => {
+            v2Calls.push({ key, batchSize: batch.length });
+            return [{ propertyId: "pg-uuid-1", isNew: true, ambiguous: false, label: "บ้านทดสอบ" }];
+          },
+        },
+      },
+    );
+
+    const result = await sweep.run();
+    expect(v2Calls).toEqual([{ key: "group#G1", batchSize: 1 }]);
+    // v1 segmenter/extractor were never consulted.
+    expect(spies.segmentRequests).toHaveLength(0);
+    expect(spies.extractRequests).toHaveLength(0);
+    // Claim/release (watermark machinery) intact; confirmation pushed with the v2 label.
+    expect(spies.claims).toHaveLength(1);
+    expect(spies.releases).toEqual([{ key: "group#G1", watermark: 200, claimSeenInboundAt: 500 }]);
+    expect(spies.pushes.length).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(spies.pushes[0])).toContain("บ้านทดสอบ");
+    expect(result).toMatchObject({ ingested: 1, properties: 1 });
   });
 });

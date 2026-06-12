@@ -17,9 +17,9 @@ const MINIAPP_DIST = path.resolve(__dirname, "../packages/miniapp/dist");
 // dependency graph, so the call order here is just for readability.
 // ---------------------------------------------------------------------------
 const storage = createStorage();
-const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage);
-const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST);
 const database = createDatabase();
+const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage, database);
+const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST);
 
 // ---------------------------------------------------------------------------
 // Outputs

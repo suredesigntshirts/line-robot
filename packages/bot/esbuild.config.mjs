@@ -8,6 +8,8 @@ import { build } from "esbuild";
 // platform-specific dep, but pruning it breaks this bundle on CI/deploy. Do not remove it.
 const common = {
   bundle: true,
+  // pg's optional native binding — never installed; require('pg-native') must stay external.
+  external: ["pg-native", "sharp"],
   platform: "node",
   target: "node22",
   format: "esm",

@@ -37,6 +37,7 @@ import {
   DEFAULT_MAX_PROPERTY_PHOTOS,
   mergeSegment,
 } from "./ingestionMedia.js";
+import type { PipelineV2Port } from "./pipelineV2Sweep.js";
 
 export interface IngestionSweepDeps {
   readonly catalog: ConversationStore & PropertyStore;
@@ -52,6 +53,9 @@ export interface IngestionSweepDeps {
   readonly clock: Clock;
   /** Property-id generator (injectable for deterministic tests). Defaults to a random UUID. */
   readonly newId?: () => string;
+  /** PIPELINE_V2 (stage-2 cutover): when present, extract-and-apply is delegated
+   * wholesale to the v2 pipeline → Postgres; claim/debounce/watermark unchanged. */
+  readonly v2?: PipelineV2Port;
 }
 
 export interface SweepOptions {
@@ -233,6 +237,10 @@ export class IngestionSweep {
   }
 
   private async extractAndApply(key: string, batch: StoredMessage[]): Promise<AppliedProperty[]> {
+    // PIPELINE_V2: the entire extract-and-apply swaps to packages/pipeline (Postgres catalog).
+    if (this.deps.v2) {
+      return this.deps.v2.run(key, batch);
+    }
     // Per-image pass: classify every attachment + OCR documents (plan 13).
     const maxClassify = this.opts.maxMedia ?? DEFAULT_MAX_CLASSIFY;
     const classified = await classifyMedia({

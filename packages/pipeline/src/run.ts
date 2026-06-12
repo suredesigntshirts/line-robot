@@ -49,6 +49,8 @@ export interface PipelineInput {
 export interface PipelineListingOutcome {
   /** Postgres listing id (new or merged-into). */
   listingId: string;
+  /** Extracted display title (the bot's confirmation copy). */
+  title: string;
   decision: DedupResult;
   gate: GateResult;
 }
@@ -252,7 +254,7 @@ export async function runPipeline(
       );
     }
 
-    outcome.listings.push({ listingId, decision, gate });
+    outcome.listings.push({ listingId, title: extracted.title, decision, gate });
   }
 
   return outcome;

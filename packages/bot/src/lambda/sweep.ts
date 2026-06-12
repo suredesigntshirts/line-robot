@@ -12,6 +12,7 @@ import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.
 import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { IngestionSweep } from "../app/ingestionSweep.js";
+import { createPipelineV2Port, type PipelineV2Port } from "../app/pipelineV2Sweep.js";
 import { SYSTEM_CLOCK } from "../lib/clock.js";
 import { lazySingleton } from "../lib/lazySingleton.js";
 import { PowertoolsLoggerAdapter } from "../lib/logger.js";
@@ -25,6 +26,26 @@ async function buildSweep(): Promise<IngestionSweep> {
     loadAnthropicApiKey(env),
     loadChannelAccessToken(env),
   ]);
+
+  // PIPELINE_V2 (stage-2 increment 9): flag-gated cutover — sweep extraction runs
+  // packages/pipeline and writes Postgres. Default off; v1 path untouched until
+  // staging verification (D2.5).
+  let v2: PipelineV2Port | undefined;
+  if (process.env.PIPELINE_V2 === "on") {
+    if (process.env.DATABASE_URL === undefined) {
+      throw new Error("PIPELINE_V2=on requires DATABASE_URL");
+    }
+    const [{ default: Anthropic }, { AnthropicStepLlm }, { getDb }] = await Promise.all([
+      import("@anthropic-ai/sdk"),
+      import("@line-robot/pipeline"),
+      import("@line-robot/db"),
+    ]);
+    v2 = createPipelineV2Port({
+      db: getDb(process.env.DATABASE_URL),
+      llm: new AnthropicStepLlm(new Anthropic({ apiKey: anthropicApiKey })),
+      logger: new PowertoolsLoggerAdapter(),
+    });
+  }
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
@@ -42,6 +63,7 @@ async function buildSweep(): Promise<IngestionSweep> {
     gateway: createLineMessagingGateway(channelAccessToken),
     logger,
     clock: SYSTEM_CLOCK,
+    v2,
   });
 }
 
