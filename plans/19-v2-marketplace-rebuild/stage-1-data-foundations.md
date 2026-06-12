@@ -61,16 +61,36 @@ Each increment is one PR-sized unit with its own per-increment adversarial revie
 5. **Seed-ingestor + fixtures** — `packages/pipeline/src/seed/SeedIngestor.ts` interface + `synthetic` adapter (primary) + ONE modest spider adapter for a single clean/open source (DF-5; LED CKAN-style, no bank/ToS scraping); `npm run db:seed` loads fixtures. *Acceptance:* `db:seed` loads ≥20 listings, 3 groups, representative role spread without error; spot-queries return expected rows; both adapters satisfy the same interface; spider adapter targets only an openly accessible source and is rate-modest. *Review focus:* the interface earns its keep (two implementations exist); the spider is genuinely modest (architecture > volume); no ToS-violating source.
 6. **Integration tests (Docker Postgres+PostGIS)** — `packages/db/test/integration/postgres.ts` mirroring the DynamoDB-Local harness; migrate → seed → query; PostGIS radius query smoke. *Acceptance:* `npm --prefix packages/db run test:integration` spins an ephemeral `postgis/postgis` container, applies migrations, seeds, runs repository + a bbox/radius query, tears down. *Review focus:* mirrors existing pattern (ephemeral, docker-assigned port); no leaked containers; deterministic.
 
-## Stage gate checklist
+## Stage gate checklist (gate run 2026-06-13 ~01:05 — GATE-PASS-WITH-PARKED-DEPLOY)
 
-- [ ] `pulumi up` provisions a running Postgres + PostGIS; TLS-only connect verified from a Lambda test invocation; existing stack untouched (additive diff).
-- [ ] All migrations apply cleanly from a fresh DB; `down`→`up` idempotent.
-- [ ] Every entity in the master §4.1 list + A4 field canon (FIELD-01..13) + DEAL-07/10..14 + DIST-03/06 + DF-4/7 + LEGAL-02/06/10 appears in migrations (spec auditor checklist).
-- [ ] `@line-robot/domain` has zero adapter/`db` imports (circular-dep check); `@line-robot/db` has no LINE/HTTP adapter imports (architecture-conformance).
-- [ ] `npm run db:seed` loads all fixtures; spot-queries pass; per-language content stored as rows; PostGIS SRID 4326.
-- [ ] Exclusivity-window *types* in `@line-robot/domain` can express D8 (deadline, interest holds, release state) — behaviour deferred to Stage 6.
-- [ ] Integration suite green on Docker Postgres; typecheck + Biome + unit + coverage green.
-- [ ] Per-increment reviews complete + skeptic-verified; `CLAUDE.md` updated (new `dbPassword` secret, db:seed + test:integration scripts, Postgres connection posture + production-hardening note).
+- [ ] **PARKED:** `pulumi up` provisions Postgres + PostGIS… — code complete + `pulumi preview`
+  verified additive-only (+3/62/0); unattended `pulumi up` denied by the permission classifier →
+  BLOCKERS.md B1 (one founder action: `! bash scripts/deploy-staging.sh`). TLS-connect + postgis
+  extension check run after deploy (commands in BLOCKERS.md).
+- [x] All migrations apply cleanly from a fresh DB. *(Amendment: drizzle is forward-only — no down
+  migrations exist by ORM design; the intent is covered by repeated fresh-ephemeral-container
+  applies in two independent integration suites.)*
+- [x] Every entity in the master §4.1 list + A4 field canon + DEAL/DIST/DF/LEGAL refs appears in
+  migrations — 23/23 walked row-by-row by the spec auditor; gate reviewer spot-checked 5.
+- [x] `@line-robot/domain` zero adapter/db imports; `@line-robot/db` no LINE/HTTP imports —
+  grep-verified by the gate reviewer.
+- [x] `npm run db:seed` loads all fixtures (26 listings, 3 groups, role spread); spot-queries pass;
+  per-language content as rows; PostGIS SRID 4326 + ST_DWithin radius smoke.
+- [x] Exclusivity-window types express D8; DEAL-02 no-auto-release enforced + tested.
+- [x] Integration suites green on Docker Postgres (8 + 3); typecheck + Biome + unit green
+  (coverage thresholds remain bot-scoped per the Stage 0 gate note).
+- [x] Per-increment reviews complete + skeptic-verified; `CLAUDE.md` updated (v2 data layer
+  section: dbPassword, scripts, posture + hardening note).
+
+## Retro (appended at gate)
+
+Batched panels (I2+I3, I4+I5) with a low-effort /code-review correctness profile kept review cost
+proportionate without losing teeth — the panels caught one genuine silent bug per batch (missing
+provider predicate caught by typecheck pre-panel; RNG-fragile string replacement caught by the
+finder). The classifier blocking unattended `pulumi up`/IAM was the night's only hard wall; the
+config-over-IAM redesign (defaultVpcId) is the better design anyway. Drizzle gotchas (quoted
+geography type, no down migrations) are documented next to the code. Carry to Stage 2: the
+connection-budget inequality (Q-SA1) must be checked before raising any concurrency.
 
 ## Open question from the spine audit (stage-0-spine-audit.md, D24)
 
