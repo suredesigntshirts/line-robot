@@ -93,4 +93,5 @@ Each increment is one PR-sized unit with its own per-increment adversarial revie
 
 | Date | What changed | Why |
 |---|---|---|
+| 2026-06-13 | Build amendments (Increments 2+3): (a) D-S1-5's "`@line-robot/shared` absorbed into domain" NOT executed — shared's DTOs are v1 miniapp read shapes consumed by live v1 code; absorbing them would churn v1 imports for types that die with the Stage 5 rebuild. `@line-robot/domain` starts v2-pure; shared is deleted in Stage 5. (b) Increment 6's Docker-Postgres harness was built alongside Increment 3 to validate migrations immediately (same deliverable, earlier). (c) Panel fixes: users.primary_role_id gained its FK (migration 0001); dead `withinRadius` helper deleted; `ewktPoint` validates finite coordinates. | Increment review + founder-empowered judgment, logged |
 | 2026-06-12 | Skeleton → fleshed spec; all 7 open questions resolved with decisions D-S1-1..11; schema outline tied to A4 FIELD-01..15 + A1 DEAL + A3 DIST + DF rulings; 6 increments defined. | Stage-1 just-in-time flesh-out (master §6); built unattended, no founder TBDs. |

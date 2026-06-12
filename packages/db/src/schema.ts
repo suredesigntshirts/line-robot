@@ -29,8 +29,8 @@ import {
   utilityRateType,
   viewingStatus,
 } from "@line-robot/domain";
-import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   customType,
@@ -124,6 +124,9 @@ export const geographyPoint = customType<{ data: string; driverData: string }>({
 
 /** `SRID=4326;POINT(lon lat)` EWKT helper for writes. */
 export function ewktPoint(lon: number, lat: number): string {
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+    throw new Error(`ewktPoint requires finite coordinates, got (${lon}, ${lat})`);
+  }
   return `SRID=4326;POINT(${lon} ${lat})`;
 }
 
@@ -135,7 +138,8 @@ const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull(
 export const users = pgTable("user", {
   id: id(),
   displayName: text("display_name").notNull(),
-  primaryRoleId: uuid("primary_role_id"),
+  // Circular user↔role reference: nullable, set after the role exists.
+  primaryRoleId: uuid("primary_role_id").references((): AnyPgColumn => roles.id),
   createdAt: createdAt(),
 });
 
@@ -457,9 +461,4 @@ export const marketData = pgTable("market_data", {
 /** FIELD-01: Thai land units → m². 1 rai = 1600, 1 ngan = 400, 1 wah² = 4. */
 export function landToSqm(rai: number, ngan: number, wah: number): number {
   return rai * 1600 + ngan * 400 + wah * 4;
-}
-
-/** Spatial helper: SQL fragment matching listings within `radiusM` of (lon, lat). */
-export function withinRadius(lon: number, lat: number, radiusM: number) {
-  return sql`ST_DWithin(${listings.geom}, ST_MakePoint(${lon}, ${lat})::geography, ${radiusM})`;
 }
