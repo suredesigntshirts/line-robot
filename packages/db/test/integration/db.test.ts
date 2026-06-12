@@ -1,6 +1,3 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { migrate } from "drizzle-orm/node-postgres/migrator";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -18,10 +15,9 @@ import {
   getListing,
   listListings,
 } from "../../src/index.js";
-import { startPostgresLocal, stopPostgresLocal } from "./postgresLocal.js";
+import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.js";
 
 const CONTAINER = "linerobot-db-it";
-const MIGRATIONS = join(dirname(fileURLToPath(import.meta.url)), "../../migrations");
 
 // Nimman, Chiang Mai
 const NIMMAN = { lon: 98.9683, lat: 18.7995 };
@@ -35,7 +31,7 @@ beforeAll(async () => {
   const connectionString = await startPostgresLocal(CONTAINER);
   pool = new pg.Pool({ connectionString, max: 2 });
   db = dbFromPool(pool);
-  await migrate(db, { migrationsFolder: MIGRATIONS });
+  await migrateDb(db);
 });
 
 afterAll(async () => {

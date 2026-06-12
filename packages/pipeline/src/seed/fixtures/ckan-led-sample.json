@@ -1,0 +1,50 @@
+{
+  "help": "https://catalog.data.go.th/api/3/action/help_show?name=datastore_search",
+  "success": true,
+  "result": {
+    "resource_id": "led-auction-sample",
+    "records": [
+      {
+        "_id": 1,
+        "title": "ที่ดินเปล่า ขายทอดตลาด คดีหมายเลขแดง ผบ.1234/2568",
+        "province": "เชียงใหม่",
+        "amphoe": "สันทราย",
+        "tambon": "หนองหาร",
+        "deed_type": "โฉนดที่ดิน เลขที่ 45678",
+        "price_thb": "1,250,000",
+        "land_rai": 1,
+        "land_ngan": 2,
+        "land_wah": "35",
+        "lat": "18.8721",
+        "lon": "99.0412",
+        "contact": "02-881-4999"
+      },
+      {
+        "_id": 2,
+        "title": "ที่ดินพร้อมสิ่งปลูกสร้าง ขายทอดตลาด",
+        "province": "เชียงใหม่",
+        "amphoe": "หางดง",
+        "tambon": "หนองแก๋ว",
+        "deed_type": "น.ส.3ก เลขที่ 991",
+        "price_thb": 2780000,
+        "land_rai": 0,
+        "land_ngan": 3,
+        "land_wah": 12,
+        "lat": 18.6912,
+        "lon": 98.9201,
+        "contact": "02-881-4999"
+      },
+      {
+        "_id": 3,
+        "title": "แถวที่ไม่มีราคา (ต้องถูกข้าม)",
+        "province": "เชียงใหม่",
+        "amphoe": "เมือง",
+        "tambon": "ศรีภูมิ",
+        "deed_type": "โฉนด",
+        "price_thb": "",
+        "lat": "",
+        "lon": ""
+      }
+    ]
+  }
+}

@@ -9,9 +9,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "eval": "node src/eval/runner.ts"
+    "eval": "node src/eval/runner.ts",
+    "db:seed": "node src/seed/run.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
+    "@line-robot/db": "*",
     "@line-robot/domain": "*"
   }
 }
