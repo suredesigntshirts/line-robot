@@ -391,3 +391,6 @@
 - docs/postgis.net/docs/AddGeometryColumn.md: PostGIS — AddGeometryColumn: add geometry column with SRID, type, dimension to existing table
 - docs/postgis.net/docs/ST_MakePoint.md: PostGIS — ST_MakePoint: construct 2D/3DZ/4D point geometry from x,y[,z[,m]] coordinates
 - docs/postgis.net/docs/using_postgis_dbmanagement.md: PostGIS — data management: geometry types, SRID, spatial_ref_sys, CreateExtension, GiST index creation
+- /home/user/src/line-robot/docs/orm.drizzle.team/docs/get-started/postgresql-new.md: Get Started with Drizzle and PostgreSQL
+- /home/user/src/line-robot/docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
+- /home/user/src/line-robot/docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
