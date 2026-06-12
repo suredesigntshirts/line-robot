@@ -5,10 +5,9 @@
 Stage 2 increments 1–8 are code-complete and panel-reviewed (95 tests green; `npm run eval` runs
 62 synthetic cases in oracle harness-smoke mode). Three items need founder-enabled resources:
 
-1. **Real eval baseline** — `EVAL_LLM=anthropic ANTHROPIC_API_KEY=… npm run eval` then commit
-   `packages/pipeline/eval-baseline.json`. (The runner's anthropic branch intentionally throws
-   until wired at baseline time — see src/eval/runner.ts buildLlm; ~15 min incl. wiring.)
-   Estimated spend at quality-first models over 62 cases: low single-digit USD (batch halves it).
+1. ~~Real eval baseline~~ **DONE 02:00** — founder provided the key in .env; baseline committed
+   (segment 1.00 / extract 0.95 / dedup 1.00, $0.81). Re-run with `EVAL_WRITE_BASELINE=1` only on
+   deliberate re-baselining.
 2. **Increment 7 live acceptance** — one real batch sweep in staging; verify cost log shows batch
    pricing and `cache_read_input_tokens > 0`.
 3. **Increment 9 (cutover)** — needs B1's deploy + a decision-light work session: PIPELINE_V2 flag
