@@ -1,6 +1,16 @@
 # Reviewer briefs — increment-review panel
 
-Each brief is given verbatim to a fresh `Explore` agent, prefixed with: the repo path, the diff ref to inspect, the stage-spec path, and the increment name. Agents read code and spec themselves; they receive no author narrative.
+Each brief is given verbatim to a fresh `Explore` agent, prefixed with: the repo path, the diff ref to inspect, the stage-spec path, the increment name, **and the shared principles below**. Agents read code and spec themselves; they receive no author narrative.
+
+## Shared principles (prepend to every bespoke brief)
+
+Adopted from the original bundled `/simplify` skill (which lives on as `/code-review --fix`) — proven prompt engineering, kept verbatim where possible:
+
+1. **Preserve behavior.** Any change to return values, exceptions, edge-case handling, or observable side effects is a *behavior change*, not a simplification. Never propose one dressed up as a cleanup — flag it explicitly as a behavior change so the author can decide. Treat the diff's deleted (`-`) lines as the behavior baseline: restoring a deleted line's behavior is not a behavior change.
+2. **Clarity over brevity.** Fewer lines is not the goal; a reader understanding the code at a glance is. A rewrite the reader groks slower than the original is a regression, whatever its line count.
+3. **Respect house conventions.** Rules in the repo `CLAUDE.md` (and folder-level `CLAUDE.md`s) win over generic idioms.
+
+*(The original's per-dimension checklists — code reuse, quality, efficiency — are NOT copied here: the installed `/code-review` correctness seat runs that same engine already; duplicating its checklists in a bespoke brief would just double those findings.)*
 
 ## Spec auditor
 
