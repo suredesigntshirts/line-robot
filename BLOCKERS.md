@@ -10,11 +10,10 @@ Stage 2 increments 1–8 are code-complete and panel-reviewed (95 tests green; `
    deliberate re-baselining.
 2. **Increment 7 live acceptance** — one real batch sweep in staging; verify cost log shows batch
    pricing and `cache_read_input_tokens > 0`.
-3. **Increment 9 (cutover)** — needs B1's deploy + a decision-light work session: PIPELINE_V2 flag
-   wiring in the sweep lambda (Q-SA2 orchestration swap), **sharp-on-Lambda packaging** (native
-   binary can't be esbuild-bundled — needs a layer or externals; the one real deploy-engineering
-   item), SQS algebra re-derivation (Q-SA1), then flip, verify, delete claudeExtractor.ts +
-   16-union test. Recommend doing this with the founder awake — it touches the live bot.
+3. **Increment 9 (cutover)** — ~~PIPELINE_V2 wiring~~ **CODE SHIPPED flag-off 02:17** (see
+   MORNING.md §3 for the flip procedure + rollback). Still queued post-flip: sharp-on-Lambda layer
+   (re-enables classify/chanote OCR), Q-SA1 SQS algebra, batch routing + live cache-hit
+   acceptance, claudeExtractor deletion. Recommend flipping with the founder awake.
 
 **What was tried:** everything buildable without credentials/deploy was built and tested against
 Docker Postgres + fake transports; the classifier blocked SSM credential reads (correctly —

@@ -42,3 +42,8 @@ Chronological record per charter (plans/19-v2-marketplace-rebuild/sprint-01-over
 ## Founder-enabled overnight (key in .env, ~01:40)
 
 - **REAL eval baseline COMMITTED** — EVAL_LLM=anthropic over 62 cases: segment 1.00 / extract 0.95 / dedup 1.00 (all ≥ the 0.90 advisory thresholds), $0.81 total. Weak fields named for tuning: titleDeedType 0.81, urgency 0.89, priceThb 0.91. BLOCKERS B2 item 1 RESOLVED.
+
+## Beyond the charter (founder: "if done early, keep going")
+
+- **S2-I9 buildable part SHIPPED flag-off (~02:17)** — PIPELINE_V2 wiring: sweep's extractAndApply delegates to packages/pipeline → Postgres behind `pulumi config pipelineV2` (default off); v1 path byte-identical when off (24 pre-existing sweep tests untouched + 1 new delegation test). v2-lite scope logged in the adapter header (no derivatives/classify until sharp packaging; conversation-keyed owner until Stage 4 auth). Infra preview verified in-place update only. allowImportingTsExtensions promoted to tsconfig.base (the S2 panel's cross-package altitude finding, now real and fixed).
+- **MORNING.md runbook** — deploy → migrate+seed → flip procedure (with rollback) → design pick + token swap → odds and ends. Founder time ≈ 30–45 min.
