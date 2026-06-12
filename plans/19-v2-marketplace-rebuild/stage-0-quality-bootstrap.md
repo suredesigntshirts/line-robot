@@ -27,7 +27,7 @@ Each increment is a PR-sized unit; its own `/increment-review` runs before the n
 
 ### Increment 1 — `/increment-review` skill
 - **Deliverables:** `.claude/skills/increment-review/SKILL.md` (frontmatter + body); supporting `reviewer-prompts.md` (the three reviewer briefs + skeptic brief).
-- **Behavior:** takes an optional diff ref (default `git diff main...HEAD`, else working tree) + a stage-spec path arg. Spawns four fresh `Explore` agents in parallel:
+- **Behavior:** takes an optional diff ref + a stage-spec path arg. Default diff resolution: explicit arg → dirty working tree vs HEAD → `main...HEAD` on a branch → on clean `main` (the sprint's commit-to-main flow) the increment's own commits per SPRINT-LOG. *(Amended at build time: the original `main...HEAD` default is always empty under commit-straight-to-main — skeptic finding, Increment 1.)* Spawns four fresh `Explore` agents in parallel:
   1. **Spec auditor** — diff vs named stage spec; verifies every acceptance criterion; flags scope drift both directions.
   2. **Correctness reviewer** — bugs, edge cases, error paths, untested branches.
   3. **Simplicity critic** — hunts one-caller abstractions, single-impl interfaces, premature generality, config nobody sets (loads anti-over-eng rules from `CLAUDE.md`); findings weighted as bugs.
