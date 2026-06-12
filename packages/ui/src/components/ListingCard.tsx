@@ -1,5 +1,5 @@
 import type { Listing } from "@line-robot/domain";
-import type { Translator } from "../i18n/index.ts";
+import type { Translator, UiLocale } from "../i18n/index.ts";
 import type { CardView } from "../view/toCardView.ts";
 import { PriceDisplay } from "./PriceDisplay.tsx";
 import { StatusBadge } from "./StatusBadge.tsx";
@@ -13,6 +13,8 @@ interface ListingCardProps {
   /** Poster display name — the human trust signal (CONV-11). */
   postedByName?: string;
   href: string;
+  /** TH-08: ICU line-breaking needs lang on the text container. */
+  lang?: UiLocale;
   t: Translator;
 }
 
@@ -28,12 +30,15 @@ export function ListingCard({
   monthlyRent,
   postedByName,
   href,
+  lang = "th",
   t,
 }: ListingCardProps) {
   return (
     <a
       href={href}
       data-listing-card={listing.id}
+      // TH-08: cards may render as standalone Astro islands — carry lang themselves.
+      lang={lang}
       style={{
         display: "block",
         background: "var(--color-surface)",

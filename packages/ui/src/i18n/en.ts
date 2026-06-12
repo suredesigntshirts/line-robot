@@ -28,8 +28,6 @@ export const en: Record<keyof typeof th, string> = {
 
   "cta.chatLine": "Chat on LINE",
   "cta.call": "Call",
-  "cta.viewDetail": "View details",
-  "cta.share": "Share",
 
   "filter.all": "All",
   "filter.newVsResale": "New/Resale",

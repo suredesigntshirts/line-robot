@@ -21,7 +21,7 @@ describe("createTranslator (D3.4)", () => {
 
   it("CTA labels are bare verbs (COPY-02)", () => {
     const t = createTranslator("en");
-    for (const key of ["cta.call", "cta.share"] as const) {
+    for (const key of ["cta.call"] as const) {
       expect(t(key).split(" ").length).toBeLessThanOrEqual(1);
     }
   });

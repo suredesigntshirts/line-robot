@@ -23,9 +23,9 @@ export interface CardViewInput {
   headline: string;
   heroUrl: string | null;
   photoCount: number;
-  /** Localized fragments the caller's translator produced (bedrooms/bathrooms). */
-  bedroomsLabel?: string;
-  bathroomsLabel?: string;
+  /** Localized fragments the caller's translator produced; "" = not applicable. */
+  bedroomsLabel: string;
+  bathroomsLabel: string;
 }
 
 export function toCardView(input: CardViewInput): CardView {
@@ -34,8 +34,8 @@ export function toCardView(input: CardViewInput): CardView {
     .filter((part): part is string => part !== null && part !== "")
     .join(" · ");
   const specs: string[] = [];
-  if (input.bedroomsLabel) specs.push(input.bedroomsLabel);
-  if (input.bathroomsLabel) specs.push(input.bathroomsLabel);
+  if (input.bedroomsLabel !== "") specs.push(input.bedroomsLabel);
+  if (input.bathroomsLabel !== "") specs.push(input.bathroomsLabel);
   if (listing.floorAreaSqm !== null) specs.push(`${listing.floorAreaSqm} ตร.ม.`);
   else if (listing.landSqm !== null) specs.push(`${listing.landSqm} ตร.ม.`);
   return {

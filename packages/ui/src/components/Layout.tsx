@@ -1,9 +1,15 @@
 import type { ReactNode } from "react";
+import type { UiLocale } from "../i18n/index.ts";
 
-/** Mobile-first page shell — verified at 360–390px (TH-09). */
-export function Screen({ children }: { children: ReactNode }) {
+/**
+ * Mobile-first page shell — verified at 360–390px (TH-09). Sets `lang` so the
+ * browser applies Thai ICU line-breaking (TH-08); hosts must ALSO set
+ * <html lang> at the document level.
+ */
+export function Screen({ children, lang = "th" }: { children: ReactNode; lang?: UiLocale }) {
   return (
     <div
+      lang={lang}
       style={{
         minHeight: "100dvh",
         background: "var(--color-bg)",

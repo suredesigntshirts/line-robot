@@ -34,8 +34,6 @@ export const th = {
   // CTAs (CONV-06/09 — LINE first, phone secondary; bare verbs COPY-02)
   "cta.chatLine": "แชทผ่าน LINE",
   "cta.call": "โทร",
-  "cta.viewDetail": "ดูรายละเอียด",
-  "cta.share": "แชร์",
 
   // Search & filters (COMP-05/06)
   "filter.all": "ทั้งหมด",

@@ -14,7 +14,11 @@ interface StatusBadgeProps {
   t: Translator;
 }
 
-/** The badge row for a listing — derives every badge from domain fields (D3.8). */
+/**
+ * The badge row — derives status/urgency/owner/deed badges from domain fields
+ * (D3.8); `verified` (TH-04) and `npa` (DIST-01) are EXTERNAL signals the
+ * caller supplies (not Listing fields).
+ */
 export function StatusBadge({ listing, verified = false, npa = false, t }: StatusBadgeProps) {
   const badges: Array<{ kind: BadgeKind; label: string }> = [];
 

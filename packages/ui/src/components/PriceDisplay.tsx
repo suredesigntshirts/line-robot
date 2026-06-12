@@ -36,7 +36,7 @@ export function PriceDisplay({ listing, monthlyRent, t }: PriceDisplayProps) {
           fontSize: "var(--text-xl)",
           fontWeight: 700,
           color: "var(--color-text)",
-          fontFamily: "var(--font-latin)",
+          fontFamily: "var(--font-body-th)", // TH-03: numerals stay in the Thai context stack
         }}
       >
         {amount !== null ? formatThb(amount) : "—"}
