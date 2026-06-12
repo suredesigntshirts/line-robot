@@ -366,3 +366,28 @@
 
 - docs/ui.shadcn.com/docs/installation/astro.md: shadcn/ui — Use shadcn/create
 - docs/docs.astro.build/en/guides/view-transitions.md: Astro — Differences between browser-native view transitions and Astro's `<ClientRouter />`
+
+## node-postgres.com
+
+- docs/node-postgres.com/apis/pool.md: node-postgres (pg) — Pool API: constructor options, connect/query/end, event handlers, error handling
+- docs/node-postgres.com/features/pooling.md: node-postgres (pg) — connection pooling: Pool setup, max clients, idleTimeoutMillis, connectionTimeoutMillis
+- docs/node-postgres.com/features/ssl.md: node-postgres (pg) — SSL/TLS config: ssl option, self-signed certs, rejectUnauthorized, pg-tunnel
+- docs/node-postgres.com/apis/client.md: node-postgres (pg) — Client API: constructor, connect/query/end, parameterized queries, TypeScript types
+
+## orm.drizzle.team
+
+- docs/orm.drizzle.team/docs/drizzle-kit-migrate.md: Drizzle ORM — `drizzle-kit migrate`
+- docs/orm.drizzle.team/docs/relations.md: Drizzle ORM — Drizzle soft relations
+- docs/orm.drizzle.team/docs/drizzle-kit-generate.md: Drizzle ORM — `drizzle-kit generate`
+- docs/orm.drizzle.team/docs/column-types/pg.md: Drizzle ORM — PostgreSQL column types
+- docs/orm.drizzle.team/docs/drizzle-config-file.md: Drizzle ORM — Drizzle Kit configuration file
+- docs/orm.drizzle.team/docs/indexes-constraints.md: Drizzle ORM — Indexes & Constraints
+- docs/orm.drizzle.team/docs/drizzle-kit-push.md: Drizzle ORM — `drizzle-kit push`
+- docs/orm.drizzle.team/docs/migrations.md: Drizzle ORM — Drizzle migrations fundamentals
+
+## postgis.net
+
+- docs/postgis.net/docs/ST_DWithin.md: PostGIS — ST_DWithin: radius/distance filter for geometry and geography, GiST index usage
+- docs/postgis.net/docs/AddGeometryColumn.md: PostGIS — AddGeometryColumn: add geometry column with SRID, type, dimension to existing table
+- docs/postgis.net/docs/ST_MakePoint.md: PostGIS — ST_MakePoint: construct 2D/3DZ/4D point geometry from x,y[,z[,m]] coordinates
+- docs/postgis.net/docs/using_postgis_dbmanagement.md: PostGIS — data management: geometry types, SRID, spatial_ref_sys, CreateExtension, GiST index creation

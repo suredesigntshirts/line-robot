@@ -13,35 +13,36 @@
         "lambda:ListFunctions",
         "lambda:ListEventSourceMappings",
         "ssm:DescribeParameters",
-        "logs:DescribeLogGroups"
+        "logs:DescribeLogGroups",
+        "cloudfront:ListDistributions",
+        "cloudfront:ListOriginAccessControls",
+        "rds:Describe*",
+        "rds:ListTagsForResource",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSecurityGroupRules",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeInternetGateways"
       ],
       "Resource": "*"
     },
     {
-      "Sid": "DynamoDb",
+      "Sid": "ProjectScopedServices",
       "Effect": "Allow",
-      "Action": [
-        "dynamodb:CreateTable",
-        "dynamodb:DeleteTable",
-        "dynamodb:DescribeTable",
-        "dynamodb:UpdateTable",
-        "dynamodb:DescribeContinuousBackups",
-        "dynamodb:UpdateContinuousBackups",
-        "dynamodb:DescribeTimeToLive",
-        "dynamodb:UpdateTimeToLive",
-        "dynamodb:TagResource",
-        "dynamodb:UntagResource",
-        "dynamodb:ListTagsOfResource"
-      ],
-      "Resource": "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*"
-    },
-    {
-      "Sid": "DataPlaneReadStagingForVerification",
-      "Effect": "Allow",
-      "Action": ["dynamodb:GetItem", "dynamodb:BatchGetItem", "dynamodb:Query", "dynamodb:Scan"],
+      "Action": ["dynamodb:*", "sqs:*", "ssm:*", "events:*", "rds:*"],
       "Resource": [
         "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*",
-        "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*/index/*"
+        "arn:aws:dynamodb:ap-southeast-1:259543826733:table/linerobot-*/index/*",
+        "arn:aws:sqs:ap-southeast-1:259543826733:linerobot-*",
+        "arn:aws:ssm:ap-southeast-1:259543826733:parameter/linerobot-*",
+        "arn:aws:events:ap-southeast-1:259543826733:rule/linerobot-*",
+        "arn:aws:rds:ap-southeast-1:259543826733:db:linerobot-*",
+        "arn:aws:rds:ap-southeast-1:259543826733:subgrp:linerobot-*",
+        "arn:aws:rds:ap-southeast-1:259543826733:pg:linerobot-*"
       ]
     },
     {
@@ -51,93 +52,22 @@
       "Resource": ["arn:aws:s3:::linerobot-*", "arn:aws:s3:::linerobot-*/*"]
     },
     {
-      "Sid": "Sqs",
+      "Sid": "LogsScoped",
       "Effect": "Allow",
-      "Action": [
-        "sqs:CreateQueue",
-        "sqs:DeleteQueue",
-        "sqs:GetQueueAttributes",
-        "sqs:SetQueueAttributes",
-        "sqs:GetQueueUrl",
-        "sqs:ListQueueTags",
-        "sqs:TagQueue",
-        "sqs:UntagQueue"
-      ],
-      "Resource": "arn:aws:sqs:ap-southeast-1:259543826733:linerobot-*"
+      "Action": ["logs:*"],
+      "Resource": [
+        "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*",
+        "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*:*"
+      ]
     },
     {
-      "Sid": "Ssm",
+      "Sid": "LambdaScoped",
       "Effect": "Allow",
-      "Action": [
-        "ssm:PutParameter",
-        "ssm:DeleteParameter",
-        "ssm:GetParameter",
-        "ssm:GetParameters",
-        "ssm:ListTagsForResource",
-        "ssm:AddTagsToResource",
-        "ssm:RemoveTagsFromResource"
-      ],
-      "Resource": "arn:aws:ssm:ap-southeast-1:259543826733:parameter/linerobot-*"
-    },
-    {
-      "Sid": "Logs",
-      "Effect": "Allow",
-      "Action": [
-        "logs:CreateLogGroup",
-        "logs:DeleteLogGroup",
-        "logs:PutRetentionPolicy",
-        "logs:DeleteRetentionPolicy",
-        "logs:TagLogGroup",
-        "logs:UntagLogGroup",
-        "logs:ListTagsLogGroup",
-        "logs:TagResource",
-        "logs:UntagResource",
-        "logs:ListTagsForResource"
-      ],
-      "Resource": "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*"
-    },
-    {
-      "Sid": "LogsReadForVerification",
-      "Effect": "Allow",
-      "Action": [
-        "logs:DescribeLogStreams",
-        "logs:GetLogEvents",
-        "logs:FilterLogEvents",
-        "logs:GetLogRecord",
-        "logs:GetLogGroupFields"
-      ],
-      "Resource": "arn:aws:logs:ap-southeast-1:259543826733:log-group:/aws/lambda/linerobot-*:*"
-    },
-    {
-      "Sid": "LambdaFunctions",
-      "Effect": "Allow",
-      "Action": [
-        "lambda:CreateFunction",
-        "lambda:DeleteFunction",
-        "lambda:GetFunction",
-        "lambda:GetFunctionConfiguration",
-        "lambda:GetFunctionCodeSigningConfig",
-        "lambda:UpdateFunctionCode",
-        "lambda:UpdateFunctionConfiguration",
-        "lambda:PublishVersion",
-        "lambda:ListVersionsByFunction",
-        "lambda:CreateAlias",
-        "lambda:DeleteAlias",
-        "lambda:GetAlias",
-        "lambda:UpdateAlias",
-        "lambda:ListAliases",
-        "lambda:CreateFunctionUrlConfig",
-        "lambda:DeleteFunctionUrlConfig",
-        "lambda:GetFunctionUrlConfig",
-        "lambda:UpdateFunctionUrlConfig",
-        "lambda:AddPermission",
-        "lambda:RemovePermission",
-        "lambda:GetPolicy",
-        "lambda:TagResource",
-        "lambda:UntagResource",
-        "lambda:ListTags"
-      ],
-      "Resource": "arn:aws:lambda:ap-southeast-1:259543826733:function:linerobot-*"
+      "Action": ["lambda:*"],
+      "Resource": [
+        "arn:aws:lambda:ap-southeast-1:259543826733:function:linerobot-*",
+        "arn:aws:lambda:ap-southeast-1:259543826733:event-source-mapping:*"
+      ]
     },
     {
       "Sid": "LambdaEventSourceMappings",
@@ -156,77 +86,31 @@
       }
     },
     {
-      "Sid": "LambdaEventSourceMappingTags",
-      "Effect": "Allow",
-      "Action": ["lambda:TagResource", "lambda:UntagResource", "lambda:ListTags"],
-      "Resource": "arn:aws:lambda:ap-southeast-1:259543826733:event-source-mapping:*"
-    },
-    {
-      "Sid": "EventBridgeRulesScopedToThisProject",
-      "Effect": "Allow",
-      "Action": [
-        "events:PutRule",
-        "events:DeleteRule",
-        "events:DescribeRule",
-        "events:EnableRule",
-        "events:DisableRule",
-        "events:PutTargets",
-        "events:RemoveTargets",
-        "events:ListTargetsByRule",
-        "events:ListTagsForResource",
-        "events:TagResource",
-        "events:UntagResource"
-      ],
-      "Resource": "arn:aws:events:ap-southeast-1:259543826733:rule/linerobot-*"
-    },
-    {
       "Sid": "IamRolesScopedToThisProject",
       "Effect": "Allow",
-      "Action": [
-        "iam:CreateRole",
-        "iam:GetRole",
-        "iam:DeleteRole",
-        "iam:UpdateRole",
-        "iam:UpdateAssumeRolePolicy",
-        "iam:TagRole",
-        "iam:UntagRole",
-        "iam:ListRoleTags",
-        "iam:PutRolePolicy",
-        "iam:GetRolePolicy",
-        "iam:DeleteRolePolicy",
-        "iam:ListRolePolicies",
-        "iam:AttachRolePolicy",
-        "iam:DetachRolePolicy",
-        "iam:ListAttachedRolePolicies",
-        "iam:PassRole"
-      ],
+      "Action": ["iam:*"],
       "Resource": "arn:aws:iam::259543826733:role/linerobot-*"
     },
     {
       "Sid": "CloudFrontForMiniAppHosting",
       "Effect": "Allow",
-      "Action": [
-        "cloudfront:CreateDistribution",
-        "cloudfront:GetDistribution",
-        "cloudfront:GetDistributionConfig",
-        "cloudfront:UpdateDistribution",
-        "cloudfront:DeleteDistribution",
-        "cloudfront:TagResource",
-        "cloudfront:UntagResource",
-        "cloudfront:ListTagsForResource",
-        "cloudfront:CreateInvalidation",
-        "cloudfront:GetInvalidation",
-        "cloudfront:CreateOriginAccessControl",
-        "cloudfront:GetOriginAccessControl",
-        "cloudfront:UpdateOriginAccessControl",
-        "cloudfront:DeleteOriginAccessControl"
-      ],
+      "Action": ["cloudfront:*"],
       "Resource": "arn:aws:cloudfront::259543826733:*"
     },
     {
-      "Sid": "CloudFrontListGlobal",
+      "Sid": "Ec2SecurityGroupsForRds",
       "Effect": "Allow",
-      "Action": ["cloudfront:ListDistributions", "cloudfront:ListOriginAccessControls"],
+      "Action": [
+        "ec2:CreateSecurityGroup",
+        "ec2:DeleteSecurityGroup",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:AuthorizeSecurityGroupEgress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RevokeSecurityGroupEgress",
+        "ec2:ModifySecurityGroupRules",
+        "ec2:CreateTags",
+        "ec2:DeleteTags"
+      ],
       "Resource": "*"
     }
   ]

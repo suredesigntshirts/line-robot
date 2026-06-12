@@ -1,0 +1,535 @@
+---
+Source: https://docs.turso.tech/sdk/ts/reference#batch-transactions
+Generated: 2026-06-12
+Updated: 2026-06-12
+---
+
+> ## Documentation Index
+> Fetch the complete documentation index at: https://docs.turso.tech/llms.txt
+> Use this file to discover all available pages before exploring further.
+
+# Reference
+
+> TypeScript Reference for Turso
+
+Turso offers three TypeScript packages:
+
+|                       | `@tursodatabase/database` | `@tursodatabase/sync`       | `@tursodatabase/serverless`                           | `@libsql/client`                               |
+| --------------------- | ------------------------- | --------------------------- | ----------------------------------------------------- | ---------------------------------------------- |
+| **Use case**          | Local / embedded database | Local database + cloud sync | Remote access (servers, containers, serverless, edge) | ORM support (Drizzle, Prisma)                  |
+| **Engine**            | Turso Database (rewrite)  | Turso Database (rewrite)    | Turso Database                                        | libSQL (SQLite fork)                           |
+| **Dependencies**      | Native (Node.js, WASM)    | Native (Node.js)            | `fetch` only — zero native deps                       | Requires Node.js or `/web` subpath             |
+| **Concurrent writes** | Yes (MVCC)                | Yes (MVCC)                  | Planned                                               | Not supported                                  |
+| **Sync**              | —                         | push/pull (local-first)     | —                                                     | Embedded Replicas (writes go to cloud primary) |
+| **ORM support**       | Drizzle (beta)            | —                           | —                                                     | Drizzle, Prisma, and others                    |
+
+**Starting a new project?** Use `@tursodatabase/database` for local/embedded use, `@tursodatabase/sync` for local + cloud sync, or `@tursodatabase/serverless` for any application that connects to a remote Turso Cloud database (Node.js servers, Docker containers, serverless functions, edge runtimes). **Using an ORM?** Use `@libsql/client` — it's production-ready and supported by Drizzle, Prisma, and others. Drizzle has [beta support](https://orm.drizzle.team/docs/connect-turso-database) for `@tursodatabase/database` for local/embedded use.
+
+The following runtime environments are known to be compatible:
+
+* Node.js version 12 or later
+* Deno
+* CloudFlare Workers
+* Netlify & Vercel Edge Functions
+
+## @tursodatabase/database
+
+For local and embedded use. Built on the Turso Database engine with concurrent writes (MVCC) and async I/O.
+
+### Installing
+
+```bash theme={null}
+npm install @tursodatabase/database
+```
+
+### Initializing
+
+```ts theme={null}
+import { connect } from "@tursodatabase/database";
+
+const db = await connect("app.db");
+```
+
+In-memory databases are also supported:
+
+```ts theme={null}
+const db = await connect(":memory:");
+```
+
+### Querying
+
+```ts theme={null}
+const stmt = db.prepare("SELECT * FROM users");
+const users = await stmt.all();
+
+const insert = db.prepare("INSERT INTO users (username) VALUES (?)");
+await insert.run("alice");
+```
+
+### Encryption
+
+Encrypt local databases at rest using the `encryption` option:
+
+```ts theme={null}
+import { connect } from "@tursodatabase/database";
+
+const db = await connect("encrypted.db", {
+  encryption: {
+    cipher: "aegis256",
+    hexkey: "b1bbfda4f589dc9daaf004fe21111e00dc00c98237102f5c7002a5669fc76327",
+  },
+});
+```
+
+Supported ciphers: `aegis256`, `aegis256x2`, `aegis128l`, `aegis128x2`, `aegis128x4`, `aes256gcm`, `aes128gcm`.
+
+Encrypted databases cannot be read as standard SQLite databases — you must use the Turso Database engine to open them.
+
+<Info>
+  Turso Cloud databases can also be encrypted with bring-your-own-key — [learn more](/cloud/encryption).
+</Info>
+
+## @tursodatabase/sync
+
+For local database with cloud sync. All reads and writes happen locally; use `push()` to send changes to the cloud and `pull()` to fetch remote changes.
+
+### Installing
+
+```bash theme={null}
+npm install @tursodatabase/sync
+```
+
+### Initializing
+
+```ts theme={null}
+import { connect } from "@tursodatabase/sync";
+
+const db = await connect({
+  path: "./app.db",
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+```
+
+On the first run, the local database is automatically bootstrapped from the remote. See [Turso Sync](/sync/usage) for full details.
+
+### Push and Pull
+
+```ts theme={null}
+// Push local writes to Turso Cloud
+await db.push();
+
+// Pull remote changes to local database
+const changed = await db.pull();
+```
+
+### Checkpoint
+
+Compact the local WAL to bound disk usage while preserving sync state:
+
+```ts theme={null}
+await db.checkpoint();
+```
+
+### Stats
+
+```ts theme={null}
+const s = await db.stats();
+console.info({
+  cdcOperations: s.cdcOperations,
+  mainWalSize: s.mainWalSize,
+  networkReceivedBytes: s.networkReceivedBytes,
+  networkSentBytes: s.networkSentBytes,
+  lastPullUnixTime: s.lastPullUnixTime,
+  lastPushUnixTime: s.lastPushUnixTime,
+  revision: s.revision,
+});
+```
+
+## @tursodatabase/serverless
+
+The recommended package for **any application that connects to a remote Turso Cloud database** — Node.js servers, Docker containers, serverless functions (AWS Lambda, Vercel Functions), and edge runtimes (Cloudflare Workers, Deno Deploy). Uses only `fetch` — zero native dependencies, works everywhere `fetch` is available.
+
+### Installing
+
+```bash theme={null}
+npm install @tursodatabase/serverless
+```
+
+### Initializing
+
+```ts theme={null}
+import { connect } from "@tursodatabase/serverless";
+
+const conn = connect({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+```
+
+For compatibility with the `@libsql/client` API, use the compat module:
+
+```ts theme={null}
+import { createClient } from "@tursodatabase/serverless/compat";
+
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+```
+
+### Querying
+
+```ts theme={null}
+const stmt = await conn.prepare("SELECT * FROM users");
+const rows = await stmt.all();
+
+const stmt2 = await conn.prepare("SELECT * FROM users WHERE id = ?");
+const row = await stmt2.get([1]);
+```
+
+## @libsql/client
+
+The `@libsql/client` package is built on [libSQL](https://github.com/tursodatabase/libsql), the open-source fork of SQLite that powers Turso Cloud today. It is production-ready, battle-tested, and the right choice when you need ORM integration beyond Drizzle (e.g., Prisma) or are working with an existing `@libsql/client`-based codebase.
+
+<Info>
+  With `@libsql/client` Embedded Replicas, reads are local and writes are sent to the cloud primary, then reflected back to the replica. Embedded Replicas are fully supported. For new projects that need sync, we recommend `@tursodatabase/sync` with [Turso Sync](/sync/usage).
+</Info>
+
+### Installing
+
+<Snippet file="install-libsql-client-ts.mdx" />
+
+### Initializing
+
+<Snippet file="configure-libsql-client-ts.mdx" />
+
+<br />
+
+<Info>
+  If you're using libsql locally or an sqlite file, you can ignore passing `authToken`.
+</Info>
+
+### In-Memory Databases
+
+```ts {4} theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: ":memory:",
+});
+```
+
+### Local Development
+
+You can work locally using an SQLite file and passing the path to `createClient`:
+
+```ts {4} theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: "file:path/to/db-file.db",
+  authToken: "...",
+});
+```
+
+<Warning>
+  The `@libsql/client/web` does not support local file URLs.
+</Warning>
+
+### Embedded Replicas
+
+<Info>
+  For workloads that need **offline writes**, **bidirectional sync**, or **multi-writer convergence**, we recommend [`@tursodatabase/sync`](#tursodatabasesync) — both reads and writes are local, and you sync explicitly with `push()` / `pull()`.
+</Info>
+
+You can work with embedded replicas by passing your Turso Database URL to `syncUrl`:
+
+```ts {5} theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: "file:path/to/db-file.db",
+  syncUrl: "libsql://[databaseName]-[organizationSlug].turso.io",
+  authToken: "...",
+});
+```
+
+<Snippet file="embedded-replicas-warning.mdx" />
+
+#### Manual Sync
+
+```ts theme={null}
+await client.sync();
+```
+
+#### Periodic Sync
+
+```ts {6} theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: "file:path/to/db-file.db",
+  syncUrl: "libsql://[databaseName]-[organizationSlug].turso.io",
+  syncInterval: 60,
+  authToken: "...",
+});
+```
+
+### Encryption
+
+<Warning>
+  For new projects, we recommend [`@tursodatabase/database`](#tursodatabasedatabase) for local encryption — it is built on the Turso Database engine with better performance and concurrent write support.
+</Warning>
+
+<Snippet file="encryption-at-rest-typescript.mdx" />
+
+Encrypted databases appear as raw data and cannot be read as standard SQLite databases. You must use the libSQL client for any operations — [learn more](/libsql#encryption-at-rest).
+
+### Concurrency
+
+By default, the client performs up to `20` concurrent requests:
+
+```ts {4} theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  concurrency: 10,
+});
+```
+
+### Response
+
+Each method listed below returns a `Promise<ResultSet>`:
+
+| Property          | Type                          | Description                                                                                                        |
+| ----------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `rows`            | `Array<Row>`                  | An array of Row objects containing the row values, empty for write operations                                      |
+| `columns`         | `Array<string>`               | An array of strings with the names of the columns in the order they appear in each Row, empty for write operations |
+| `rowsAffected`    | `number`                      | The number of rows affected by a write statement, `0` otherwise                                                    |
+| `lastInsertRowid` | `bigint         \| undefined` | The ID of a newly inserted row, or `undefined` if there is none for the statement                                  |
+
+### Simple query
+
+You can pass a string or object to `execute()` to invoke a SQL statement:
+
+<CodeGroup>
+  ```ts String theme={null}
+  const result = await client.execute("SELECT * FROM users");
+  ```
+
+  ```ts Object theme={null}
+  const result = await client.execute({
+    sql: "SELECT * FROM users WHERE id = ?",
+    args: [1],
+  });
+  ```
+</CodeGroup>
+
+### Placeholders
+
+libSQL supports the use of positional and named placeholders within SQL statements:
+
+<CodeGroup>
+  ```ts Positional theme={null}
+  const result = await client.execute({
+    sql: "SELECT * FROM users WHERE id = ?",
+    args: [1],
+  });
+
+  const result = await client.batch(
+    [
+      {
+        sql: "INSERT INTO users VALUES (?)",
+        args: ["Iku"],
+      },
+    ],
+    "write",
+  );
+  ```
+
+  ```ts Named theme={null}
+  const result = await client.execute({
+    sql: "INSERT INTO users VALUES (:name)",
+    args: { name: "Iku" },
+  });
+
+  const result = await client.batch(
+    [
+      {
+        sql: "INSERT INTO users VALUES (:name)",
+        args: { name: "Iku" },
+      },
+    ],
+    "write",
+  );
+  ```
+</CodeGroup>
+
+<br />
+
+<Info>
+  libSQL supports the same named placeholder characters as SQLite — `:`, `@` and `$`.
+</Info>
+
+### Transaction Modes
+
+| Mode       | SQLite command               | Description                                                                                                                                                                                        |
+| ---------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `write`    | `BEGIN IMMEDIATE`            | The transaction may execute statements that read and write data. Write transactions executed on a replica are forwarded to the primary instance, and can't operate in parallel.                    |
+| `read`     | `BEGIN TRANSACTION READONLY` | The transaction may only execute statements that read data (select). Read transactions can occur on replicas, and can operate in parallel with other read transactions.                            |
+| `deferred` | `BEGIN DEFERRED`             | The transaction starts in read mode, then changes to write as soon as a write statement is executed. This mode change may fail if there is a write transaction currently executing on the primary. |
+
+### Batch Transactions
+
+A batch consists of multiple SQL statements executed sequentially within an implicit transaction. The backend handles the transaction: success commits all changes, while any failure results in a full rollback with no modifications.
+
+```ts theme={null}
+const result = await client.batch(
+  [
+    {
+      sql: "INSERT INTO users VALUES (?)",
+      args: ["Iku"],
+    },
+    {
+      sql: "INSERT INTO users VALUES (?)",
+      args: ["Iku 2"],
+    },
+  ],
+  "write",
+);
+```
+
+### Interactive Transactions
+
+Interactive transactions in SQLite ensure the consistency of a series of read and write operations within a transaction's scope. These transactions give you control over when to commit or roll back changes, isolating them from other client activity.
+
+| Method       | Description                                                         |
+| ------------ | ------------------------------------------------------------------- |
+| `execute()`  | Similar to `execute()` except within the context of the transaction |
+| `commit()`   | Commits all write statements in the transaction                     |
+| `rollback()` | Rolls back the entire transaction                                   |
+| `close()`    | Immediately stops the transaction                                   |
+
+<CodeGroup>
+  ```ts Rollback Usage theme={null}
+  try {
+    const userId = "user123";
+    const withdrawalAmount = 500;
+
+    const transaction = await client.transaction("write");
+
+    const balanceResult = await transaction.execute({
+      sql: "SELECT balance FROM accounts WHERE userId = ?",
+      args: [userId],
+    });
+
+    const currentBalance = balanceResult.rows[0]["balance"] as number;
+
+    if (currentBalance >= withdrawalAmount) {
+      await transaction.execute({
+        sql: "UPDATE accounts SET balance = balance - ? WHERE userId = ?",
+        args: [withdrawalAmount, userId],
+      });
+    } else {
+      console.log("Insufficient funds");
+      await transaction.rollback();
+      return;
+    }
+
+    await transaction.commit();
+  } catch (e) {
+    console.error(e);
+  }
+  ```
+
+  ```ts Batch Usage theme={null}
+  let transaction: Transaction | null = null;
+
+  try {
+    const records = [
+      { name: "Alice", age: 30 },
+      { name: "Bob", age: 25 },
+      { name: "Charlie", age: 35 },
+    ];
+
+    transaction = await client.transaction("write");
+
+    for (const record of records) {
+      await transaction.execute({
+        sql: "INSERT INTO people (name, age) VALUES (?, ?)",
+        args: [record.name, record.age],
+      });
+    }
+
+    await transaction.commit();
+  } catch (e) {
+    console.error(e);
+    if (transaction) await transaction.rollback();
+  }
+  ```
+
+  ```ts Conditional Usage theme={null}
+  try {
+    const productId = "prod456";
+    const newPrice = 150;
+
+    const transaction = await client.transaction("write");
+
+    const productResult = await transaction.execute({
+      sql: "SELECT price FROM products WHERE productId = ?",
+      args: [productId],
+    });
+
+    const currentPrice = productResult.rows[0]["price"] as number;
+
+    if (currentPrice > newPrice) {
+      await transaction.execute({
+        sql: "UPDATE products SET price = ? WHERE productId = ?",
+        args: [newPrice, productId],
+      });
+    } else {
+      console.log("New price is not lower than current price");
+      await transaction.rollback();
+      return;
+    }
+
+    await transaction.commit();
+  } catch (e) {
+    console.error(e);
+  }
+  ```
+</CodeGroup>
+
+<br />
+
+<Warning>
+  Interactive transactions in libSQL lock the database for writing until
+  committed or rolled back, with a 5-second timeout. They can impact performance
+  on high-latency or busy databases.
+</Warning>
+
+### ATTACH
+
+You can attach multiple databases to the current connection using the `ATTACH` attachment:
+
+```ts theme={null}
+import { createClient } from "@libsql/client";
+
+const client = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+});
+
+const txn = await db.transaction("read");
+
+await txn.execute('ATTACH "<database-id>" AS attached');
+
+const rs = await txn.execute("SELECT * FROM attached.users");
+```
+
+<Info>
+  Make sure to [allow `ATTACH`](/cli/db/config/attach/allow) and create a token
+  with the permission to attach a database — [learn
+  more](/features/attach-database)
+</Info>

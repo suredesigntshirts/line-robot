@@ -1,90 +1,120 @@
 # Stage 2 — Extraction Pipeline v2
 
-**Spec status: SKELETON.** This document is fleshed into a full spec, iterated with the user, and approved before any code for this stage is written. (Lifecycle: skeleton → fleshed spec → user approval → build with increment reviews → stage gate → retro.)
+**Spec status: FLESHED — pending founder approval.** (Lifecycle: skeleton → fleshed spec → approval → build with increment reviews → stage gate → retro.)
 
 ## Purpose
 
-Replaces the v1 single-big-schema extractor with a six-step pipeline that permanently dissolves the 16-union-cap constraint, enables per-step evaluation, and activates all three cost levers (Batch API, prompt caching, image downscaling) that were unused in v1. Also establishes the eval harness and golden set — the first real quality scorecard — and writes extraction results into Postgres rather than the v1 DynamoDB catalog table. Corresponds to master plan §4.3, §5.1, §5.2, and decisions D11, D15, D16.
+Replace the v1 single-big-schema extractor (`packages/bot/src/adapters/anthropic/claudeExtractor.ts`) with a multi-step pipeline that permanently dissolves the 16-union cap (each step has its own small schema), is evaluated per-step against a **synthetic-first** scorecard, and activates the three cost levers v1 left inert (Batch API, prompt caching, image downscaling). Output lands in Postgres via `packages/db`, not the v1 DynamoDB catalog. Implements master plan §4.3 + decisions D11/D14/D15/D16, and DF-6 (iterative completion loop), FIELD-02/03/11, COPY-05/12 from `docs/research/00-product-principles.md`.
 
-## Scope
+---
 
-**In:**
-- Six-step pipeline replacing `packages/bot/src/adapters/anthropic/claudeExtractor.ts`:
-  1. **Classify & preprocess** — image downscaling to derivatives before any vision call; image classification (property photo / chanote / other) and OCR on derivatives (as today, hardened)
-  2. **Segment** — split conversation batch into individual property mentions; hardened from v1
-  3. **Extract** — per-segment structured extraction; validated zod enums (not free strings); Thai-unit normalization; small focused schemas (no 16-union cap)
-  4. **Dedup** — deterministic blocking first (deed number, geohash proximity, normalized-address/trigram similarity → small candidate set), LLM verify only on survivors; absorbs plan 18 design
-  5. **Translate** — write-time LLM translation of listing content into other shipped language(s); stored per-language in Postgres (schema from Stage 1)
-  6. **Quality gate** — completeness/spam/duplicate screen before any public visibility; failures → moderation queue (D11)
-- Hybrid sync/batch (D15): sweep/passive path uses Anthropic Batch API; interactive edit path (bot DM → confirm) is synchronous
-- Prompt caching made real: shared cached prefix above the minimum token threshold for each step
-- Per-call cost logging: every LLM call logs model, tokens, estimated cost to a structured log
-- Image derivative storage in S3 (downscaled variants for vision calls and web delivery)
-- Eval harness: thin bespoke TS runner (not promptfoo); per-field deterministic scoring; separate scores for segmentation, extraction accuracy, dedup precision/recall
-- Golden set: Tier A (real anonymized archived chats, hand-verified) + Tier B (synthetic, from Stage 1 generator); baseline scorecard committed to repo; `npm run eval` now produces real results
-- Writes to Postgres via `packages/db` (replaces v1 DynamoDB catalog writes)
-- v1 extractor cutover plan: defined and executed here — point where v1 catalog write path is switched off
-- Dedup pairs from synthetic generator (generated duplicates-with-variation for labeled match/no-match pairs)
+## Decisions (each with rationale)
 
-**Out (explicitly):**
-- UI components (Stage 3)
-- Auth or LIFF changes (Stage 4/5)
-- Land-office data ingestion (Stage 7)
-- The eval runner scaffold itself — that stub was Stage 0; this stage populates it with real cases
+**D2.1 — Synthetic-first evals; Tier A deferred indefinitely.** Founder ruling: ground truth comes *by construction* from the Stage 1 generator (a ground-truth spec → chaos profile → transcript; expected extraction is known). The scorecard baselines on synthetic only. We reserve a `goldenSet/tierA/` slot + a `source: "tierA" | "synthetic"` case field so hand-verified real chats can be added later with zero refactor, but **nothing tonight depends on founder labeling**. This also resolves the anonymization-scrub open question: deferred with the Tier A work (no real chats enter the repo this stage).
 
-## Key deliverables
+**D2.2 — Per-step model assignment (quality-first, D16).** Initial assignments, justified by step difficulty; the scorecard later justifies downgrades.
+| Step | Model | Why |
+|---|---|---|
+| Classify+OCR (vision) | `claude-haiku-4-5` | High volume (1 call/image); chanote OCR is the only hard part and escalates to Sonnet on `lowConfidence`. |
+| Segment | `claude-sonnet-4-6` | Splitting multi-property dumps + photo attribution is the error-prone step; cheap relative to a wrong split cascading. |
+| Extract (per segment) | `claude-sonnet-4-6` → `claude-opus-4-8` on `lowConfidence` | Quality-first; Sonnet handles the body, Opus re-reads conflicting figures / ambiguous deeds. |
+| Dedup verify | `claude-haiku-4-5` | Only runs on a ≤8 blocked candidate set; a yes/no same-property judgment. |
+| Translate | `claude-haiku-4-5` | Constrained th↔en of already-structured fields; cheap, cacheable glossary prefix. |
+| Quality gate | `claude-sonnet-4-6` | Produces the DF-6 missing/weak-fields contract that drives bot DMs — worth the spend. |
+Model IDs are current per cached `docs/llms.txt` (Haiku 4.5 $1/$5, Sonnet 4.6 $3/$15, Opus 4.8 $5/$25 per MTok). Adaptive thinking only on Sonnet/Opus; Haiku rejects `effort`/`thinking`.
 
-1. `packages/pipeline/` with the six-step pipeline, each step independently testable
-2. Anthropic Batch API integration on the sweep path; synchronous path on the interactive path
-3. Prompt-caching wrappers with verified cache-hit logging (confirms caching is actually active, not inert as in v1)
-4. Image derivative pipeline: S3 upload of downscaled variants + classification/OCR on derivatives
-5. Per-call cost log (format defined; visible in CloudWatch)
-6. Eval golden set: Tier A anonymized + Tier B synthetic cases committed to repo
-7. `npm run eval` producing a real scored report with pass/fail per case and aggregate scorecard
-8. Scorecard baseline committed (first real baseline; subsequent runs compare against it)
-9. v1 extractor retired (file deleted or clearly marked deprecated); Postgres is the sole catalog write path
-10. Integration test covering a full sweep → pipeline → Postgres write round-trip against DynamoDB Local + a Postgres test instance
+**D2.3 — Hybrid sync/batch routing (D15).** A single `mode: "sync" | "batch"` flag on the pipeline entry. **Passive sweep → Batch API** (`client.messages.batches.*`, 50% cost, typically <1h, 24h max). **Interactive paths (DM edit, web-form, claim-confirm) → sync** (`messages.parse`). Routing lives in the bot wiring, not the pipeline core — the pipeline exposes both a sync executor and a batch request-builder/result-parser over the *same* step contracts (one code path, two transports). Per the §8 master-plan risk, batch latency forces the group confirmation copy below.
 
-## Dependencies
+**D2.4 — Batch-pending UX copy.** On a passive sweep that enqueues a batch, the bot does **not** stay silent. It posts once to the group:
+> 🔎 กำลังอ่านรายการของคุณอยู่ — เดี๋ยวสรุปให้ภายในไม่เกิน 1 ชม. / Got it — reading your listings now. I'll post a summary here within the hour.
 
-- Stage 1 must be complete: Postgres schema + `packages/db` + `packages/domain` + synthetic generator all required
-- Stage 0 must be complete: quality workflow in place
-- Anthropic Batch API access confirmed (existing API key should suffice — verify during flesh-out)
-- Real archived LINE chat transcripts must be collected and anonymized before Tier A eval cases can be committed (manual step; scrub procedure defined in this spec)
+On batch completion the normal confirmation (DF-6 loop or the listing summary) fires. Copy lives in `packages/bot` i18n strings (`pipeline.batchPending.{th,en}`), not the pipeline package. Honest about the ≤1h window; no fake "instant".
 
-## Acceptance criteria (sketch)
+**D2.5 — Cutover: deploy over the existing stack; URLs are immovable.** The webhook ingest Function URL and the CloudFront LIFF endpoint **cannot change** (LINE console pins them). So pipeline v2 ships as **new code inside the existing lambdas**: the sweep lambda's `extractAndApply` calls `packages/pipeline` and writes to Postgres; DynamoDB stays for ingestion plumbing only (raw messages, idempotency, conversation tracker/debounce). The v1 catalog DynamoDB table is **left in place, read-only** (no new writes, no deletes) and removed in a later cleanup stage. Cutover is a **hard switch at end-of-stage behind a `PIPELINE_V2` env flag** (default off until the integration test + first scorecard pass green in staging; then flip). `claudeExtractor.ts` and the 16-union regression test are deleted only once the flag is on in staging and Postgres writes are verified.
 
-- `npm run eval` runs against the committed golden set and prints a per-field scorecard; zero crashes on any Tier A or Tier B case
-- Segmentation score: property count correct on ≥90% of golden cases (baseline to be hardened when fleshed)
-- Extraction score: threshold TBD at flesh-out time based on initial golden set run; committed baseline then anchors regressions
-- Dedup: precision and recall on labeled pairs both ≥90% (threshold to be confirmed at flesh-out)
-- Batch API path: a sweep invocation using the batch mode completes without error; cost log shows batch pricing
-- Prompt caching: cache-hit rate logged; at least one step shows confirmed cache hits in staging (not just configured)
-- v1 extractor: no import of the old single-schema extractor survives in production code paths
-- 16-union cap: the old regression test (≤16 unions on the whole schema) passes trivially because the new multi-step schemas never approach the limit; test is retained as documentation but its threshold becomes meaningless
+**D2.6 — Dedup blocking thresholds (tunable config).** Defaults, all in `packages/pipeline/src/dedup/config.ts`, overridable by env:
+- Geohash proximity: precision-6 cell (~1.2 km) center+8 neighbours; then Haversine filter at **radius ≤ 1.0 km**.
+- Deed/parcel exact match → score 1.0 (definitive, skips geo/text).
+- Trigram (Dice) similarity on normalized address ≥ **0.55**; token-set Jaccard ≥ **0.50** as the admin/text block when no coords.
+- Block cap: top-**8** candidates to LLM verify.
+These are validated by synthetic dup pairs (D2.9), not guessed in prod (the open item plan-18 flagged). Keys are deed → geo → admin/text, never text alone (DEAL-09).
 
-## Open questions (resolve when fleshing this spec)
+**D2.7 — Image derivatives: exactly two sizes.** Pipeline downscales **before any vision call**.
+- **Vision derivative**: long edge **1568 px**, JPEG q80 — the pre-4.7 vision tile sweet spot; caps image tokens (~1600 vs ~4784 at full res) with no accuracy loss for property/chanote classification at our quality bar.
+- **Web thumb**: long edge **640 px**, JPEG q70 — card carousel / LIFF detail.
+Original is archived in S3 (already done by v1 webhook). Two sizes only — no responsive ladder; revisit if the web design needs it. Stored under `s3://…/derivatives/{propertyId}/{photoId}-{vision|thumb}.jpg`.
 
-- **Anonymization scrub procedure**: exact steps to strip LINE user IDs, display names, phone numbers, and location data from archived chats before they enter the repo-committed Tier A golden set — who does it, what tooling, how is completeness verified?
-- **Per-step model selection**: which model for each of the six steps? Master plan D16 says "quality first, optimize later using scorecard data" — the fleshed spec should define initial model assignments and the criteria by which the scorecard will justify downgrading a step to a cheaper model
-- **Batch API confirmation-message UX**: passive path results can take up to 1h (master plan §8 risk); what message does the bot send to the group when extraction is queued vs when it completes? Where does this UX live (bot package, pipeline package)?
-- **When does v1 catalog write path switch off?** Is there a flag/feature toggle, or is it a hard cutover at the end of this stage? What happens to live groups during the transition?
-- **Dedup blocking criteria precision**: geohash proximity threshold (what radius?), trigram similarity threshold for address normalization — these are tunable parameters; where do they live and how are they tested?
-- **Image derivative sizes**: what downscaled resolutions are generated? One size for vision calls, one for web thumbnails, or more? Affects S3 cost and pipeline complexity
-- **Translate step model and cost**: full translation of every listing field at write time — what is the estimated per-listing cost? Is caching applicable to translation prompts?
+**D2.8 — Enum validation everywhere (hard-block + extraction rules).** All controlled vocabularies are `z.enum` in the step schemas, validated in-process (not free strings):
+- **FIELD-02/03**: deed `titleType` is an enum; the **5 non-transferable types** (ส.ป.ก./ภ.บ.ท.5/น.ส.2/ส.ท.ก./ส.ค.1) **hard-block a *sale* listing at the gate** (rentals exempt). Unknown deed → gate flags "deed unverified", doesn't publish.
+- **COPY-05**: `ขายด่วน`/urgent → `urgentBadge: boolean`, **stripped from the title** (badge, not headline text).
+- **COPY-12**: emoji stripped from `title`/`price`/`area` fields (post-extraction normalizer in `packages/domain`).
+- **FIELD-11**: seller assertions (e.g. "fully furnished", "foreign-quota available") map to enums **as-claimed** — the pipeline never re-judges truth; provenance/verification is a separate UI concern (LEGAL-06).
 
-## Review process
+**D2.9 — Translate step: th↔en at write time, per-language rows.** Listing content (`title`, `description`, `notes`, locality labels) is translated into the *other* shipped language and stored as per-language rows (Stage-1 schema: `listing_content(listing_id, lang, …)`). Numeric/enum/geo fields are language-neutral and not translated. Model `claude-haiku-4-5` with a cached glossary prefix (B3 ~30-term table). **Per-listing cost estimate**: ~1.2k input + ~0.6k output tokens one direction ≈ **$0.004/listing** at Haiku rates (batch halves it to ~$0.002). Negligible; runs in the same batch as extraction on the passive path.
 
-Standard cadence per master plan §5.3: every increment → spec auditor + correctness reviewer + simplicity critic (fresh-context sub-agents, skeptic-verified findings); stage gate → high-effort full-diff review, architecture conformance, eval scorecard check (advisory), Playwright smoke (if user-facing), docs updated.
+---
 
-Stage-2-specific review notes:
-- The spec auditor verifies that each of the six pipeline steps is independently testable and that no step imports another step's internals — the pipeline must be a chain of pure functions or clearly bounded adapters
-- The correctness reviewer pays special attention to the dedup layer: a false negative (duplicate allowed through) is a user-visible defect; test coverage for the edge cases (same listing re-posted days apart, minor price edit, photo set reordered) must be demonstrated
-- The simplicity critic scrutinizes the hybrid sync/batch routing: the simplest correct routing switch wins; no elaborate abstraction before there are real operational reasons
-- Stage gate is the first eval scorecard check against a real baseline; the user reviews the scores and sets the "acceptable" threshold before any further stages begin
+## Pipeline step contracts
+
+Each step = a pure function (or a thin port for the LLM/S3 seam), independently testable, **no step imports another step's internals**. Shared cached system prefix per step (≥4096 tokens for Haiku/Opus, ≥2048 for Sonnet — pad the taxonomy/glossary to clear the minimum, verify via `usage.cache_read_input_tokens>0`). All log `{step, model, inputTokens, outputTokens, cacheReadTokens, estCostUsd, mode}` (the cost log, D requirement).
+
+1. **classify+ocr** — in: `{ derivative: VisionImage }` → out: `{ kind: "property"|"chanote"|"other", label, chanote?, ocrText }`. Vision on the **1568px derivative**, never the original. Fail: returns `null` → image stored as plain property photo (v1 behavior, kept).
+2. **segment** — in: `{ transcript, mediaMarkers, geoHints, candidates }` → out: `{ segments: [{ label, imageIndices, mapIndex, existingPropertyId, ambiguous, ambiguousWith }] }`. Fail: `null` → single-segment fallback over the whole transcript.
+3. **extract** (per segment) — in: `{ transcript, focus, geoHints, candidates }` → out: `ExtractedListing` (enums per D2.8; Thai-unit normalized: rai/ngan/wah triple + computed sqm). Ladder Sonnet→Opus on `lowConfidence`. Fail: `null` → segment dropped, logged, gate notified.
+4. **dedup** — in: `{ extracted, blockPool }` → deterministic block (D2.6) → out: `{ decision: "new"|"merge", intoId?, score, reasons }`; LLM verify only on the ≤8 survivors. Fail: defaults to **"new"** (never silently merge — a false merge is the user-visible defect).
+5. **translate** — in: `{ listingContent, fromLang }` → out: `{ lang, title, description, notes }` for the other shipped language. Fail: skip the target-lang row, gate flags "translation pending" (non-blocking).
+6. **gate** — in: `{ extracted, photos, deedType, listingType }` → out: **`GateResult { pass: boolean, missing: WeakField[], blockers: Blocker[] }`** where `WeakField = { field, severity: "required"|"important", promptKey }` and `Blocker` carries the hard FIELD-03 deed reason. This is the **DF-6 bot feedback contract** (below). Fail: treat as `pass:false` with a generic "needs review" → moderation queue (D11).
+
+### DF-6 completion loop (gate → bot)
+
+The gate emits the structured `missing/weak` list; **`packages/bot` owns the conversation**. On `pass:false` with no hard blocker, the bot DMs the poster requesting the missing **important fields AND photos** (no hard photo-count block — CONV-01 nudge mode), one concise ask at a time, re-running the gate on each reply until `pass:true`. Hard `blockers` (non-transferable deed on a sale) stop publish and explain why. The loop is iterative and field-agnostic (generalizes CONV-01 to all gate fields). Contract: pipeline returns data; bot renders/escalates — pipeline imports no LINE adapter.
+
+---
+
+## Increments
+
+Each: spec-auditor + correctness + simplicity-critic review (master plan §5.3). Files under `packages/pipeline/` unless noted.
+
+1. **Pipeline scaffold + cost log + step ports.** `src/{ports,steps,cost}.ts`, the 6 step interfaces, `CostLog`. Accept: `npm run test` green; cost log shape unit-tested. Review focus: no premature abstraction — ports only at LLM/S3/DB seams.
+2. **Image derivatives.** `src/media/derivatives.ts` (sharp); S3 upload of 1568/640 variants; classify+ocr reads the 1568. Accept: derivative sizes asserted; vision call receives derivative not original. Review: 2 sizes only, no ladder.
+3. **classify+ocr + segment + extract steps** (sync executor first). Enum schemas (D2.8), Thai-unit normalizer in `packages/domain`. Accept: each step unit-tested with a fake LLM; enum hard-block + emoji-strip + ขายด่วน-badge covered. Review: schemas small, FIELD-11 no-re-judge honored.
+4. **Dedup (block→verify).** `src/dedup/{normalize,score,candidateFinder,config}.ts` (absorbs plan-18 Phase 1). Accept: synthetic dup pairs → precision & recall ≥ **0.90**; deed-exact beats geo beats text; default-to-new on verify failure. Review: thresholds in config, tested not guessed.
+5. **Translate + gate + DF-6 contract.** `src/{translate,gate}.ts`; `GateResult` type in `packages/domain`. Accept: gate emits structured missing/weak list; FIELD-03 deed blocker on sale; translation writes per-lang rows. Review: gate→bot contract has no LINE import.
+6. **Postgres write path.** Wire steps → `packages/db` upserts (listing + per-lang content + photos + dedup merge). Accept: **integration test** sweep→pipeline→Postgres round-trip (DynamoDB Local + Postgres test instance). Review: writes idempotent on re-sweep.
+7. **Batch transport.** `src/batch/{build,collect}.ts` over the same step contracts; bot wiring routes sweep→batch, interactive→sync; batch-pending copy (D2.4). Accept: a sweep using batch mode completes; cost log shows 50% batch pricing; cache-hit logged on ≥1 step. Review: routing is one flag, no elaborate transport abstraction.
+8. **Eval harness + synthetic golden set + baseline.** `src/eval/` runner (bespoke TS, not promptfoo); per-field deterministic scoring (exact enums/numbers w/ tolerance, fuzzy free-text), separate segmentation + dedup scores; `goldenSet/{synthetic,tierA(empty)}/`. Accept: **`npm run eval` produces a scorecard over N≥50 synthetic cases**, zero crashes; baseline committed. Review: Tier A slot wired but empty; advisory-only (D21).
+9. **Cutover.** Flip `PIPELINE_V2` in staging; verify Postgres writes + first scorecard; delete `claudeExtractor.ts` + 16-union test; v1 catalog table left read-only. Accept: no import of the old extractor survives; staging green. Review: nothing still writes the v1 catalog.
+
+---
+
+## Cutover plan
+
+1. Ship increments 1–8 behind `PIPELINE_V2=off` — v1 keeps running, v1 catalog still written.
+2. In staging, flip `PIPELINE_V2=on`: sweep lambda calls `packages/pipeline`, writes Postgres (catalog), DynamoDB still carries messages/idempotency/tracker.
+3. Verify: integration test green; `npm run eval` scorecard committed; a real staging sweep lands a listing in Postgres with per-lang rows + derivatives.
+4. Flip prod. The webhook Function URL and CloudFront LIFF endpoint are untouched (immovable). 
+5. Delete `claudeExtractor.ts`, its schema test, and the v1 catalog **write** paths. The v1 catalog **table** stays (read-only) — deleted in a later cleanup stage, not here.
+
+## Stage gate checklist
+
+- [ ] `npm run eval` produces a synthetic scorecard (N≥50); baseline committed; segmentation property-count ≥90%, dedup P/R ≥90% (advisory thresholds, founder confirms).
+- [ ] Batch path completes a real staging sweep; cost log shows batch (50%) pricing + ≥1 confirmed cache hit (`cache_read_input_tokens>0`).
+- [ ] Integration test: sweep → pipeline → Postgres round-trip (DynamoDB Local + Postgres) green.
+- [ ] FIELD-03 hard-block, COPY-05 badge, COPY-12 emoji strip, FIELD-11 no-re-judge each have a passing case.
+- [ ] DF-6 loop: gate emits structured missing/weak list; bot DM iterates to pass (demoed).
+- [ ] No surviving import of `claudeExtractor.ts`; v1 catalog table is read-only.
+- [ ] High-effort full-diff review; hexagonal conformance (no adapter imports in pipeline core); docs/CLAUDE.md updated (drop the 16-union rule once the old extractor is gone).
+
+## Risks
+
+- **Batch latency** (≤1h, 24h worst case) — mitigated by D2.4 copy; sync path unaffected.
+- **Cache below minimum** — pad each step prefix past 4096 (Haiku/Opus) / 2048 (Sonnet); verify with `cache_read_input_tokens`, don't assume.
+- **Dedup false-merge** — defaults-to-new on any verify failure; synthetic pairs gate precision.
+- **Synthetic-only evals miss real-world distribution** — accepted (founder); Tier A slot mitigates later at zero cost now.
+- **Postgres + DynamoDB dual-write window** — none: catalog writes go *only* to Postgres post-flip; DynamoDB is plumbing-only. No dual-write to reconcile.
 
 ## Iteration log
 
 | Date | What changed | Why |
 |---|---|---|
-| (empty — filled during flesh-out and build) |
+| 2026-06-12 | Skeleton → fleshed spec | All open questions resolved per founder rulings (synthetic-first evals, DF-6 loop, hybrid batch, deploy-over-stack cutover, 2 image sizes, enum hard-blocks, th↔en translate). Built unattended; pending founder approval. |

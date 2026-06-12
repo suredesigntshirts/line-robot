@@ -1,0 +1,70 @@
+---
+Source: https://node-postgres.com/features/ssl
+Generated: 2026-06-12
+Updated: 2026-06-12
+---
+
+---
+title: SSL
+slug: /features/ssl
+---
+
+node-postgres supports TLS/SSL connections to your PostgreSQL server as long as the server is configured to support it. When instantiating a pool or a client you can provide an `ssl` property on the config object and it will be passed to the constructor for the [node TLSSocket](https://nodejs.org/api/tls.html#tls_class_tls_tlssocket).
+
+## Self-signed cert
+
+Here's an example of a configuration you can use to connect a client or a pool to a PostgreSQL server.
+
+```js
+const config = {
+  database: 'database-name',
+  host: 'host-or-ip',
+  // this object will be passed to the TLSSocket constructor
+  ssl: {
+    ca: fs.readFileSync('/path/to/server-certificates/root.crt'),
+    key: fs.readFileSync('/path/to/client-key/postgresql.key'),
+    cert: fs.readFileSync('/path/to/client-certificates/postgresql.crt'),
+  },
+}
+
+import { Client, Pool } from 'pg'
+
+const client = new Client(config)
+await client.connect()
+console.log('connected')
+await client.end()
+
+const pool = new Pool(config)
+const pooledClient = await pool.connect()
+console.log('connected')
+pooledClient.release()
+await pool.end()
+```
+
+## Usage with `connectionString`
+
+If you plan to use a combination of a database connection string from the environment and SSL settings in the config object directly, then you must avoid including any of `sslcert`, `sslkey`, `sslrootcert`, or `sslmode` in the connection string. If any of these options are used then the `ssl` object is replaced and any additional options provided there will be lost.
+
+```js
+const config = {
+  connectionString: 'postgres://user:password@host:port/db?sslmode=require',
+  // Beware! The ssl object is overwritten when parsing the connectionString
+  ssl: {
+    ca: fs.readFileSync('/path/to/server-certificates/root.crt'),
+  },
+}
+```
+
+## Channel binding
+
+If the PostgreSQL server offers SCRAM-SHA-256-PLUS (i.e. channel binding) for TLS/SSL connections, you can enable this as follows:
+
+```js
+const client = new Client({ ...config, enableChannelBinding: true})
+```
+
+or
+
+```js
+const pool = new Pool({ ...config, enableChannelBinding: true})
+```
