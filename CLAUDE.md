@@ -4,7 +4,9 @@ Project-specific guidance for Claude. (The global `~/.claude/CLAUDE.md` also app
 
 ## Browser automation — always run headed, as a real user
 
-When capturing or auditing external websites (playwright-cli or any browser tooling): **always run HEADED (not headless) with a current standard Chrome user-agent, realistic viewport, locale `th-TH` / timezone Asia/Bangkok for Thai sites, and human pacing** (load homepage, wait, then navigate deeper). We are on a residential IP; headless mode + bot UA is what gets blocked — headed-as-real-user got us past walls (DDproperty et al.) that hard-blocked headless runs. Never attempt to solve CAPTCHAs; screenshot the challenge as evidence and move on.
+When capturing or auditing external websites (playwright-cli or any browser tooling): **always run HEADED (not headless) with a current standard Chrome user-agent, realistic viewport, locale `th-TH` / timezone Asia/Bangkok for Thai sites, and human pacing** (load homepage, wait, then navigate deeper). We are on a residential IP; headless mode + bot UA is what gets blocked — headed-as-real-user got us past walls (DDproperty et al.) that hard-blocked headless runs. Never attempt to solve CAPTCHAs yourself; for hard walls (Cloudflare JS challenge, DataDome) open the page headed and ask the user to clear it — it takes them seconds.
+
+**Reusable cleared session:** `playwright-cli -s=manual … --persistent` has a persistent Chrome profile with founder-cleared Cloudflare (ddproperty.com) + DataDome (idealista.com) cookies; saved state also at `.playwright-cli/clearance-state.json` (gitignored — NEVER commit cookies). Reuse via `-s=manual` or `state-load` before re-asking the founder. Headed flag: `playwright-cli open <url> --browser=chrome --persistent --headed`. Gotchas: `mousewheel` may not scroll (use `eval` `window.scrollTo`); the CLI's echoed Page Title can be stale after `goto` — verify with `eval document.title`.
 
 ## V2 rebuild — plan & product research
 
