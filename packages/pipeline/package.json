@@ -10,5 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "eval": "node src/eval/runner.ts"
+  },
+  "dependencies": {
+    "@line-robot/domain": "*"
   }
 }
