@@ -219,6 +219,8 @@ export const listings = pgTable("listing", {
   saleStage: saleStagePg("sale_stage"), // sale only (DF-4)
   rentalStatus: rentalStatusPg("rental_status"), // rent only
   titleDeedType: titleDeedTypePg("title_deed_type").notNull().default("unknown"), // FIELD-02
+  // From chanote OCR (stage-2); the strongest dedup key (D2.6 deed-exact).
+  deedNo: text("deed_no"),
   tenure: tenurePg("tenure"),
   leaseYears: integer("lease_years"), // DEAL-12/FIELD-03
   propertyType: propertyTypePg("property_type").notNull(),

@@ -7,6 +7,7 @@ import {
   listingMedia,
   listingRental,
   listings,
+  moderationItems,
   priceHistory,
 } from "../schema.js";
 
@@ -81,6 +82,48 @@ export async function findListingsNear(
     .where(
       sql`ST_DWithin(${listings.geom}, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, ${radiusM})`,
     );
+}
+
+/** Dedup block pool row (stage-2 D2.6): coordinates unpacked from PostGIS. */
+export interface DedupPoolRow {
+  id: string;
+  deedNo: string | null;
+  lat: number | null;
+  lon: number | null;
+  landmark: string | null;
+  tambon: string | null;
+  amphoe: string | null;
+  province: string | null;
+  propertyType: string;
+  priceThb: number | null;
+}
+
+export async function listDedupPool(db: Db, limit = 500): Promise<DedupPoolRow[]> {
+  return db
+    .select({
+      id: listings.id,
+      deedNo: listings.deedNo,
+      lat: sql<number | null>`ST_Y(${listings.geom}::geometry)`,
+      lon: sql<number | null>`ST_X(${listings.geom}::geometry)`,
+      landmark: listings.landmark,
+      tambon: listings.tambon,
+      amphoe: listings.amphoe,
+      province: listings.province,
+      propertyType: listings.propertyType,
+      priceThb: listings.priceThb,
+    })
+    .from(listings)
+    .limit(limit);
+}
+
+/** D11: queue a target for human review. */
+export async function createModerationItem(
+  db: Db,
+  targetType: "listing" | "merge_request",
+  targetId: string,
+  reason: string,
+): Promise<void> {
+  await db.insert(moderationItems).values({ targetType, targetId, reason });
 }
 
 /** Price change with audit trail (price_history). */
