@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!docs", "!**/dist", "!**/coverage", "!.claude"]
+    "includes": ["**", "!docs", "!spikes", "!**/dist", "!**/coverage", "!.claude"]
   },
   "formatter": {
     "enabled": true,

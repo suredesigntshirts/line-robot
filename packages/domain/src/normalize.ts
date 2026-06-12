@@ -8,7 +8,7 @@
  */
 export function stripEmoji(text: string): string {
   return text
-    .replace(/[\p{Extended_Pictographic}\p{Emoji_Presentation}️‍]/gu, "")
+    .replace(/\p{Extended_Pictographic}|\p{Emoji_Presentation}|\u{FE0F}|\u{200D}/gu, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -27,6 +27,9 @@ const URGENCY_PHRASES = /(?:ขายด่วน|ด่วนมาก|ด่�
 export function extractUrgencyBadge(title: string): { title: string; urgentBadge: boolean } {
   const urgentBadge = URGENCY_PHRASES.test(title);
   URGENCY_PHRASES.lastIndex = 0;
-  const cleaned = title.replace(URGENCY_PHRASES, "").replace(/\s{2,}/g, " ").trim();
+  const cleaned = title
+    .replace(URGENCY_PHRASES, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
   return { title: cleaned, urgentBadge };
 }
