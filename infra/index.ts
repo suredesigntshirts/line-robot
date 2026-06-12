@@ -42,4 +42,3 @@ export const miniAppSiteBucket = siteBucket.bucket;
 // Stage 1 (plan 19): the v2 Postgres catalog store.
 export const dbEndpoint = database.db.endpoint;
 export const dbConnectionString = database.connectionString; // secret
-
