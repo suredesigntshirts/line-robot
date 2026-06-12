@@ -351,3 +351,18 @@
 - docs/pulumi.com/registry/packages/aws/api-docs/sqs/redriveallowpolicy.md: Pulumi AWS — aws.sqs.RedriveAllowPolicy
 - docs/pulumi.com/registry/packages/aws/api-docs/sns/topic.md: Pulumi AWS — aws.sns.Topic
 - docs/pulumi.com/registry/packages/aws/api-docs/sns/topicsubscription.md: Pulumi AWS — aws.sns.TopicSubscription
+
+## docs.astro.build
+
+- docs/docs.astro.build/en/concepts/islands.md: Astro — A brief history
+- docs/docs.astro.build/en/guides/server-islands.md: Astro — Server island components
+- docs/docs.astro.build/en/guides/internationalization.md: Astro — Routing Logic
+
+## tailwindcss.com
+
+- docs/tailwindcss.com/docs/theme.md: Theme variables
+
+## ui.shadcn.com
+
+- docs/ui.shadcn.com/docs/installation/astro.md: shadcn/ui — Use shadcn/create
+- docs/docs.astro.build/en/guides/view-transitions.md: Astro — Differences between browser-native view transitions and Astro's `<ClientRouter />`
