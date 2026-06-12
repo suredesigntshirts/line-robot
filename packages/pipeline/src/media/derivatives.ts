@@ -26,7 +26,11 @@ export function derivativeKey(
   return `derivatives/${propertyId}/${photoId}-${kind}.jpg`;
 }
 
-async function downscale(original: Uint8Array, longEdge: number, quality: number): Promise<Uint8Array> {
+async function downscale(
+  original: Uint8Array,
+  longEdge: number,
+  quality: number,
+): Promise<Uint8Array> {
   return sharp(original)
     .rotate() // honor EXIF orientation before resizing
     .resize(longEdge, longEdge, { fit: "inside", withoutEnlargement: true })

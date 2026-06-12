@@ -95,6 +95,8 @@ export interface ExtractedListing {
   landRai: number | null;
   landNgan: number | null;
   landWah: number | null;
+  /** Computed from the rai/ngan/wah triple (FIELD-01), not extracted. */
+  landSqm: number | null;
   floorAreaSqm: number | null;
   bedrooms: number | null;
   bathrooms: number | null;
@@ -144,4 +146,4 @@ export interface GateInput {
   listingType: DealType;
 }
 
-export type { GateResult, WeakField, Blocker } from "@line-robot/domain";
+export type { Blocker, GateResult, WeakField } from "@line-robot/domain";

@@ -36,13 +36,7 @@ export interface StepLlm {
   run<S extends z.ZodType>(request: StepLlmRequest<S>): Promise<StepLlmResponse<z.infer<S>>>;
 }
 
-export type PipelineStepName =
-  | "classify"
-  | "segment"
-  | "extract"
-  | "dedup"
-  | "translate"
-  | "gate";
+export type PipelineStepName = "classify" | "segment" | "extract" | "dedup" | "translate" | "gate";
 
 /** S3 seam for derivatives (Q-SA3: extends the v1 raw archive's media duties). */
 export interface MediaStore {

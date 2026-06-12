@@ -40,12 +40,7 @@ export function estimateCostUsd(model: string, usage: LlmUsage, mode: TransportM
 export class CostLog {
   private readonly entries: CostEntry[] = [];
 
-  record(
-    step: PipelineStepName,
-    model: string,
-    usage: LlmUsage,
-    mode: TransportMode,
-  ): CostEntry {
+  record(step: PipelineStepName, model: string, usage: LlmUsage, mode: TransportMode): CostEntry {
     const entry: CostEntry = {
       step,
       model,
