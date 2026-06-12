@@ -1,0 +1,90 @@
+# Stage 4 — Public Website
+
+**Spec status: SKELETON.** This document is fleshed into a full spec, iterated with the user, and approved before any code for this stage is written. (Lifecycle: skeleton → fleshed spec → user approval → build with increment reviews → stage gate → retro.)
+
+## Purpose
+
+Delivers the first public-facing product milestone: an SEO-optimized Astro 6 SSR website on AWS Lambda + CloudFront where anonymous users can browse and search public listings, authenticated users can save and submit listings, and the platform is discoverable via search engines. This is the stage that makes the marketplace real to the public and to search engines — none of the prior stages were user-visible. Corresponds to master plan §2 points 3–4, D3, D5, D12, D14, D19, D20.
+
+## Scope
+
+**In:**
+- `packages/website` — Astro 6 SSR using the AWS Lambda adapter; deployed behind CloudFront
+- Browse page: paginated listing grid, filter/facet sidebar (using Stage 3 components)
+- Search: Postgres FTS (full-text search) + PostGIS radius/bbox search; no OpenSearch
+- Listing detail page: full field set, image gallery, map, contact/interest CTA
+- SEO: `<meta>` tags, Open Graph, JSON-LD structured data (RealEstateListing schema), XML sitemaps, canonical URLs, Thai + English (hreflang)
+- LINE Login authentication (primary — LIFF token not applicable here; use LINE Login web flow)
+- Email/Google OAuth authentication (secondary auth methods)
+- Account-linking UX: link a LINE identity to an email/Google account (schema landed in Stage 1; UX built here)
+- Owner submission form: structured web form → pipeline extract → confirm in mini-app or on-site (D12 "both" path)
+- Domain registration, Route 53 hosted zone, ACM certificate (manual step; blocks LINE Login config and public launch)
+- Pulumi resources: Lambda@Edge or Lambda function URL for SSR, CloudFront distribution, Route 53 records, ACM cert
+
+**Out (explicitly):**
+- LIFF / mini-app surfaces (Stage 5)
+- Group exclusivity or admin vetting screens (Stage 6)
+- AVM price estimates on listing detail (Stage 7 — placeholder UI acceptable, showing "estimate coming soon")
+- Claim/publish opt-in flow (Stage 5 — the website detail page can show a listing but claim is mini-app)
+- LINE Login for the mini-app (Stage 5 — LIFF always uses LIFF token; website LINE Login is a different flow)
+
+## Key deliverables
+
+1. `packages/website` Astro 6 SSR project, monorepo-integrated, deploying via Pulumi
+2. Browse page with filter/facet UI and pagination
+3. Postgres FTS + PostGIS search endpoint (via `packages/api` or direct SSR server functions)
+4. Listing detail page (SEO-optimized, structured data)
+5. XML sitemap generation (auto-updating from Postgres)
+6. LINE Login web OAuth flow (access token → user session → account record in Postgres)
+7. Email + Google OAuth flow
+8. Account-linking flow (LINE ↔ email/Google)
+9. Owner submission form (Step 1 of D12 web path; hands off to pipeline)
+10. Domain registered; Route 53 + ACM wired via Pulumi; LINE Login redirect URI configured in LINE console
+11. CloudFront distribution with appropriate cache rules (static assets long-TTL; SSR pages short/no-cache or ISR)
+
+## Dependencies
+
+- Stage 1 must be complete: Postgres schema + `packages/db` required
+- Stage 2 must be complete: listings must exist in Postgres (pipeline writes them); an empty DB makes the website meaningless
+- Stage 3 must be complete: all browse/detail UI components come from `packages/ui`
+- **Domain name must be decided** (D19 — TBD) before LINE Login redirect URIs can be registered and before public launch; this is the known late-stage manual blocker (master plan §8)
+- LINE console: LINE Login channel configuration (redirect URI, consent screen) — manual step, requires domain
+- AWS: ACM certificate validation (DNS validation via Route 53, can be partially automated via Pulumi)
+
+## Acceptance criteria (sketch)
+
+- Anonymous user can browse listings, filter by property type/price/location, and view listing detail on the public domain
+- Google "Rich Results Test" returns valid RealEstateListing structured data on listing detail pages
+- Sitemap URL returns valid XML; at least one listing URL is present
+- LINE Login: tapping "Sign in with LINE" on the website completes the OAuth flow and creates/links a user record in Postgres
+- Email/Google OAuth: same flow, same outcome
+- Account-linking: a user signed in via LINE can link an email address; subsequent email login recognizes the same user record
+- Owner submission form: submitting a listing routes it into the extraction pipeline; user receives confirmation
+- Lighthouse performance score ≥ 85 on listing detail page (mobile, on a seeded dataset)
+- Thai and English pages both render correctly; hreflang tags are present and point to each other
+- Stage gate Playwright smoke: browse → filter → listing detail → LINE Login → save listing (happy path, Thai + English)
+
+## Open questions (resolve when fleshing this spec)
+
+- **Domain name** (D19): must be decided before this stage is fully fleshed; nothing in the spec can be finalized without it (LINE Login redirect URI, ACM, CloudFront alias, sitemap domain)
+- **Session model**: cookie-based session (JWT in httpOnly cookie), server-side session store (Postgres sessions table), or a third-party session library? Must be compatible with Astro SSR on Lambda
+- ~~**Astro adapter specifics**~~ **RESOLVED by spike (DF-2, 2026-06-12)**: hand-rolled ~140-line Lambda shim over the official `@astrojs/node` adapter, deployed via our own Pulumi — no SST, no third-party deploy coupling. Working reference code + gotchas in `spikes/astro-ssr-pulumi/FINDINGS.md`. Two hard constraints for this stage: (a) CloudFront MUST front the Lambda — an account guardrail blocks public Function URLs (403 at edge); (b) esbuild output layout must be `dist-lambda/server/index.mjs` with a sibling `client/` dir (the Node adapter walks up from `import.meta.url` for a `server/` segment)
+- **Listing-detail URL scheme for SEO**: `/properties/{slug}` (slug from listing title), `/listings/{id}` (stable but opaque), or a hybrid? Choice affects sitemap, structured data, and LINE share link compatibility
+- **Postgres FTS language config**: Thai text requires a custom dictionary or a trigram-based approach (`pg_trgm`) since the built-in Thai stemmer is limited — confirm approach during flesh-out
+- **Owner submission form handoff**: after the form submits, does the pipeline run synchronously (user waits, <30s) or async (user gets a "processing" confirmation)? Sync is better UX; async is safer under load
+- **Google OAuth application verification**: public Google OAuth requires verification if the app requests sensitive scopes; confirm what scopes are needed and whether the unverified state blocks MVP
+
+## Review process
+
+Standard cadence per master plan §5.3: every increment → spec auditor + correctness reviewer + simplicity critic (fresh-context sub-agents, skeptic-verified findings); stage gate → high-effort full-diff review, architecture conformance, eval scorecard check (advisory), Playwright smoke (if user-facing), docs updated.
+
+Stage-4-specific review notes:
+- Playwright smoke covers the full browse → filter → detail → sign-in → save-listing flow in both Thai and English; any broken flow at the stage gate blocks sign-off
+- The spec auditor pays special attention to auth: verify that account-linking cannot accidentally merge two distinct users; session fixation and CSRF protections are present
+- The correctness reviewer checks SEO completeness: every listing detail page must have canonical, OG, and JSON-LD; any missing tag is a defect; sitemap must include all active public listings
+
+## Iteration log
+
+| Date | What changed | Why |
+|---|---|---|
+| 2026-06-12 | Adapter question resolved pre-flesh-out: Pulumi-wired `@astrojs/node` + hand-rolled Lambda shim (spike-proven); CloudFront-fronting now a hard constraint | DF-2 spike verdict (spikes/astro-ssr-pulumi/FINDINGS.md) |
