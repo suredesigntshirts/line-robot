@@ -1,6 +1,10 @@
 # Stage 4 — Public Website
 
-**Spec status: SKELETON.** This document is fleshed into a full spec, iterated with the user, and approved before any code for this stage is written. (Lifecycle: skeleton → fleshed spec → user approval → build with increment reviews → stage gate → retro.)
+**Spec status: FLESHED (sprint-01 extension, 2026-06-13).** Approval basis: the founder's live
+sprint-extension ruling ("work on the other stages until 8:30am … I approve this", charter
+§Sprint extension). Open questions are resolved below with **defensible defaults** — every one is
+cheap to reverse and is flagged for founder review in the morning. Items needing founder action
+(domain D19, LINE console, OAuth verification, deploy) are parked, not guessed.
 
 ## Purpose
 
@@ -64,15 +68,36 @@ Delivers the first public-facing product milestone: an SEO-optimized Astro 6 SSR
 - Thai and English pages both render correctly; hreflang tags are present and point to each other
 - Stage gate Playwright smoke: browse → filter → listing detail → LINE Login → save listing (happy path, Thai + English)
 
-## Open questions (resolve when fleshing this spec)
+## Open questions — RESOLVED (sprint-01 extension defaults; founder review in the morning)
 
-- **Domain name** (D19): must be decided before this stage is fully fleshed; nothing in the spec can be finalized without it (LINE Login redirect URI, ACM, CloudFront alias, sitemap domain)
-- **Session model**: cookie-based session (JWT in httpOnly cookie), server-side session store (Postgres sessions table), or a third-party session library? Must be compatible with Astro SSR on Lambda
+- **Domain name** (D19): **STAYS PARKED — founder decision.** The build is domain-agnostic behind
+  one config value (`siteUrl`, Pulumi config; defaults to the CloudFront domain). Everything that
+  hard-requires the domain (LINE Login redirect URI, ACM cert, CloudFront alias, public sitemap
+  URL) is coded to read the config and listed as founder console/registration steps.
+- **Session model → stateless signed cookie** (HMAC-signed payload `{userId, exp}` in an
+  httpOnly/Secure/SameSite=Lax cookie; secret = Pulumi config secret). Rationale: Lambda SSR has
+  no sticky state; a Postgres sessions table costs a DB round-trip per request and is a table only
+  this feature reads (anti-over-eng rule 4); revocation isn't needed until an admin-ban flow
+  exists (noted as the trigger to revisit). No third-party session lib (rule 5).
 - ~~**Astro adapter specifics**~~ **RESOLVED by spike (DF-2, 2026-06-12)**: hand-rolled ~140-line Lambda shim over the official `@astrojs/node` adapter, deployed via our own Pulumi — no SST, no third-party deploy coupling. Working reference code + gotchas in `spikes/astro-ssr-pulumi/FINDINGS.md`. Two hard constraints for this stage: (a) CloudFront MUST front the Lambda — an account guardrail blocks public Function URLs (403 at edge); (b) esbuild output layout must be `dist-lambda/server/index.mjs` with a sibling `client/` dir (the Node adapter walks up from `import.meta.url` for a `server/` segment)
-- **Listing-detail URL scheme for SEO**: `/properties/{slug}` (slug from listing title), `/listings/{id}` (stable but opaque), or a hybrid? Choice affects sitemap, structured data, and LINE share link compatibility
-- **Postgres FTS language config**: Thai text requires a custom dictionary or a trigram-based approach (`pg_trgm`) since the built-in Thai stemmer is limited — confirm approach during flesh-out
-- **Owner submission form handoff**: after the form submits, does the pipeline run synchronously (user waits, <30s) or async (user gets a "processing" confirmation)? Sync is better UX; async is safer under load
-- **Google OAuth application verification**: public Google OAuth requires verification if the app requests sensitive scopes; confirm what scopes are needed and whether the unverified state blocks MVP
+- **URL scheme → `/properties/{id}`** (stable opaque id; canonical). Matches the plan-17 LINE deep
+  links and keeps sitemap/share/dedup trivial. Keyword slugs in the URL are a marginal SEO factor
+  vs title/JSON-LD; revisit with real search-console data. A trailing slug segment, if ever added,
+  301s to canonical.
+- **Thai search → `pg_trgm` trigram matching** on title+description (GIN index), combined with the
+  structured filters (type/price/province) that do most of the discriminating work, + PostGIS
+  radius/bbox. No custom Thai dictionary tonight — the trigram approach is already proven in this
+  repo by the dedup blocker (D2.6). Proper Thai FTS (e.g. a tokenizing dictionary) is a measured
+  follow-up if trigram relevance disappoints on real data.
+- **Submission handoff → async.** Form submit writes a pending submission + returns a "processing"
+  confirmation; the pipeline picks it up on its existing sweep cadence (≤2 min). Sync would make
+  the user wait through a 30s–2min LLM pipeline inside one Lambda invocation — bad UX and a
+  timeout risk. The confirmation page auto-refreshes its status row.
+- **Auth tonight → LINE Login web flow only, code-complete behind config** (channel id/secret =
+  Pulumi config; redirect URI = `{siteUrl}/auth/line/callback`). **Email/Google OAuth parked** —
+  Google requires app verification review (founder-owned, multi-day); building a second provider
+  before the first is configured violates rule 1's spirit. The account-linking schema from Stage 1
+  is consumed by LINE Login user creation; the linking UX ships with the second provider.
 
 ## Review process
 
@@ -83,8 +108,30 @@ Stage-4-specific review notes:
 - The spec auditor pays special attention to auth: verify that account-linking cannot accidentally merge two distinct users; session fixation and CSRF protections are present
 - The correctness reviewer checks SEO completeness: every listing detail page must have canonical, OG, and JSON-LD; any missing tag is a defect; sitemap must include all active public listings
 
+## Build order (sprint-01 extension — unattended increments)
+
+Each increment panel-reviewed and committed separately; `main` stays shippable after each. Deploy
+is founder-gated, so infra lands as code + `pulumi preview` evidence only.
+
+1. **S4-I1 scaffold**: `packages/website` (Astro 6 SSR, node adapter middleware mode, Lambda shim +
+   bundler copied from the spike, in-process test harness proving per-request SSR).
+2. **S4-I2 browse**: paginated grid + filters (Stage 3 components), reads via `packages/db`
+   repositories, th/en locales.
+3. **S4-I3 detail + SEO**: full field set, JSON-LD RealEstateListing, OG, canonical, hreflang.
+4. **S4-I4 search**: trigram + structured filters + PostGIS radius in `packages/db` repo fn.
+5. **S4-I5 sitemap**: XML from Postgres, `siteUrl`-relative.
+6. **S4-I6 infra**: CloudFront + S3 assets + SSR Lambda (mirrors `infra/src/miniapp.ts`), preview
+   only.
+7. **S4-I7 (stretch) LINE Login**: web OAuth flow + signed-cookie session + saved listings.
+8. **S4-I8 (stretch) submission form**: async handoff into the pipeline.
+
+Parked for founder: domain (D19) + ACM + Route 53; LINE Login console config; Google OAuth
+verification; `pulumi up`; Lighthouse/Playwright runs against the live domain (local Playwright
+smoke still runs at the gate).
+
 ## Iteration log
 
 | Date | What changed | Why |
 |---|---|---|
 | 2026-06-12 | Adapter question resolved pre-flesh-out: Pulumi-wired `@astrojs/node` + hand-rolled Lambda shim (spike-proven); CloudFront-fronting now a hard constraint | DF-2 spike verdict (spikes/astro-ssr-pulumi/FINDINGS.md) |
+| 2026-06-13 | SKELETON→FLESHED under the sprint-01 extension; defaults: signed-cookie session, `/properties/{id}` URLs, pg_trgm Thai search, async submission, LINE-Login-only auth; email/Google + domain-dependent items parked | Founder approved working Stage 4 unattended ("I approve this. Commit it to plans"); defaults chosen to be cheap to reverse and are flagged for morning review |

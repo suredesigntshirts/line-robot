@@ -65,7 +65,11 @@ ruling is lifted for the remainder of the night. Extension scope, in priority or
    console config, Google OAuth verification, the deploy itself.
 3. **Flip de-riskers interleaved** (background-friendly): Message Batches live acceptance,
    sharp-on-Lambda packaging, translate/gate eval coverage, Q-SA1 SQS timeout algebra.
-4. Stages 5–7 remain out of reach tonight; not started.
+4. **Keep cascading until time is up** (founder, ~02:50: "If stage 4 finishes, we need to start
+   other work, and keep doing that until time is finished"): if Stage 4's buildable scope
+   completes, continue into the next non-founder-gated work in this order — remaining flip
+   de-riskers, then Stage 5 (mini-app rebuild) flesh + buildable increments under the same
+   defensible-defaults rule. No idling before 7:45 except for the usage protocol.
 
 Same quality loop applies (increment panels, alignment review on design-bearing increments, stage
 gate if Stage 4 completes — it likely won't; partial work is committed increment-by-increment, each
