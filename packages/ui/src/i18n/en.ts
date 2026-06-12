@@ -47,4 +47,16 @@ export const en: Record<keyof typeof th, string> = {
   "home.title": "Property Listings",
   "home.description": "Browse houses, land and condos directly from owners",
   "home.preparing": "Listing grid coming online",
+  "filter.dealType": "Buy/Rent",
+  "filter.propertyType": "Property type",
+  "pager.prev": "Previous",
+  "pager.next": "Next",
+  "pager.count": "Listings: {total}",
+
+  "ptype.land": "Land",
+  "ptype.house": "House",
+  "ptype.townhouse": "Townhouse",
+  "ptype.condo": "Condo",
+  "ptype.commercial": "Commercial",
+  "ptype.other": "Other",
 };

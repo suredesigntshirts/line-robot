@@ -45,7 +45,9 @@ function scoreCase(expectedProps: Array<Record<string, unknown>>, extracted: Ext
     [...items].sort((a, b) => price(a) - price(b));
   // pairingPriceThb is never nulled (scored priceThb is, when a drifted repost makes the
   // price ambiguous) — sorting by it keeps pairing stable in multi-spec dup cases.
-  const sortedExpected = byPrice(expectedProps, (p) => Number(p.pairingPriceThb ?? p.priceThb ?? 0));
+  const sortedExpected = byPrice(expectedProps, (p) =>
+    Number(p.pairingPriceThb ?? p.priceThb ?? 0),
+  );
   const sortedExtracted = byPrice(extracted, (l) => l.priceThb ?? 0);
 
   sortedExpected.forEach((expected, i) => {

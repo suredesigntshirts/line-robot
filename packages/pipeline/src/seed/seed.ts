@@ -6,6 +6,7 @@ import {
   createUserWithIdentity,
   type Db,
   ewktPoint,
+  grantPublishConsent,
 } from "@line-robot/db";
 import { isSaleBlockedByDeed, landToSqm, type RoleKind } from "@line-robot/domain";
 import type { ListingSpec } from "../synthetic/spec.ts";
@@ -87,7 +88,7 @@ export async function seed(db: Db, ingestors: SeedIngestor[]): Promise<SeedSumma
 
     const isRent = spec.dealType === "rent";
     const hasGeom = spec.lat !== 0 || spec.lon !== 0;
-    await createListing(db, {
+    const created = await createListing(db, {
       listing: {
         ownerUserId: ownerId,
         // A listing's source group is one its owner is actually a member of.
@@ -128,6 +129,12 @@ export async function seed(db: Db, ingestors: SeedIngestor[]): Promise<SeedSumma
       rental: isRent ? { monthlyRent: spec.priceThb, utilityRateType: "unknown" } : undefined,
       amenities: spec.amenities,
     });
+    // Publish opt-in (LEGAL-02/D5): two of every three seeded listings consent, so the
+    // public site has data while the consent gate stays visibly exercised. Never consent
+    // a deed-blocked sale (FIELD-03) — those sit in moderation, not on the public site.
+    if (!blocked && listings % 3 !== 2) {
+      await grantPublishConsent(db, created.id, ownerId, "seed-v1");
+    }
     listings += 1;
   }
 

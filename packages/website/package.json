@@ -7,11 +7,15 @@
     "dev": "astro dev",
     "build": "astro build && node build-lambda.mjs",
     "typecheck": "astro check",
-    "test:ssr": "npm run build && node test/ssr.smoke.mjs"
+    "test": "vitest run",
+    "test:ssr": "npm run build && node test/ssr.smoke.mjs",
+    "test:browse": "npm run build && node test/browse.smoke.mjs"
   },
   "dependencies": {
     "@astrojs/node": "10.1.4",
     "@astrojs/react": "^5.0.7",
+    "@line-robot/db": "*",
+    "@line-robot/domain": "*",
     "@line-robot/ui": "*",
     "astro": "6.4.6",
     "react": "^19.0.0",

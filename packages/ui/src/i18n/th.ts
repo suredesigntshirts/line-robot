@@ -56,6 +56,19 @@ export const th = {
   "home.title": "ประกาศอสังหาริมทรัพย์",
   "home.description": "ค้นหาบ้าน ที่ดิน คอนโด จากเจ้าของโดยตรง",
   "home.preparing": "กำลังเตรียมรายการประกาศ",
+  "filter.dealType": "ซื้อ/เช่า",
+  "filter.propertyType": "ประเภททรัพย์",
+  "pager.prev": "ก่อนหน้า",
+  "pager.next": "ถัดไป",
+  "pager.count": "{total} ประกาศ",
+
+  // Property types (FIELD-level vocabulary, used by filters + cards)
+  "ptype.land": "ที่ดิน",
+  "ptype.house": "บ้านเดี่ยว",
+  "ptype.townhouse": "ทาวน์เฮาส์",
+  "ptype.condo": "คอนโด",
+  "ptype.commercial": "อาคารพาณิชย์",
+  "ptype.other": "อื่นๆ",
 } as const;
 
 export type MessageKey = keyof typeof th;

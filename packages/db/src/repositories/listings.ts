@@ -1,5 +1,5 @@
-import type { Listing } from "@line-robot/domain";
-import { eq, sql } from "drizzle-orm";
+import type { DealType, Listing, PropertyType } from "@line-robot/domain";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
 import {
   listingAmenities,
@@ -10,6 +10,7 @@ import {
   listings,
   moderationItems,
   priceHistory,
+  publishConsents,
 } from "../schema.ts";
 
 export type NewListing = typeof listings.$inferInsert;
@@ -147,4 +148,89 @@ export async function changePrice(
       .where(eq(listings.id, listingId));
     await tx.insert(priceHistory).values({ listingId, priceThb, reason });
   });
+}
+
+/** LEGAL-02: a listing is publicly visible ONLY while a consent row exists without a deletion request. */
+export async function grantPublishConsent(
+  db: Db,
+  listingId: string,
+  userId: string,
+  consentVersion: string,
+): Promise<void> {
+  await db.insert(publishConsents).values({
+    listingId,
+    userId,
+    consentVersion,
+    consentTimestamp: sql`now()`,
+  });
+}
+
+export interface PublicSearch {
+  lang: "th" | "en";
+  dealType?: DealType;
+  propertyType?: PropertyType;
+  province?: string;
+  /** 1-based. */
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PublicCardRow {
+  listing: ListingRow;
+  /** Requested-lang headline, th fallback (en content may not exist yet). */
+  headline: string;
+  photoCount: number;
+  monthlyRent: number | null;
+}
+
+const publiclyVisible = sql`exists (
+  select 1 from ${publishConsents} pc
+  where pc.listing_id = ${listings.id} and pc.deletion_requested_at is null
+)`;
+
+/** Browse/search for the public website: consented listings only (LEGAL-02), newest first. */
+export async function searchPublicListings(
+  db: Db,
+  q: PublicSearch,
+): Promise<{ rows: PublicCardRow[]; total: number; page: number }> {
+  const conditions = [publiclyVisible];
+  if (q.dealType) conditions.push(eq(listings.dealType, q.dealType));
+  if (q.propertyType) conditions.push(eq(listings.propertyType, q.propertyType));
+  if (q.province) conditions.push(eq(listings.province, q.province));
+  const where = and(...conditions);
+
+  const pageSize = q.pageSize ?? 24;
+
+  const [counted] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(listings)
+    .where(where);
+  const total = counted?.total ?? 0;
+  // Clamp out-of-range deep links to the last real page instead of a dead-end empty page.
+  const lastPage = Math.max(Math.ceil(total / pageSize), 1);
+  const page = Math.min(Math.max(q.page ?? 1, 1), lastPage);
+  const offset = (page - 1) * pageSize;
+
+  const rows = await db
+    .select({
+      listing: listings,
+      // NOTE: outer correlation is written as "listing".id literally — drizzle renders
+      // ${listings.id} UNQUALIFIED in projection subqueries, and listing_content /
+      // listing_media have their own id columns that would capture the reference.
+      headline: sql<string>`coalesce(
+        (select c.headline from ${listingContent} c where c.listing_id = "listing".id and c.lang = ${q.lang} limit 1),
+        (select c.headline from ${listingContent} c where c.listing_id = "listing".id and c.lang = 'th' limit 1),
+        '')`,
+      photoCount: sql<number>`(select count(*)::int from ${listingMedia} m where m.listing_id = "listing".id and m.kind = 'photo')`,
+      monthlyRent: sql<
+        number | null
+      >`(select r.monthly_rent::int from ${listingRental} r where r.listing_id = "listing".id)`,
+    })
+    .from(listings)
+    .where(where)
+    .orderBy(desc(listings.createdAt), desc(listings.id))
+    .limit(pageSize)
+    .offset(offset);
+
+  return { rows, total, page };
 }

@@ -13,7 +13,9 @@ import {
   findUserByIdentity,
   getContent,
   getListing,
+  grantPublishConsent,
   listListings,
+  searchPublicListings,
 } from "../../src/index.ts";
 import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.ts";
 
@@ -171,5 +173,98 @@ describe("repositories", () => {
   it("lists listings", async () => {
     const all = await listListings(db);
     expect(all.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("public search (LEGAL-02 consent gate)", () => {
+  let ownerId: string;
+  let consentedId: string;
+  let unconsentedId: string;
+  let rentId: string;
+
+  const baseListing = {
+    dealType: "sale" as const,
+    saleStage: "available" as const,
+    titleDeedType: "chanote" as const,
+    propertyType: "house" as const,
+    province: "เชียงใหม่",
+    amphoe: "เมืองเชียงใหม่",
+    tambon: "ช้างเผือก",
+  };
+
+  beforeAll(async () => {
+    const user = await createUserWithIdentity(
+      db,
+      { displayName: "public-search-owner" },
+      { provider: "line", providerSubject: "U-public-search", verifiedAt: new Date() },
+    );
+    ownerId = user.id;
+
+    const consented = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 2_000_000 },
+      content: [{ lang: "th", headline: "บ้านยินยอมเผยแพร่", description: "x", generatedBy: "human" }],
+      media: [{ s3Key: "a/1.jpg", kind: "photo" }],
+    });
+    consentedId = consented.id;
+    await grantPublishConsent(db, consentedId, ownerId, "v1");
+
+    const unconsented = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 3_000_000 },
+      content: [{ lang: "th", headline: "ห้ามเผยแพร่", description: "x", generatedBy: "human" }],
+    });
+    unconsentedId = unconsented.id;
+
+    const rent = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        dealType: "rent",
+        saleStage: null,
+        rentalStatus: "available",
+        propertyType: "condo",
+        priceThb: null,
+      },
+      content: [{ lang: "th", headline: "คอนโดให้เช่า", description: "x", generatedBy: "human" }],
+      rental: { monthlyRent: 12_000, utilityRateType: "unknown" },
+    });
+    rentId = rent.id;
+    await grantPublishConsent(db, rentId, ownerId, "v1");
+  });
+
+  it("returns only consented listings", async () => {
+    const { rows, total } = await searchPublicListings(db, { lang: "th" });
+    const ids = rows.map((r) => r.listing.id);
+    expect(ids).toContain(consentedId);
+    expect(ids).toContain(rentId);
+    expect(ids).not.toContain(unconsentedId);
+    expect(total).toBe(rows.length);
+  });
+
+  it("carries headline (th fallback), photo count and monthly rent", async () => {
+    const { rows } = await searchPublicListings(db, { lang: "en" });
+    const sale = rows.find((r) => r.listing.id === consentedId);
+    expect(sale?.headline).toBe("บ้านยินยอมเผยแพร่"); // no en row → th fallback
+    expect(sale?.photoCount).toBe(1);
+    expect(sale?.monthlyRent).toBeNull();
+    const rent = rows.find((r) => r.listing.id === rentId);
+    expect(rent?.monthlyRent).toBe(12_000);
+  });
+
+  it("filters by dealType/propertyType and paginates with a stable total", async () => {
+    const rentOnly = await searchPublicListings(db, { lang: "th", dealType: "rent" });
+    expect(rentOnly.rows.map((r) => r.listing.id)).toEqual([rentId]);
+
+    const paged = await searchPublicListings(db, { lang: "th", page: 1, pageSize: 1 });
+    expect(paged.rows).toHaveLength(1);
+    expect(paged.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it("hides a listing after a deletion request (LEGAL-10)", async () => {
+    await pool.query(
+      "UPDATE publish_consent SET deletion_requested_at = now() WHERE listing_id = $1",
+      [rentId],
+    );
+    const { rows } = await searchPublicListings(db, { lang: "th" });
+    expect(rows.map((r) => r.listing.id)).not.toContain(rentId);
   });
 });

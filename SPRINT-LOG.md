@@ -101,3 +101,17 @@ counts as "stated" (survivable chaos, titleDeedType scores 1.00); writeHead null
 cases unreachable via Astro's response path. Verification: 89 pipeline + 19 ui tests, oracle 1.00
 with baseline delta 0.00 (refactor behavior-neutral), 12/12 SSR smoke over the exact Lambda
 artifact, biome + typecheck clean.
+
+## 03:55 — S4-I2 browse SHIPPED: public site reads Postgres through the consent gate
+
+`searchPublicListings` (LEGAL-02: consent row + no deletion request = visible; LEGAL-10 tested),
+seed consents 2-of-3 (never deed-blocked sales — panel catch, FIELD-03), browse page with Stage 3
+components (ListingCard/CardGrid/SearchFilters island/EmptyState/ErrorState), th/en, pagination
+with server-side clamp (panel catch), graceful DB-less ErrorState. Drizzle gotcha worth
+remembering: `${table.col}` renders UNQUALIFIED inside projection subqueries — correlated
+subselects must write the outer reference literally (caught by the new db integration tests,
+which went red first). Verification: 12/12 db integration (4 new), 6 website unit, 13-check
+DB-less SSR smoke, 9-check Docker browse smoke against the bundled artifact, full typecheck+lint.
+Panel: 2 MAJOR (blocked-deed seeds public; unlogged deviations) + 4 MINOR — all fixed or logged in
+the stage-4 iteration table; province param kept as S4-I4 scaffolding (2 of 3 reviewers).
+Usage 03:45: 3% of 5h (window reset). Mode: normal build.

@@ -1,15 +1,41 @@
 ---
-import { Badge, createTranslator, type UiLocale } from "@line-robot/ui";
+import { getDb, type PublicCardRow, searchPublicListings } from "@line-robot/db";
+import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
+import { BrowseResults } from "../components/BrowseResults.tsx";
+import { FilterBar } from "../components/FilterBar.tsx";
 import Base from "../layouts/Base.astro";
+import { parseBrowseQuery } from "../lib/browse.ts";
 
-// S4-I1 scaffold: browse-page shell shared by the th (/) and en (/en/) routes.
-// S4-I2 replaces the body with the real listing grid + filters reading from Postgres.
+// S4-I2: the browse page — consented listings (LEGAL-02) from Postgres with
+// filters + pagination. Shared by the th (/) and en (/en/) routes.
 interface Props {
   locale: UiLocale;
 }
 const { locale } = Astro.props;
 const t = createTranslator(locale);
-const renderedAt = new Date().toISOString();
+const basePath = locale === "en" ? "/en" : "";
+const PAGE_SIZE = 24;
+
+const query = parseBrowseQuery(Astro.url.searchParams);
+let rows: PublicCardRow[] = [];
+let total = 0;
+let dbError = false;
+try {
+  const result = await searchPublicListings(getDb(), {
+    lang: locale,
+    dealType: query.dealType,
+    propertyType: query.propertyType,
+    page: query.page,
+    pageSize: PAGE_SIZE,
+  });
+  rows = result.rows;
+  total = result.total;
+  query.page = result.page; // repo clamps out-of-range deep links to the last page
+} catch (error) {
+  // Render degrades to an error state rather than a 500 (DB down / not configured).
+  console.error("browse query failed:", error);
+  dbError = true;
+}
 ---
 
 <Base
@@ -17,13 +43,27 @@ const renderedAt = new Date().toISOString();
   description={t("home.description")}
   canonicalPath={locale === "en" ? "/en/" : "/"}
 >
-  <main style="max-width: 64rem; margin: 0 auto; padding: var(--spacing-4);">
-    <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th);">
+  <main
+    data-rendered-at={new Date().toISOString()}
+    style="max-width: 72rem; margin: 0 auto; padding: var(--spacing-4); display: grid; gap: var(--spacing-4);"
+  >
+    <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th); margin: 0;">
       {t("home.title")}
     </h1>
-    <Badge kind="available">{t("badge.available")}</Badge>
-    <p data-rendered-at={renderedAt} style="color: var(--color-text-2); font-size: var(--text-sm);">
-      {t("home.preparing")} — SSR
-    </p>
+    <FilterBar client:load query={query} locale={locale} basePath={basePath} />
+    {
+      dbError ? (
+        <ErrorState t={t} />
+      ) : (
+        <BrowseResults
+          rows={rows}
+          total={total}
+          query={query}
+          pageSize={PAGE_SIZE}
+          locale={locale}
+          basePath={basePath}
+        />
+      )
+    }
   </main>
 </Base>

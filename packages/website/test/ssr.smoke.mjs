@@ -21,11 +21,15 @@ const check = (name, cond) => {
   console.log(`PASS  ${name}`);
 };
 
+// No DATABASE_URL in this smoke — the browse page must degrade to ErrorState, not 500.
+delete process.env.DATABASE_URL;
+
 const home = await handler(event("/"));
 check("GET / returns 200", home.statusCode === 200);
 check("GET / is HTML", /text\/html/.test(home.headers["content-type"] ?? ""));
 check("GET / is Thai by default", home.body.includes('lang="th"'));
-check("React component rendered (badge present)", home.body.includes("data-badge"));
+check("DB-less render degrades to ErrorState", home.body.includes('data-state="error"'));
+check("filter island rendered (React SSR)", home.body.includes("astro-island"));
 check("canonical present", home.body.includes('rel="canonical"'));
 check("hreflang pair present", home.body.includes('hreflang="en"'));
 
