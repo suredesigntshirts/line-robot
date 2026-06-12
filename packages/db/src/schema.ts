@@ -51,64 +51,44 @@ import {
 // generated from their .options so the two can never drift.
 // ---------------------------------------------------------------------------
 
-type EnumValues = [string, ...string[]];
+/**
+ * Bridge a zod enum's options to pgEnum WITHOUT widening to string — rows then
+ * infer the literal unions, which is what lets the storage row satisfy the
+ * domain `Listing` entity (compile-time drift guard in repositories/listings).
+ */
+function pgEnumFrom<T extends string>(name: string, zodEnum: { options: readonly T[] }) {
+  return pgEnum(name, zodEnum.options as [T, ...T[]]);
+}
 
-export const dealTypePg = pgEnum("deal_type", dealType.options as EnumValues);
-export const saleStagePg = pgEnum("sale_stage", saleStage.options as EnumValues);
-export const rentalStatusPg = pgEnum("rental_status", rentalStatus.options as EnumValues);
-export const titleDeedTypePg = pgEnum("title_deed_type", titleDeedType.options as EnumValues);
-export const tenurePg = pgEnum("tenure", tenure.options as EnumValues);
-export const quotaBucketPg = pgEnum("quota_bucket", quotaBucket.options as EnumValues);
-export const propertyTypePg = pgEnum("property_type", propertyType.options as EnumValues);
-export const urgencyPg = pgEnum("urgency", urgency.options as EnumValues);
-export const transactionTypePg = pgEnum("transaction_type", transactionType.options as EnumValues);
-export const roleKindPg = pgEnum("role_kind", roleKind.options as EnumValues);
-export const approvalStatusPg = pgEnum("approval_status", approvalStatus.options as EnumValues);
-export const identityProviderPg = pgEnum(
-  "identity_provider",
-  identityProvider.options as EnumValues,
-);
-export const listingMandatePg = pgEnum("listing_mandate", listingMandate.options as EnumValues);
-export const extractionSourcePg = pgEnum(
-  "extraction_source",
-  extractionSource.options as EnumValues,
-);
-export const furnishingStatusPg = pgEnum(
-  "furnishing_status",
-  furnishingStatus.options as EnumValues,
-);
-export const utilityRateTypePg = pgEnum("utility_rate_type", utilityRateType.options as EnumValues);
-export const facingDirectionPg = pgEnum("facing_direction", facingDirection.options as EnumValues);
-export const roadTypePg = pgEnum("road_type", roadType.options as EnumValues);
-export const mediaKindPg = pgEnum("media_kind", mediaKind.options as EnumValues);
-export const contentLangPg = pgEnum("content_lang", contentLang.options as EnumValues);
-export const contentGeneratedByPg = pgEnum(
-  "content_generated_by",
-  contentGeneratedBy.options as EnumValues,
-);
-export const releaseStatePg = pgEnum("release_state", releaseState.options as EnumValues);
-export const moderationStatusPg = pgEnum(
-  "moderation_status",
-  moderationStatus.options as EnumValues,
-);
-export const moderationTargetTypePg = pgEnum(
-  "moderation_target_type",
-  moderationTargetType.options as EnumValues,
-);
-export const mergeRequestStatusPg = pgEnum(
-  "merge_request_status",
-  mergeRequestStatus.options as EnumValues,
-);
-export const viewingStatusPg = pgEnum("viewing_status", viewingStatus.options as EnumValues);
-export const priceChangeReasonPg = pgEnum(
-  "price_change_reason",
-  priceChangeReason.options as EnumValues,
-);
-export const marketDataSourcePg = pgEnum(
-  "market_data_source",
-  marketDataSource.options as EnumValues,
-);
-export const amenityPg = pgEnum("amenity", amenity.options as EnumValues);
+export const dealTypePg = pgEnumFrom("deal_type", dealType);
+export const saleStagePg = pgEnumFrom("sale_stage", saleStage);
+export const rentalStatusPg = pgEnumFrom("rental_status", rentalStatus);
+export const titleDeedTypePg = pgEnumFrom("title_deed_type", titleDeedType);
+export const tenurePg = pgEnumFrom("tenure", tenure);
+export const quotaBucketPg = pgEnumFrom("quota_bucket", quotaBucket);
+export const propertyTypePg = pgEnumFrom("property_type", propertyType);
+export const urgencyPg = pgEnumFrom("urgency", urgency);
+export const transactionTypePg = pgEnumFrom("transaction_type", transactionType);
+export const roleKindPg = pgEnumFrom("role_kind", roleKind);
+export const approvalStatusPg = pgEnumFrom("approval_status", approvalStatus);
+export const identityProviderPg = pgEnumFrom("identity_provider", identityProvider);
+export const listingMandatePg = pgEnumFrom("listing_mandate", listingMandate);
+export const extractionSourcePg = pgEnumFrom("extraction_source", extractionSource);
+export const furnishingStatusPg = pgEnumFrom("furnishing_status", furnishingStatus);
+export const utilityRateTypePg = pgEnumFrom("utility_rate_type", utilityRateType);
+export const facingDirectionPg = pgEnumFrom("facing_direction", facingDirection);
+export const roadTypePg = pgEnumFrom("road_type", roadType);
+export const mediaKindPg = pgEnumFrom("media_kind", mediaKind);
+export const contentLangPg = pgEnumFrom("content_lang", contentLang);
+export const contentGeneratedByPg = pgEnumFrom("content_generated_by", contentGeneratedBy);
+export const releaseStatePg = pgEnumFrom("release_state", releaseState);
+export const moderationStatusPg = pgEnumFrom("moderation_status", moderationStatus);
+export const moderationTargetTypePg = pgEnumFrom("moderation_target_type", moderationTargetType);
+export const mergeRequestStatusPg = pgEnumFrom("merge_request_status", mergeRequestStatus);
+export const viewingStatusPg = pgEnumFrom("viewing_status", viewingStatus);
+export const priceChangeReasonPg = pgEnumFrom("price_change_reason", priceChangeReason);
+export const marketDataSourcePg = pgEnumFrom("market_data_source", marketDataSource);
+export const amenityPg = pgEnumFrom("amenity", amenity);
 
 /**
  * PostGIS geography(Point,4326) — drizzle has no built-in geography type.

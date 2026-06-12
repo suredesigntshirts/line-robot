@@ -1,3 +1,4 @@
+import type { Listing } from "@line-robot/domain";
 import { eq, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
 import {
@@ -13,6 +14,12 @@ import {
 
 export type NewListing = typeof listings.$inferInsert;
 export type ListingRow = typeof listings.$inferSelect;
+
+// D3.8 drift guard: the storage row must satisfy the canonical domain entity.
+// If this line errors, the schema and @line-robot/domain Listing diverged —
+// fix the domain type (or the schema), never redefine Listing downstream.
+const _listingRowSatisfiesDomain: Listing = {} as ListingRow;
+void _listingRowSatisfiesDomain;
 export type NewListingContent = typeof listingContent.$inferInsert;
 export type NewListingCondo = typeof listingCondo.$inferInsert;
 export type NewListingRental = typeof listingRental.$inferInsert;

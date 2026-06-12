@@ -1,3 +1,4 @@
+import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { evalConfig } from "../../eval.config.ts";
 import { CostLog } from "../cost.ts";
@@ -114,17 +115,30 @@ function scoreDedupCase(evalCase: EvalCase) {
   return scoreDedup(evalCase.expected.duplicatePairs, actualPairs);
 }
 
-function buildLlm(evalCase: EvalCase): { llm: StepLlm; real: boolean } {
-  const mode = process.env.EVAL_LLM ?? "oracle";
-  if (mode === "anthropic") {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      throw new Error("EVAL_LLM=anthropic requires ANTHROPIC_API_KEY");
-    }
-    // Lazy import keeps oracle runs dependency-free at runtime.
-    throw new Error(
-      "EVAL_LLM=anthropic: wire AnthropicStepLlm here when running the real baseline (see src/adapters/anthropicStepLlm.ts)",
-    );
+// Repo-root .env (founder-provided key) — runner cwd is packages/pipeline.
+try {
+  process.loadEnvFile(new URL("../../../../.env", import.meta.url).pathname);
+} catch {
+  /* no .env — fine for oracle mode */
+}
+
+const EVAL_MODE = process.env.EVAL_LLM ?? "oracle";
+
+/** One shared real adapter so the per-step cached prefixes actually get reused. */
+const realLlm: StepLlm | null = await (async () => {
+  if (EVAL_MODE !== "anthropic") return null;
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("EVAL_LLM=anthropic requires ANTHROPIC_API_KEY");
   }
+  const [{ default: Anthropic }, { AnthropicStepLlm }] = await Promise.all([
+    import("@anthropic-ai/sdk"),
+    import("../adapters/anthropicStepLlm.ts"),
+  ]);
+  return new AnthropicStepLlm(new Anthropic());
+})();
+
+function buildLlm(evalCase: EvalCase): { llm: StepLlm; real: boolean } {
+  if (realLlm) return { llm: realLlm, real: true };
   return { llm: new OracleStepLlm(evalCase.specs), real: false };
 }
 
@@ -199,8 +213,40 @@ card.perField = [...fieldAggregate.entries()].map(([field, agg]) => ({
 }));
 card.costUsd = costLog.totalUsd();
 
-console.log(
-  `mode: EVAL_LLM=${process.env.EVAL_LLM ?? "oracle"} (oracle = harness smoke, not a model baseline)`,
-);
+// Baseline (D21 advisory): delta against the committed file; write it with EVAL_WRITE_BASELINE=1.
+const baselinePath = new URL("../../eval-baseline.json", import.meta.url).pathname;
+try {
+  const baseline = JSON.parse(readFileSync(baselinePath, "utf8")) as {
+    perStep: Record<string, { score: number | null }>;
+  };
+  card.baselineDelta = Object.fromEntries(
+    Object.entries(card.perStep).map(([step, s]) => [
+      step,
+      (s.score ?? 0) - (baseline.perStep[step]?.score ?? 0),
+    ]),
+  ) as typeof card.baselineDelta;
+} catch {
+  /* no baseline committed yet */
+}
+if (process.env.EVAL_WRITE_BASELINE === "1" && realLlm) {
+  writeFileSync(
+    baselinePath,
+    `${JSON.stringify(
+      {
+        writtenAt: new Date().toISOString(),
+        mode: EVAL_MODE,
+        caseCount: card.caseCount,
+        perStep: card.perStep,
+        perField: card.perField,
+        costUsd: card.costUsd,
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  console.log(`baseline written: ${baselinePath}`);
+}
+
+console.log(`mode: EVAL_LLM=${EVAL_MODE} (oracle = harness smoke, not a model baseline)`);
 console.log(renderScorecard(card, evalConfig));
 process.exit(0); // D21: advisory — never a failing exit, even on regression.
