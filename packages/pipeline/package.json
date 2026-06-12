@@ -1,0 +1,11 @@
+{
+  "name": "@line-robot/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "eval": "node src/eval/runner.ts"
+  }
+}

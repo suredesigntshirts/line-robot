@@ -15,6 +15,7 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "test": "npm run test --workspaces --if-present",
+    "eval": "npm run eval -w @line-robot/pipeline",
     "build": "npm run build --workspaces --if-present"
   },
   "devDependencies": {
