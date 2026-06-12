@@ -93,6 +93,11 @@ try {
   check("card carries the poster name (TH-03)", homeTh.body.includes("smoke-owner"));
   check("poster-provided notice on browse (LEGAL-06)", homeTh.body.includes("ข้อมูลจากผู้ลงประกาศ"));
 
+  const textHit = await handler(event("/", "q=" + encodeURIComponent("ดอยสุเทพ")));
+  check("text search finds the listing (S4-I4)", textHit.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
+  const textMiss = await handler(event("/", "q=" + encodeURIComponent("คอนโดลับ")));
+  check("text search cannot see unconsented content", textMiss.body.includes('data-state="empty"'));
+
   const rentOnly = await handler(event("/", "deal=rent"));
   check("rent filter excludes the sale card", !rentOnly.body.includes("บ้านสามนอน"));
   check("rent filter shows empty state", rentOnly.body.includes('data-state="empty"'));

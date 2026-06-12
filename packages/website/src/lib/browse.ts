@@ -4,6 +4,9 @@ import { dealType, propertyType } from "@line-robot/domain";
 export interface BrowseQuery {
   dealType?: DealType;
   propertyType?: PropertyType;
+  province?: string;
+  /** Free-text search (trimmed, capped — the repo escapes ILIKE metachars). */
+  text?: string;
   page: number;
 }
 
@@ -11,10 +14,14 @@ export interface BrowseQuery {
 export function parseBrowseQuery(params: URLSearchParams): BrowseQuery {
   const deal = dealType.safeParse(params.get("deal"));
   const ptype = propertyType.safeParse(params.get("type"));
+  const province = (params.get("province") ?? "").trim().slice(0, 60);
+  const text = (params.get("q") ?? "").trim().slice(0, 100);
   const rawPage = Number.parseInt(params.get("page") ?? "1", 10);
   return {
     ...(deal.success ? { dealType: deal.data } : {}),
     ...(ptype.success ? { propertyType: ptype.data } : {}),
+    ...(province !== "" ? { province } : {}),
+    ...(text !== "" ? { text } : {}),
     page: Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1,
   };
 }
@@ -24,6 +31,8 @@ export function browseQueryString(q: BrowseQuery): string {
   const params = new URLSearchParams();
   if (q.dealType) params.set("deal", q.dealType);
   if (q.propertyType) params.set("type", q.propertyType);
+  if (q.province) params.set("province", q.province);
+  if (q.text) params.set("q", q.text);
   if (q.page > 1) params.set("page", String(q.page));
   const s = params.toString();
   return s === "" ? "" : `?${s}`;

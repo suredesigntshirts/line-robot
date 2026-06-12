@@ -1,5 +1,10 @@
 ---
-import { getDb, type PublicCardRow, searchPublicListings } from "@line-robot/db";
+import {
+  getDb,
+  listPublicProvinces,
+  type PublicCardRow,
+  searchPublicListings,
+} from "@line-robot/db";
 import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
 import { createElement } from "react";
 import { BrowseResults } from "../components/BrowseResults.tsx";
@@ -23,18 +28,26 @@ const retryLink = createElement("a", { href: Astro.url.pathname }, t("error.retr
 const query = parseBrowseQuery(Astro.url.searchParams);
 let rows: PublicCardRow[] = [];
 let total = 0;
+let provinces: string[] = [];
 let dbError = false;
 try {
   const result = await searchPublicListings(getDb(), {
     lang: locale,
     dealType: query.dealType,
     propertyType: query.propertyType,
+    province: query.province,
+    text: query.text,
     page: query.page,
     pageSize: PAGE_SIZE,
   });
   rows = result.rows;
   total = result.total;
   query.page = result.page; // repo clamps out-of-range deep links to the last page
+  try {
+    provinces = await listPublicProvinces(getDb());
+  } catch {
+    /* chips degrade to none; results still render */
+  }
 } catch (error) {
   // Render degrades to an error state rather than a 500 (DB down / not configured).
   console.error("browse query failed:", error);
@@ -54,7 +67,7 @@ try {
     <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th); margin: 0;">
       {t("home.title")}
     </h1>
-    <FilterBar client:load query={query} locale={locale} basePath={basePath} />
+    <FilterBar client:load query={query} locale={locale} basePath={basePath} provinces={provinces} />
     {
       dbError ? (
         <ErrorState t={t} action={retryLink} />

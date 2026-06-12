@@ -170,6 +170,8 @@ export interface PublicSearch {
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
+  /** Free-text query over landmark + content (trigram-indexed ILIKE). */
+  text?: string;
   /** 1-based. */
   page?: number;
   pageSize?: number;
@@ -216,6 +218,14 @@ export async function searchPublicListings(
   if (q.dealType) conditions.push(eq(listings.dealType, q.dealType));
   if (q.propertyType) conditions.push(eq(listings.propertyType, q.propertyType));
   if (q.province) conditions.push(eq(listings.province, q.province));
+  if (q.text && q.text.trim() !== "") {
+    // Escape ILIKE metacharacters — user text must never act as a wildcard.
+    const pattern = `%${q.text.trim().replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
+    conditions.push(sql`(${listings.landmark} ilike ${pattern}
+      or ${listings.projectName} ilike ${pattern}
+      or exists (select 1 from ${listingContent} c where c.listing_id = ${listings.id}
+        and (c.headline ilike ${pattern} or c.description ilike ${pattern})))`);
+  }
   const where = and(...conditions);
 
   const pageSize = q.pageSize ?? 24;
@@ -295,4 +305,14 @@ export async function listPublicListingIds(
       // sitemap index when the catalog approaches it (newest listings win meanwhile).
       .limit(10_000)
   );
+}
+
+/** Distinct provinces with publicly visible stock — feeds the browse filter chips. */
+export async function listPublicProvinces(db: Db): Promise<string[]> {
+  const rows = await db
+    .selectDistinct({ province: listings.province })
+    .from(listings)
+    .where(and(publiclyVisible, sql`${listings.province} is not null`))
+    .orderBy(listings.province);
+  return rows.map((r) => r.province).filter((p): p is string => p !== null);
 }

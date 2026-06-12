@@ -132,3 +132,16 @@ Simplicity: localizedContent SQL helper (3rd copy of the lang-fallback fragment)
 fetch dropped, sitemap cap inlined. Verification: 34-check Docker smoke, 13-check DB-less smoke,
 11 website unit, 19 ui unit, 12 db integration, typecheck+lint clean. Founder queue (also in the
 stage-4 iteration log): NPA marker + new-vs-resale schema gaps; set lineOaUrl config.
+
+## 04:45 — S4-I4 search SHIPPED: trigram migration + free-text + province filter
+
+Migration 0003 (pg_trgm + 3 GIN indexes, hand-fix rule followed), `searchPublicListings` gains
+escaped-ILIKE free text over landmark/project/headline/description + province; `listPublicProvinces`
+feeds province chips; FilterBar gains the search input (shared `primaryButtonStyle` extracted to ui
+at its second copy — rule-1 threshold). Panel: radius + price-range NOT delivered — logged as open
+S4-I4 scope on the stage gate (radius needs a map UI; price needs a sale-vs-rent column ruling →
+founder). Honest planner note: today's OR+EXISTS shape seq-scans; indexes are for the future
+restructure (comment + log). Fixes from panel: FilterBar go/search/navigate collapsed to one,
+provinces query degrades independently, journal newline. Verification: 14 db integration
+(+2 search), 12 website unit, 36-check Docker smoke (+2 search incl. consent-gate-through-search),
+13-check DB-less smoke, typecheck+lint clean. Usage 04:15: 15%.

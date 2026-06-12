@@ -29,12 +29,14 @@ import {
   utilityRateType,
   viewingStatus,
 } from "@line-robot/domain";
+import { sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
   bigint,
   boolean,
   customType,
   doublePrecision,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -189,56 +191,64 @@ export const groupMemberships = pgTable(
 
 // --- listings ----------------------------------------------------------------
 
-export const listings = pgTable("listing", {
-  id: id(),
-  ownerUserId: uuid("owner_user_id")
-    .notNull()
-    .references(() => users.id),
-  sourceGroupId: uuid("source_group_id").references(() => groups.id),
-  dealType: dealTypePg("deal_type").notNull(),
-  saleStage: saleStagePg("sale_stage"), // sale only (DF-4)
-  rentalStatus: rentalStatusPg("rental_status"), // rent only
-  titleDeedType: titleDeedTypePg("title_deed_type").notNull().default("unknown"), // FIELD-02
-  // From chanote OCR (stage-2); the strongest dedup key (D2.6 deed-exact).
-  deedNo: text("deed_no"),
-  tenure: tenurePg("tenure"),
-  leaseYears: integer("lease_years"), // DEAL-12/FIELD-03
-  propertyType: propertyTypePg("property_type").notNull(),
-  priceThb: bigint("price_thb", { mode: "number" }),
-  priceNegotiable: boolean("price_negotiable").notNull().default(false),
-  urgency: urgencyPg("urgency").notNull().default("normal"), // DIST-03/11
-  transactionType: transactionTypePg("transaction_type").notNull().default("normal"), // DIST-06
-  redemptionPeriodYears: integer("redemption_period_years"), // khai_fak only
-  province: text("province"),
-  amphoe: text("amphoe"),
-  tambon: text("tambon"), // FIELD-13: separate admin levels
-  landmark: text("landmark"), // FIELD-06: CNX needs a landmark/soi reference
-  projectName: text("project_name"),
-  addressDetail: text("address_detail"),
-  geom: geographyPoint("geom"),
-  landRai: integer("land_rai"),
-  landNgan: integer("land_ngan"),
-  landWah: doublePrecision("land_wah"), // FIELD-01: rai/ngan/wah
-  landSqm: doublePrecision("land_sqm"), // computed: rai*1600 + ngan*400 + wah*4
-  floorAreaSqm: doublePrecision("floor_area_sqm"), // FIELD-09
-  pricePerSqm: doublePrecision("price_per_sqm"), // FIELD-10 (computed)
-  pricePerWah: doublePrecision("price_per_wah"),
-  bedrooms: smallint("bedrooms"),
-  bathrooms: smallint("bathrooms"),
-  facingDirection: facingDirectionPg("facing_direction"), // F-08; FIELD-11 no re-judging
-  landShape: text("land_shape"),
-  roadAccessM: doublePrecision("road_access_m"),
-  roadType: roadTypePg("road_type"),
-  floodHistory: boolean("flood_history"), // FIELD-07: seller-disclosed, unverified
-  floodRiskZone: text("flood_risk_zone"),
-  cityPlanZoneColor: text("city_plan_zone_color"), // F-11
-  listingMandate: listingMandatePg("listing_mandate").notNull().default("group_exclusive"), // DEAL-07
-  exclusivityExpiresAt: timestamp("exclusivity_expires_at", { withTimezone: true }),
-  postedByRole: roleKindPg("posted_by_role"), // DEAL-10
-  extractionSource: extractionSourcePg("extraction_source").notNull().default("auto"), // LEGAL-06
-  createdAt: createdAt(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const listings = pgTable(
+  "listing",
+  {
+    id: id(),
+    ownerUserId: uuid("owner_user_id")
+      .notNull()
+      .references(() => users.id),
+    sourceGroupId: uuid("source_group_id").references(() => groups.id),
+    dealType: dealTypePg("deal_type").notNull(),
+    saleStage: saleStagePg("sale_stage"), // sale only (DF-4)
+    rentalStatus: rentalStatusPg("rental_status"), // rent only
+    titleDeedType: titleDeedTypePg("title_deed_type").notNull().default("unknown"), // FIELD-02
+    // From chanote OCR (stage-2); the strongest dedup key (D2.6 deed-exact).
+    deedNo: text("deed_no"),
+    tenure: tenurePg("tenure"),
+    leaseYears: integer("lease_years"), // DEAL-12/FIELD-03
+    propertyType: propertyTypePg("property_type").notNull(),
+    priceThb: bigint("price_thb", { mode: "number" }),
+    priceNegotiable: boolean("price_negotiable").notNull().default(false),
+    urgency: urgencyPg("urgency").notNull().default("normal"), // DIST-03/11
+    transactionType: transactionTypePg("transaction_type").notNull().default("normal"), // DIST-06
+    redemptionPeriodYears: integer("redemption_period_years"), // khai_fak only
+    province: text("province"),
+    amphoe: text("amphoe"),
+    tambon: text("tambon"), // FIELD-13: separate admin levels
+    landmark: text("landmark"), // FIELD-06: CNX needs a landmark/soi reference
+    projectName: text("project_name"),
+    addressDetail: text("address_detail"),
+    geom: geographyPoint("geom"),
+    landRai: integer("land_rai"),
+    landNgan: integer("land_ngan"),
+    landWah: doublePrecision("land_wah"), // FIELD-01: rai/ngan/wah
+    landSqm: doublePrecision("land_sqm"), // computed: rai*1600 + ngan*400 + wah*4
+    floorAreaSqm: doublePrecision("floor_area_sqm"), // FIELD-09
+    pricePerSqm: doublePrecision("price_per_sqm"), // FIELD-10 (computed)
+    pricePerWah: doublePrecision("price_per_wah"),
+    bedrooms: smallint("bedrooms"),
+    bathrooms: smallint("bathrooms"),
+    facingDirection: facingDirectionPg("facing_direction"), // F-08; FIELD-11 no re-judging
+    landShape: text("land_shape"),
+    roadAccessM: doublePrecision("road_access_m"),
+    roadType: roadTypePg("road_type"),
+    floodHistory: boolean("flood_history"), // FIELD-07: seller-disclosed, unverified
+    floodRiskZone: text("flood_risk_zone"),
+    cityPlanZoneColor: text("city_plan_zone_color"), // F-11
+    listingMandate: listingMandatePg("listing_mandate").notNull().default("group_exclusive"), // DEAL-07
+    exclusivityExpiresAt: timestamp("exclusivity_expires_at", { withTimezone: true }),
+    postedByRole: roleKindPg("posted_by_role"), // DEAL-10
+    extractionSource: extractionSourcePg("extraction_source").notNull().default("auto"), // LEGAL-06
+    createdAt: createdAt(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  // pg_trgm GIN for the public-site text search (S4-I4). NOTE: today's OR+EXISTS query
+  // shape seq-scans anyway (planner can't BitmapOr across the EXISTS arm) — the indexes
+  // pay off once search moves to index-friendly arms / a search-doc column at scale.
+  // The extension itself is hand-added to the migration (see packages/db/CLAUDE.md).
+  (t) => [index("listing_landmark_trgm").using("gin", sql`${t.landmark} gin_trgm_ops`)],
+);
 
 export const listingCondo = pgTable("listing_condo", {
   listingId: uuid("listing_id")
@@ -285,7 +295,11 @@ export const listingContent = pgTable(
     description: text("description").notNull(),
     generatedBy: contentGeneratedByPg("generated_by").notNull(), // D14/D8
   },
-  (t) => [uniqueIndex("listing_content_lang").on(t.listingId, t.lang)],
+  (t) => [
+    uniqueIndex("listing_content_lang").on(t.listingId, t.lang),
+    index("listing_content_headline_trgm").using("gin", sql`${t.headline} gin_trgm_ops`),
+    index("listing_content_description_trgm").using("gin", sql`${t.description} gin_trgm_ops`),
+  ],
 );
 
 export const listingAmenities = pgTable(

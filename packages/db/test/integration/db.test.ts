@@ -15,6 +15,7 @@ import {
   getListing,
   grantPublishConsent,
   listListings,
+  listPublicProvinces,
   searchPublicListings,
 } from "../../src/index.ts";
 import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.ts";
@@ -257,6 +258,24 @@ describe("public search (LEGAL-02 consent gate)", () => {
     const paged = await searchPublicListings(db, { lang: "th", page: 1, pageSize: 1 });
     expect(paged.rows).toHaveLength(1);
     expect(paged.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it("finds by free text over landmark/headline with ILIKE metachars escaped", async () => {
+    const byHeadline = await searchPublicListings(db, { lang: "th", text: "ยินยอม" });
+    expect(byHeadline.rows.map((r) => r.listing.id)).toEqual([consentedId]);
+    const noWildcard = await searchPublicListings(db, { lang: "th", text: "%" });
+    expect(noWildcard.rows).toHaveLength(0);
+    const miss = await searchPublicListings(db, { lang: "th", text: "ไม่มีทางพบ" });
+    expect(miss.rows).toHaveLength(0);
+  });
+
+  it("filters by province and lists distinct public provinces", async () => {
+    const provinces = await listPublicProvinces(db);
+    expect(provinces).toContain("เชียงใหม่");
+    const byProvince = await searchPublicListings(db, { lang: "th", province: "เชียงใหม่" });
+    expect(byProvince.rows.length).toBeGreaterThanOrEqual(1);
+    const none = await searchPublicListings(db, { lang: "th", province: "ภูเก็ต" });
+    expect(none.rows).toHaveLength(0);
   });
 
   it("hides a listing after a deletion request (LEGAL-10)", async () => {

@@ -21,11 +21,26 @@ describe("parseBrowseQuery", () => {
   it("defaults to page 1 with no params", () => {
     expect(parse("")).toEqual({ page: 1 });
   });
+
+  it("parses text + province, trimming and capping length", () => {
+    expect(parse("q=%20nimman%20&province=เชียงใหม่")).toEqual({
+      text: "nimman",
+      province: "เชียงใหม่",
+      page: 1,
+    });
+    expect(parse(`q=${"ก".repeat(150)}`).text).toHaveLength(100);
+  });
 });
 
 describe("browseQueryString", () => {
   it("round-trips", () => {
-    const q: BrowseQuery = { dealType: "sale", propertyType: "land", page: 2 };
+    const q: BrowseQuery = {
+      dealType: "sale",
+      propertyType: "land",
+      province: "เชียงใหม่",
+      text: "นิมมาน",
+      page: 2,
+    };
     expect(parse(browseQueryString(q).slice(1))).toEqual(q);
   });
 
