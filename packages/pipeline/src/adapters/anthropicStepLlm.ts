@@ -12,7 +12,12 @@ import type { StepLlm, StepLlmRequest, StepLlmResponse } from "../ports.ts";
 // ---------------------------------------------------------------------------
 
 export class AnthropicStepLlm implements StepLlm {
-  constructor(private readonly client: Anthropic) {}
+  // Explicit field: parameter properties aren't erasable under Node strip-only TS.
+  private readonly client: Anthropic;
+
+  constructor(client: Anthropic) {
+    this.client = client;
+  }
 
   async run<S extends z.ZodType>(request: StepLlmRequest<S>): Promise<StepLlmResponse<z.infer<S>>> {
     try {

@@ -1,5 +1,5 @@
-import type { Db } from "../pool.js";
-import { groupMemberships, groups } from "../schema.js";
+import type { Db } from "../pool.ts";
+import { groupMemberships, groups } from "../schema.ts";
 
 export type NewGroup = typeof groups.$inferInsert;
 export type NewGroupMembership = typeof groupMemberships.$inferInsert;

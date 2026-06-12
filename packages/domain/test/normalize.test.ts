@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractUrgencyBadge, landToSqm, stripEmoji } from "../src/index.js";
+import { extractUrgencyBadge, landToSqm, stripEmoji } from "../src/index.ts";
 
 describe("stripEmoji (COPY-12)", () => {
   it("removes emoji but keeps Thai, Latin, digits, punctuation", () => {

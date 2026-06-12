@@ -6,7 +6,7 @@ import {
   isSaleBlockedByDeed,
   NO_SALE_DEED_TYPES,
   titleDeedType,
-} from "../src/index.js";
+} from "../src/index.ts";
 
 describe("sale stage transitions (DF-4: มัดจำ → จะซื้อจะขาย → โอน)", () => {
   it("walks the happy path forward", () => {

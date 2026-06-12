@@ -4,7 +4,7 @@ import {
   type RentalStatus,
   type SaleStage,
   type TitleDeedType,
-} from "./enums.js";
+} from "./enums.ts";
 
 // ---------------------------------------------------------------------------
 // Listing-lifecycle rules (DF-4 / DEAL-02 / DEAL-11 / D8). Pure functions —

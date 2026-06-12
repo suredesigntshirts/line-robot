@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import type { Db } from "../pool.js";
+import type { Db } from "../pool.ts";
 import {
   listingAmenities,
   listingCondo,
@@ -9,7 +9,7 @@ import {
   listings,
   moderationItems,
   priceHistory,
-} from "../schema.js";
+} from "../schema.ts";
 
 export type NewListing = typeof listings.$inferInsert;
 export type ListingRow = typeof listings.$inferSelect;

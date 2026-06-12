@@ -14,8 +14,8 @@ import {
   getContent,
   getListing,
   listListings,
-} from "../../src/index.js";
-import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.js";
+} from "../../src/index.ts";
+import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.ts";
 
 const CONTAINER = "linerobot-db-it";
 

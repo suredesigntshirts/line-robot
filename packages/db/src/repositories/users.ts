@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import type { Db } from "../pool.js";
-import { roles, userIdentities, users } from "../schema.js";
+import type { Db } from "../pool.ts";
+import { roles, userIdentities, users } from "../schema.ts";
 
 export type NewUser = typeof users.$inferInsert;
 export type NewUserIdentity = typeof userIdentities.$inferInsert;
