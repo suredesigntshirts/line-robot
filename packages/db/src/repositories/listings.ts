@@ -181,12 +181,31 @@ export interface PublicCardRow {
   headline: string;
   photoCount: number;
   monthlyRent: number | null;
+  /** TH-03: the human trust signal on every card. */
+  posterName: string;
 }
 
 const publiclyVisible = sql`exists (
   select 1 from ${publishConsents} pc
   where pc.listing_id = ${listings.id} and pc.deletion_requested_at is null
 )`;
+
+// Requested-lang listing_content column with th fallback (en rows may not exist yet).
+// NOTE: the outer correlation is written as "listing".id LITERALLY — drizzle renders
+// ${listings.id} UNQUALIFIED inside projection subqueries, and listing_content /
+// listing_media have their own id columns that would capture the reference.
+const localizedContent = (
+  column: "headline" | "description",
+  lang: "th" | "en",
+) => sql<string>`coalesce(
+  (select c.${sql.raw(column)} from ${listingContent} c where c.listing_id = "listing".id and c.lang = ${lang} limit 1),
+  (select c.${sql.raw(column)} from ${listingContent} c where c.listing_id = "listing".id and c.lang = 'th' limit 1),
+  '')`;
+const photoCountSql = sql<number>`(select count(*)::int from ${listingMedia} m where m.listing_id = "listing".id and m.kind = 'photo')`;
+const monthlyRentSql = sql<
+  number | null
+>`(select r.monthly_rent::int from ${listingRental} r where r.listing_id = "listing".id)`;
+const posterNameSql = sql<string>`coalesce((select u.display_name from "user" u where u.id = ${listings.ownerUserId}), '')`;
 
 /** Browse/search for the public website: consented listings only (LEGAL-02), newest first. */
 export async function searchPublicListings(
@@ -214,17 +233,10 @@ export async function searchPublicListings(
   const rows = await db
     .select({
       listing: listings,
-      // NOTE: outer correlation is written as "listing".id literally — drizzle renders
-      // ${listings.id} UNQUALIFIED in projection subqueries, and listing_content /
-      // listing_media have their own id columns that would capture the reference.
-      headline: sql<string>`coalesce(
-        (select c.headline from ${listingContent} c where c.listing_id = "listing".id and c.lang = ${q.lang} limit 1),
-        (select c.headline from ${listingContent} c where c.listing_id = "listing".id and c.lang = 'th' limit 1),
-        '')`,
-      photoCount: sql<number>`(select count(*)::int from ${listingMedia} m where m.listing_id = "listing".id and m.kind = 'photo')`,
-      monthlyRent: sql<
-        number | null
-      >`(select r.monthly_rent::int from ${listingRental} r where r.listing_id = "listing".id)`,
+      headline: localizedContent("headline", q.lang),
+      photoCount: photoCountSql,
+      monthlyRent: monthlyRentSql,
+      posterName: posterNameSql,
     })
     .from(listings)
     .where(where)
@@ -233,4 +245,54 @@ export async function searchPublicListings(
     .offset(offset);
 
   return { rows, total, page };
+}
+
+export interface PublicListingDetail {
+  listing: ListingRow;
+  /** Requested-lang content with th fallback. */
+  headline: string;
+  description: string;
+  photoCount: number;
+  monthlyRent: number | null;
+  posterName: string;
+  lat: number | null;
+  lon: number | null;
+}
+
+/** Detail fetch for the public website — same LEGAL-02 gate as search; undefined = not public. */
+export async function getPublicListingDetail(
+  db: Db,
+  id: string,
+  lang: "th" | "en",
+): Promise<PublicListingDetail | undefined> {
+  const [row] = await db
+    .select({
+      listing: listings,
+      headline: localizedContent("headline", lang),
+      description: localizedContent("description", lang),
+      photoCount: photoCountSql,
+      monthlyRent: monthlyRentSql,
+      posterName: posterNameSql,
+      lat: sql<number | null>`ST_Y(${listings.geom}::geometry)`,
+      lon: sql<number | null>`ST_X(${listings.geom}::geometry)`,
+    })
+    .from(listings)
+    .where(and(eq(listings.id, id), publiclyVisible));
+  return row;
+}
+
+/** Sitemap feed: ids + lastmod of every publicly visible listing (LEGAL-02 gate). */
+export async function listPublicListingIds(
+  db: Db,
+): Promise<Array<{ id: string; updatedAt: Date }>> {
+  return (
+    db
+      .select({ id: listings.id, updatedAt: listings.updatedAt })
+      .from(listings)
+      .where(publiclyVisible)
+      .orderBy(desc(listings.createdAt))
+      // Sitemap protocol caps a file at 50k URLs; cap at 10k and revisit with a
+      // sitemap index when the catalog approaches it (newest listings win meanwhile).
+      .limit(10_000)
+  );
 }

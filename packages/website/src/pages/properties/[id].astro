@@ -1,0 +1,16 @@
+---
+import DetailPage from "../../components/DetailPage.astro";
+import { loadDetail } from "../../lib/detail.ts";
+
+const result = await loadDetail(Astro.params.id ?? "", "th");
+// 404s rewrite to the localized COPY-07 page; 503 keeps a minimal retry hint.
+if (result.kind === "missing") return Astro.rewrite("/404");
+if (result.kind === "unavailable") {
+  return new Response("ระบบขัดข้องชั่วคราว กรุณาลองใหม่ / Temporarily unavailable — please retry", {
+    status: 503,
+    headers: { "content-type": "text/plain; charset=utf-8", "retry-after": "30" },
+  });
+}
+---
+
+<DetailPage locale="th" detail={result.detail} />

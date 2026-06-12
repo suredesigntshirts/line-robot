@@ -69,6 +69,30 @@ export const th = {
   "ptype.condo": "คอนโด",
   "ptype.commercial": "อาคารพาณิชย์",
   "ptype.other": "อื่นๆ",
+
+  // Deed type display names (FIELD-02 vocabulary)
+  "deed.chanote": "โฉนดที่ดิน (น.ส.4จ)",
+  "deed.ns3g": "น.ส.3ก",
+  "deed.ns3k": "น.ส.3ข",
+  "deed.ns3": "น.ส.3",
+  "deed.spk": "ส.ป.ก.",
+  "deed.pbt5": "ภ.บ.ท.5",
+  "deed.ns2": "น.ส.2",
+  "deed.stg": "ส.ท.ก.",
+  "deed.sk1": "ส.ค.1",
+  "deed.other": "เอกสารสิทธิ์อื่น",
+  "deed.unknown": "ไม่ระบุเอกสารสิทธิ์",
+  "deed.restricted": "โอนกรรมสิทธิ์มีข้อจำกัด — ตรวจสอบก่อนวางมัดจำ",
+
+  // Disclosure rows + compliance copy (FIELD-07, LEGAL-06, CONV-11)
+  "field.flood": "ประวัติน้ำท่วม",
+  "field.floodYes": "เคยมีน้ำท่วม (ผู้ขายแจ้ง)",
+  "field.floodNo": "ไม่เคยมีน้ำท่วม (ผู้ขายแจ้ง)",
+  "field.tenure": "ลักษณะการถือครอง",
+  "field.leaseYears": "{count} ปี",
+  "field.project": "โครงการ",
+  "detail.description": "รายละเอียด",
+  "legal.posterProvided": "ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม",
 } as const;
 
 export type MessageKey = keyof typeof th;

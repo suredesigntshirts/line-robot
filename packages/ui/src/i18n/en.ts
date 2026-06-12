@@ -59,4 +59,27 @@ export const en: Record<keyof typeof th, string> = {
   "ptype.condo": "Condo",
   "ptype.commercial": "Commercial",
   "ptype.other": "Other",
+
+  "deed.chanote": "Chanote (NS-4 Jor) title deed",
+  "deed.ns3g": "Nor Sor 3 Gor",
+  "deed.ns3k": "Nor Sor 3 Khor",
+  "deed.ns3": "Nor Sor 3",
+  "deed.spk": "Sor Por Kor (agricultural)",
+  "deed.pbt5": "Por Bor Tor 5 (tax receipt)",
+  "deed.ns2": "Nor Sor 2",
+  "deed.stg": "Sor Tor Kor (forest zone)",
+  "deed.sk1": "Sor Kor 1",
+  "deed.other": "Other title document",
+  "deed.unknown": "Deed type not stated",
+  "deed.restricted": "Transfer restrictions apply — verify before any deposit",
+
+  "field.flood": "Flood history",
+  "field.floodYes": "Has flooded (seller-disclosed)",
+  "field.floodNo": "No flooding (seller-disclosed)",
+  "field.tenure": "Tenure",
+  "field.leaseYears": "{count} years",
+  "field.project": "Project",
+  "detail.description": "Details",
+  "legal.posterProvided":
+    "Information is poster-provided — verify independently before any transaction",
 };

@@ -36,8 +36,20 @@ export function toCardView(input: CardViewInput): CardView {
   const specs: string[] = [];
   if (input.bedroomsLabel !== "") specs.push(input.bedroomsLabel);
   if (input.bathroomsLabel !== "") specs.push(input.bathroomsLabel);
-  if (listing.floorAreaSqm !== null) specs.push(`${listing.floorAreaSqm} ตร.ม.`);
-  else if (listing.landSqm !== null) specs.push(`${listing.landSqm} ตร.ม.`);
+  // COPY-06/FIELD-09: land is rai/ngan/wah FIRST (zero parts suppressed); built space is ตร.ม.
+  const landParts: string[] = [];
+  if (listing.landRai) landParts.push(`${listing.landRai} ไร่`);
+  if (listing.landNgan) landParts.push(`${listing.landNgan} งาน`);
+  if (listing.landWah) landParts.push(`${listing.landWah} ตร.ว.`);
+  if (listing.propertyType === "land" && landParts.length > 0) {
+    specs.push(landParts.join(" "));
+  } else if (listing.floorAreaSqm !== null) {
+    specs.push(`${listing.floorAreaSqm} ตร.ม.`);
+  } else if (landParts.length > 0) {
+    specs.push(landParts.join(" "));
+  } else if (listing.landSqm !== null) {
+    specs.push(`${listing.landSqm} ตร.ม.`);
+  }
   return {
     id: listing.id,
     headline: input.headline,

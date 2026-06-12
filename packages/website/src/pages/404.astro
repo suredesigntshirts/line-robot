@@ -1,0 +1,34 @@
+---
+import { createTranslator } from "@line-robot/ui";
+import Base from "../layouts/Base.astro";
+
+// COPY-07: what happened + why + what to do next — never a bare "Not Found".
+// Under a rewrite Astro.url is the target ("/404") — originPathname keeps the requested path.
+const requested = Astro.originPathname ?? Astro.url.pathname;
+const isEn = requested.startsWith("/en/") || requested === "/en";
+const locale = isEn ? ("en" as const) : ("th" as const);
+const t = createTranslator(locale);
+Astro.response.status = 404;
+---
+
+<Base
+  title={locale === "th" ? "ไม่พบหน้านี้" : "Page not found"}
+  description={t("empty.why")}
+  canonicalPath={isEn ? "/en/" : "/"}
+>
+  <main style="max-width: 32rem; margin: 0 auto; padding: var(--spacing-8) var(--spacing-4); display: grid; gap: var(--spacing-3);">
+    <h1 style="font-size: var(--text-xl); font-family: var(--font-heading-th); margin: 0;">
+      {locale === "th" ? "ไม่พบหน้านี้" : "Page not found"}
+    </h1>
+    <p style="color: var(--color-text-2); margin: 0;">
+      {
+        locale === "th"
+          ? "ประกาศอาจถูกปิดการเผยแพร่หรือลิงก์ไม่ถูกต้อง"
+          : "The listing may have been unpublished, or the link is incorrect"
+      }
+    </p>
+    <a href={isEn ? "/en/" : "/"} style="color: var(--color-primary-600);">
+      ← {t("home.title")}
+    </a>
+  </main>
+</Base>

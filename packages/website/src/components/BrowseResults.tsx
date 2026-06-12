@@ -41,9 +41,10 @@ export function BrowseResults({
         {t("pager.count", { total })}
       </span>
       <CardGrid>
-        {rows.map(({ listing, headline, photoCount, monthlyRent }) => (
+        {rows.map(({ listing, headline, photoCount, monthlyRent, posterName }) => (
           <ListingCard
             key={listing.id}
+            postedByName={posterName || undefined}
             listing={listing}
             view={toCardView({
               listing,
@@ -64,6 +65,9 @@ export function BrowseResults({
           />
         ))}
       </CardGrid>
+      <p style={{ color: "var(--color-text-2)", fontSize: "var(--text-xs)", margin: 0 }}>
+        {t("legal.posterProvided")}
+      </p>
       <nav style={{ display: "flex", gap: "var(--spacing-3)", justifyContent: "center" }}>
         {query.page > 1 && (
           <a href={pageLink(query.page - 1)} rel="prev">

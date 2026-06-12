@@ -1,0 +1,117 @@
+---
+import type { PublicListingDetail } from "@line-robot/db";
+import { NO_SALE_DEED_TYPES } from "@line-robot/domain";
+import {
+  AccordionSection,
+  Badge,
+  createTranslator,
+  FieldList,
+  LineCtaButton,
+  PriceDisplay,
+  StatusBadge,
+  type UiLocale,
+} from "@line-robot/ui";
+import Base from "../layouts/Base.astro";
+import { listingJsonLd, safeJsonLdScript } from "../lib/jsonLd.ts";
+
+// S4-I3: listing detail with the SEO deliverables (JSON-LD RealEstateListing,
+// OG, canonical, hreflang). Pure renderer — the routes own loading + status codes.
+interface Props {
+  locale: UiLocale;
+  detail: PublicListingDetail;
+}
+const { locale, detail } = Astro.props;
+
+const t = createTranslator(locale);
+const { listing } = detail;
+const basePath = locale === "en" ? "/en" : "";
+const canonicalPath = `${basePath}/properties/${listing.id}`;
+
+// TH-03 ruling (logged): land units stay Thai on both locales — they are the market's units.
+const landParts: string[] = [];
+if (listing.landRai) landParts.push(`${listing.landRai} ไร่`);
+if (listing.landNgan) landParts.push(`${listing.landNgan} งาน`);
+if (listing.landWah) landParts.push(`${listing.landWah} ตร.ว.`);
+
+// COPY-04: restricted-transfer deed types carry their warning right in the deed row.
+const deedValue = NO_SALE_DEED_TYPES.has(listing.titleDeedType)
+  ? `${t(`deed.${listing.titleDeedType}`)} — ${t("deed.restricted")}`
+  : t(`deed.${listing.titleDeedType}`);
+
+const fieldRows = [
+  { label: t("filter.propertyType"), value: t(`ptype.${listing.propertyType}`) },
+  { label: t("listing.deedSection"), value: deedValue },
+  ...(landParts.length > 0 ? [{ label: t("listing.landArea"), value: landParts.join(" ") }] : []),
+  ...(listing.floorAreaSqm !== null
+    ? [{ label: t("listing.floorArea"), value: `${listing.floorAreaSqm} ตร.ม.` }]
+    : []),
+  // FIELD-07: seller-disclosed flood history — shown whenever disclosed, never re-judged.
+  ...(listing.floodHistory !== null
+    ? [{ label: t("field.flood"), value: t(listing.floodHistory ? "field.floodYes" : "field.floodNo") }]
+    : []),
+  ...(listing.tenure !== null
+    ? [
+        {
+          label: t("field.tenure"),
+          value:
+            listing.leaseYears !== null
+              ? `${listing.tenure} (${t("field.leaseYears", { count: listing.leaseYears })})`
+              : listing.tenure,
+        },
+      ]
+    : []),
+  ...(listing.projectName !== null
+    ? [{ label: t("field.project"), value: listing.projectName }]
+    : []),
+];
+
+const locationLine = [listing.landmark, listing.tambon, listing.amphoe, listing.province]
+  .filter((p): p is string => p !== null && p !== "")
+  .join(" · ");
+
+// CONV-06: the LINE chat CTA is wired when the founder configures the OA link
+// (Pulumi config → LINE_OA_URL env). Phone is never shown — not public data here.
+const lineOaUrl = import.meta.env.LINE_OA_URL ?? process.env.LINE_OA_URL ?? "";
+
+const jsonLd = safeJsonLdScript(listingJsonLd(detail, new URL(canonicalPath, Astro.site).href));
+---
+
+<Base title={detail.headline} description={locationLine} canonicalPath={canonicalPath}>
+  <script type="application/ld+json" set:html={jsonLd} slot="head" />
+  <main style="max-width: 48rem; margin: 0 auto; padding: var(--spacing-4); display: grid; gap: var(--spacing-4);">
+    <a href={`${basePath}/`} style="color: var(--color-primary-600); font-size: var(--text-sm);">
+      ← {t("home.title")}
+    </a>
+    <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th); margin: 0;" lang={locale}>
+      {detail.headline}
+    </h1>
+    <StatusBadge listing={listing} t={t} />
+    <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} t={t} />
+    <p style="color: var(--color-text-2); margin: 0;">{locationLine}</p>
+    {listing.bedrooms !== null && listing.bathrooms !== null && (
+      <p style="margin: 0;">
+        {t("listing.bedrooms", { count: listing.bedrooms })} ·{" "}
+        {t("listing.bathrooms", { count: listing.bathrooms })}
+      </p>
+    )}
+    {lineOaUrl !== "" && <LineCtaButton lineHref={lineOaUrl} t={t} />}
+    {detail.photoCount > 0 && (
+      <Badge kind="available">{t("listing.photos", { count: detail.photoCount })}</Badge>
+    )}
+    <FieldList rows={fieldRows} />
+    {detail.description !== "" && (
+      <AccordionSection title={t("detail.description")} defaultOpen>
+        <p lang={locale} style="white-space: pre-wrap; margin: 0;">{detail.description}</p>
+      </AccordionSection>
+    )}
+    {detail.posterName !== "" && (
+      <p style="color: var(--color-text-2); font-size: var(--text-sm); margin: 0;">
+        {t("listing.postedBy", { name: detail.posterName })} ·{" "}
+        {t("listing.updated", { date: listing.updatedAt.toISOString().slice(0, 10) })}
+      </p>
+    )}
+    <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
+      {t("legal.posterProvided")}
+    </p>
+  </main>
+</Base>

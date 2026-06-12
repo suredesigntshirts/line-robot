@@ -115,3 +115,20 @@ DB-less SSR smoke, 9-check Docker browse smoke against the bundled artifact, ful
 Panel: 2 MAJOR (blocked-deed seeds public; unlogged deviations) + 4 MINOR — all fixed or logged in
 the stage-4 iteration table; province param kept as S4-I4 scaffolding (2 of 3 reviewers).
 Usage 03:45: 3% of 5h (window reset). Mode: normal build.
+
+## 04:10 — S4-I3 detail+SEO and S4-I5 sitemap SHIPPED (panel + alignment review, 1 real XSS killed)
+
+Detail page: JSON-LD RealEstateListing (null-free, Rich-Results-shaped), canonical/OG/hreflang,
+deed row with COPY-04 restricted-transfer warning, FIELD-07 flood disclosure, tenure/lease,
+beds/baths, freshness stamp, LEGAL-06 poster-provided notice (browse too), localized COPY-07
+404 page (Astro.rewrite + originPathname), 503 with retry-after. Sitemap: th URLs + en
+alternates, lastmod, LEGAL-02-gated, 10k cap commented. **Panel caught a real stored XSS**:
+JSON.stringify into `<script set:html>` — a listing description containing `</script>` (LINE
+group content!) became live script; fixed with < escaping + hostile-description regression
+in both unit and Docker smoke. /alignment-review (37 heuristics checked) drove: LINE CTA wiring
+(CONV-06, renders when founder sets LINE_OA_URL), poster name on cards (TH-03), land-units-first
+cards (COPY-06: rai/ngan/wah, not sqm), ErrorState gained an SSR-able "next" action (COPY-07).
+Simplicity: localizedContent SQL helper (3rd copy of the lang-fallback fragment), amenities dead
+fetch dropped, sitemap cap inlined. Verification: 34-check Docker smoke, 13-check DB-less smoke,
+11 website unit, 19 ui unit, 12 db integration, typecheck+lint clean. Founder queue (also in the
+stage-4 iteration log): NPA marker + new-vs-resale schema gaps; set lineOaUrl config.

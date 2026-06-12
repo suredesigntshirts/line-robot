@@ -1,6 +1,7 @@
 ---
 import { getDb, type PublicCardRow, searchPublicListings } from "@line-robot/db";
 import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
+import { createElement } from "react";
 import { BrowseResults } from "../components/BrowseResults.tsx";
 import { FilterBar } from "../components/FilterBar.tsx";
 import Base from "../layouts/Base.astro";
@@ -15,6 +16,9 @@ const { locale } = Astro.props;
 const t = createTranslator(locale);
 const basePath = locale === "en" ? "/en" : "";
 const PAGE_SIZE = 24;
+
+// COPY-07 "next" for the SSR error state (a JSX prop can't be written in an Astro template).
+const retryLink = createElement("a", { href: Astro.url.pathname }, t("error.retry"));
 
 const query = parseBrowseQuery(Astro.url.searchParams);
 let rows: PublicCardRow[] = [];
@@ -53,7 +57,7 @@ try {
     <FilterBar client:load query={query} locale={locale} basePath={basePath} />
     {
       dbError ? (
-        <ErrorState t={t} />
+        <ErrorState t={t} action={retryLink} />
       ) : (
         <BrowseResults
           rows={rows}

@@ -42,7 +42,16 @@ export function EmptyState({ t, action }: StateProps) {
   );
 }
 
-export function ErrorState({ t, onRetry }: { t: Translator; onRetry?: () => void }) {
+export function ErrorState({
+  t,
+  onRetry,
+  action,
+}: {
+  t: Translator;
+  onRetry?: () => void;
+  /** COPY-07 "next" for non-hydrated SSR hosts that can't pass onRetry (e.g. a reload link). */
+  action?: ReactNode;
+}) {
   return (
     <div style={box} data-state="error">
       <div
@@ -75,6 +84,7 @@ export function ErrorState({ t, onRetry }: { t: Translator; onRetry?: () => void
           {t("error.retry")}
         </button>
       )}
+      {!onRetry && action}
     </div>
   );
 }
