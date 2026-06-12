@@ -4,6 +4,7 @@ import { createDatabase } from "./src/database";
 import { createBotLambdas } from "./src/lambdas";
 import { createMiniApp } from "./src/miniapp";
 import { createStorage } from "./src/storage";
+import { createWebsite } from "./src/website";
 
 // The built mini-app SPA directory. Resolved here on purpose: __dirname is the Pulumi project root
 // (infra/), so `../packages/miniapp/dist` points at <repo>/packages/miniapp/dist. Moving this into
@@ -11,6 +12,8 @@ import { createStorage } from "./src/storage";
 // would vanish from the plan with no error). The FileArchive("../packages/bot/dist/*") paths in the
 // Lambda modules are different — those are CWD-relative (the project root) and stay correct anywhere.
 const MINIAPP_DIST = path.resolve(__dirname, "../packages/miniapp/dist");
+// Built Astro client assets (S4-I6) — same __dirname rationale as MINIAPP_DIST.
+const WEBSITE_CLIENT_DIST = path.resolve(__dirname, "../packages/website/dist/client");
 
 // ---------------------------------------------------------------------------
 // Wiring: storage → bot lambdas → mini app. References (and dependsOn) build the
@@ -20,6 +23,7 @@ const storage = createStorage();
 const database = createDatabase();
 const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage, database);
 const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST);
+const website = createWebsite(database, WEBSITE_CLIENT_DIST);
 
 // ---------------------------------------------------------------------------
 // Outputs
@@ -42,3 +46,7 @@ export const miniAppSiteBucket = siteBucket.bucket;
 // Stage 1 (plan 19): the v2 Postgres catalog store.
 export const dbEndpoint = database.db.endpoint;
 export const dbConnectionString = database.connectionString; // secret
+// Stage 4 (plan 19): the public website behind CloudFront (SSR Lambda + S3 assets).
+// Domain D19 pending — rebuild the website with SITE_URL=<domain> before pointing DNS.
+export const websiteCloudFrontDomain = website.distribution.domainName;
+export const websiteUrl = pulumi.interpolate`https://${website.distribution.domainName}/`;

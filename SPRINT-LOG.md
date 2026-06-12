@@ -145,3 +145,15 @@ restructure (comment + log). Fixes from panel: FilterBar go/search/navigate coll
 provinces query degrades independently, journal newline. Verification: 14 db integration
 (+2 search), 12 website unit, 36-check Docker smoke (+2 search incl. consent-gate-through-search),
 13-check DB-less smoke, typecheck+lint clean. Usage 04:15: 15%.
+
+## 05:15 — S4-I6 infra SHIPPED (code + preview only; deploy founder-gated)
+
+`infra/src/website.ts`: SSR Lambda (no AWS perms — DB is plain TCP; DATABASE_URL secret env +
+optional LINE_OA_URL), Function URL origin behind CloudFront (CachingDisabled +
+AllViewerExceptHostHeader), private S3 + OAC for `/_astro/*` (CachingOptimized), default cert,
+PriceClass_200. `listSiteFiles` extracted to `staticSite.ts` at its second caller (rule-1
+threshold); miniapp URNs byte-identical. **Preview verified: +20 / ~3 / −2, 0 replaces — both
+immovable URLs among the 57 unchanged**; deletes are miniapp asset-hash rotation. Panel flagged:
+authType NONE behind CloudFront is unverifiable pre-deploy (guardrail may 403 CloudFront's
+anonymous fetch — OAC-lambda fallback documented in MORNING.md), SITE_URL one-time rebuild note,
+build-before-up note. websiteUrl/websiteCloudFrontDomain stack outputs added.

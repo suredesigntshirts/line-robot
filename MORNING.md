@@ -13,11 +13,26 @@ and live-staging verifications behind it.
 ## 1. Deploy (unblocks everything) — ~5 min
 
 ```bash
-bash scripts/deploy-staging.sh        # reviewed preview: +5 create / 3 update / 2 delete (asset hashes), 0 replaces
+bash scripts/deploy-staging.sh        # reviewed preview: +20 create / 3 update / 2 delete (stale asset hashes), 0 replaces
 ```
-Provisions RDS Postgres (~10 min inside the up) + updates the sweep lambda (PIPELINE_V2=off — no
-behavior change). Optionally first: `/permissions` → allow `Bash(bash scripts/deploy-staging.sh)`
-so I can deploy next time.
+Provisions RDS Postgres (~10 min inside the up), updates the sweep lambda (PIPELINE_V2=off — no
+behavior change), **and now also the Stage 4 public website** (SSR Lambda + CloudFront + S3 assets
+— browse it at the `websiteUrl` stack output once migrated+seeded). Optionally first:
+`/permissions` → allow `Bash(bash scripts/deploy-staging.sh)` so I can deploy next time.
+Website extras: `pulumi config set lineOaUrl https://line.me/R/ti/p/@<your-oa-id>` lights up the
+detail-page "Chat on LINE" CTA (CONV-06) on the next up.
+
+Website caveats (panel-flagged, both quick):
+- **Run `npm run build` first** (the script assumes a fresh tree): the up zips
+  `packages/website/dist-lambda` and hard-fails if it's missing.
+- **If `websiteUrl` 403s**: the account guardrail that blocks direct public Function URLs may
+  also block CloudFront's anonymous origin fetch (spike left this open). Fix = switch the SSR
+  origin to Lambda OAC (`originAccessControlOriginType: "lambda"` + authType `AWS_IAM` on the
+  Function URL) — I can make that change in one increment; note it makes future POST forms
+  require the `x-amz-content-sha256` viewer header.
+- **Canonical URLs point at a placeholder until one rebuild**: after the first up, run
+  `SITE_URL="$(cd infra && pulumi stack output websiteUrl)" npm run build -w @line-robot/website && cd infra && pulumi up --yes`
+  so canonical/OG/hreflang/sitemap carry the real CloudFront domain (or the D19 domain once picked).
 
 ## 2. Migrate + seed the live database — ~3 min
 
