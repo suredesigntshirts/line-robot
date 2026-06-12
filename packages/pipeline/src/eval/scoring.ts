@@ -21,7 +21,10 @@ export function scoreExact(field: string, expected: string, actual: string): Fie
   };
 }
 
-/** Numeric with relative tolerance — prices, areas. `tolerance` is a fraction (0.01 = ±1%). */
+/**
+ * Numeric with relative tolerance — prices, areas. `tolerance` is a fraction (0.01 = ±1%).
+ * When `expected` is 0 the band collapses to exact equality (relative error is undefined at zero).
+ */
 export function scoreNumeric(
   field: string,
   expected: number,
@@ -61,7 +64,8 @@ export function scoreDedup(
   expectedPairs: Array<[string, string]>,
   actualPairs: Array<[string, string]>,
 ): DedupScore {
-  const key = ([a, b]: [string, string]) => (a < b ? `${a}|${b}` : `${b}|${a}`);
+  // JSON key is collision-proof even if ids ever contain a separator character.
+  const key = (pair: [string, string]) => JSON.stringify([...pair].sort());
   const expected = new Set(expectedPairs.map(key));
   const actual = new Set(actualPairs.map(key));
   const truePositives = [...actual].filter((k) => expected.has(k)).length;

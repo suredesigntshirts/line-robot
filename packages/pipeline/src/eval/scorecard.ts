@@ -31,8 +31,6 @@ export interface FieldAggregate {
 export interface Scorecard {
   caseCount: number;
   failures: number;
-  /** Advisory pass/fail vs eval.config.ts thresholds (D21: reported, never blocking). */
-  pass: boolean;
   perStep: Record<PipelineStep, StepScore>;
   perField: FieldAggregate[];
   /** API cost of the run in USD. Real model calls land in Stage 2; 0 until then. */
@@ -41,8 +39,12 @@ export interface Scorecard {
   baselineDelta: Record<PipelineStep, number> | null;
 }
 
-/** Reserved location for the committed baseline scorecard; none committed yet (Stage 2). */
-export const BASELINE_PATH = "packages/pipeline/eval-baseline.json";
+/**
+ * Reserved location for the committed baseline scorecard; none committed yet (Stage 2).
+ * Repo-root-relative for display. NOTE for Stage 2: resolve against the repo root before any fs
+ * read — `npm run eval -w` sets cwd to packages/pipeline, not the root.
+ */
+const BASELINE_PATH = "packages/pipeline/eval-baseline.json";
 
 export function emptyScorecard(): Scorecard {
   const perStep = Object.fromEntries(
@@ -51,7 +53,6 @@ export function emptyScorecard(): Scorecard {
   return {
     caseCount: 0,
     failures: 0,
-    pass: true,
     perStep,
     perField: [],
     costUsd: 0,
@@ -60,14 +61,20 @@ export function emptyScorecard(): Scorecard {
 }
 
 export function renderScorecard(card: Scorecard, config: EvalConfig): string {
+  // Advisory pass/fail (D21) is derived, never stored: unexercised steps (score null) pass.
+  const pass = PIPELINE_STEPS.every((step) => {
+    const { score } = card.perStep[step];
+    return score === null || score >= config.scoreThresholds[step];
+  });
+  const stepWidth = Math.max(...PIPELINE_STEPS.map((step) => step.length));
   const lines = [
     `eval scorecard — model ${config.model} @ temp=${config.temperature}`,
-    `${card.caseCount} cases, ${card.failures} failures — ${card.pass ? "PASS" : "FAIL"} (advisory, D21)`,
+    `${card.caseCount} cases, ${card.failures} failures — ${pass ? "PASS" : "FAIL"} (advisory, D21)`,
     "per-step (score / threshold):",
     ...PIPELINE_STEPS.map((step) => {
       const { score } = card.perStep[step];
       const shown = score === null ? "n/a" : score.toFixed(2);
-      return `  ${step.padEnd(9)} ${shown} / ${config.scoreThresholds[step].toFixed(2)}`;
+      return `  ${step.padEnd(stepWidth)} ${shown} / ${config.scoreThresholds[step].toFixed(2)}`;
     }),
     card.perField.length === 0
       ? "per-field: none scored"
@@ -75,7 +82,7 @@ export function renderScorecard(card: Scorecard, config: EvalConfig): string {
     `cost: $${card.costUsd.toFixed(2)}`,
     card.baselineDelta === null
       ? `baseline: none committed (${BASELINE_PATH}) — delta n/a`
-      : `baseline delta: ${PIPELINE_STEPS.map((s) => `${s}=${card.baselineDelta?.[s].toFixed(2)}`).join(", ")}`,
+      : `baseline delta: ${PIPELINE_STEPS.map((s) => `${s}=${card.baselineDelta?.[s]?.toFixed(2) ?? "n/a"}`).join(", ")}`,
   ];
   return lines.join("\n");
 }
