@@ -1,5 +1,26 @@
 # Blockers — Sprint 01
 
+## B2: Stage 2 live verifications queue behind B1 + API-key access (~01:45)
+
+Stage 2 increments 1–8 are code-complete and panel-reviewed (95 tests green; `npm run eval` runs
+62 synthetic cases in oracle harness-smoke mode). Three items need founder-enabled resources:
+
+1. **Real eval baseline** — `EVAL_LLM=anthropic ANTHROPIC_API_KEY=… npm run eval` then commit
+   `packages/pipeline/eval-baseline.json`. (The runner's anthropic branch intentionally throws
+   until wired at baseline time — see src/eval/runner.ts buildLlm; ~15 min incl. wiring.)
+   Estimated spend at quality-first models over 62 cases: low single-digit USD (batch halves it).
+2. **Increment 7 live acceptance** — one real batch sweep in staging; verify cost log shows batch
+   pricing and `cache_read_input_tokens > 0`.
+3. **Increment 9 (cutover)** — needs B1's deploy + a decision-light work session: PIPELINE_V2 flag
+   wiring in the sweep lambda (Q-SA2 orchestration swap), **sharp-on-Lambda packaging** (native
+   binary can't be esbuild-bundled — needs a layer or externals; the one real deploy-engineering
+   item), SQS algebra re-derivation (Q-SA1), then flip, verify, delete claudeExtractor.ts +
+   16-union test. Recommend doing this with the founder awake — it touches the live bot.
+
+**What was tried:** everything buildable without credentials/deploy was built and tested against
+Docker Postgres + fake transports; the classifier blocked SSM credential reads (correctly —
+unattended credential decryption), so no real-model calls ran tonight.
+
 ## B1: `pulumi up` for Stage 1 RDS blocked by the permission classifier (~00:55)
 
 **What:** Stage 1 Increment 1 (RDS Postgres + PostGIS) is fully coded and previewed — `pulumi
