@@ -1,14 +1,19 @@
-# Morning Runbook — Sat Jun 13 (after Sprint 01)
+# Morning Runbook — Sat Jun 13 (after Sprint 01 + your 02:39 extension)
 
 Everything below is sequenced; total founder time ≈ 30–45 min of commands + one design decision.
 Status detail: `SPRINT-LOG.md`. Parked items: `BLOCKERS.md`.
 
 ## 0. TL;DR of the night
 
-Stages 0–3 BUILT and gated (quality machinery → Postgres data layer → extraction pipeline v2 →
-shared UI). ~200 tests green. Real eval baseline committed (segment 1.00 / extract 0.95 / dedup
-1.00, $0.81). The only things that couldn't run unattended: the `pulumi up` (permission classifier)
-and live-staging verifications behind it.
+**Original charter:** stages 0–3 BUILT and gated (quality machinery → Postgres data layer →
+extraction pipeline v2 → shared UI). **Your extension (approved 02:39) added:** the eval
+"weak fields" turned out to be harness bugs — after fixing the ground truth the real baseline is
+a **clean 1.00 sweep** (now also covering translate + gate); **Stage 4 public website increments
+I1–I6 BUILT** (Astro SSR on the spike's Lambda shim, consent-gated browse/search/detail with
+JSON-LD SEO + sitemap, th/en, CloudFront+S3 infra preview-verified additive — one stored-XSS
+found and killed by review); flip de-riskers closed (live batch acceptance 9/9 with half-price
+verified, Q-SA1 executable, sharp mechanics proven); Stage 5 spec fleshed for your approval.
+Still founder-gated: the `pulumi up`, domain (D19), LINE console steps.
 
 ## 1. Deploy (unblocks everything) — ~5 min
 
@@ -78,7 +83,21 @@ Zero component edits — proven by last night's candidate-B dry run.
 - LED CKAN live pull (optional): `CKAN_DATASTORE_URL=<datastore_search url> npm run db:seed` —
   data.go.th was unreachable from the sandbox.
 
-## 6. What I'd queue next (no action needed now)
+## 6. Extension decisions queued for you (skim over coffee #2)
 
-Stage 4 (public website) is the next master-plan stage — spec is fleshed, pending your approval
-gate. The night's retro notes live at the bottom of each stage spec.
+- **Stage 4 defaults** (iteration log in `stage-4-public-website.md`): signed-cookie sessions,
+  `/properties/{id}` URLs, pg_trgm search, async submissions, LINE-Login-only auth — overrule
+  anything freely, all cheap to reverse. Open S4 scope on the gate: radius search (needs a map UI),
+  price-range filter (needs a sale-vs-rent column ruling from you), LINE Login config, submission
+  form.
+- **Schema gaps the alignment review surfaced** (register wants them, S4 can't improvise): an
+  NPA/`listing_type` marker (DIST-01/MKT-11) and a new-vs-resale field (COMP-06) — both are
+  domain-first migrations, ~1 increment.
+- **Stage 5 spec is FLESHED, build not started** — defaults in its iteration log (route-shape
+  freeze, claim DM = first gate-pass only, group-private = source group). Approve/amend and the
+  build starts next session.
+- **Eval honesty note:** the scorecard's gate row is a contract/parse-health smoke (it would catch
+  another 16-union-class outage), NOT model judgment quality; translate is invariant-based. Real
+  quality judging is Tier A work. Also queued for a judgment call: unstated deed/urgency fields
+  are SKIPPED (not scored against "unknown"/"normal") so a hallucinating model goes unpenalized
+  on those cases — revisit when Tier A lands.
