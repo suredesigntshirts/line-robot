@@ -1,0 +1,29 @@
+---
+import { Badge, createTranslator, type UiLocale } from "@line-robot/ui";
+import Base from "../layouts/Base.astro";
+
+// S4-I1 scaffold: browse-page shell shared by the th (/) and en (/en/) routes.
+// S4-I2 replaces the body with the real listing grid + filters reading from Postgres.
+interface Props {
+  locale: UiLocale;
+}
+const { locale } = Astro.props;
+const t = createTranslator(locale);
+const renderedAt = new Date().toISOString();
+---
+
+<Base
+  title={t("home.title")}
+  description={t("home.description")}
+  canonicalPath={locale === "en" ? "/en/" : "/"}
+>
+  <main style="max-width: 64rem; margin: 0 auto; padding: var(--spacing-4);">
+    <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th);">
+      {t("home.title")}
+    </h1>
+    <Badge kind="available">{t("badge.available")}</Badge>
+    <p data-rendered-at={renderedAt} style="color: var(--color-text-2); font-size: var(--text-sm);">
+      {t("home.preparing")} — SSR
+    </p>
+  </main>
+</Base>

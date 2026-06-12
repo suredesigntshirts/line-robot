@@ -73,3 +73,31 @@ Real-model re-measure running in background (deliberate baseline rewrite; old va
 record: extract 0.954, titleDeedType 0.81, urgency 0.89 — measured against buggy truth).
 
 ## 02:44 — usage: 5h window 52% used, resets ~03:10. Mode: normal build.
+
+## 03:15 — Eval truth fix re-measured: REAL baseline is now a clean sweep; S4-I1 scaffold built
+
+**Eval (task: harness truth fix).** Amendment to the 02:40 entry: the dup-case priceThb nuance WAS
+fixed tonight after all — the re-measure showed the model consistently returns the repost's
+(latest-stated) price, so two stated prices = ambiguous-by-construction; `expected.priceThb` is now
+null (skipped) when a drifted repost exists, with `pairingPriceThb` keeping expected↔extracted
+pairing stable. **Re-measured real baseline (committed): segment 1.00 / extract 1.00 / dedup 1.00,
+every per-field 1.00, $0.79.** Old baseline for the record: extract 0.954, titleDeedType 0.81,
+urgency 0.89 — all artifacts of buggy ground truth, not model weakness.
+
+**Founder judgment queue (skip-vs-abstention):** when a deed/urgency is never stated, the field is
+now SKIPPED rather than scored against the abstention value ("unknown"/"normal"). Skipping keeps
+the oracle harness-smoke invariant but means a model that hallucinates a deed from nothing goes
+unpenalized on those cases. Revisit if hallucination shows up in Tier A / production traces.
+
+**S4-I1 (website scaffold) panel.** 3 reviewers + mechanical verification. Fixed pre-commit:
+false "self-contained" asset comment (middleware-mode @astrojs/node serves NO static files —
+/_astro/* 404s at the Lambda; CloudFront+S3 in S4-I6 is the real path), latent multi-spec dup
+pairing trap (runner now sorts by pairingPriceThb), TH_DEED_WORD typed over the deed enum (future
+enum addition = compile error, not wrong ground truth), 404 content-type, i18n half-and-half in
+HomePage (home.* keys added to the ui catalogs), dead Astro.site fallback, no-op `test` script +
+unused db/domain deps dropped (re-added when S4-I2 actually imports them — skeptic sided with the
+simplicity critic over the spec auditor here). Accepted-as-is with rationale: typo'd deed still
+counts as "stated" (survivable chaos, titleDeedType scores 1.00); writeHead null/dup-key edge
+cases unreachable via Astro's response path. Verification: 89 pipeline + 19 ui tests, oracle 1.00
+with baseline delta 0.00 (refactor behavior-neutral), 12/12 SSR smoke over the exact Lambda
+artifact, biome + typecheck clean.

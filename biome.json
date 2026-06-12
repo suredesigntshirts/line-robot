@@ -15,7 +15,8 @@
       "!**/coverage",
       "!.claude",
       "!packages/ui/theme.css",
-      "!packages/ui/fallbacks.css"
+      "!packages/ui/fallbacks.css",
+      "!**/*.astro"
     ]
   },
   "formatter": {

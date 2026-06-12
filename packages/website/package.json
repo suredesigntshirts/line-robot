@@ -1,0 +1,27 @@
+{
+  "name": "@line-robot/website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node build-lambda.mjs",
+    "typecheck": "astro check",
+    "test:ssr": "npm run build && node test/ssr.smoke.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "10.1.4",
+    "@astrojs/react": "^5.0.7",
+    "@line-robot/ui": "*",
+    "astro": "6.4.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "esbuild": "^0.28.0",
+    "typescript": "^6.0.3"
+  }
+}

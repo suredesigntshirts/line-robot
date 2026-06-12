@@ -1,0 +1,42 @@
+---
+import "@line-robot/ui/theme.css";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Canonical path for this page ("/properties/123"); joined onto the site origin. */
+  canonicalPath: string;
+}
+
+const { title, description, canonicalPath } = Astro.props;
+const locale = Astro.currentLocale ?? "th";
+// astro.config.mjs always sets `site` (SITE_URL or its placeholder default).
+const site = Astro.site;
+if (!site) throw new Error("Astro.site missing — set `site` in astro.config.mjs");
+const canonical = new URL(canonicalPath, site);
+// hreflang pair: default locale lives at "/", English under "/en/".
+const thUrl = new URL(canonicalPath.replace(/^\/en(\/|$)/, "/"), site);
+const enPath = canonicalPath.startsWith("/en/") ? canonicalPath : `/en${canonicalPath}`;
+const enUrl = new URL(enPath, site);
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="th" href={thUrl} />
+    <link rel="alternate" hreflang="en" href={enUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <slot name="head" />
+  </head>
+  <body style="margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body-th); line-height: var(--leading-body);">
+    <slot />
+  </body>
+</html>

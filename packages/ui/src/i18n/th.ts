@@ -51,6 +51,11 @@ export const th = {
   "error.title": "โหลดข้อมูลไม่สำเร็จ",
   "error.why": "การเชื่อมต่อขัดข้องชั่วคราว",
   "error.retry": "ลองใหม่",
+
+  // Public website (Stage 4)
+  "home.title": "ประกาศอสังหาริมทรัพย์",
+  "home.description": "ค้นหาบ้าน ที่ดิน คอนโด จากเจ้าของโดยตรง",
+  "home.preparing": "กำลังเตรียมรายการประกาศ",
 } as const;
 
 export type MessageKey = keyof typeof th;
