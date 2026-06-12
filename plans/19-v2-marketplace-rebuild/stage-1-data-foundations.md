@@ -72,6 +72,15 @@ Each increment is one PR-sized unit with its own per-increment adversarial revie
 - [ ] Integration suite green on Docker Postgres; typecheck + Biome + unit + coverage green.
 - [ ] Per-increment reviews complete + skeptic-verified; `CLAUDE.md` updated (new `dbPassword` secret, db:seed + test:integration scripts, Postgres connection posture + production-hardening note).
 
+## Open question from the spine audit (stage-0-spine-audit.md, D24)
+
+- **Q-SA4 (raw-archive retention):** the S3 raw archive keeps Thai chat data (names, LINE IDs,
+  phone numbers) indefinitely with only a 30-day IA transition and no stated retention policy.
+  When touching infra this stage, add an explicit lifecycle statement: either a chosen retention
+  rule or a recorded "indefinite for now, revisit before public launch" decision + one-paragraph
+  data-handling note. Small, infra-config-level; do not build scrub/export machinery (deferred with
+  Tier A, D2.1).
+
 ## Risks
 
 - **Public RDS posture (D-S1-2)** — accepted for staging (forced TLS + strong secret + SG); production must move to private subnets + VPC/NAT. Documented; not built now.

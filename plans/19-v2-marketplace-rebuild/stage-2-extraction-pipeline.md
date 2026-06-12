@@ -105,6 +105,25 @@ Each: spec-auditor + correctness + simplicity-critic review (master plan §5.3).
 - [ ] No surviving import of `claudeExtractor.ts`; v1 catalog table is read-only.
 - [ ] High-effort full-diff review; hexagonal conformance (no adapter imports in pipeline core); docs/CLAUDE.md updated (drop the 16-union rule once the old extractor is gone).
 
+## Open questions from the spine audit (stage-0-spine-audit.md, D24)
+
+Resolve during build (each is increment-sized or folds into an existing increment):
+
+- **Q-SA1 (SQS algebra):** re-derive visibility timeout (currently 180s = 6× the v1 processor's
+  30s), `maxReceiveCount` (5), and event-source batch size (10) from v2's worst-case sweep/pipeline
+  latencies and the Postgres connection budget — Lambda concurrency × per-invocation pool must stay
+  comfortably under db.t4g.micro's ~85 max_connections. Make the inequality an explicit acceptance
+  check in the cutover increment.
+- **Q-SA2 (sweep orchestration):** `extractAndApply` (ingestionSweep.ts:235–326) is replaced
+  wholesale by the six-step pipeline call; the conversation-level retry-cap/FAILED algebra
+  (ingestionSweep.ts:200–212) must become per-step failure semantics with partial success (some
+  segments land, others to moderation). Decide the Batch-completion trigger: keep the 2-min poll
+  that skips INGESTING conversations, or add a completion push. (Default: keep the poll — simplest
+  thing that works; revisit if batch volume makes it wasteful.)
+- **Q-SA3 (archive port):** extend the `RawArchive` port with the image-derivatives contract (D2.7
+  two sizes) when the derivatives increment lands; keep a scrub-on-export seam in mind for future
+  Tier A fixtures (no work now — D2.1 defers it).
+
 ## Risks
 
 - **Batch latency** (≤1h, 24h worst case) — mitigated by D2.4 copy; sync path unaffected.
