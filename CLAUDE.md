@@ -2,6 +2,18 @@
 
 Project-specific guidance for Claude. (The global `~/.claude/CLAUDE.md` also applies.)
 
+## V2 rebuild — plan & product research
+
+The v2 marketplace rebuild is governed by `plans/19-v2-marketplace-rebuild.md` (master plan,
+decision register D1–D25) with per-stage specs in `plans/19-v2-marketplace-rebuild/`. **No stage is
+built before its spec is fleshed and the user approves.**
+
+Product/market research artifacts live in `docs/research/` (a1–c1). The **heuristic register** —
+the numbered, falsifiable rules every design-bearing change is reviewed against — is
+`docs/research/00-product-principles.md`. When reviewing or building UI, copy, schema, or flows,
+load the register and check the applicable heuristic IDs. (A `/alignment-review` skill that does
+this mechanically is a Stage 0 deliverable.)
+
 ## ⚠️ Anthropic structured output — HARD 16-nullable-parameter limit (DO NOT REGRESS)
 
 Our extraction uses Anthropic **strict structured output** (`messages.parse` +
