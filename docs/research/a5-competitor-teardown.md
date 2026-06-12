@@ -346,3 +346,12 @@ DDProperty, FazWaz, and Hipflat all returned Cloudflare "Just a moment…" block
 **Finding 5 — Applied (MINOR).** COMP-15 rewritten to match the product's actual mechanic: private-by-default mirror of the source LINE group + explicit poster opt-in to public publication + ~7-day group-first window. The previous "broker-relationship-protection" framing was a marketing gloss; the actual mechanic is group-privacy-by-default, which is what makes this structurally novel.
 
 **Finding 6 — Applied (MINOR).** Finding 31 (LINE commerce stat) now carries an inline flag: "broad commerce statistic, not property-specific — do not cite as evidence of property conversion." This prevents the PLAUSIBLE-BUT-UNVERIFIED 80% figure from being used to prop up COMP-01's conversion argument where property-specific evidence is what matters.
+
+## Addendum 2026-06-12 — first-hand DDProperty capture (founder-assisted headed session)
+
+The Cloudflare gap is closed: with the founder clearing the challenge in a headed persistent session, the DDProperty mobile listing detail was observed directly (screenshots: docs/design/moodboard/manual-retry/ddproperty-manual-0[1-8]*.png).
+
+- **COMP-01 correction for DDProperty specifically:** the market leader does NOT lead with a LINE button on mobile listing detail. The pattern is: sticky enquiry card (บันทึกประกาศ save / แชร์ share / contact), "ติดต่อเอเจนต์" funnel, mortgage calculator section, section tab-nav (รูปภาพ/ภาพรวม/ทำเลที่ตั้ง/สิ่งอำนวยความสะดวก/สินเชื่อ). This CONFIRMS B2 F16/F17 (DDproperty fronts an enquiry funnel) — our LINE-first CTA is user-behavior-driven differentiation, not portal imitation. Kaidee remains the observed LINE-first portal.
+- **TH-04 validation:** DDProperty shows a "ยืนยันตัวตนแล้ว" (identity verified) badge on the agent block — the market leader trains users to expect verification badges.
+- Thai-language URL routes confirmed throughout (/รวมประกาศขาย/ในเชียงใหม่-th50, /property/<slug>-ขาย-<id>) — supports TH-10.
+- Idealista (founder cleared DataDome): mobile detail CTAs ordered "Contact via chat" → "View phone" → form — a chat-first European reference (screenshots idealista-manual-0[1-4]*.png).
