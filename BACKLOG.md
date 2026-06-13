@@ -95,7 +95,7 @@ Lambda mechanics proven.
 
 ## Founder action queue (unblocks built work)
 
-- **Pick the design-token direction** (A/B/C → swap into `theme.css`) — **Stage 3 is gated pending this.**
+- ~~Pick the design-token direction~~ **DONE 2026-06-13: Direction A "Baania-clean" (trust-blue) confirmed** after side-by-side HTML mockups (`docs/design/mockups/direction-*.html`); `theme.css` header updated to founder-confirmed, fallbacks regenerated. **Stage 3 design-token gate is now unblocked.**
 - **Approve the Stage 5 build** (spec fleshed) — or amend its logged defaults.
 - **Rulings:** price-filter sale-vs-rent (4.3); the two schema gaps NPA/`listing_type` + new-vs-resale (4.7).
 - **Set `lineOaUrl`** Pulumi config to light the detail-page "Chat on LINE" CTA (CONV-06).

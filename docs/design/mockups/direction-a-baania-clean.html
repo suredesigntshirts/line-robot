@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Direction A — Baania-clean (Mockup)</title>
+
+  <!-- Google Fonts: Sarabun (looped Thai body), Noto Sans Thai (heading), Inter (Latin/numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       CANDIDATE A — "Baania-clean"
+       OKLCH values authoritative; hex comments = sRGB fallback.
+       Hex-first cascade via @supports for TECH-06 targets.
+       ============================================================ */
+
+    /* --- Hex-first fallback (old WebViews stop here) --- */
+    :root {
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+      --color-primary-800: #0c2c58;
+      --color-primary-900: #071d3a;
+
+      --color-bg:          #faf9f7;
+      --color-surface:     #ffffff;
+      --color-surface-2:   #f3f2ef;
+      --color-border:      #e4e2de;
+      --color-border-2:    #d4d2cd;
+
+      --color-text:        #141820;
+      --color-text-2:      #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      --color-success:     #1a8a4a;
+      --color-success-bg:  #e9f7ef;
+      --color-warn:        #d97706;
+      --color-warn-bg:     #fef9eb;
+      --color-danger:      #c0392b;
+      --color-danger-bg:   #fdecea;
+
+      --badge-available:      #e9f7ef;
+      --badge-available-text: #1a8a4a;
+      --badge-reserved:       #eef1fd;
+      --badge-reserved-text:  #3b4ec8;
+      --badge-urgent:         #fef9eb;
+      --badge-urgent-text:    #d97706;
+      --badge-verified:       #e8f0fb;
+      --badge-verified-text:  #174d93;
+      --badge-owner:          #e6f6fb;
+      --badge-owner-text:     #1a6a8a;
+      --badge-npa:            #fdecea;
+      --badge-npa-text:       #c0392b;
+    }
+
+    /* --- OKLCH override for modern browsers --- */
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-300: oklch(0.76 0.10  240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-primary-700: oklch(0.38 0.13  240);
+        --color-primary-800: oklch(0.30 0.10  240);
+        --color-primary-900: oklch(0.22 0.07  240);
+
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+        --color-danger:      oklch(0.54 0.20   20);
+        --color-danger-bg:   oklch(0.96 0.04   20);
+
+        --badge-available:      oklch(0.95 0.04  150);
+        --badge-available-text: oklch(0.52 0.15  150);
+        --badge-reserved:       oklch(0.95 0.04  270);
+        --badge-reserved-text:  oklch(0.42 0.14  270);
+        --badge-urgent:         oklch(0.97 0.04   75);
+        --badge-urgent-text:    oklch(0.70 0.17   75);
+        --badge-verified:       oklch(0.96 0.03  240);
+        --badge-verified-text:  oklch(0.46 0.15  240);
+        --badge-owner:          oklch(0.96 0.04  200);
+        --badge-owner-text:     oklch(0.40 0.12  200);
+        --badge-npa:            oklch(0.96 0.04   20);
+        --badge-npa-text:       oklch(0.54 0.20   20);
+      }
+    }
+
+    /* --- Dark mode overrides --- */
+    :root[data-theme="dark"],
+    .dark {
+      --color-primary-50:  #1a2340;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #5b9de0;
+      --color-bg:          #111318;
+      --color-surface:     #1a1e26;
+      --color-surface-2:   #202530;
+      --color-border:      #2d3444;
+      --color-border-2:    #374055;
+      --color-text:        #e8eaf0;
+      --color-text-2:      #9aa0b4;
+      --color-text-disabled: #525b6e;
+      --color-success:     #3dba74;
+      --color-success-bg:  #0d2e1c;
+      --color-warn:        #f59e0b;
+      --color-warn-bg:     #2d1e05;
+      --color-danger:      #f87171;
+      --color-danger-bg:   #2d0f0f;
+      --badge-available:      #0d2e1c;
+      --badge-available-text: #3dba74;
+      --badge-urgent:         #2d1e05;
+      --badge-urgent-text:    #f59e0b;
+      --badge-verified:       #0d1a38;
+      --badge-verified-text:  #7eb3f0;
+      --badge-npa:            #2d0f0f;
+      --badge-npa-text:       #f87171;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root[data-theme="dark"],
+      .dark {
+        --color-primary-500: oklch(0.70 0.14  240);
+        --color-bg:          oklch(0.14 0.010 240);
+        --color-surface:     oklch(0.19 0.012 240);
+        --color-surface-2:   oklch(0.23 0.012 240);
+        --color-border:      oklch(0.30 0.015 240);
+        --color-border-2:    oklch(0.36 0.015 240);
+        --color-text:        oklch(0.93 0.008 240);
+        --color-text-2:      oklch(0.68 0.015 240);
+        --color-text-disabled: oklch(0.45 0.012 240);
+        --color-success:     oklch(0.65 0.14  150);
+        --color-success-bg:  oklch(0.22 0.06  150);
+        --color-warn:        oklch(0.78 0.15   75);
+        --color-warn-bg:     oklch(0.22 0.05   75);
+        --color-danger:      oklch(0.68 0.18   20);
+        --color-danger-bg:   oklch(0.22 0.06   20);
+        --badge-available:      oklch(0.22 0.06  150);
+        --badge-available-text: oklch(0.65 0.14  150);
+        --badge-urgent:         oklch(0.22 0.05   75);
+        --badge-urgent-text:    oklch(0.78 0.15   75);
+        --badge-verified:       oklch(0.22 0.06  240);
+        --badge-verified-text:  oklch(0.75 0.12  240);
+        --badge-npa:            oklch(0.22 0.06   20);
+        --badge-npa-text:       oklch(0.68 0.18   20);
+      }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-primary-500: #5b9de0;
+        --color-bg:          #111318;
+        --color-surface:     #1a1e26;
+        --color-surface-2:   #202530;
+        --color-border:      #2d3444;
+        --color-border-2:    #374055;
+        --color-text:        #e8eaf0;
+        --color-text-2:      #9aa0b4;
+        --color-text-disabled: #525b6e;
+        --color-success:     #3dba74;
+        --color-success-bg:  #0d2e1c;
+        --color-warn:        #f59e0b;
+        --color-warn-bg:     #2d1e05;
+        --color-danger:      #f87171;
+        --color-danger-bg:   #2d0f0f;
+        --badge-available:   #0d2e1c;
+        --badge-available-text: #3dba74;
+        --badge-urgent:      #2d1e05;
+        --badge-urgent-text: #f59e0b;
+        --badge-verified:    #0d1a38;
+        --badge-verified-text: #7eb3f0;
+        --badge-npa:         #2d0f0f;
+        --badge-npa-text:    #f87171;
+      }
+    }
+
+    /* --- Spacing, radius, shadow --- */
+    :root {
+      --spacing-1:  4px;
+      --spacing-2:  8px;
+      --spacing-3:  12px;
+      --spacing-4:  16px;
+      --spacing-5:  20px;
+      --spacing-6:  24px;
+      --spacing-8:  32px;
+      --spacing-10: 40px;
+      --spacing-12: 48px;
+
+      --radius-sm:   6px;
+      --radius-md:   10px;
+      --radius-lg:   14px;
+      --radius-xl:   20px;
+      --radius-full: 9999px;
+
+      --shadow-xs: 0 1px 2px rgba(20, 24, 32, 0.06);
+      --shadow-sm: 0 1px 4px rgba(20, 24, 32, 0.08), 0 0 1px rgba(20, 24, 32, 0.04);
+      --shadow-md: 0 4px 12px rgba(20, 24, 32, 0.10), 0 1px 3px rgba(20, 24, 32, 0.06);
+      --shadow-lg: 0 8px 24px rgba(20, 24, 32, 0.12), 0 2px 6px rgba(20, 24, 32, 0.08);
+
+      /* Typography — Candidate A */
+      --font-body-th:    'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+      --font-heading-th: 'Noto Sans Thai', 'Sarabun', Arial, sans-serif;
+      --font-latin:      'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+      --text-xs:   11px;
+      --text-sm:   13px;
+      --text-base: 15px;
+      --text-md:   17px;
+      --text-lg:   20px;
+      --text-xl:   24px;
+      --text-2xl:  28px;
+      --text-3xl:  34px;
+
+      --leading-body: 1.65;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e8ecf2; /* neutral page chrome behind the device frame */
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+    /* TH-08: Thai line-break via lang + overflow-wrap */
+    [lang="th"] {
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    /* ============================================================
+       DIRECTION LABEL BAR
+       ============================================================ */
+    .direction-label {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-primary-500);
+      color: #ffffff;
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .direction-label span {
+      opacity: 0.75;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 11px;
+    }
+
+    /* ============================================================
+       DEVICE FRAME — centered ~390px "phone" column
+       ============================================================ */
+    .device-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px 48px;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .device {
+      width: 390px;
+      max-width: 100%;
+      background: var(--color-bg);
+      border-radius: 32px;
+      box-shadow: 0 0 0 8px #1a1a2e, 0 24px 64px rgba(0,0,0,0.35);
+      overflow: hidden;
+      color: var(--color-text);
+    }
+
+    /* Fake status bar */
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px 6px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    /* ============================================================
+       APP HEADER / STICKY NAV
+       ============================================================ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .app-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+    }
+
+    .app-logo {
+      font-family: var(--font-heading-th);
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--color-primary-500);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .app-logo span {
+      color: var(--color-primary-300);
+    }
+
+    .search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      cursor: text;
+    }
+
+    .search-box .search-icon {
+      color: var(--color-text-disabled);
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .search-box .search-placeholder {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      color: var(--color-primary-600);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       FILTER ROW
+       ============================================================ */
+    .filter-row {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 8px 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .filter-row-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .filter-divider {
+      width: 1px;
+      height: 18px;
+      background: var(--color-border-2);
+      flex-shrink: 0;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .chip.active {
+      background: var(--color-primary-500);
+      color: #ffffff;
+      border-color: var(--color-primary-500);
+      font-weight: 600;
+    }
+
+    .chip.soft-active {
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      border-color: var(--color-primary-200);
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       RESULTS BAR
+       ============================================================ */
+    .results-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px 4px;
+    }
+
+    .results-count {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+    }
+
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-primary-600);
+      font-weight: 600;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    /* ============================================================
+       CARD GRID
+       ============================================================ */
+    .card-grid {
+      padding: 0 12px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    /* Wide card takes full row */
+    .card-grid .card-wide {
+      grid-column: 1 / -1;
+    }
+
+    /* ============================================================
+       LISTING CARD
+       ============================================================ */
+    .listing-card {
+      display: block;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--color-text);
+      font-family: var(--font-body-th);
+      transition: box-shadow 0.15s, transform 0.12s;
+    }
+
+    .listing-card:hover {
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
+
+    /* Photo area */
+    .card-photo {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-primary-100) 100%);
+      overflow: hidden;
+    }
+
+    .card-photo-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      opacity: 0.35;
+      color: var(--color-primary-400);
+    }
+
+    /* deal-type pill overlay — top-left on photo */
+    .deal-pill {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+      backdrop-filter: blur(4px);
+    }
+
+    .deal-sell {
+      background: rgba(255,255,255,0.92);
+      color: var(--color-primary-600);
+      border: 1px solid var(--color-primary-200);
+    }
+
+    .deal-rent {
+      background: rgba(255,255,255,0.92);
+      color: #1a6a8a;
+      border: 1px solid #b8d9e8;
+    }
+
+    /* photo count badge — bottom-right */
+    .photo-count {
+      position: absolute;
+      right: 7px;
+      bottom: 7px;
+      background: rgba(20, 24, 32, 0.75);
+      color: #ffffff;
+      border-radius: var(--radius-sm);
+      padding: 1px 7px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    /* Card body */
+    .card-body {
+      padding: 10px 11px 11px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .card-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-available { background: var(--badge-available); color: var(--badge-available-text); }
+    .badge-urgent    { background: var(--badge-urgent);    color: var(--badge-urgent-text); }
+    .badge-verified  { background: var(--badge-verified);  color: var(--badge-verified-text); }
+    .badge-npa       { background: var(--badge-npa);       color: var(--badge-npa-text); }
+    .badge-rent      { background: var(--badge-owner);     color: var(--badge-owner-text); }
+
+    .card-headline {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.45;
+      color: var(--color-text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-price-label {
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      margin-bottom: -2px;
+    }
+
+    .card-price {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--color-text);
+      font-family: var(--font-latin);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+
+    .card-price-thb {
+      font-family: var(--font-body-th);
+      font-size: 15px;
+    }
+
+    .card-specs {
+      font-size: 12px;
+      color: var(--color-text-2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .spec-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--color-border-2);
+      flex-shrink: 0;
+    }
+
+    .card-location {
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================================
+       SECTION DIVIDER (Baania-style orange-ish accent underline)
+       ============================================================ */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 14px 6px;
+    }
+
+    .section-title {
+      font-family: var(--font-heading-th);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+      position: relative;
+      padding-bottom: 4px;
+    }
+
+    .section-title::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--color-warn);
+      border-radius: 2px;
+    }
+
+    .section-more {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-600);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* ============================================================
+       BOTTOM NAVIGATION
+       ============================================================ */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 0 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      transition: color 0.12s;
+    }
+
+    .nav-item.active {
+      color: var(--color-primary-500);
+    }
+
+    .nav-icon {
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    /* ============================================================
+       DETAIL PANEL (below the browse device)
+       ============================================================ */
+    .detail-device {
+      width: 390px;
+      max-width: 100%;
+    }
+
+    .detail-device .device {
+      width: 100%;
+      border-radius: 32px;
+    }
+
+    /* Back bar in detail */
+    .detail-topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      font-size: 15px;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+
+    .topbar-title {
+      font-family: var(--font-heading-th);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Gallery strip */
+    .gallery-strip {
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, var(--color-primary-100) 0%, var(--color-primary-200) 60%, var(--color-primary-300) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gallery-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .gallery-icon {
+      font-size: 40px;
+      opacity: 0.45;
+      color: var(--color-primary-700);
+    }
+
+    .gallery-label {
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-primary-700);
+      opacity: 0.65;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    /* Thumbnail strip */
+    .thumb-strip {
+      display: flex;
+      gap: 5px;
+      padding: 6px 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .thumb-strip::-webkit-scrollbar { display: none; }
+
+    .thumb {
+      flex-shrink: 0;
+      width: 54px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      border: 2px solid transparent;
+      overflow: hidden;
+    }
+
+    .thumb.active-thumb {
+      border-color: var(--color-primary-500);
+    }
+
+    /* Detail body */
+    .detail-body {
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .detail-title {
+      font-family: var(--font-heading-th);
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.45;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    .detail-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .detail-price-block {
+      background: var(--color-primary-50);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      border: 1px solid var(--color-primary-100);
+    }
+
+    .detail-price-label {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-600);
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .detail-price {
+      font-family: var(--font-latin);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+
+    .detail-price .thb-symbol {
+      font-family: var(--font-body-th);
+      font-size: 22px;
+    }
+
+    .detail-location {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+      line-height: 1.5;
+    }
+
+    /* Spec table */
+    .spec-table {
+      display: grid;
+      gap: 0;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .spec-row {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .spec-row:last-child { border-bottom: none; }
+
+    .spec-dt {
+      width: 110px;
+      flex-shrink: 0;
+      padding: 9px 12px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-2);
+      background: var(--color-surface-2);
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+    }
+
+    .spec-dd {
+      flex: 1;
+      padding: 9px 12px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      background: var(--color-surface);
+      display: flex;
+      align-items: center;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    /* Description block */
+    .desc-block {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+
+    .desc-header {
+      padding: 10px 14px;
+      font-family: var(--font-heading-th);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      background: var(--color-surface-2);
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .desc-body {
+      padding: 12px 14px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+      line-height: 1.7;
+      word-break: normal;
+      overflow-wrap: anywhere;
+    }
+
+    /* Yield highlight */
+    .yield-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: var(--badge-verified);
+      color: var(--badge-verified-text);
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* CTA area */
+    .cta-area {
+      display: grid;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--color-primary-500);
+      color: #ffffff;
+      font-family: var(--font-body-th);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(31, 95, 173, 0.30);
+      text-decoration: none;
+    }
+
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px;
+      border-radius: var(--radius-md);
+      border: 1.5px solid var(--color-primary-200);
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      font-family: var(--font-body-th);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    /* Poster credit */
+    .poster-credit {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      padding: 0 0 4px;
+    }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      padding: 0 14px 14px;
+      line-height: 1.6;
+    }
+
+    /* ============================================================
+       DARK TOGGLE — floating top-right on page chrome
+       ============================================================ */
+    .dark-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-md);
+      padding: 6px 14px 6px 10px;
+      cursor: pointer;
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-2);
+    }
+
+    .dark-toggle:hover { color: var(--color-text); }
+
+    /* ============================================================
+       WIDE-SCREEN: side-by-side browse + detail
+       ============================================================ */
+    @media (min-width: 900px) {
+      body { background: #d6dde8; }
+    }
+
+    /* ============================================================
+       SCROLLABLE FRAME INNER
+       ============================================================ */
+    .device-scroll {
+      max-height: 780px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+
+    .device-scroll::-webkit-scrollbar { width: 4px; }
+    .device-scroll::-webkit-scrollbar-track { background: transparent; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+
+    /* ============================================================
+       LABEL UNDER EACH DEVICE
+       ============================================================ */
+    .device-label {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Direction label bar -->
+  <div class="direction-label">
+    Direction A &mdash; Baania-clean (blue portal)
+    <span>Tokens: trust-blue #1f5fad · Sarabun body · Noto Sans Thai heading · warm-white surface</span>
+    <button class="dark-toggle" onclick="
+      var html = document.documentElement;
+      if (html.dataset.theme === 'dark') {
+        html.dataset.theme = 'light';
+        this.textContent = '🌙 Dark';
+      } else {
+        html.dataset.theme = 'dark';
+        this.textContent = '☀ Light';
+      }
+    " style="position:static;background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:#fff;padding:4px 12px;font-size:11px;">🌙 Dark</button>
+  </div>
+
+  <!-- Device frames -->
+  <div class="device-wrap">
+
+    <!-- ==================== BROWSE DEVICE ==================== -->
+    <div>
+      <div class="device" lang="th">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- App header -->
+          <header class="app-header">
+            <div class="app-header-inner">
+              <div class="app-logo">ทรัพย์<span>ดี</span></div>
+              <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <span class="search-placeholder">ค้นหาทำเล โครงการ คำอธิบาย</span>
+              </div>
+              <button class="header-btn" aria-label="แผนที่">🗺</button>
+            </div>
+
+            <!-- Filter row -->
+            <div class="filter-row">
+              <div class="filter-row-inner">
+                <!-- ซื้อ/เช่า -->
+                <button class="chip active">ขาย</button>
+                <button class="chip">ให้เช่า</button>
+                <div class="filter-divider"></div>
+                <!-- Property type chips -->
+                <button class="chip soft-active">บ้านเดี่ยว</button>
+                <button class="chip">ที่ดิน</button>
+                <button class="chip">ทาวน์เฮาส์</button>
+                <button class="chip">คอนโด</button>
+                <button class="chip">อาคารพาณิชย์</button>
+                <div class="filter-divider"></div>
+                <button class="chip">⚙ ตัวกรองเพิ่มเติม</button>
+              </div>
+            </div>
+          </header>
+
+          <!-- Results bar -->
+          <div class="results-bar">
+            <span class="results-count">20 ประกาศ · เชียงใหม่</span>
+            <button class="sort-btn">เรียงตาม ▾</button>
+          </div>
+
+          <!-- Section header -->
+          <div class="section-header">
+            <div class="section-title">ประกาศล่าสุด</div>
+            <a href="#" class="section-more">ดูทั้งหมด →</a>
+          </div>
+
+          <!-- Card grid -->
+          <div class="card-grid" lang="th">
+
+            <!-- Card 1: Wide — Featured (หอพักบ่อสร้าง) -->
+            <a class="listing-card card-wide" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏘</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 12 รูป</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                  <span class="badge badge-npa">ยังไม่ยืนยันโฉนด</span>
+                </div>
+                <div class="card-headline">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>4,800,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>52 ตร.ว.</span>
+                </div>
+                <div class="card-location">ใกล้แยกบ่อสร้าง · ต้นเปา · สันกำแพง</div>
+              </div>
+            </a>
+
+            <!-- Card 2 (ทาวน์โฮม อรสิริน) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏠</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 10</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                </div>
+                <div class="card-headline">ทาวน์โฮมในโครงการอรสิริน 6</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>1,300,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>31 ตร.ว.</span>
+                </div>
+                <div class="card-location">โครงการอรสิริน 6</div>
+              </div>
+            </a>
+
+            <!-- Card 3 (หอพัก ม.แม่โจ้) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏢</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 11</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                </div>
+                <div class="card-headline">ขายหอพัก 2 ชั้น 39 ห้อง ใกล้ ม.แม่โจ้</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>13,800,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>700 ตร.ว.</span>
+                </div>
+                <div class="card-location">ใกล้ ม.แม่โจ้</div>
+              </div>
+            </a>
+
+            <!-- Card 4 (บ้านหลักชัย 3นอน) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏡</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 16</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                  <span class="badge badge-verified">✓ ยืนยัน</span>
+                </div>
+                <div class="card-headline">ขายฝากบ้าน 2 ชั้น โครงการบ้านหลักชัย สันทราย</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>1,200,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span><span class="spec-dot"></span>
+                  <span>30 ตร.ว.</span>
+                </div>
+                <div class="card-location">ตรงข้ามกาดแม่กวง · สันนาเม็ง</div>
+              </div>
+            </a>
+
+            <!-- Card 5 (ช้างเผือก ขายด่วน) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏠</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                  <span class="badge badge-urgent">ขายด่วน</span>
+                </div>
+                <div class="card-headline">ขาย ใกล้ตลาดช้างเผือก</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>5,300,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>2 นอน</span><span class="spec-dot"></span>
+                  <span>1 น้ำ</span><span class="spec-dot"></span>
+                  <span>106 ตร.ม.</span>
+                </div>
+                <div class="card-location">ช้างเผือก · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 6 (Central Festival 4นอน) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏘</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-available">ขาย</span>
+                </div>
+                <div class="card-headline">ขาย ใกล้ Central Festival</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>6,800,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>4 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span><span class="spec-dot"></span>
+                  <span>189 ตร.ม.</span>
+                </div>
+                <div class="card-location">หนองป่าครั่ง · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 7 (เช่า มช. ประตูหลัง) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo" style="background: linear-gradient(135deg, var(--color-owner-bg, #e6f6fb) 0%, #c8e9f5 100%);">
+                <div class="card-photo-icon" style="color: #1a6a8a;">🏠</div>
+                <span class="deal-pill deal-rent">เช่า</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-rent">ให้เช่า</span>
+                </div>
+                <div class="card-headline">ให้เช่า ใกล้ มช. ประตูหลัง</div>
+                <div>
+                  <div class="card-price-label">ค่าเช่า/เดือน</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>13,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span><span class="spec-dot"></span>
+                  <span>101 ตร.ม.</span>
+                </div>
+                <div class="card-location">สุเทพ · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 8 (กาดฝรั่ง หางดง เช่า ขายด่วน) -->
+            <a class="listing-card" href="#detail">
+              <div class="card-photo" style="background: linear-gradient(135deg, #e6f6fb 0%, #c8e9f5 100%);">
+                <div class="card-photo-icon" style="color: #1a6a8a;">🏡</div>
+                <span class="deal-pill deal-rent">เช่า</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge badge-rent">ให้เช่า</span>
+                  <span class="badge badge-urgent">ขายด่วน</span>
+                </div>
+                <div class="card-headline">ให้เช่า ใกล้กาดฝรั่ง หางดง</div>
+                <div>
+                  <div class="card-price-label">ค่าเช่า/เดือน</div>
+                  <div class="card-price"><span class="card-price-thb">฿</span>10,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span><span class="spec-dot"></span>
+                  <span>210 ตร.ม.</span>
+                </div>
+                <div class="card-location">แม่เหียะ · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+          </div><!-- /card-grid -->
+
+          <!-- Disclaimer -->
+          <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+          <!-- Bottom navigation -->
+          <nav class="bottom-nav">
+            <a class="nav-item active" href="#">
+              <span class="nav-icon">🏠</span>
+              หน้าแรก
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🔍</span>
+              ค้นหา
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">➕</span>
+              ลงประกาศ
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">💬</span>
+              แชท
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">👤</span>
+              บัญชี
+            </a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+      <div class="device-label">Browse — เชียงใหม่</div>
+    </div>
+
+    <!-- ==================== DETAIL DEVICE ==================== -->
+    <div id="detail">
+      <div class="device" lang="th">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="time">9:42</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- Top bar -->
+          <div class="detail-topbar">
+            <a class="back-btn" href="#">←</a>
+            <div class="topbar-title">ขายหอพักย่านบ่อสร้าง 14 ห้อง</div>
+            <button class="header-btn" aria-label="แชร์">↑</button>
+          </div>
+
+          <!-- Gallery -->
+          <div class="gallery-strip">
+            <div class="gallery-overlay">
+              <div class="gallery-icon">📷</div>
+              <div class="gallery-label">Photos (12)</div>
+            </div>
+          </div>
+
+          <!-- Thumbnail strip -->
+          <div class="thumb-strip">
+            <div class="thumb active-thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+          </div>
+
+          <!-- Detail body -->
+          <div class="detail-body" lang="th">
+
+            <!-- Title -->
+            <h1 class="detail-title">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</h1>
+
+            <!-- Badges -->
+            <div class="detail-badges">
+              <span class="badge badge-available">ขาย</span>
+              <span class="badge badge-npa">ยังไม่ยืนยันโฉนด</span>
+              <span class="yield-pill">ผลตอบแทน 9.2% / ปี</span>
+            </div>
+
+            <!-- Price block -->
+            <div class="detail-price-block">
+              <div class="detail-price-label">ราคาเสนอขาย</div>
+              <div class="detail-price"><span class="thb-symbol">฿</span>4,800,000</div>
+            </div>
+
+            <!-- Location -->
+            <div class="detail-location">
+              📍 ใกล้แยกบ่อสร้าง, ใกล้กาดอุ้ยทา · ต้นเปา · สันกำแพง · เชียงใหม่
+            </div>
+
+            <!-- Spec table -->
+            <div class="spec-table">
+              <div class="spec-row">
+                <div class="spec-dt">ประเภท</div>
+                <div class="spec-dd">อาคารพาณิชย์ / หอพัก</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">เอกสารสิทธิ์</div>
+                <div class="spec-dd">ไม่ระบุเอกสารสิทธิ์</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">เนื้อที่</div>
+                <div class="spec-dd">52 ตร.ว.</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">จำนวนห้อง</div>
+                <div class="spec-dd">14 ห้อง</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">รายได้/เดือน</div>
+                <div class="spec-dd" style="color: var(--color-success); font-weight: 700;">฿36,000</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">ลงประกาศโดย</div>
+                <div class="spec-dd">เจ้าของโดยตรง</div>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div class="desc-block">
+              <div class="desc-header">
+                รายละเอียด
+                <span style="font-size:11px;font-weight:400;color:var(--color-text-2);">อัปเดต 2026-06-13</span>
+              </div>
+              <div class="desc-body">
+                ขายหอพักย่านบ่อสร้าง 14 ห้อง เต็มทุกห้อง ซื้อแล้วเก็บค่าเช่าต่อได้เลย
+                เนื้อที่ 52 ตร.ว. ราคา 4.8 ล้านบาท (รวมโอน)
+                รายได้ 36,000 บาท/เดือน ผลตอบแทนสูงถึง 9.2% ต่อปี<br><br>
+                ค่าเช่ารายเดือน: 2,400 บาท (2 ห้อง) · 2,500 บาท (6 ห้อง) · 2,700 บาท (6 ห้อง)<br><br>
+                ทำเลดี ต้นเปา สันกำแพง ใกล้แยกบ่อสร้าง 900 ม. ใกล้กาดอุ้ยทา
+                เข้าเมืองง่าย ใกล้เซ็นทรัลเฟสติวัล 10 นาที พื้นที่ไม่เคยน้ำท่วม
+              </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="cta-area">
+              <a class="btn-primary" href="#">
+                <span style="font-size: 20px;">💬</span>
+                Chat on LINE
+              </a>
+              <a class="btn-secondary" href="#">
+                📅 นัดดูทรัพย์
+              </a>
+            </div>
+
+            <!-- Poster credit -->
+            <div class="poster-credit">
+              ลงประกาศโดย เจ้าของโดยตรง · group#C0835
+            </div>
+
+          </div><!-- /detail-body -->
+
+          <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+          <!-- Bottom nav -->
+          <nav class="bottom-nav">
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🏠</span>
+              หน้าแรก
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🔍</span>
+              ค้นหา
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">➕</span>
+              ลงประกาศ
+            </a>
+            <a class="nav-item active" href="#">
+              <span class="nav-icon">💬</span>
+              แชท
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">👤</span>
+              บัญชี
+            </a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+      <div class="device-label">Detail — ขายหอพักบ่อสร้าง</div>
+    </div>
+
+  </div><!-- /device-wrap -->
+
+  <!-- Floating dark toggle -->
+  <button class="dark-toggle" onclick="
+    var html = document.documentElement;
+    if (html.dataset.theme === 'dark') {
+      html.dataset.theme = 'light';
+      this.innerHTML = '🌙 Dark mode';
+    } else {
+      html.dataset.theme = 'dark';
+      this.innerHTML = '☀ Light mode';
+    }
+  ">🌙 Dark mode</button>
+
+</body>
+</html>

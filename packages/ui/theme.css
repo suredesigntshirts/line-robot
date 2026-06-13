@@ -1,9 +1,10 @@
 /* ============================================================
    packages/ui/theme.css — THE single token source (D3.2/TECH-06).
-   PLACEHOLDER CANDIDATE: A — "Baania-clean" (docs/design/tokens-candidates.md §A).
-   Founder picks the real direction over coffee; the swap procedure is:
-   paste the chosen candidate's blocks over this file's body, run
-   `npm run tokens:fallbacks`, review the gallery. No component edits.
+   FOUNDER-CONFIRMED DIRECTION: A — "Baania-clean" (docs/design/tokens-candidates.md §A).
+   Picked 2026-06-13 after reviewing side-by-side HTML mockups of A/B/C
+   (docs/design/mockups/direction-*.html). Trust-blue Thai-portal register
+   (Baania/DDProperty family). To retune: edit the OKLCH values below, run
+   `npm run tokens:fallbacks`, review `npm run gallery`. No component edits.
    OKLCH authoritative; each token carries its sRGB fallback as a comment;
    `npm run tokens:fallbacks` regenerates fallbacks.css (hex-first cascade).
    ============================================================ */
