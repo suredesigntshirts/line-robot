@@ -66,8 +66,13 @@ export function createDatabase(): DatabaseResources {
     applyImmediately: true,
   });
 
+  // No `sslmode` in the URL: TLS is applied AND verified against the AWS RDS CA
+  // bundle in packages/db/src/pool.ts (the single pg.Pool). RDS presents a CA not
+  // in Node's trust store, and pg 8.x treats `sslmode=require` as `verify-full`,
+  // so `require` here would fail with SELF_SIGNED_CERT_IN_CHAIN before pool.ts
+  // can supply the CA. The engine also forces SSL (rds.force_ssl=1) — fail-closed.
   const connectionString = pulumi.secret(
-    pulumi.interpolate`postgres://${db.username}:${dbPassword}@${db.address}:${db.port}/${db.dbName}?sslmode=require`,
+    pulumi.interpolate`postgres://${db.username}:${dbPassword}@${db.address}:${db.port}/${db.dbName}`,
   );
 
   return { db, connectionString };

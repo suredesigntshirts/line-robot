@@ -1,5 +1,6 @@
 import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import { pgConnectionConfig } from "./rdsCa.ts";
 
 // ---------------------------------------------------------------------------
 // D-S1-4: one module-scope pool per Lambda container, max 2 connections,
@@ -20,7 +21,7 @@ export function getDb(connectionString = process.env.DATABASE_URL): Db {
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set and no connection string was provided");
   }
-  pool = new pg.Pool({ connectionString, max: 2, keepAlive: true });
+  pool = new pg.Pool({ ...pgConnectionConfig(connectionString), max: 2, keepAlive: true });
   db = drizzle(pool);
   return db;
 }

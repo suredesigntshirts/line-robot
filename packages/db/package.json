@@ -18,6 +18,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
+    "db:migrate": "node src/migrate.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
