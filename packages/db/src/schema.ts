@@ -243,11 +243,16 @@ export const listings = pgTable(
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  // pg_trgm GIN for the public-site text search (S4-I4). NOTE: today's OR+EXISTS query
-  // shape seq-scans anyway (planner can't BitmapOr across the EXISTS arm) — the indexes
-  // pay off once search moves to index-friendly arms / a search-doc column at scale.
-  // The extension itself is hand-added to the migration (see packages/db/CLAUDE.md).
-  (t) => [index("listing_landmark_trgm").using("gin", sql`${t.landmark} gin_trgm_ops`)],
+  // pg_trgm GIN for the public-site text search (S4-I4): one index per column the search
+  // ILIKEs — landmark + project_name here, headline + description on listing_content. With all
+  // four covered the planner CAN bitmap-scan each arm once the catalog is large enough to make an
+  // index cheaper than a seq scan; at small staging volume it still prefers a seq scan, which is
+  // correct (scanning a handful of rows costs less than any index probe). The extension itself is
+  // hand-added to the migration (see packages/db/CLAUDE.md).
+  (t) => [
+    index("listing_landmark_trgm").using("gin", sql`${t.landmark} gin_trgm_ops`),
+    index("listing_project_name_trgm").using("gin", sql`${t.projectName} gin_trgm_ops`),
+  ],
 );
 
 export const listingCondo = pgTable("listing_condo", {

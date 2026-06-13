@@ -43,6 +43,13 @@
       "when": 1781369403709,
       "tag": "0005_chubby_dragon_lord",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781389901150,
+      "tag": "0006_stale_wind_dancer",
+      "breakpoints": true
     }
   ]
 }
