@@ -16,7 +16,7 @@ const EnvSchema = z.object({
   // Catalog table — used by the processor and the ingestion/reminder sweeps, not by ingest.
   CATALOG_TABLE: z.string().min(1).optional(),
   // Postgres connection string (v2 catalog). Used by the processor + reminder sweep (property reads
-  // via PostgresPropertyStore) and the ingestion sweep (PIPELINE_V2 writes), not by ingest. Optional
+  // via PostgresPropertyStore) and the ingestion sweep (v2 pipeline writes), not by ingest. Optional
   // here because EnvSchema is shared with the ingest Lambda; the entry points that need it fail fast.
   DATABASE_URL: z.string().min(1).optional(),
   // Anthropic API key SSM param — used by the ingestion sweep for extraction, not by ingest/processor.

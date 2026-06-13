@@ -335,67 +335,6 @@ export function imageCarouselMessage(
   return { type: "imageCarousel", altText, imageUrls };
 }
 
-/** A property as a flat map of display strings (present fields only) — the shared basis for the
- * edit diff. Numbers are formatted the same way the detail card shows them. */
-function displayFields(p: Property): Record<string, string | undefined> {
-  const num = (n?: number): string | undefined => (n !== undefined ? String(n) : undefined);
-  return {
-    Price: formatPrice(p.askingPrice, p.currency),
-    Rent: p.rentPrice !== undefined ? `${formatPrice(p.rentPrice, p.currency)}/mo` : undefined,
-    Status: p.status,
-    Type: p.propertyType,
-    For: p.listingType,
-    Beds: num(p.bedrooms),
-    Baths: num(p.bathrooms),
-    "Usable area": p.usableAreaSqm !== undefined ? `${p.usableAreaSqm} sqm` : undefined,
-    Land: p.landArea,
-    Floors: num(p.floors),
-    Furnishing: p.furnishing,
-    Project: p.projectName,
-    Address: p.normalizedAddress,
-    Area: area(p),
-    Contact: p.contact,
-    Source: p.source,
-    Notes: p.notes,
-    Tags: p.tags !== undefined && p.tags.length > 0 ? p.tags.join(", ") : undefined,
-  };
-}
-
-/**
- * A short confirmation of what a free-text edit changed on a property, old→new. Diffs every display
- * field (plus coordinates/map link) and lists only what actually changed; an empty diff (the reply
- * matched but moved nothing) says so plainly.
- */
-export function editConfirmationMessage(before: Property, after: Property): OutboundMessage {
-  const changes: string[] = [];
-  const a = displayFields(after);
-  const b = displayFields(before);
-  for (const label of Object.keys(a)) {
-    const av = a[label];
-    const bv = b[label];
-    if (av !== undefined && av !== bv) {
-      changes.push(bv !== undefined ? `${label} ${av} (was ${bv})` : `${label} ${av}`);
-    }
-  }
-  // Coordinates / shared map link don't have a tidy display string — note them as a change.
-  if (
-    (after.lat !== before.lat || after.long !== before.long) &&
-    after.lat !== undefined &&
-    after.long !== undefined
-  ) {
-    changes.push("Location updated");
-  }
-  if (after.mapUrl !== undefined && after.mapUrl !== before.mapUrl) {
-    changes.push("Map link updated");
-  }
-
-  const title = propertyTitle(after);
-  if (changes.length === 0) {
-    return { type: "text", text: `Nothing changed on ${title}.` };
-  }
-  return { type: "text", text: `✏️ Updated ${title}:\n• ${changes.join("\n• ")}` };
-}
-
 /** The destructive-delete confirmation: a "Yes, delete" chip (fires {@link ACTIONS.deleteConfirm})
  * and a "Cancel" chip that simply re-opens the listing's detail. */
 export function deletePromptMessage(property: Property): OutboundMessage {

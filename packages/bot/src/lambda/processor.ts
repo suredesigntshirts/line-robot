@@ -45,7 +45,7 @@ async function buildDeps(): Promise<Deps> {
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
-  // v2 catalog cutover: tracker/membership/edit-context/memory stay on DynamoDB; the property
+  // v2 catalog cutover: tracker/membership/memory stay on DynamoDB; the property
   // catalog (listings, edges, follow-up events) reads/writes Postgres.
   const catalog = new CompositeCatalogRepository(
     new DynamoCatalogRepository(doc, env.CATALOG_TABLE),

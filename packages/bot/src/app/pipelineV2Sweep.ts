@@ -7,16 +7,16 @@ import {
   type StepContext,
   type StepLlm,
 } from "@line-robot/pipeline";
-import { parseGeoLinks } from "../core/domain/geo.js";
+import type { Chanote, PropertyPhoto } from "../core/domain/catalog.js";
+import { formatShortDateTime } from "../core/domain/datetime.js";
+import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { StoredMessage } from "../core/domain/message.js";
 import type { AppliedProperty } from "../core/handlers/views.js";
 import type { Logger } from "../core/ports/runtime.js";
-import { buildTranscript, type ClassifiedMedia } from "./ingestionMedia.js";
 
 // ---------------------------------------------------------------------------
-// PIPELINE_V2 (stage-2 increment 9, flag-off by default): the sweep's
-// extract-and-apply is swapped for packages/pipeline → Postgres. The claim/
-// debounce/watermark machinery around it is unchanged (spine audit: KEEP).
+// The ingestion sweep's extract-and-apply: packages/pipeline → Postgres. The claim/debounce/
+// watermark machinery around it (in IngestionSweep) is unchanged (spine audit: KEEP).
 //
 // v2 image pipeline (A2): each image gets two sharp derivatives — a 1568px vision image that feeds
 // classify + chanote OCR (deed numbers → dedup, gallery kinds), and a 640px thumb stored on the
@@ -29,6 +29,59 @@ import { buildTranscript, type ClassifiedMedia } from "./ingestionMedia.js";
 
 export interface PipelineV2Port {
   run(conversationKey: string, batch: StoredMessage[]): Promise<AppliedProperty[]>;
+}
+
+/** One classified attachment from a batch: its S3 key, content-type, and (best-effort) the image's
+ * kind/label/OCR. The marker pass below only sets `kind`; the real per-image classification happens
+ * inside the pipeline. */
+interface ClassifiedMedia {
+  readonly s3Key: string;
+  readonly contentType: string;
+  readonly kind: PropertyPhoto["kind"];
+  readonly label?: string;
+  readonly chanote?: Chanote;
+  readonly ocrText?: string;
+}
+
+/** Build the timestamped transcript the pipeline segmenter reads. Each line is `[<Bangkok
+ * date+time>]` followed by the message text (with map links rewritten to `[MAP n]`) or an image
+ * marker `[IMG n] <kind> - <label> ocr: <text>`. The timestamps (second resolution) expose
+ * burst/gap structure for segmentation; the indexed markers let the segmenter attribute media per
+ * property. */
+function buildTranscript(
+  batch: readonly StoredMessage[],
+  classified: readonly ClassifiedMedia[],
+): { transcript: string; mapLinks: string[] } {
+  const indexByKey = new Map(classified.map((c, i) => [c.s3Key, i]));
+  const ordered = [...batch].sort((a, b) => a.timestamp - b.timestamp);
+  const mapLinks: string[] = [];
+  const lines: string[] = [];
+  for (const m of ordered) {
+    const stamp = `[${formatShortDateTime(m.timestamp)}]`;
+    const attachKey = m.attachment?.s3Key;
+    if (attachKey !== undefined && indexByKey.has(attachKey)) {
+      const i = indexByKey.get(attachKey) as number;
+      const c = classified[i] as ClassifiedMedia;
+      const label = c.label !== undefined ? ` - ${c.label}` : "";
+      const ocr = c.ocrText !== undefined ? ` ocr: ${c.ocrText}` : "";
+      lines.push(`${stamp} [IMG ${i}] ${c.kind}${label}${ocr}`);
+      continue;
+    }
+    const text = m.text;
+    if (text !== undefined && text !== "") {
+      let rewritten = text;
+      for (const url of parseMapUrls(text)) {
+        let idx = mapLinks.indexOf(url);
+        if (idx === -1) {
+          idx = mapLinks.length;
+          mapLinks.push(url);
+        }
+        rewritten = rewritten.split(url).join(`[MAP ${idx}]`);
+      }
+      lines.push(`${stamp} ${rewritten}`);
+    }
+  }
+  return { transcript: lines.join("\n"), mapLinks };
 }
 
 interface PipelineV2Deps {

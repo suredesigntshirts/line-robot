@@ -177,8 +177,8 @@ export function createBotLambdas(
   // button, mirroring the rich-menu Catalog tab's graceful-degrade.
   const miniappUrl = config.get("miniappUrl");
   // v2 catalog (Postgres) connection string. The processor + reminder now read listings/events from
-  // Postgres, and the sweep writes them (PIPELINE_V2) — so all three carry it whenever the database
-  // stack is deployed. The processor/reminder entry points fail fast at boot if it's missing.
+  // Postgres, and the sweep writes them (via the v2 pipeline) — so all three carry it whenever the
+  // database stack is deployed. The processor/reminder/sweep entry points fail fast at boot if it's missing.
   const dbEnv: Record<string, pulumi.Input<string>> = database
     ? { DATABASE_URL: database.connectionString }
     : {};
@@ -269,13 +269,11 @@ export function createBotLambdas(
       reservedConcurrentExecutions: SWEEP_RESERVED_CONCURRENCY,
       memorySize: 512,
       publish: true,
-      // PIPELINE_V2 (stage-2 D2.5): hard switch, default off. Flip with
-      // `pulumi config set pipelineV2 on` once staging verification passes.
+      // The sweep delegates extract-and-apply to the v2 pipeline → Postgres (needs DATABASE_URL).
       environment: {
         variables: {
           ...commonEnv,
           ...dbEnv,
-          PIPELINE_V2: config.get("pipelineV2") ?? "off",
         },
       },
       loggingConfig: { logFormat: "JSON", logGroup: sweepLogGroup.name },

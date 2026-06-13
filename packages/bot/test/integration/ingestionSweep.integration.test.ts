@@ -4,17 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DynamoCatalogRepository } from "../../src/adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../../src/adapters/dynamodb/messageRepository.js";
 import { IngestionSweep } from "../../src/app/ingestionSweep.js";
+import type { PipelineV2Port } from "../../src/app/pipelineV2Sweep.js";
 import type { ConversationRef } from "../../src/core/domain/conversation.js";
 import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
-import type {
-  ExtractionResult,
-  ImageClassifier,
-  PropertyExtractor,
-  PropertySegmenter,
-} from "../../src/core/ports/extraction.js";
 import type { LineGateway } from "../../src/core/ports/lineGateway.js";
-import type { MediaReader } from "../../src/core/ports/mediaReader.js";
-import { textOf } from "../fixtures/outbound.js";
 import { startDynamoDBLocal, stopDynamoDBLocal } from "./dynamodbLocal.js";
 
 const CONTAINER = "linerobot-ddb-sweep-it";
@@ -75,35 +68,17 @@ const clock = { value: 0, now: () => clock.value };
 // Push targets captured by the stub gateway (reset per test that cares).
 let pushes: { to: string; messages: OutboundMessage[] }[] = [];
 
-// A media reader that never has anything (the integration messages are text-only).
-const noMedia: MediaReader = {
-  getMedia: async (key) => {
-    throw new Error(`unexpected media read: ${key}`);
-  },
-};
+// By default the v2 pipeline applies nothing — keeps the mechanics tests focused on the
+// claim/watermark/GSI machinery (the property write path lives in Postgres, tested in @line-robot/db
+// + @line-robot/pipeline, not against DynamoDB Local here).
+const nullV2: PipelineV2Port = { run: async () => [] };
 
-// By default the extractor returns nothing — keeps the mechanics tests focused on claim/watermark.
-const nullExtractor: PropertyExtractor = { extract: async () => null };
-
-// The integration messages are text-only, so no image is ever classified.
-const noClassifier: ImageClassifier = {
-  classifyImage: async () => {
-    throw new Error("unexpected classify call");
-  },
-};
-
-// Segmentation returns null → the sweep uses its single-pass fallback (what these tests assert).
-const nullSegmenter: PropertySegmenter = { segment: async () => null };
-
-function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep {
+function makeSweep(v2: PipelineV2Port = nullV2): IngestionSweep {
   return new IngestionSweep(
     {
       catalog,
       messages,
-      extractor,
-      segmenter: nullSegmenter,
-      classifier: noClassifier,
-      media: noMedia,
+      v2,
       gateway: {
         reply: async () => {},
         push: async (to, msgs) => {
@@ -113,7 +88,6 @@ function makeSweep(extractor: PropertyExtractor = nullExtractor): IngestionSweep
       } as LineGateway,
       logger: { info: () => {}, warn: () => {}, error: () => {} },
       clock,
-      newId: () => "fixed-prop-id",
     },
     { staleTimeoutMs: 60_000 },
   );
@@ -211,72 +185,28 @@ describe("IngestionSweep (end-to-end on DynamoDB Local)", () => {
     expect((await catalog.getConversation(key))?.lastIngestedAt).toBe(1000);
   });
 
-  it("applies extraction: upserts the property, links it, and pushes a confirmation", async () => {
+  it("pushes the v2 pipeline's confirmation and drops the conversation out of the GSI", async () => {
     const ref = { kind: "user", userId: "Uextract" } as const;
     const key = "user#Uextract";
     await arrive(ref, key, "x1", 1000);
 
-    const extractor: PropertyExtractor = {
-      extract: async (): Promise<ExtractionResult> => ({
-        properties: [
-          {
-            existingPropertyId: "",
-            ambiguous: false,
-            ambiguousWith: [],
-            normalizedAddress: "123 Sukhumvit",
-            rawAddress: "123 sukhumvit rd",
-            projectName: "",
-            lat: 13.7,
-            long: 100.5,
-            district: "",
-            subdistrict: "",
-            province: "Bangkok",
-            propertyType: "condo",
-            status: "lead",
-            askingPrice: 5_500_000,
-            currency: "THB",
-            tags: ["near-bts"],
-            bedrooms: null,
-            bathrooms: null,
-            usableAreaSqm: null,
-            landArea: "",
-            floors: null,
-            furnishing: "",
-            notes: "",
-            listingType: "",
-            rentPrice: null,
-            contact: "",
-            source: "",
-          },
-        ],
-      }),
+    // A v2 pipeline that applies one listing (the real Postgres write is exercised in the pipeline
+    // package's own integration suite; here we assert the sweep's release + confirmation wiring).
+    const v2: PipelineV2Port = {
+      run: async () => [
+        { propertyId: "pg-uuid-1", isNew: true, ambiguous: false, label: "123 Sukhumvit" },
+      ],
     };
 
     pushes = [];
     clock.value = 3000;
-    const swept = await makeSweep(extractor).run();
+    const swept = await makeSweep(v2).run();
     expect(swept).toMatchObject({ ingested: 1, properties: 1 });
-
-    // The Conv→Property edge was written, and the property carries the extracted fields.
-    const propertyIds = await catalog.listConversationProperties(key);
-    expect(propertyIds).toEqual(["fixed-prop-id"]);
-    const property = await catalog.getProperty("fixed-prop-id");
-    expect(property).toMatchObject({
-      propertyId: "fixed-prop-id",
-      normalizedAddress: "123 Sukhumvit",
-      rawAddresses: ["123 sukhumvit rd"],
-      province: "Bangkok",
-      propertyType: "condo",
-      askingPrice: 5_500_000,
-      currency: "THB",
-      tags: ["near-bts"],
-      originConversationKey: key,
-    });
 
     // A push confirmation went to the conversation, and the tracker dropped out of the GSI.
     expect(pushes).toHaveLength(1);
     expect(pushes[0]?.to).toBe("Uextract");
-    expect(textOf(pushes[0]?.messages[0])).toContain("123 Sukhumvit (new)");
+    expect(JSON.stringify(pushes[0])).toContain("123 Sukhumvit");
     expect((await catalog.getConversation(key))?.pendingSince).toBeUndefined();
   });
 

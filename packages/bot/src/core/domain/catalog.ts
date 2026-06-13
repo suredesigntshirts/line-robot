@@ -5,8 +5,8 @@
  */
 
 // Chanote lives in the shared kernel (it is part of the read-API contract). Imported for local use
-// (Property.chanote) and re-exported so existing importers (claudeExtractor, catalogRepository,
-// ports/extraction, catalogDto, ingestionMedia) keep importing it from the domain.
+// (Property.chanote) and re-exported so the bot's own modules (catalogRepository, catalogDto, et al.)
+// keep importing it from the domain rather than reaching into the shared kernel directly.
 import type { Chanote } from "@line-robot/shared";
 
 export type { Chanote };

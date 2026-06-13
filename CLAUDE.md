@@ -56,30 +56,6 @@ Thresholds and mode switches (5h window):
 **Log each reading + mode switch in `SPRINT-LOG.md`** when a sprint is active (timestamp, % used,
 current mode).
 
-## ⚠️ Anthropic structured output — HARD 16-nullable-parameter limit (DO NOT REGRESS)
-
-Our extraction uses Anthropic **strict structured output** (`messages.parse` +
-`output_config.format` / `zodOutputFormat`). That mode **caps a schema at 16 parameters with union
-types** — every `.nullable()` / `.optional()` / `anyOf` field counts. **Exceed it and the API
-returns a hard `400 invalid_request_error` on EVERY call** ("Schemas contains too many parameters
-with union types … limit: 16 parameters with unions"). This is **not caught by our tests** — they
-use a fake extractor, so the real-API limit is only hit in production.
-
-This already caused a full extraction outage once (plan 12 added 11 `.nullable()` fields → 27
-nullables → every sweep + edit 400'd; see `plans/13-chanote-ocr-and-image-pipeline.md`).
-
-**Rules when touching `packages/bot/src/adapters/anthropic/claudeExtractor.ts` (or any
-`output_config.format` schema):**
-- **Keep the total nullable/union count ≤ 16** across the WHOLE schema (nested objects count too).
-- Prefer **required-with-sentinel** over nullable: strings → `z.string()` with `""` = absent;
-  arrays → `z.array(...)` with `[]` = absent. Strict mode already forces every key to be present,
-  so you keep determinism without spending a nullable. Reserve `.nullable()` for **numbers** (no
-  clean sentinel) — there are ~8 of them, which is the whole budget we spend.
-- To add many fields, **group them in a single nullable nested object** (1 union for the group;
-  inner fields required) rather than N nullable scalars.
-- There is a **regression test** that serialises the schema and asserts ≤16 unions — keep it green.
-- See `packages/bot/src/adapters/anthropic/CLAUDE.md` for the same rule next to the code.
-
 ## v2 data layer (Stage 1)
 
 - **Postgres (RDS `linerobot-staging-pg`)** is the v2 catalog store; DynamoDB stays for ingestion
