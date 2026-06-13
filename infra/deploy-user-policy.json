@@ -112,6 +112,32 @@
         "ec2:DeleteTags"
       ],
       "Resource": "*"
+    },
+    {
+      "Sid": "SnsForAlarmTopics",
+      "Effect": "Allow",
+      "Action": ["sns:*"],
+      "Resource": ["arn:aws:sns:ap-southeast-1:259543826733:linerobot-*"]
+    },
+    {
+      "Sid": "CloudWatchAlarmsScoped",
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricAlarm",
+        "cloudwatch:DeleteAlarms",
+        "cloudwatch:EnableAlarmActions",
+        "cloudwatch:DisableAlarmActions",
+        "cloudwatch:TagResource",
+        "cloudwatch:UntagResource",
+        "cloudwatch:ListTagsForResource"
+      ],
+      "Resource": ["arn:aws:cloudwatch:ap-southeast-1:259543826733:alarm:linerobot-*"]
+    },
+    {
+      "Sid": "CloudWatchDescribeGlobal",
+      "Effect": "Allow",
+      "Action": ["cloudwatch:DescribeAlarms"],
+      "Resource": "*"
     }
   ]
 }
