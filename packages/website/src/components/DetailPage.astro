@@ -46,6 +46,12 @@ const deedValue = NO_SALE_DEED_TYPES.has(listing.titleDeedType)
   ? `${t(`deed.${listing.titleDeedType}`)} — ${t("deed.restricted")}`
   : t(`deed.${listing.titleDeedType}`);
 
+// F-10 road frontage: combine the access type and the width (เมตร) into one row; either may be absent.
+const roadParts: string[] = [];
+if (listing.roadType !== null) roadParts.push(t(`road.${listing.roadType}`));
+if (listing.roadAccessM !== null) roadParts.push(t("field.roadWidth", { m: listing.roadAccessM }));
+const roadValue = roadParts.length > 0 ? roadParts.join(" · ") : null;
+
 const fieldRows = [
   { label: t("filter.propertyType"), value: t(`ptype.${listing.propertyType}`) },
   { label: t("listing.deedSection"), value: deedValue },
@@ -71,7 +77,87 @@ const fieldRows = [
   ...(listing.projectName !== null
     ? [{ label: t("field.project"), value: listing.projectName }]
     : []),
+  // 4.8 plot/orientation fields — secondary "subtle meta" rows, omitted when absent.
+  // FIELD-11: seller-asserted facing is shown as-is, never re-judged.
+  ...(listing.facingDirection !== null
+    ? [{ label: t("field.facing"), value: t(`facing.${listing.facingDirection}`) }]
+    : []),
+  // F-10: road frontage = width (m) and/or access type; road_type=none carries its own warning copy.
+  ...(roadValue !== null ? [{ label: t("field.road"), value: roadValue }] : []),
+  // F-11: city-plan colour zone (free-text, e.g. "เหลือง"/"yellow") — shown verbatim.
+  ...(listing.cityPlanZoneColor !== null && listing.cityPlanZoneColor !== ""
+    ? [{ label: t("field.zone"), value: listing.cityPlanZoneColor }]
+    : []),
 ];
+
+// Condo detail group (FIELD-04/05): fees + foreign-quota, omit-when-absent. Floor/building/unit are
+// a 4.7 schema gap (no column on listing_condo) — not rendered here.
+const condo = detail.condo;
+// FIELD-05 foreign quota: the project % and the availability flag are one concept — render a single
+// row, joining whichever are present ("49% ของโครงการ · มีโควตาต่างชาติว่าง").
+const foreignQuotaParts: string[] = [];
+if (condo?.projectForeignQuotaPct != null) {
+  foreignQuotaParts.push(t("field.foreignQuotaPct", { pct: condo.projectForeignQuotaPct }));
+}
+if (condo?.foreignQuotaAvailable != null) {
+  foreignQuotaParts.push(
+    t(condo.foreignQuotaAvailable ? "field.foreignQuotaAvailable" : "field.foreignQuotaFull"),
+  );
+}
+const condoRows = condo
+  ? [
+      ...(condo.camFeePerSqmMonth !== null
+        ? [{ label: t("field.camFee"), value: t("field.camFeeValue", { thb: condo.camFeePerSqmMonth }) }]
+        : []),
+      ...(condo.sinkingFundPerSqm !== null
+        ? [
+            {
+              label: t("field.sinkingFund"),
+              value: t("field.sinkingFundValue", { thb: condo.sinkingFundPerSqm }),
+            },
+          ]
+        : []),
+      ...(foreignQuotaParts.length > 0
+        ? [{ label: t("field.foreignQuota"), value: foreignQuotaParts.join(" · ") }]
+        : []),
+      ...(condo.quotaBucket !== null
+        ? [{ label: t("field.quotaBucket"), value: t(`quota.${condo.quotaBucket}`) }]
+        : []),
+    ]
+  : [];
+
+// Rental lease-terms group (DEAL-11/FIELD-08/12), shown only for rentals. The monthly rent itself is
+// framed by PriceDisplay (MKT-03 "ค่าเช่า/เดือน"); this is the rest of the lease. utility=unknown is a
+// non-answer → omitted, like the other null rows.
+const rental = listing.dealType === "rent" ? detail.rental : null;
+// FIELD-12 furnishing: the status enum and the free-text notes are one concept — one row, joined.
+const furnishingParts: string[] = [];
+if (rental?.furnishingStatus != null) furnishingParts.push(t(`furnishing.${rental.furnishingStatus}`));
+if (rental?.furnishingNotes != null && rental.furnishingNotes !== "") {
+  furnishingParts.push(rental.furnishingNotes);
+}
+const rentalRows = rental
+  ? [
+      ...(rental.depositMonths !== null
+        ? [{ label: t("field.deposit"), value: t("field.monthsValue", { count: rental.depositMonths }) }]
+        : []),
+      ...(rental.advanceMonths !== null
+        ? [{ label: t("field.advance"), value: t("field.monthsValue", { count: rental.advanceMonths }) }]
+        : []),
+      ...(rental.minLeaseMonths !== null
+        ? [{ label: t("field.minLease"), value: t("field.monthsValue", { count: rental.minLeaseMonths }) }]
+        : []),
+      ...(furnishingParts.length > 0
+        ? [{ label: t("field.furnishing"), value: furnishingParts.join(" — ") }]
+        : []),
+      ...(rental.petsAllowed !== null
+        ? [{ label: t("field.pets"), value: t(rental.petsAllowed ? "field.petsYes" : "field.petsNo") }]
+        : []),
+      ...(rental.utilityRateType !== null && rental.utilityRateType !== "unknown"
+        ? [{ label: t("field.utilities"), value: t(`utility.${rental.utilityRateType}`) }]
+        : []),
+    ]
+  : [];
 
 const locationLine = [listing.landmark, listing.tambon, listing.amphoe, listing.province]
   .filter((p): p is string => p !== null && p !== "")
@@ -146,6 +232,20 @@ const jsonLd = safeJsonLdScript(
       <Badge kind="available">{t("listing.photos", { count: detail.photoCount })}</Badge>
     )}
     <FieldList rows={fieldRows} />
+    {/* 4.8 rental lease terms (MKT-03 monthly framing is on the price above) — its own labeled
+        group for rentals. Collapsed: the rent is above the fold; the lease terms are secondary
+        "subtle meta" (founder direction), so they sit in a closed accordion (P7/CONV-05). */}
+    {rentalRows.length > 0 && (
+      <AccordionSection title={t("detail.rentalSection")}>
+        <FieldList rows={rentalRows} />
+      </AccordionSection>
+    )}
+    {/* 4.8 condo-specific group (fees + foreign quota, FIELD-04/05). */}
+    {condoRows.length > 0 && (
+      <AccordionSection title={t("detail.condoSection")}>
+        <FieldList rows={condoRows} />
+      </AccordionSection>
+    )}
     {detail.description !== "" && (
       <AccordionSection title={t("detail.description")} defaultOpen>
         <p lang={locale} style="white-space: pre-wrap; margin: 0;">{detail.description}</p>
@@ -161,7 +261,8 @@ const jsonLd = safeJsonLdScript(
       {t("legal.posterProvided")}
     </p>
     {/* LEGAL-07: non-dismissible foreign-ownership disclaimer (always shown, not a
-        closeable banner). Per-unit foreign-quota display (FIELD-05) is deferred (4.8). */}
+        closeable banner). The per-listing foreign-quota figures (FIELD-05) render in the
+        condo group above when present; this legal notice is the always-on backstop. */}
     <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
       {t("legal.foreignOwnership")}
     </p>

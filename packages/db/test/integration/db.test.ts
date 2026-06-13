@@ -283,6 +283,64 @@ describe("public search (LEGAL-02 consent gate)", () => {
     ]);
   });
 
+  it("4.8: projects the rental satellite + omits it for non-rentals", async () => {
+    const detail = await getPublicListingDetail(db, rentId, "th");
+    // The rent fixture set monthlyRent + utilityRateType; deposit/advance/minLease take schema defaults.
+    expect(detail?.rental).toMatchObject({
+      depositMonths: 2,
+      advanceMonths: 1,
+      minLeaseMonths: 12,
+      utilityRateType: "unknown",
+      furnishingStatus: null,
+      petsAllowed: null,
+    });
+    expect(detail?.condo).toBeNull(); // a condo *rental* with no listing_condo row → no condo block
+    // A plain sale house carries neither satellite.
+    const sale = await getPublicListingDetail(db, consentedId, "th");
+    expect(sale?.rental).toBeNull();
+    expect(sale?.condo).toBeNull();
+  });
+
+  it("4.8: projects the condo satellite + the plot fields ride on the listing row", async () => {
+    const condoSale = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        propertyType: "condo",
+        priceThb: 5_500_000,
+        floorAreaSqm: 48,
+        facingDirection: "SE",
+        roadAccessM: 12,
+        roadType: "public",
+        cityPlanZoneColor: "เหลือง",
+      },
+      content: [{ lang: "th", headline: "คอนโดขาย", description: "x", generatedBy: "human" }],
+      condo: {
+        camFeePerSqmMonth: 50,
+        sinkingFundPerSqm: 500,
+        projectForeignQuotaPct: 49,
+        foreignQuotaAvailable: true,
+        quotaBucket: "foreign_quota",
+      },
+    });
+    await grantPublishConsent(db, condoSale.id, ownerId, "v1");
+
+    const detail = await getPublicListingDetail(db, condoSale.id, "th");
+    expect(detail?.condo).toMatchObject({
+      camFeePerSqmMonth: 50,
+      sinkingFundPerSqm: 500,
+      projectForeignQuotaPct: 49,
+      foreignQuotaAvailable: true,
+      quotaBucket: "foreign_quota",
+    });
+    expect(detail?.rental).toBeNull(); // a sale has no rental satellite
+    // facing/road/zone are columns on the listing row itself (no extra projection needed).
+    expect(detail?.listing.facingDirection).toBe("SE");
+    expect(detail?.listing.roadAccessM).toBe(12);
+    expect(detail?.listing.roadType).toBe("public");
+    expect(detail?.listing.cityPlanZoneColor).toBe("เหลือง");
+  });
+
   it("filters by dealType/propertyType and paginates with a stable total", async () => {
     const rentOnly = await searchPublicListings(db, { lang: "th", dealType: "rent" });
     expect(rentOnly.rows.map((r) => r.listing.id)).toEqual([rentId]);

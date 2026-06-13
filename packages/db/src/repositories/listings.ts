@@ -277,6 +277,29 @@ export async function searchPublicListings(
   return { rows, total, page };
 }
 
+/** The `listing_condo` satellite a public detail page renders (FIELD-04/05), or null when absent. */
+export type PublicCondoDetail = Pick<
+  typeof listingCondo.$inferSelect,
+  | "camFeePerSqmMonth"
+  | "sinkingFundPerSqm"
+  | "foreignQuotaAvailable"
+  | "projectForeignQuotaPct"
+  | "quotaBucket"
+>;
+
+/** The `listing_rental` satellite a public detail page renders (DEAL-11/FIELD-08/12), or null when
+ * absent. `monthlyRent` stays on the parent DTO (it frames the price); this is the rest of the lease. */
+export type PublicRentalDetail = Pick<
+  typeof listingRental.$inferSelect,
+  | "depositMonths"
+  | "advanceMonths"
+  | "minLeaseMonths"
+  | "petsAllowed"
+  | "furnishingStatus"
+  | "furnishingNotes"
+  | "utilityRateType"
+>;
+
 export interface PublicListingDetail {
   listing: ListingRow;
   /** Requested-lang content with th fallback. */
@@ -290,6 +313,10 @@ export interface PublicListingDetail {
   /** Photo thumbs for the gallery, in hero order (CONV-02/03) — only photos with a 640px derivative.
    * Empty until the listing's images have been re-derived (v2-lite rows have none). */
   photos: Array<{ thumbKey: string }>;
+  /** Condo-specific lease/quota fields (FIELD-04/05); null for non-condos / condos without the row. */
+  condo: PublicCondoDetail | null;
+  /** Rental lease terms beyond the monthly rent (DEAL-11/FIELD-08/12); null for non-rentals. */
+  rental: PublicRentalDetail | null;
 }
 
 /** Detail fetch for the public website — same LEGAL-02 gate as search; undefined = not public. */
@@ -312,21 +339,46 @@ export async function getPublicListingDetail(
     .from(listings)
     .where(and(eq(listings.id, id), publiclyVisible));
   if (!row) return undefined;
-  // The gallery (CONV-03): photo thumbs in hero order, derivative-bearing only. The LEGAL-02 gate
-  // above already gated the listing, so this is an unguarded child fetch like getListingForBot.
-  const media = await db
-    .select({ thumbKey: listingMedia.thumbKey })
-    .from(listingMedia)
-    .where(
-      and(
-        eq(listingMedia.listingId, id),
-        eq(listingMedia.kind, "photo"),
-        sql`${listingMedia.thumbKey} is not null`,
-      ),
-    )
-    .orderBy(sql`${listingMedia.heroIndex} asc nulls last`, listingMedia.id);
+  // The LEGAL-02 gate above already gated the listing, so these are unguarded child fetches (like
+  // getListingForBot). The gallery (CONV-03) = photo thumbs in hero order, derivative-bearing only;
+  // the condo/rental satellites carry the dedicated detail fields (4.8).
+  const [media, condoRows, rentalRows] = await Promise.all([
+    db
+      .select({ thumbKey: listingMedia.thumbKey })
+      .from(listingMedia)
+      .where(
+        and(
+          eq(listingMedia.listingId, id),
+          eq(listingMedia.kind, "photo"),
+          sql`${listingMedia.thumbKey} is not null`,
+        ),
+      )
+      .orderBy(sql`${listingMedia.heroIndex} asc nulls last`, listingMedia.id),
+    db
+      .select({
+        camFeePerSqmMonth: listingCondo.camFeePerSqmMonth,
+        sinkingFundPerSqm: listingCondo.sinkingFundPerSqm,
+        foreignQuotaAvailable: listingCondo.foreignQuotaAvailable,
+        projectForeignQuotaPct: listingCondo.projectForeignQuotaPct,
+        quotaBucket: listingCondo.quotaBucket,
+      })
+      .from(listingCondo)
+      .where(eq(listingCondo.listingId, id)),
+    db
+      .select({
+        depositMonths: listingRental.depositMonths,
+        advanceMonths: listingRental.advanceMonths,
+        minLeaseMonths: listingRental.minLeaseMonths,
+        petsAllowed: listingRental.petsAllowed,
+        furnishingStatus: listingRental.furnishingStatus,
+        furnishingNotes: listingRental.furnishingNotes,
+        utilityRateType: listingRental.utilityRateType,
+      })
+      .from(listingRental)
+      .where(eq(listingRental.listingId, id)),
+  ]);
   const photos = media.map((m) => ({ thumbKey: m.thumbKey as string }));
-  return { ...row, photos };
+  return { ...row, photos, condo: condoRows[0] ?? null, rental: rentalRows[0] ?? null };
 }
 
 /** Sitemap feed: ids + lastmod of every publicly visible listing (LEGAL-02 gate). */
