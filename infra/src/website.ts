@@ -10,6 +10,7 @@ import {
   WEBSITE_RESERVED_CONCURRENCY,
 } from "./naming";
 import { listSiteFiles } from "./staticSite";
+import type { Storage } from "./storage";
 
 // ---------------------------------------------------------------------------
 // Stage 4 (plan 19): the public Astro SSR website.
@@ -36,11 +37,13 @@ export interface Website {
 /** `clientDist` = built packages/website/dist/client, resolved by the caller (index.ts owns __dirname). */
 export function createWebsite(
   database: Pick<DatabaseResources, "connectionString">,
+  archiveBucket: Storage["archiveBucket"],
   clientDist: string,
 ): Website {
-  // The SSR function needs NO AWS permissions — Postgres is plain TCP and assets
-  // come from CloudFront. Role = trust policy + basic logs only (an empty inline
-  // policy would be rejected by IAM, hence no lambdaRole() here).
+  // The SSR function's only AWS need is presigning listing-photo thumbs from the private archive
+  // bucket (4.1) — Postgres is plain TCP and client assets come from CloudFront. Role = trust policy
+  // + basic logs + GetObject scoped to the `derivatives/*` prefix (the 640px thumbs only — least
+  // privilege; it never reads the original chat-archive photos under the bucket root).
   const role = new aws.iam.Role("website-ssr-role", {
     name: `${prefix}-website-ssr`,
     assumeRolePolicy: lambdaAssumeRole,
@@ -48,6 +51,20 @@ export function createWebsite(
   new aws.iam.RolePolicyAttachment("website-ssr-basic", {
     role: role.name,
     policyArn: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+  });
+  new aws.iam.RolePolicy("website-ssr-policy", {
+    role: role.id,
+    policy: pulumi.jsonStringify({
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Sid: "PresignDerivatives",
+          Effect: "Allow",
+          Action: ["s3:GetObject"],
+          Resource: pulumi.interpolate`${archiveBucket.arn}/derivatives/*`,
+        },
+      ],
+    }),
   });
 
   const logGroup = new aws.cloudwatch.LogGroup("website-ssr-logs", {
@@ -73,6 +90,8 @@ export function createWebsite(
         variables: {
           // D-S1-4: the bundle's pg.Pool is max 2 — keep Lambda concurrency modest.
           DATABASE_URL: database.connectionString,
+          // 4.1: the private archive bucket the SSR presigns 640px thumbs from (derivatives/* only).
+          ARCHIVE_BUCKET: archiveBucket.bucket,
           // CONV-06: the detail page's "Chat on LINE" CTA renders only when set.
           // Founder: `pulumi config set lineOaUrl https://line.me/R/ti/p/@<oa-id>`.
           LINE_OA_URL: config.get("lineOaUrl") ?? "",

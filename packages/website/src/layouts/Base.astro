@@ -1,14 +1,17 @@
 ---
 import "@line-robot/ui/theme.css";
+import ogDefault from "../assets/og-default.png";
 
 interface Props {
   title: string;
   description: string;
   /** Canonical path for this page ("/properties/123"); joined onto the site origin. */
   canonicalPath: string;
+  /** Absolute og:image URL (a presigned listing hero on detail pages). Omit → site default. */
+  ogImage?: string;
 }
 
-const { title, description, canonicalPath } = Astro.props;
+const { title, description, canonicalPath, ogImage } = Astro.props;
 const locale = Astro.currentLocale ?? "th";
 // astro.config.mjs always sets `site` (SITE_URL or its placeholder default).
 const site = Astro.site;
@@ -18,6 +21,10 @@ const canonical = new URL(canonicalPath, site);
 const thUrl = new URL(canonicalPath.replace(/^\/en(\/|$)/, "/"), site);
 const enPath = canonicalPath.startsWith("/en/") ? canonicalPath : `/en${canonicalPath}`;
 const enUrl = new URL(enPath, site);
+// og:image: the page's hero (presigned, already absolute) or the branded site default. `ogDefault.src`
+// is the build-hashed /_astro/* path (CloudFront-served); make it absolute on the origin for sharing.
+const usingDefaultOg = !ogImage;
+const ogImageUrl = ogImage ?? new URL(ogDefault.src, site).href;
 ---
 
 <!doctype html>
@@ -34,6 +41,10 @@ const enUrl = new URL(enPath, site);
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
+    <meta property="og:image" content={ogImageUrl} />
+    {usingDefaultOg && <meta property="og:image:width" content="1200" />}
+    {usingDefaultOg && <meta property="og:image:height" content="630" />}
+    <meta name="twitter:card" content="summary_large_image" />
     <slot name="head" />
   </head>
   <body style="margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body-th); line-height: var(--leading-body);">

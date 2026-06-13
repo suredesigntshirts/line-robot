@@ -194,6 +194,9 @@ export interface PublicCardRow {
   monthlyRent: number | null;
   /** TH-03: the human trust signal on every card. */
   posterName: string;
+  /** S3 key of the hero photo's 640px thumb (CONV-02 hero order), or null when no photo has a
+   * derivative yet — the website presigns this at render time. v2-lite rows predate the thumb. */
+  heroThumbKey: string | null;
 }
 
 const publiclyVisible = sql`exists (
@@ -217,6 +220,13 @@ const monthlyRentSql = sql<
   number | null
 >`(select r.monthly_rent::int from ${listingRental} r where r.listing_id = "listing".id)`;
 const posterNameSql = sql<string>`coalesce((select u.display_name from "user" u where u.id = ${listings.ownerUserId}), '')`;
+// Hero thumb (CONV-02): the lowest-hero_index photo that actually has a 640px derivative. NULL when
+// the listing has no photo or none have been re-derived yet (v2-lite). Same "listing".id literal
+// correlation gotcha as localizedContent — listing_media has its own id column.
+const heroThumbKeySql = sql<string | null>`(
+  select m.thumb_key from ${listingMedia} m
+  where m.listing_id = "listing".id and m.kind = 'photo' and m.thumb_key is not null
+  order by m.hero_index asc nulls last, m.id asc limit 1)`;
 
 /** Browse/search for the public website: consented listings only (LEGAL-02), newest first. */
 export async function searchPublicListings(
@@ -256,6 +266,7 @@ export async function searchPublicListings(
       photoCount: photoCountSql,
       monthlyRent: monthlyRentSql,
       posterName: posterNameSql,
+      heroThumbKey: heroThumbKeySql,
     })
     .from(listings)
     .where(where)
@@ -276,6 +287,9 @@ export interface PublicListingDetail {
   posterName: string;
   lat: number | null;
   lon: number | null;
+  /** Photo thumbs for the gallery, in hero order (CONV-02/03) — only photos with a 640px derivative.
+   * Empty until the listing's images have been re-derived (v2-lite rows have none). */
+  photos: Array<{ thumbKey: string }>;
 }
 
 /** Detail fetch for the public website — same LEGAL-02 gate as search; undefined = not public. */
@@ -297,7 +311,22 @@ export async function getPublicListingDetail(
     })
     .from(listings)
     .where(and(eq(listings.id, id), publiclyVisible));
-  return row;
+  if (!row) return undefined;
+  // The gallery (CONV-03): photo thumbs in hero order, derivative-bearing only. The LEGAL-02 gate
+  // above already gated the listing, so this is an unguarded child fetch like getListingForBot.
+  const media = await db
+    .select({ thumbKey: listingMedia.thumbKey })
+    .from(listingMedia)
+    .where(
+      and(
+        eq(listingMedia.listingId, id),
+        eq(listingMedia.kind, "photo"),
+        sql`${listingMedia.thumbKey} is not null`,
+      ),
+    )
+    .orderBy(sql`${listingMedia.heroIndex} asc nulls last`, listingMedia.id);
+  const photos = media.map((m) => ({ thumbKey: m.thumbKey as string }));
+  return { ...row, photos };
 }
 
 /** Sitemap feed: ids + lastmod of every publicly visible listing (LEGAL-02 gate). */

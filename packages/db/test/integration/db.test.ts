@@ -13,6 +13,7 @@ import {
   findUserByIdentity,
   getContent,
   getListing,
+  getPublicListingDetail,
   grantPublishConsent,
   listListings,
   listPublicProvinces,
@@ -247,8 +248,39 @@ describe("public search (LEGAL-02 consent gate)", () => {
     expect(sale?.headline).toBe("บ้านยินยอมเผยแพร่"); // no en row → th fallback
     expect(sale?.photoCount).toBe(1);
     expect(sale?.monthlyRent).toBeNull();
+    expect(sale?.heroThumbKey).toBeNull(); // its one photo has no derivative yet
     const rent = rows.find((r) => r.listing.id === rentId);
     expect(rent?.monthlyRent).toBe(12_000);
+  });
+
+  it("4.1: hero thumb + gallery pick derivative-bearing photos in hero order", async () => {
+    const withPhotos = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 4_000_000 },
+      content: [{ lang: "th", headline: "บ้านมีรูป", description: "x", generatedBy: "human" }],
+      media: [
+        // heroIndex 0 but NO thumb yet → must be skipped for the hero (needs a derivative).
+        { s3Key: "g/0.jpg", kind: "photo", heroIndex: 0 },
+        // heroIndex 2 with a thumb.
+        { s3Key: "g/2.jpg", thumbKey: "derivatives/bbb-thumb.jpg", kind: "photo", heroIndex: 2 },
+        // heroIndex 1 with a thumb → the winning hero (lowest hero_index among thumb-bearing).
+        { s3Key: "g/1.jpg", thumbKey: "derivatives/aaa-thumb.jpg", kind: "photo", heroIndex: 1 },
+        // a chanote with a thumb → excluded from the photo hero/gallery.
+        { s3Key: "g/deed.jpg", thumbKey: "derivatives/deed-thumb.jpg", kind: "chanote" },
+      ],
+    });
+    await grantPublishConsent(db, withPhotos.id, ownerId, "v1");
+
+    const { rows } = await searchPublicListings(db, { lang: "th" });
+    const card = rows.find((r) => r.listing.id === withPhotos.id);
+    expect(card?.photoCount).toBe(3); // 3 photos, the chanote isn't counted
+    expect(card?.heroThumbKey).toBe("derivatives/aaa-thumb.jpg"); // hero_index 1, has a thumb
+
+    const detail = await getPublicListingDetail(db, withPhotos.id, "th");
+    // gallery = thumb-bearing photos only, hero order; the no-thumb photo + the chanote are excluded.
+    expect(detail?.photos.map((p) => p.thumbKey)).toEqual([
+      "derivatives/aaa-thumb.jpg",
+      "derivatives/bbb-thumb.jpg",
+    ]);
   });
 
   it("filters by dealType/propertyType and paginates with a stable total", async () => {

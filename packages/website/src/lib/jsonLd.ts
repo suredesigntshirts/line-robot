@@ -13,9 +13,14 @@ export function safeJsonLdScript(value: object): string {
 /**
  * schema.org RealEstateListing for the detail page (stage-4 SEO deliverable).
  * Null/absent listing fields are omitted, never emitted as null — Google's
- * Rich Results validator rejects null-valued properties.
+ * Rich Results validator rejects null-valued properties. `imageUrls` (4.1) are
+ * the presigned hero-ordered photos; omitted when the listing has no derivative.
  */
-export function listingJsonLd(detail: PublicListingDetail, canonicalUrl: string): object {
+export function listingJsonLd(
+  detail: PublicListingDetail,
+  canonicalUrl: string,
+  imageUrls: readonly string[] = [],
+): object {
   const { listing } = detail;
   const price = listing.dealType === "rent" ? detail.monthlyRent : listing.priceThb;
   return {
@@ -23,6 +28,7 @@ export function listingJsonLd(detail: PublicListingDetail, canonicalUrl: string)
     "@type": "RealEstateListing",
     name: detail.headline,
     ...(detail.description !== "" ? { description: detail.description } : {}),
+    ...(imageUrls.length > 0 ? { image: imageUrls } : {}),
     url: canonicalUrl,
     datePosted: listing.createdAt.toISOString(),
     ...(price !== null

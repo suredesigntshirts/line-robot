@@ -28,7 +28,7 @@ const { readApiUrl, readApiFn, siteDistribution, siteBucket } = createMiniApp(
   MINIAPP_DIST,
   database,
 );
-const website = createWebsite(database, WEBSITE_CLIENT_DIST);
+const website = createWebsite(database, storage.archiveBucket, WEBSITE_CLIENT_DIST);
 
 // A5 cutover hardening: an SNS topic + an Errors alarm per production Lambda, so a Lambda failing
 // is observable rather than silent. The website SSR Lambda is omitted — it serves the public site,

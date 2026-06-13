@@ -10,8 +10,11 @@ import {
 import type { BrowseQuery } from "../lib/browse.ts";
 import { browseQueryString } from "../lib/browse.ts";
 
+/** A card row with its hero thumb already presigned by the page (SSR is async, the card isn't). */
+export type CardRow = PublicCardRow & { heroUrl: string | null };
+
 interface BrowseResultsProps {
-  rows: PublicCardRow[];
+  rows: CardRow[];
   total: number;
   query: BrowseQuery;
   pageSize: number;
@@ -41,7 +44,7 @@ export function BrowseResults({
         {t("pager.count", { total })}
       </span>
       <CardGrid>
-        {rows.map(({ listing, headline, photoCount, monthlyRent, posterName }) => (
+        {rows.map(({ listing, headline, photoCount, monthlyRent, posterName, heroUrl }) => (
           <ListingCard
             key={listing.id}
             postedByName={posterName || undefined}
@@ -49,7 +52,7 @@ export function BrowseResults({
             view={toCardView({
               listing,
               headline,
-              heroUrl: null, // media URLs need the CDN path — S4-I6 wires it
+              heroUrl, // presigned 640px thumb (4.1); null → ListingCard's clean placeholder
               photoCount,
               bedroomsLabel:
                 listing.bedrooms === null ? "" : t("listing.bedrooms", { count: listing.bedrooms }),

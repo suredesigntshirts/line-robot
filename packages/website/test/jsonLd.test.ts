@@ -28,6 +28,7 @@ const detail = (
     posterName: "",
     lat: null,
     lon: null,
+    photos: [],
     ...rest,
   }) as unknown as PublicListingDetail;
 
@@ -69,5 +70,15 @@ describe("listingJsonLd", () => {
       geo: { latitude: number };
     };
     expect(ld.geo.latitude).toBe(18.79);
+  });
+
+  it("includes image[] when photo URLs are given, omits it otherwise (4.1)", () => {
+    const withImg = listingJsonLd(detail({}), "u", [
+      "https://x.test/a.jpg",
+      "https://x.test/b.jpg",
+    ]) as { image: string[] };
+    expect(withImg.image).toEqual(["https://x.test/a.jpg", "https://x.test/b.jpg"]);
+    expect(listingJsonLd(detail({}), "u")).not.toHaveProperty("image");
+    expect(listingJsonLd(detail({}), "u", [])).not.toHaveProperty("image");
   });
 });

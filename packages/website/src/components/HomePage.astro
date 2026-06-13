@@ -7,10 +7,11 @@ import {
 } from "@line-robot/db";
 import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
 import { createElement } from "react";
-import { BrowseResults } from "../components/BrowseResults.tsx";
+import { BrowseResults, type CardRow } from "../components/BrowseResults.tsx";
 import { FilterBar } from "../components/FilterBar.tsx";
 import Base from "../layouts/Base.astro";
 import { parseBrowseQuery } from "../lib/browse.ts";
+import { presignThumbs } from "../lib/media.ts";
 
 // S4-I2: the browse page — consented listings (LEGAL-02) from Postgres with
 // filters + pagination. Shared by the th (/) and en (/en/) routes.
@@ -26,7 +27,7 @@ const PAGE_SIZE = 24;
 const retryLink = createElement("a", { href: Astro.url.pathname }, t("error.retry"));
 
 const query = parseBrowseQuery(Astro.url.searchParams);
-let rows: PublicCardRow[] = [];
+let cards: CardRow[] = [];
 let total = 0;
 let provinces: string[] = [];
 let dbError = false;
@@ -40,7 +41,9 @@ try {
     page: query.page,
     pageSize: PAGE_SIZE,
   });
-  rows = result.rows;
+  // Presign each card's hero thumb (4.1). Done in the page (async) — the card is a sync SSR island.
+  const heroUrls = await presignThumbs(result.rows.map((r: PublicCardRow) => r.heroThumbKey));
+  cards = result.rows.map((r: PublicCardRow, i: number) => ({ ...r, heroUrl: heroUrls[i] ?? null }));
   total = result.total;
   query.page = result.page; // repo clamps out-of-range deep links to the last page
   try {
@@ -73,7 +76,7 @@ try {
         <ErrorState t={t} action={retryLink} />
       ) : (
         <BrowseResults
-          rows={rows}
+          rows={cards}
           total={total}
           query={query}
           pageSize={PAGE_SIZE}
