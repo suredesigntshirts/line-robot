@@ -220,3 +220,18 @@ Extension scoreboard:
 - Founder queue: MORNING.md §1–6 (deploy → migrate/seed → flip → design pick → extension decisions).
 
 Usage at wrap: 25% of the 5h window — protocol never engaged above normal mode all night.
+
+---
+
+## Sprint continuation — 2026-06-14 (overnight, orchestrated: A5 → Stage-4 tail)
+
+Thin-orchestrator run: one Opus max-effort increment-owner per backlog item; the orchestrator independently verifies (commit pushed to origin/main + BACKLOG/deploy-status updated + a real-infra spot-check) before moving on. Every increment: free checks green → 3 fresh-context reviewers (+ /alignment-review for design-bearing) skeptic-adjudicated → deployed + VERIFIED on real infra → committed + PUSHED to `main`.
+
+- **Usage readings (5h window): 8% → 11% → 16% → 19% → 24%.** Mode: NORMAL throughout — never approached the 85% wrap threshold (window resets hourly; 7d held ~7-10%).
+- **A5 cutover hardening** (`eb666f6`+`1df7fec`) — 4 CloudWatch Lambda-error alarms → SNS `linerobot-staging-alarms`; post-flip invariant check (`db:check-cutover`); real-RDS test gate (`test:rds`); boot fail-fast confirmed. Verified: 4 alarms live + OK, topic exists, sweep healthy.
+- **A8 Stage 2 gate — GATE-PASS** (`b7db11a`+`67eed6a`) — full-diff review; arch CLEAN (zero `claudeExtractor`, 16-union rule gone); eval real-model 62/0 delta 0.00 (no regression); A3 deferral CLOSED (createPipelineV2Port+buildTranscript tests, +11); 2 gate-found code fixes deployed+verified. Founder-gated follow-up: DF-6 descope ruling.
+- **4.1 website image rendering** (`727bfc2`) — card hero + detail gallery + og:image from `listing_media.thumb_key` via SSR-time presign (option A: bucket stays private, IAM scoped `derivatives/*`); backfilled 59 thumbs for the 5 real listings to verify. Live: 5 real presigned imgs on the homepage.
+- **4.10 Stage 4 gate — CONDITIONAL-PASS** (`6cadc48`+`c085932`) — caught + fixed **TECH-06** (the whole token theme was discarded by the non-Tailwind site → it rendered unstyled; now `:root` hex fallbacks + `@supports` OKLCH) + **LEGAL-07** (foreign-ownership disclaimer on detail). TH-10 Thai SEO slugs refuted as a founder-blessed tradeoff → logged 4.9. Reconciliation clean (zero untracked orphans), arch clean, Playwright smoke all-pass (LINE Login 4.4 gated-around). **All Stages 0–4 now gated.**
+- **4.8 detail-fields render** (`5c2f5a7`) — facing/road/zone + collapsed condo group + rental sub-table on the detail page (projection-only, omit-when-absent, th+en). Verified live on condo + rental listings. Surfaced 4.7 gap: condo floor/building/unit (no `listing_condo` column).
+
+Buildable queue remaining: 4.9 (minor SEO/perf), 4.7 (schema gaps — founder direction given), 4.2 (radius search). Founder-gated/deferred: DF-6 ruling, 4.3 price ruling, 4.4 LINE Login + domain D19, 4.5/4.6, Stage 5+.
