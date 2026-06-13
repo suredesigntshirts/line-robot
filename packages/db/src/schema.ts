@@ -377,6 +377,30 @@ export const viewings = pgTable("viewing", {
   status: viewingStatusPg("status").notNull().default("requested"),
 });
 
+// Bot follow-up reminders — the at-most-once calendar primitive behind "📅 Follow-up" and the
+// mini-app "Book a viewing". DISTINCT from `viewing` above (a marketplace viewing request with a
+// status lifecycle): an event is due at `dueAt`, pushed once to `notifyConversationKey`, then
+// stamped `notifiedAt` (which drops it out of the sweep's due-query). It mirrors the v1 DynamoDB
+// PropertyEvent (sparse GSI2) so the bot's PropertyStore round-trips unchanged after the catalog
+// cutover. `id` is the caller-supplied eventId (randomUUID), not generated here.
+export const listingEvents = pgTable(
+  "listing_event",
+  {
+    id: uuid("id").primaryKey(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    title: text("title"),
+    notifyConversationKey: text("notify_conversation_key").notNull(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  // Sparse "due + un-notified" partial index — the reminder sweep's only query (`due_at <= now AND
+  // notified_at IS NULL`). Mirrors the v1 sparse GSI2: notified rows fall out of the index entirely.
+  (t) => [index("listing_event_due").on(t.dueAt).where(sql`${t.notifiedAt} is null`)],
+);
+
 export const quotes = pgTable("quote", {
   id: id(),
   listingId: uuid("listing_id")

@@ -175,8 +175,15 @@ export function createBotLambdas(
   // (not shared commonEnv). Optional — a missing `miniappUrl` config just omits the "Open in Catalog"
   // button, mirroring the rich-menu Catalog tab's graceful-degrade.
   const miniappUrl = config.get("miniappUrl");
+  // v2 catalog (Postgres) connection string. The processor + reminder now read listings/events from
+  // Postgres, and the sweep writes them (PIPELINE_V2) — so all three carry it whenever the database
+  // stack is deployed. The processor/reminder entry points fail fast at boot if it's missing.
+  const dbEnv: Record<string, pulumi.Input<string>> = database
+    ? { DATABASE_URL: database.connectionString }
+    : {};
   const processorEnv: Record<string, pulumi.Input<string>> = {
     ...commonEnv,
+    ...dbEnv,
     ...(miniappUrl !== undefined ? { MINIAPP_URL: miniappUrl } : {}),
   };
 
@@ -264,13 +271,11 @@ export function createBotLambdas(
       // PIPELINE_V2 (stage-2 D2.5): hard switch, default off. Flip with
       // `pulumi config set pipelineV2 on` once staging verification passes.
       environment: {
-        variables: database
-          ? {
-              ...commonEnv,
-              PIPELINE_V2: config.get("pipelineV2") ?? "off",
-              DATABASE_URL: database.connectionString,
-            }
-          : commonEnv,
+        variables: {
+          ...commonEnv,
+          ...dbEnv,
+          PIPELINE_V2: config.get("pipelineV2") ?? "off",
+        },
       },
       loggingConfig: { logFormat: "JSON", logGroup: sweepLogGroup.name },
     },
@@ -315,7 +320,7 @@ export function createBotLambdas(
       timeout: 60,
       memorySize: 256,
       publish: true,
-      environment: { variables: commonEnv },
+      environment: { variables: { ...commonEnv, ...dbEnv } },
       loggingConfig: { logFormat: "JSON", logGroup: reminderLogGroup.name },
     },
     { dependsOn: [reminderLogGroup] },

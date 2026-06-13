@@ -1,9 +1,8 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { getDb } from "@line-robot/db";
 import type { ScheduledHandler } from "aws-lambda";
 import { loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
-import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { createLineMessagingGateway } from "../adapters/line/lineGateway.js";
+import { PostgresPropertyStore } from "../adapters/postgres/propertyStore.js";
 import { ReminderSweep } from "../app/reminderSweep.js";
 import { SYSTEM_CLOCK } from "../lib/clock.js";
 import { lazySingleton } from "../lib/lazySingleton.js";
@@ -11,15 +10,15 @@ import { PowertoolsLoggerAdapter } from "../lib/logger.js";
 
 async function buildReminderSweep(): Promise<ReminderSweep> {
   const env = loadEnv();
-  if (env.CATALOG_TABLE === undefined) {
-    throw new Error("CATALOG_TABLE is required for the reminder sweep Lambda");
+  if (env.DATABASE_URL === undefined) {
+    throw new Error("DATABASE_URL is required for the reminder sweep Lambda (v2 catalog reads)");
   }
   const channelAccessToken = await loadChannelAccessToken(env);
 
-  const ddb = new DynamoDBClient({});
-  const doc = DynamoDBDocumentClient.from(ddb);
+  // Follow-up events live in the v2 Postgres catalog now; the reminder only reads/claims events and
+  // reads the listing to render the push — all PropertyStore, no DynamoDB.
   return new ReminderSweep({
-    catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
+    catalog: new PostgresPropertyStore(getDb(env.DATABASE_URL)),
     gateway: createLineMessagingGateway(channelAccessToken),
     logger: new PowertoolsLoggerAdapter(),
     clock: SYSTEM_CLOCK,

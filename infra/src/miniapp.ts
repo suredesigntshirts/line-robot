@@ -25,6 +25,7 @@ export interface MiniApp {
 export function createMiniApp(
   storage: Pick<Storage, "catalogTable" | "archiveBucket">,
   miniappDist: string,
+  database: { connectionString: pulumi.Output<string> },
 ): MiniApp {
   const { catalogTable, archiveBucket } = storage;
 
@@ -32,28 +33,29 @@ export function createMiniApp(
   // PUBLIC, so plain config (not a secret). Staging = the Developing internal channel (2010316764).
   const liffChannelId = config.require("liffChannelId");
 
-  // read-api is narrowly scoped: only the catalog table, the archive bucket, and the public LIFF
-  // channel id (id-token aud). It has no IAM grant for the message/idempotency tables, SSM params, or
-  // queue, so it must not carry them — loadReadApiEnv() validates exactly this set.
+  // read-api is narrowly scoped: the catalog table (DynamoDB membership), the archive bucket, the
+  // public LIFF channel id (id-token aud), and the Postgres connection string (the v2 catalog — the
+  // listings/events the SPA reads + the booking write live there now). It has no grant for the
+  // message/idempotency tables, SSM params, or queue — loadReadApiEnv() validates exactly this set.
   const readApiEnv: Record<string, pulumi.Input<string>> = {
     CATALOG_TABLE: catalogTable.name,
     ARCHIVE_BUCKET: archiveBucket.bucket,
     LIFF_CHANNEL_ID: liffChannelId,
+    DATABASE_URL: database.connectionString,
     POWERTOOLS_SERVICE_NAME: "line-robot",
     POWERTOOLS_LOG_LEVEL: "INFO",
   };
 
-  // read-api role — read + ONE narrow write: Query/GetItem on the catalog (+ its GSIs), PutItem to
-  // create a follow-up event ("book a viewing" — membership-gated in-handler, only ever the caller's
-  // own reminder), and GetObject on the archive (to presign photo URLs). No SSM, no SQS, no Anthropic
-  // — id-token verification is an outbound HTTPS call carrying only the public client_id, so it needs
-  // no AWS creds and no secret. PutItem is the ONLY mutation (no UpdateItem/DeleteItem).
+  // read-api role — DynamoDB READ-ONLY for conversation membership (listUserConversations: Query on
+  // the byUser GSI, GetItem) + GetObject on the archive (presign photos). After the v2 catalog
+  // cutover the listings AND the "book a viewing" follow-up event both live in Postgres (reached via
+  // the password-auth connection string — no IAM), so the read-api no longer writes DynamoDB at all:
+  // the previous `dynamodb:PutItem` grant is dropped. No SSM, no SQS, no Anthropic — id-token
+  // verification is an outbound HTTPS call carrying only the public client_id.
   const readApiRole = lambdaRole("read-api", [
     {
-      // listPropertiesForUser/getProperty/listPropertyEvents (GetItem + Query incl. GSIs) + addEvent
-      // (PutItem) for the booking route. PutItem applies to the table itself; index/* is harmless.
       Effect: "Allow",
-      Action: ["dynamodb:Query", "dynamodb:GetItem", "dynamodb:PutItem"],
+      Action: ["dynamodb:Query", "dynamodb:GetItem"],
       Resource: [catalogTable.arn, pulumi.interpolate`${catalogTable.arn}/index/*`],
     },
     {

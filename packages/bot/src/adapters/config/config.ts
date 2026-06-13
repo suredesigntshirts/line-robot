@@ -15,6 +15,10 @@ const EnvSchema = z.object({
   CHANNEL_ACCESS_TOKEN_PARAM: z.string().min(1),
   // Catalog table — used by the processor and the ingestion/reminder sweeps, not by ingest.
   CATALOG_TABLE: z.string().min(1).optional(),
+  // Postgres connection string (v2 catalog). Used by the processor + reminder sweep (property reads
+  // via PostgresPropertyStore) and the ingestion sweep (PIPELINE_V2 writes), not by ingest. Optional
+  // here because EnvSchema is shared with the ingest Lambda; the entry points that need it fail fast.
+  DATABASE_URL: z.string().min(1).optional(),
   // Anthropic API key SSM param — used by the ingestion sweep for extraction, not by ingest/processor.
   ANTHROPIC_API_KEY_PARAM: z.string().min(1).optional(),
   // MINI App (LIFF) channel id — the `aud` the read-api validates id-tokens against. Plain config
@@ -89,6 +93,9 @@ const ReadApiEnvSchema = z.object({
   CATALOG_TABLE: z.string().min(1),
   ARCHIVE_BUCKET: z.string().min(1),
   LIFF_CHANNEL_ID: z.string().min(1),
+  // Postgres connection string (v2 catalog) — the read-api now serves listings from Postgres, so
+  // this is required (a missing value fails the cold-start parse rather than 500ing every request).
+  DATABASE_URL: z.string().min(1),
 });
 
 export type ReadApiEnv = z.infer<typeof ReadApiEnvSchema>;

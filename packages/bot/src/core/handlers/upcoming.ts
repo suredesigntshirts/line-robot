@@ -1,5 +1,5 @@
 import type { UpcomingItem } from "@line-robot/shared";
-import type { PropertyStore } from "../ports/catalog.js";
+import type { CatalogRepository } from "../ports/catalog.js";
 import { propertyTitle } from "./views.js";
 
 /**
@@ -9,7 +9,7 @@ import { propertyTitle } from "./views.js";
  * them, and sorts by due time. Pure read; the caller renders the rows (LINE message vs. JSON).
  */
 export async function collectUpcoming(
-  catalog: PropertyStore,
+  catalog: CatalogRepository,
   userId: string,
 ): Promise<UpcomingItem[]> {
   const properties = await catalog.listPropertiesForUser(userId);

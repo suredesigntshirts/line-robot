@@ -20,14 +20,14 @@ import { resolveFollowUpTime } from "../core/domain/followup.js";
 import { heroPhotoKey, orderedPhotos } from "../core/domain/photos.js";
 import { type PhotoDto, toDetailDto, toListDto } from "../core/handlers/catalogDto.js";
 import { collectUpcoming } from "../core/handlers/upcoming.js";
-import type { ConversationStore, PropertyStore } from "../core/ports/catalog.js";
+import type { CatalogRepository, ConversationStore, PropertyStore } from "../core/ports/catalog.js";
 import type { HttpRequest, HttpResponse } from "../core/ports/httpGateway.js";
 import type { LineTokenVerifier } from "../core/ports/lineTokenVerifier.js";
 import type { MediaUrlSigner } from "../core/ports/mediaUrlSigner.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
 
 export interface ReadApiDeps {
-  readonly catalog: ConversationStore & PropertyStore;
+  readonly catalog: CatalogRepository;
   readonly signer: MediaUrlSigner;
   readonly verifier: LineTokenVerifier;
   readonly logger: Logger;

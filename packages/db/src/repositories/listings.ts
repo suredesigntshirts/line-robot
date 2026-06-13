@@ -1,10 +1,19 @@
-import type { DealType, Listing, PropertyType } from "@line-robot/domain";
+import type {
+  Amenity,
+  ContentLang,
+  DealType,
+  FurnishingStatus,
+  Listing,
+  MediaKind,
+  PropertyType,
+} from "@line-robot/domain";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
 import {
   listingAmenities,
   listingCondo,
   listingContent,
+  listingEvents,
   listingMedia,
   listingRental,
   listings,
@@ -315,4 +324,106 @@ export async function listPublicProvinces(db: Db): Promise<string[]> {
     .where(and(publiclyVisible, sql`${listings.province} is not null`))
     .orderBy(listings.province);
   return rows.map((r) => r.province).filter((p): p is string => p !== null);
+}
+
+// ---------------------------------------------------------------------------
+// Bot catalog reads/writes — the slice the LINE bot's Postgres `PropertyStore`
+// maps onto its `Property` domain type after the v2 catalog cutover (the bot
+// reads the same listings the website and pipeline write). Kept here because
+// they operate on the listing aggregate; the listing↔Property mapping itself
+// lives in the bot adapter (Property is a bot type, not a db type).
+// ---------------------------------------------------------------------------
+
+/** A listing plus the satellite rows the bot's `Property` view needs, with geom unpacked to lat/lon
+ * (the bot never parses PostGIS EWKB). `null` satellites = absent. */
+export interface BotListingRead {
+  listing: ListingRow;
+  lat: number | null;
+  lon: number | null;
+  monthlyRent: number | null;
+  furnishingStatus: FurnishingStatus | null;
+  media: Array<{ s3Key: string; kind: MediaKind; heroIndex: number | null }>;
+  content: Array<{ lang: ContentLang; headline: string; description: string }>;
+  amenities: Amenity[];
+}
+
+/** Full read of one listing for the bot, or undefined if it doesn't exist. */
+export async function getListingForBot(db: Db, id: string): Promise<BotListingRead | undefined> {
+  const [row] = await db
+    .select({
+      listing: listings,
+      lat: sql<number | null>`ST_Y(${listings.geom}::geometry)`,
+      lon: sql<number | null>`ST_X(${listings.geom}::geometry)`,
+    })
+    .from(listings)
+    .where(eq(listings.id, id));
+  if (!row) return undefined;
+  const [rental, media, content, amenities] = await Promise.all([
+    db.select().from(listingRental).where(eq(listingRental.listingId, id)),
+    db.select().from(listingMedia).where(eq(listingMedia.listingId, id)),
+    db.select().from(listingContent).where(eq(listingContent.listingId, id)),
+    db.select().from(listingAmenities).where(eq(listingAmenities.listingId, id)),
+  ]);
+  return {
+    listing: row.listing,
+    lat: row.lat,
+    lon: row.lon,
+    monthlyRent: rental[0]?.monthlyRent ?? null,
+    furnishingStatus: rental[0]?.furnishingStatus ?? null,
+    media: media.map((m) => ({ s3Key: m.s3Key, kind: m.kind, heroIndex: m.heroIndex })),
+    content: content.map((c) => ({
+      lang: c.lang,
+      headline: c.headline,
+      description: c.description,
+    })),
+    amenities: amenities.map((a) => a.amenity),
+  };
+}
+
+/** Listing ids owned by a user — the bot scopes "this conversation's properties" by owner (the
+ * single-owner v2 model: a conversation's pseudo-user owns the listings extracted from it). */
+export async function listListingIdsByOwner(db: Db, ownerUserId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: listings.id })
+    .from(listings)
+    .where(eq(listings.ownerUserId, ownerUserId));
+  return rows.map((r) => r.id);
+}
+
+/** Patch listing columns (free-text edit / merge). No-op on an empty patch; always bumps updatedAt. */
+export async function updateListingFields(
+  db: Db,
+  id: string,
+  patch: Partial<NewListing>,
+): Promise<void> {
+  if (Object.keys(patch).length === 0) return;
+  await db
+    .update(listings)
+    .set({ ...patch, updatedAt: sql`now()` })
+    .where(eq(listings.id, id));
+}
+
+/** Set a rent listing's monthly rent (the rent edit path), only if a rental satellite exists. */
+export async function updateRentalMonthlyRent(
+  db: Db,
+  id: string,
+  monthlyRent: number,
+): Promise<void> {
+  await db.update(listingRental).set({ monthlyRent }).where(eq(listingRental.listingId, id));
+}
+
+/** Delete a listing and every satellite `createListing` can write, plus its follow-up events, in one
+ * transaction (the FKs are no-cascade). Scope = bot-managed listings (pipeline-extracted, not yet
+ * published / engaged); Stage 5/6 engagement tables aren't populated for these and aren't touched. */
+export async function deleteListingCascade(db: Db, id: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.delete(listingEvents).where(eq(listingEvents.listingId, id));
+    await tx.delete(listingMedia).where(eq(listingMedia.listingId, id));
+    await tx.delete(listingContent).where(eq(listingContent.listingId, id));
+    await tx.delete(listingAmenities).where(eq(listingAmenities.listingId, id));
+    await tx.delete(listingCondo).where(eq(listingCondo.listingId, id));
+    await tx.delete(listingRental).where(eq(listingRental.listingId, id));
+    await tx.delete(priceHistory).where(eq(priceHistory.listingId, id));
+    await tx.delete(listings).where(eq(listings.id, id));
+  });
 }

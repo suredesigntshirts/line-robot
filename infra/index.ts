@@ -22,7 +22,7 @@ const WEBSITE_CLIENT_DIST = path.resolve(__dirname, "../packages/website/dist/cl
 const storage = createStorage();
 const database = createDatabase();
 const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage, database);
-const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST);
+const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST, database);
 const website = createWebsite(database, WEBSITE_CLIENT_DIST);
 
 // ---------------------------------------------------------------------------

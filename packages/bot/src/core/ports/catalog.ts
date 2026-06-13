@@ -109,10 +109,10 @@ export interface ConversationStore {
 
 /**
  * The property-catalog graph, all `PROP#…` / `CONV#…` keyed: property records, the
- * conversation↔property edges that scope them, the user-facing listing fan-out
- * (`listPropertiesForUser` stitches membership → edges → properties), and the follow-up events
- * attached to a property. One aggregate because the listing/merge/reminder flows read and write
- * across these items together.
+ * conversation↔property edges that scope them, and the follow-up events attached to a property. One
+ * aggregate because the listing/merge/reminder flows read and write across these items together. The
+ * user-facing "my listings" fan-out is NOT here — it spans membership too, so it lives on
+ * {@link CatalogRepository}.
  */
 export interface PropertyStore {
   // --- Properties + Conv→Property edges (write-scope + listing) ---
@@ -140,10 +140,6 @@ export interface PropertyStore {
    * listings. */
   listConversationProperties(conversationKey: string): Promise<string[]>;
 
-  /** "Show my listings": resolve user → their conversations → those conversations' properties
-   * (deduped). Read-access follows the user across chats. */
-  listPropertiesForUser(userId: string): Promise<Property[]>;
-
   // --- Property events (calendar / reminders) ---
 
   /** Create a follow-up event on a property. Its sparse GSI2 key makes it visible to the reminder
@@ -170,8 +166,15 @@ export interface PropertyStore {
 }
 
 /**
- * Both stores together — implemented by the single DynamoDB adapter and the in-memory test double,
- * and used by the broadest injection site ({@link ../handlers/registry.HandlerDeps}). A consumer
- * that touches only one aggregate depends on just that store.
+ * Both stores together, plus the one read that genuinely spans them. Implemented by the single
+ * DynamoDB adapter, the in-memory test double, and the post-cutover composite (DynamoDB
+ * conversations + Postgres properties); used by the broadest injection site
+ * ({@link ../handlers/registry.HandlerDeps}). A consumer that touches only one aggregate depends on
+ * just that store.
  */
-export type CatalogRepository = ConversationStore & PropertyStore;
+export interface CatalogRepository extends ConversationStore, PropertyStore {
+  /** "Show my listings": resolve user → their conversations (membership, ConversationStore) → those
+   * conversations' properties (PropertyStore), deduped. Lives here, not on either store, because it
+   * stitches both aggregates — which is also why the cutover composite must implement it directly. */
+  listPropertiesForUser(userId: string): Promise<Property[]>;
+}

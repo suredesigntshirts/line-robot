@@ -3,8 +3,10 @@ import type { IdempotencyConfig } from "@aws-lambda-powertools/idempotency";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { getDb } from "@line-robot/db";
 import type { SQSEvent, SQSHandler, SQSRecord } from "aws-lambda";
 import { createClaudeExtractor } from "../adapters/anthropic/claudeExtractor.js";
+import { CompositeCatalogRepository } from "../adapters/compositeCatalogRepository.js";
 import { loadAnthropicApiKey, loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
@@ -13,6 +15,7 @@ import {
   createLineMessagingGateway,
 } from "../adapters/line/lineGateway.js";
 import { LineWebhookParser } from "../adapters/line/webhookParser.js";
+import { PostgresPropertyStore } from "../adapters/postgres/propertyStore.js";
 import { S3MediaUrlSigner } from "../adapters/s3/mediaUrlSigner.js";
 import { S3RawArchive } from "../adapters/s3/rawArchive.js";
 import { type EventPayload, EventProcessor } from "../app/eventProcessor.js";
@@ -36,11 +39,19 @@ async function buildDeps(): Promise<Deps> {
   if (env.CATALOG_TABLE === undefined) {
     throw new Error("CATALOG_TABLE is required for the processor Lambda");
   }
+  if (env.DATABASE_URL === undefined) {
+    throw new Error("DATABASE_URL is required for the processor Lambda (v2 catalog reads)");
+  }
   const channelAccessToken = await loadChannelAccessToken(env);
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
-  const catalog = new DynamoCatalogRepository(doc, env.CATALOG_TABLE);
+  // v2 catalog cutover: tracker/membership/edit-context/memory stay on DynamoDB; the property
+  // catalog (listings, edges, follow-up events) reads/writes Postgres.
+  const catalog = new CompositeCatalogRepository(
+    new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
+    new PostgresPropertyStore(getDb(env.DATABASE_URL)),
+  );
   const s3 = new S3Client({});
   // Signs presigned GET URLs for property-card hero images (the archive bucket is private).
   const signer = new S3MediaUrlSigner(s3, env.ARCHIVE_BUCKET);

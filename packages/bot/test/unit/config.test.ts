@@ -19,6 +19,7 @@ const readApiValidEnv = {
   CATALOG_TABLE: "catalog",
   ARCHIVE_BUCKET: "bucket",
   LIFF_CHANNEL_ID: "2010312345",
+  DATABASE_URL: "postgres://u:p@host/db",
 } as unknown as NodeJS.ProcessEnv;
 
 describe("loadEnv", () => {
@@ -40,6 +41,7 @@ describe("loadReadApiEnv", () => {
       CATALOG_TABLE: "catalog",
       ARCHIVE_BUCKET: "bucket",
       LIFF_CHANNEL_ID: "2010312345",
+      DATABASE_URL: "postgres://u:p@host/db",
     });
   });
 
