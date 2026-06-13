@@ -24,7 +24,7 @@ _Last updated: 2026-06-13 (audited each OPEN item against code + git log; correc
 | 1 Data foundations | Built **+ DEPLOYED** (today). Minor + pre-prod items remain. |
 | 2 Extraction pipeline | Live, **v2-only sweep**. **A1 readers, A2 image/OCR, A3 v1-extractor deletion, A5 cutover hardening** deployed + verified; **A4 batch transport proven on staging** (50% pricing + cache hit; cron wiring deferred → A4d). **GATED 2026-06-14 (A8): GATE-PASS**, conditional on a founder DF-6 ruling (see below). Tail: A4d (batch cron, deferred), A7 (eval Tier A, deferred). |
 | 3 Shared UI | Built + gated PASS **pending the founder design-token pick**. |
-| 4 Public website | **Live**; **4.1 image rendering DONE + deployed + verified** (2026-06-14). Still **NOT formally gated** (4.10) + a real tail (radius/price/auth, 4.2–4.9). |
+| 4 Public website | **Live + GATED 2026-06-14 (4.10): CONDITIONAL-PASS.** 4.1 image rendering done; gate fixed 3 confirmed defects (TECH-06 token theme un-applied, LEGAL-07 foreign disclaimer, retry-link — deployed + verified). Tail: radius/price/auth/schema-fields 4.2–4.9 (deferred), 4.4 LINE Login + domain D19 founder-gated. |
 | 5–7 | Not started (by design). Stage 5 spec fleshed, awaits approval. |
 
 ## Done today (2026-06-13) — recorded so it's not re-listed as open
@@ -45,10 +45,12 @@ Lambda mechanics proven.
    v2 Postgres catalog; v2 listings are visible in-chat + in the mini-app. Next blocking work is the
    Stage 2 fast-follow cluster below (A2–A5) and the Stage 2/4 gates.
 2. ~~**Clear the Stage 2 fast-follow cluster:** A2 image+OCR, **A3** delete `claudeExtractor`, **A4** batch warm-cache acceptance, **A5** cutover hardening~~ **ALL DONE** (batch cron wiring deferred — A4d). The Stage 2 build cluster is complete; the only Stage 2 item left is **A8** (the formal stage gate).
-3. **Run the Stage 2 + Stage 4 stage gates** (never done) — the heavy full-diff review that reconciles
-   shipped vs spec. This is where **4.1 image rendering** and any other gaps get formally caught/closed.
-4. **Founder decisions** that unblock built work (design-token pick, Stage 5 approval, the two schema-gap
-   rulings, price-filter sale-vs-rent ruling).
+3. ~~**Run the Stage 2 + Stage 4 stage gates**~~ **BOTH DONE 2026-06-14** — Stage 2 GATE-PASS (A8) and
+   Stage 4 CONDITIONAL-PASS (4.10). The Stage 4 gate caught + fixed **TECH-06** (the whole token theme was
+   silently not applying on the website — `@theme{}` discarded by the non-Tailwind build) and **LEGAL-07**
+   (missing foreign-ownership disclaimer); both deployed + verified. All Stage 0–4 stages are now gated.
+4. **Founder decisions** that unblock built work (the schema-gap go-aheads 4.7, price-filter ruling 4.3,
+   DF-6 descope, domain D19 / LINE Login 4.4 — see the founder queue).
 5. **Then Stage 5** (mini-app React rebuild) and beyond.
 
 ---
@@ -79,8 +81,9 @@ Lambda mechanics proven.
 | 4.6 | **Email/Google OAuth + account-linking UX** — schema landed Stage 1; UX deferred (Google needs app-verification, founder-owned). | Deferred |
 | 4.7 | **Schema gaps the alignment register requires:** NPA/`listing_type` marker (DIST-01/MKT-11) and new-vs-resale (COMP-06) — domain-first migrations, ~1 increment each, need founder go-ahead. | Schema gap (founder) |
 | 4.8 | **Dedicated detail-fields increment** — facing/road/zone/condo + rental-subtable rows not yet rendered on the detail page. | Deferred |
-| 4.9 | **Minor:** DF-3 Accept-Language soft redirect; TECH-11 `transition:persist`; sitemap 10k cap + en-as-alternate; th-fallback under `lang="en"` (TH-08); search query GIN-index/seq-scan perf. | Minor (fast-follow) |
-| 4.10 | **Run the Stage 4 stage gate** — there is **no gate section** in the spec; the heavy full-diff review + eval + Playwright smoke + docs were never run. This is where 4.1 and the rest get formally reconciled. (Note the gate smoke needs 4.4 LINE Login.) | Gate (overdue) |
+| 4.9 | **Minor / SEO-perf tail:** DF-3 Accept-Language soft redirect; TECH-11 `transition:persist`; sitemap 10k cap + en-as-alternate; th-fallback under `lang="en"` (TH-08); search query GIN-index/seq-scan perf. **Added by the 4.10 gate:** TH-10 Thai compound-phrase SEO slugs (opaque `/properties/{id}` is a founder-blessed tradeoff — "revisit with search-console data"); **og:image presign expires after 1h** (a crawler re-fetching the stored URL >1h after scraping loses the share-preview image — fix is 7-day SigV4 presign or a public CloudFront `/img/*` behaviour off `derivatives/*`; advisory); `/favicon.ico` 404 (ship a favicon). | Minor (fast-follow) |
+| 4.11 | **Data (founder/ingestion, not website code):** the 5 real listings' cards show `group#C08357…` as the poster name — the group pseudo-user's `display_name` is the raw group key, not a human/agent name (TH-03 surfaces an internal key). The website faithfully renders `display_name`; fix is to set a real display name on the group pseudo-user at ingest. (The 15 synthetic listings show proper names.) | Data (founder) |
+| 4.10 | ~~**Run the Stage 4 stage gate**~~ **DONE 2026-06-14 — CONDITIONAL-PASS** (verdict + retro in `plans/19-v2-marketplace-rebuild/stage-4-public-website.md` "Stage gate" section). Diff under review `23a7c19..HEAD` (S4-I1→4.1). Four fresh-context reviewers (spec auditor / architecture-conformance / correctness / alignment), skeptic-adjudicated. **Reconciliation CLEAN** — every Key deliverable + S4-I1…S4-I8 is SHIPPED or tracked-deferred; **zero untracked orphans, zero scope creep** (4.1 was the lone prior orphan, now shipped). **Architecture CLEAN** — website imports only db/domain/ui PUBLIC barrels (no bot/pipeline dep; never deep-imports schema.ts); `media.ts` presign duplication justified (anti-over-eng); IAM least-privilege (`derivatives/*`); `db/repositories/listings.ts` 458 lines → KEEP (single-aggregate, +29 from 4.1). **Eval N/A for UI stage** (`npm run eval` is the Stage 2 pipeline scorecard; no website eval invented; pipeline baseline unregressed). **Playwright smoke** (live, HEADED real-Chrome, th-TH/Bangkok, mobile): homepage+cards / type+deal filters (6/2/3/17) / hydration / no-match / detail gallery+og:image+JSON-LD+LINE CTA / thumb-less / th↔en / 404 / sitemap — all PASS; LINE Login (4.4) gated-around (not built). **/alignment-review**: 3 violations → **TECH-06** (token theme un-applied — the whole `@theme{}` block discarded by the non-Tailwind website; live-verified serif/no-spacing) + **LEGAL-07** (no foreign-ownership disclaimer) both **FIXED + deployed + verified** (`6cadc48`); **TH-10** (opaque slugs) refuted as a founder-blessed tradeoff (logged 4.9). Plus a LOW retry-link fix + `is:inline`. typecheck/lint/test green (484). Targeted `pulumi up` = 2 created/2 updated/2 deleted/83 unchanged, 0 website-ssr errors post-deploy. **Founder items:** 4.4 LINE Login + domain D19; og:image-expiry + poster-name-data observations (logged below + 4.9). | ~~Gate~~ **DONE (CONDITIONAL-PASS)** |
 
 ## Stages 0 / 1 / 3 — carry-forwards (mostly minor / by design)
 

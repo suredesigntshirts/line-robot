@@ -81,6 +81,31 @@ current mode).
   harness smoke; `EVAL_LLM=anthropic` + `ANTHROPIC_API_KEY` runs the real model baseline (D21
   advisory, always exits 0).
 
+## v2 public website (Stage 4)
+
+`packages/website` — Astro 6 SSR (Lambda + CloudFront), **live at https://d15dpmhcgtrf1r.cloudfront.net/**
+(th `/` + `/en/`). Gated 2026-06-14 (CONDITIONAL-PASS). Reads the catalog via the `@line-robot/db`
+PUBLIC barrel only (repository fns) — never another package's adapters/internals.
+
+- **Design tokens — `@line-robot/ui` ships `theme.css` (Tailwind v4 `@theme {}`) AND `fallbacks.css`
+  (plain `:root {}`). A consumer that does NOT run Tailwind (this website) MUST import BOTH**
+  (`import "@line-robot/ui/theme.css"; import "@line-robot/ui/fallbacks.css";` — see `Base.astro`).
+  A browser discards the unrecognised `@theme {}` block, so theme.css alone → every `var(--token)`
+  empty (serif font, no spacing/colour). `fallbacks.css` is generated from theme.css by
+  `npm run tokens:fallbacks -w @line-robot/ui` (run it after editing tokens): full base `:root` +
+  hex-first colours with an `@supports (color: oklch)` upgrade (TECH-06, old Thai-Android WebViews).
+- **Photos: SSR-time presign of `derivatives/*` thumbs** (`src/lib/media.ts`; SSR HTML is no-cache so
+  presigned URLs never stale-cache; bucket stays private). The SSR role has `s3:GetObject` scoped to
+  `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (BACKLOG 4.9 — a
+  social crawler re-fetching the stored URL later loses the preview image).
+- **SEO**: canonical/OG/hreflang in `Base.astro`; JSON-LD `RealEstateListing` (server-rendered, XSS-safe
+  via `safeJsonLdScript`); sitemap from Postgres. URL scheme is opaque `/properties/{id}` (founder
+  decision; Thai-slug SEO is BACKLOG 4.9). `SITE_URL` overrides the canonical origin at build (defaults
+  to the staging CloudFront domain until a real domain — D19).
+- **Deferred tail (BACKLOG 4.2–4.9):** radius/map search, price-range filter, **LINE Login (4.4 —
+  founder-gated, needs the real domain)**, owner submission, Google OAuth, schema gaps (NPA/new-vs-resale),
+  detail sub-fields. None ship-blocking; the website is anonymous browse + detail.
+
 ## Deploying (Pulumi → AWS staging)
 
 Pulumi state is on a **local file backend** (`file://~`); secrets use a **passphrase** provider.
