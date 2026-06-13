@@ -9,6 +9,7 @@ import {
   furnishingStatus,
   identityProvider,
   listingMandate,
+  listingType,
   marketDataSource,
   mediaKind,
   mergeRequestStatus,
@@ -21,6 +22,7 @@ import {
   rentalStatus,
   roadType,
   roleKind,
+  saleCondition,
   saleStage,
   tenure,
   titleDeedType,
@@ -71,6 +73,8 @@ export const quotaBucketPg = pgEnumFrom("quota_bucket", quotaBucket);
 export const propertyTypePg = pgEnumFrom("property_type", propertyType);
 export const urgencyPg = pgEnumFrom("urgency", urgency);
 export const transactionTypePg = pgEnumFrom("transaction_type", transactionType);
+export const listingTypePg = pgEnumFrom("listing_type", listingType);
+export const saleConditionPg = pgEnumFrom("sale_condition", saleCondition);
 export const roleKindPg = pgEnumFrom("role_kind", roleKind);
 export const approvalStatusPg = pgEnumFrom("approval_status", approvalStatus);
 export const identityProviderPg = pgEnumFrom("identity_provider", identityProvider);
@@ -212,6 +216,10 @@ export const listings = pgTable(
     priceNegotiable: boolean("price_negotiable").notNull().default(false),
     urgency: urgencyPg("urgency").notNull().default("normal"), // DIST-03/11
     transactionType: transactionTypePg("transaction_type").notNull().default("normal"), // DIST-06
+    // DIST-01/MKT-11/P8: provenance category. Default `normal` — existing rows are ordinary supply.
+    listingType: listingTypePg("listing_type").notNull().default("normal"),
+    // COMP-06: new-vs-resale. Default `unknown` — existing rows never stated it (omitted in the UI).
+    saleCondition: saleConditionPg("sale_condition").notNull().default("unknown"),
     redemptionPeriodYears: integer("redemption_period_years"), // khai_fak only
     province: text("province"),
     amphoe: text("amphoe"),

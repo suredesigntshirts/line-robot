@@ -4,8 +4,10 @@ import type {
   DealType,
   FurnishingStatus,
   Listing,
+  ListingType,
   MediaKind,
   PropertyType,
+  SaleCondition,
 } from "@line-robot/domain";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
@@ -179,6 +181,10 @@ export interface PublicSearch {
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
+  /** DIST-01/COMP-05: provenance facet (e.g. `npa` = bank-owned stock). */
+  listingType?: ListingType;
+  /** COMP-06: new-vs-resale facet. */
+  saleCondition?: SaleCondition;
   /** Free-text query over landmark + content (trigram-indexed ILIKE). */
   text?: string;
   /** 1-based. */
@@ -237,6 +243,8 @@ export async function searchPublicListings(
   if (q.dealType) conditions.push(eq(listings.dealType, q.dealType));
   if (q.propertyType) conditions.push(eq(listings.propertyType, q.propertyType));
   if (q.province) conditions.push(eq(listings.province, q.province));
+  if (q.listingType) conditions.push(eq(listings.listingType, q.listingType));
+  if (q.saleCondition) conditions.push(eq(listings.saleCondition, q.saleCondition));
   if (q.text && q.text.trim() !== "") {
     // Escape ILIKE metacharacters — user text must never act as a wildcard.
     const pattern = `%${q.text.trim().replace(/[\\%_]/g, (m) => `\\${m}`)}%`;

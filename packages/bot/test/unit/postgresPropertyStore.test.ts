@@ -24,6 +24,8 @@ function row(overrides: Partial<ListingRow> = {}): ListingRow {
     priceNegotiable: false,
     urgency: "normal",
     transactionType: "normal",
+    listingType: "normal",
+    saleCondition: "unknown",
     redemptionPeriodYears: null,
     province: "Chiang Mai",
     amphoe: "Mueang",

@@ -146,6 +146,10 @@ describe("repositories", () => {
     });
     listingId = listing.id;
     expect(listing.urgency).toBe("normal");
+    // 4.7 additive columns: an aggregate that omits them gets the safe defaults
+    // (existing rows are ordinary supply, condition unstated) — never NULL.
+    expect(listing.listingType).toBe("normal");
+    expect(listing.saleCondition).toBe("unknown");
 
     const content = await getContent(db, listingId);
     expect(content).toHaveLength(2);
@@ -183,6 +187,8 @@ describe("public search (LEGAL-02 consent gate)", () => {
   let consentedId: string;
   let unconsentedId: string;
   let rentId: string;
+  let npaNewId: string;
+  let resaleId: string;
 
   const baseListing = {
     dealType: "sale" as const,
@@ -231,6 +237,35 @@ describe("public search (LEGAL-02 consent gate)", () => {
     });
     rentId = rent.id;
     await grantPublishConsent(db, rentId, ownerId, "v1");
+
+    // 4.7: a bank-owned (NPA) listing that is also first-hand (new) — the two axes are independent.
+    const npaNew = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        priceThb: 1_800_000,
+        listingType: "npa",
+        saleCondition: "new",
+      },
+      content: [
+        { lang: "th", headline: "ทรัพย์ธนาคารมือหนึ่ง", description: "x", generatedBy: "human" },
+      ],
+    });
+    npaNewId = npaNew.id;
+    await grantPublishConsent(db, npaNewId, ownerId, "v1");
+
+    // 4.7: a resale listing (ordinary provenance) — only the saleCondition axis is set.
+    const resale = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        priceThb: 2_600_000,
+        saleCondition: "resale",
+      },
+      content: [{ lang: "th", headline: "บ้านมือสอง", description: "x", generatedBy: "human" }],
+    });
+    resaleId = resale.id;
+    await grantPublishConsent(db, resaleId, ownerId, "v1");
   });
 
   it("returns only consented listings", async () => {
@@ -348,6 +383,33 @@ describe("public search (LEGAL-02 consent gate)", () => {
     const paged = await searchPublicListings(db, { lang: "th", page: 1, pageSize: 1 });
     expect(paged.rows).toHaveLength(1);
     expect(paged.total).toBeGreaterThanOrEqual(2);
+  });
+
+  it("4.7: filters by listingType (NPA) and saleCondition (new-vs-resale) as first-class facets", async () => {
+    // DIST-01/COMP-05: the NPA source filter narrows to bank-owned stock only.
+    const npa = await searchPublicListings(db, { lang: "th", listingType: "npa" });
+    expect(npa.rows.map((r) => r.listing.id)).toEqual([npaNewId]);
+
+    // COMP-06: new-vs-resale is its own axis. `new` catches the NPA-new listing (provenance is
+    // orthogonal); `resale` catches the resale one. Neither bleeds into the other.
+    const fresh = await searchPublicListings(db, { lang: "th", saleCondition: "new" });
+    expect(fresh.rows.map((r) => r.listing.id)).toEqual([npaNewId]);
+    const resale = await searchPublicListings(db, { lang: "th", saleCondition: "resale" });
+    expect(resale.rows.map((r) => r.listing.id)).toEqual([resaleId]);
+
+    // The two axes compose (AND): NPA *and* new = the one listing that is both.
+    const npaAndNew = await searchPublicListings(db, {
+      lang: "th",
+      listingType: "npa",
+      saleCondition: "new",
+    });
+    expect(npaAndNew.rows.map((r) => r.listing.id)).toEqual([npaNewId]);
+
+    // An ordinary listing carries the safe defaults and is not caught by either distressed/condition filter.
+    const all = await searchPublicListings(db, { lang: "th" });
+    const ordinary = all.rows.find((r) => r.listing.id === consentedId);
+    expect(ordinary?.listing.listingType).toBe("normal");
+    expect(ordinary?.listing.saleCondition).toBe("unknown");
   });
 
   it("finds by free text over landmark/headline with ILIKE metachars escaped", async () => {

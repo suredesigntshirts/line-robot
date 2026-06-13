@@ -3,10 +3,12 @@ import type {
   ExtractionSource,
   FacingDirection,
   ListingMandate,
+  ListingType,
   PropertyType,
   RentalStatus,
   RoadType,
   RoleKind,
+  SaleCondition,
   SaleStage,
   TitleDeedType,
   TransactionType,
@@ -34,6 +36,10 @@ export interface Listing {
   priceNegotiable: boolean;
   urgency: Urgency;
   transactionType: TransactionType;
+  /** DIST-01/MKT-11/P8: provenance category (normal | npa | auction). */
+  listingType: ListingType;
+  /** COMP-06: new (first-hand/developer) vs resale (secondary) vs unknown. */
+  saleCondition: SaleCondition;
   redemptionPeriodYears: number | null;
   province: string | null;
   amphoe: string | null;

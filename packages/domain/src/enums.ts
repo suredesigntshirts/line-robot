@@ -60,6 +60,27 @@ export type Urgency = z.infer<typeof urgency>;
 export const transactionType = z.enum(["normal", "khai_fak"]);
 export type TransactionType = z.infer<typeof transactionType>;
 
+/**
+ * DIST-01 / MKT-11 / P8: a listing's provenance category. `normal` = ordinary
+ * owner/agent supply; `npa` = bank-owned non-performing asset (ทรัพย์ธนาคาร,
+ * incl. short-sale / distressed bank stock); `auction` = LED court auction
+ * (บังคับคดี). Distressed categories are surfaced as a CALM source label (not a
+ * danger badge — founder direction) plus honest contextual caveats; `auction`
+ * additionally carries the DIST-02 as-is/occupancy/title caveats. Independent
+ * of `saleCondition` (an NPA unit can be new or resale).
+ */
+export const listingType = z.enum(["normal", "npa", "auction"]);
+export type ListingType = z.infer<typeof listingType>;
+
+/**
+ * COMP-06: new-vs-resale, a first-class search axis (80% of surveyed buyers
+ * filter on it). `new` = first-hand / developer-sold; `resale` = secondary
+ * market; `unknown` when the source didn't say (most existing rows). Distinct
+ * from `listingType` provenance.
+ */
+export const saleCondition = z.enum(["new", "resale", "unknown"]);
+export type SaleCondition = z.infer<typeof saleCondition>;
+
 export const roleKind = z.enum(["broker", "investor", "owner", "visitor"]);
 export type RoleKind = z.infer<typeof roleKind>;
 
