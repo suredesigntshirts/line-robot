@@ -68,6 +68,7 @@ describe("boot fail-fast on missing DATABASE_URL", () => {
       LIFF_CHANNEL_ID: "2010312345",
       DATABASE_URL: "postgres://u:p@host/db",
     };
-    expect(() => loadReadApiEnv(withoutDb as NodeJS.ProcessEnv)).toThrow();
+    // Match on the field name so an unrelated parse failure can't masquerade as this guard passing.
+    expect(() => loadReadApiEnv(withoutDb as NodeJS.ProcessEnv)).toThrow(/DATABASE_URL/);
   });
 });

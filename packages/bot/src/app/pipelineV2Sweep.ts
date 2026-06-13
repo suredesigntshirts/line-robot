@@ -34,7 +34,7 @@ export interface PipelineV2Port {
 /** One classified attachment from a batch: its S3 key, content-type, and (best-effort) the image's
  * kind/label/OCR. The marker pass below only sets `kind`; the real per-image classification happens
  * inside the pipeline. */
-interface ClassifiedMedia {
+export interface ClassifiedMedia {
   readonly s3Key: string;
   readonly contentType: string;
   readonly kind: PropertyPhoto["kind"];
@@ -48,7 +48,7 @@ interface ClassifiedMedia {
  * marker `[IMG n] <kind> - <label> ocr: <text>`. The timestamps (second resolution) expose
  * burst/gap structure for segmentation; the indexed markers let the segmenter attribute media per
  * property. */
-function buildTranscript(
+export function buildTranscript(
   batch: readonly StoredMessage[],
   classified: readonly ClassifiedMedia[],
 ): { transcript: string; mapLinks: string[] } {
@@ -106,9 +106,13 @@ async function ensureOwner(db: Db, conversationKey: string): Promise<string> {
 export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
   return {
     async run(conversationKey, batch) {
+      // Only image attachments become photos: a PDF/video/audio would throw inside sharp and degrade
+      // to a media row that points at a non-image as if it were a photo. Filtering here keeps the
+      // `photos` and `markers` lists (and so the [IMG n] transcript indices) aligned.
       const attachments = batch
         .map((m) => m.attachment)
-        .filter((a): a is NonNullable<typeof a> => a !== undefined);
+        .filter((a): a is NonNullable<typeof a> => a !== undefined)
+        .filter((a) => a.contentType.startsWith("image/"));
 
       // Build both derivatives per image (sharp): the 1568px vision image feeds classify + chanote
       // OCR; the 640px thumb is stored for the public website. A failed build degrades just that

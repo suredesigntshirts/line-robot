@@ -249,8 +249,11 @@ export async function runPipeline(
       pool.push({
         id: listingId,
         deedNo,
-        lat: null,
-        lon: null,
+        // Carry the extracted coordinates so a second segment in THIS SAME batch that is the same
+        // property (no shared deed, weak address text, but nearby coords) geo-blocks against the
+        // listing we just created — not only on the next sweep.
+        lat: extracted.lat,
+        lon: extracted.lon,
         addressText: [extracted.landmark, extracted.tambon, extracted.amphoe, extracted.province]
           .filter(Boolean)
           .join(" "),
