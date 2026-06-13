@@ -86,7 +86,7 @@ Lambda mechanics proven.
 
 | # | Item | Priority |
 |---|---|---|
-| 0.1 | Run `/increment-review` once on a real diff — closes the Stage 0 gate's skill-invocation loop (gate passed on procedure execution). | Founder/eng (one run) |
+| 0.1 | ~~Run `/increment-review` once on a real diff~~ **DONE 2026-06-13**: the three-seat panel (spec auditor + simplicity critic + `/code-review` correctness, skeptic-adjudicated) ran on the A1 diff → PASS. (Skill is `disable-model-invocation`/user-only, so its procedure was executed directly with fresh sub-agents — same independence.) | ~~one run~~ DONE |
 | 0.2 | `scoreFuzzy` (LLM-judge) + photo-attribution scorers — deferred to Stage 2 eval (= A7). | Deferred |
 | 1.1 | ~~**Q-SA4** — state the raw-archive retention as explicit infra config (S3 lifecycle rule + data-handling note).~~ **DONE** (audit 2026-06-13): `infra/src/storage.ts:105-120` has the `archive-lifecycle` rule + the recorded retention decision (keep indefinitely for now; revisit before launch). | ~~Eng (small)~~ DONE |
 | 1.2 | Production RDS hardening (pre-launch): private subnets + VPC endpoints/NAT + restrict SG (D-S1-2); RDS Proxy if Stage 2 fan-out raises concurrency (D-S1-4). | Pre-launch |
@@ -100,8 +100,8 @@ Lambda mechanics proven.
 - ~~Rulings: price-filter + schema gaps~~ **DONE 2026-06-13** (directions only — see `docs/design/mockups/README.md`): price filter = **contextual** (Buy/Rent relabels one range); **add both** schema fields (NPA/`listing_type` + new-vs-resale), surfaced via **detail-page disclosure + subtle meta**. **CONSTRAINTS for the real build:** rebuild UI from scratch (mocks = inspiration only); price ranges must use ACTUAL North-Thai bands from `a2-market-landscape-north.md` (NOT the demo brackets); **tone DOWN the NPA red** — it reads as alert/warning, should be a calm category highlight, not danger.
 - ~~**Set `lineOaUrl`**~~ **DONE 2026-06-13:** `lineOaUrl = https://line.me/R/ti/p/@685kqtou` (founder
   OA basic ID); env-only `pulumi up` (website-ssr), verified — detail pages render the "แชทผ่าน LINE"
-  CTA (CONV-06). _No LINE verification was needed (basic ID auto-exists; add-friend link works
-  unverified). Founder to tap-confirm once it opens the right OA (provided "I think")._
+  CTA (CONV-06), and the founder confirmed the link opens the right OA. _No LINE verification was
+  needed (basic ID auto-exists; add-friend link works unverified)._
 - **Deploy-policy gap (infra):** the scoped deploy policy (`infra/deploy-user-policy.json`) grants no
   `sns`/`cloudwatch` perms — needed before **A5 monitoring** (CloudWatch error alarms on the now-
   Postgres-dependent processor/reminder/read-api + sweep) can ship. Add via tea-admin
