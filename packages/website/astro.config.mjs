@@ -7,12 +7,16 @@ import { defineConfig } from "astro/config";
 // shim (src/lambda.mjs) wraps that, so deploys stay on our own Pulumi (DF-2 spike verdict).
 //
 // `site` is the canonical public origin for sitemap/canonical/hreflang URLs. Domain (D19) is a
-// parked founder decision — until then SITE_URL (build-time env) or the CloudFront domain wins.
+// parked founder decision — until a real domain is purchased, the staging CloudFront domain is
+// the canonical origin (founder-confirmed 2026-06-13). `SITE_URL` overrides it (set it to the
+// real domain at build once D19 lands). The default must be a REAL origin, never a placeholder:
+// a clean rebuild that fell back to example.invalid would silently ship a broken SEO bundle.
+const STAGING_SITE_URL = "https://d15dpmhcgtrf1r.cloudfront.net";
 export default defineConfig({
   output: "server",
   adapter: node({ mode: "middleware" }),
   integrations: [react()],
-  site: process.env.SITE_URL || "https://example.invalid",
+  site: process.env.SITE_URL || STAGING_SITE_URL,
   i18n: {
     locales: ["th", "en"],
     defaultLocale: "th",
