@@ -60,6 +60,9 @@ export function BrowseResults({
                 listing.bathrooms === null
                   ? ""
                   : t("listing.bathrooms", { count: listing.bathrooms }),
+              // COMP-06 subtle card meta; "" when unstated → omitted from the spec line.
+              conditionLabel:
+                listing.saleCondition === "unknown" ? "" : t(`condition.${listing.saleCondition}`),
             })}
             monthlyRent={monthlyRent}
             href={`${basePath}/properties/${listing.id}`}

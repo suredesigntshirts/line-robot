@@ -8,7 +8,6 @@ interface ListingCardProps {
   listing: Listing;
   view: CardView;
   verified?: boolean;
-  npa?: boolean;
   monthlyRent?: number | null;
   /** Poster display name — the human trust signal (CONV-11). */
   postedByName?: string;
@@ -26,7 +25,6 @@ export function ListingCard({
   listing,
   view,
   verified,
-  npa,
   monthlyRent,
   postedByName,
   href,
@@ -83,7 +81,7 @@ export function ListingCard({
         )}
       </div>
       <div style={{ padding: "var(--spacing-3)", display: "grid", gap: "var(--spacing-2)" }}>
-        <StatusBadge listing={listing} verified={verified} npa={npa} t={t} />
+        <StatusBadge listing={listing} verified={verified} t={t} />
         <div
           style={{
             fontSize: "var(--text-md)",

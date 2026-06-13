@@ -21,7 +21,8 @@ export const en: Record<keyof typeof th, string> = {
   "badge.urgent": "Urgent sale",
   "badge.verified": "Verified",
   "badge.ownerDirect": "Owner direct",
-  "badge.npa": "Bank NPA",
+  "badge.npa": "Bank asset",
+  "badge.auction": "Court auction",
   "badge.deedUnverified": "Deed unverified",
   "badge.forRent": "For rent",
   "badge.forSale": "For sale",
@@ -31,11 +32,15 @@ export const en: Record<keyof typeof th, string> = {
 
   "filter.all": "All",
   "filter.newVsResale": "New/Resale",
-  "filter.npa": "Bank NPA",
+  "filter.npa": "Asset type (bank/auction)",
   "filter.petFriendly": "Pet friendly",
   "filter.deedType": "Deed type",
   "filter.priceRange": "Price range",
   "filter.clear": "Clear filters",
+  "condition.new": "New",
+  "condition.resale": "Resale",
+  "listingType.npa": "Bank asset",
+  "listingType.auction": "Court auction",
 
   "empty.title": "No listings found",
   "empty.why": "Nothing matches your current filters",
@@ -129,6 +134,14 @@ export const en: Record<keyof typeof th, string> = {
   "utility.government": "Government rate (MEA/PWA)",
   "utility.landlord_rate": "Landlord-set rate",
   "utility.included": "Included in rent",
+  "provenance.heading": "Asset source",
+  "provenance.npa":
+    "A bank non-performing asset (NPA). Price and terms are set by the lending institution.",
+  "provenance.auction":
+    "A court-auction property sold by the Legal Execution Department. Bidding follows the LED's terms.",
+  "provenance.auctionAsIs": "Sold as-is — condition is not guaranteed",
+  "provenance.auctionOccupied": "May be occupied — current residents or holders may remain",
+  "provenance.auctionVerifyTitle": "Verify title and any liens before bidding",
   "legal.posterProvided":
     "Information is poster-provided — verify independently before any transaction",
   "legal.foreignOwnership":

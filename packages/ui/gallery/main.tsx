@@ -41,6 +41,8 @@ const LISTING: Listing = {
   priceNegotiable: true,
   urgency: "quick_sale",
   transactionType: "normal",
+  listingType: "normal",
+  saleCondition: "unknown",
   redemptionPeriodYears: null,
   province: "เชียงใหม่",
   amphoe: "เมืองเชียงใหม่",
@@ -82,6 +84,15 @@ const RENTAL: Listing = {
   priceThb: null,
   postedByRole: "broker",
   titleDeedType: "unknown",
+};
+
+// DIST-01: a bank-owned (NPA) listing — the calm provenance badge derives from listingType.
+const NPA_LISTING: Listing = {
+  ...LISTING,
+  id: "demo-3",
+  urgency: "normal",
+  listingType: "npa",
+  saleCondition: "resale",
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -134,9 +145,13 @@ function App() {
           <Badge kind="verified">{t("badge.verified")}</Badge>
           <Badge kind="owner">{t("badge.ownerDirect")}</Badge>
           <Badge kind="npa">{t("badge.npa")}</Badge>
+          <Badge kind="npa">{t("badge.auction")}</Badge>
+          <Badge kind="warn">{t("badge.deedUnverified")}</Badge>
         </div>
         <StatusBadge listing={LISTING} verified t={t} />
-        <StatusBadge listing={RENTAL} npa t={t} />
+        {/* RENTAL has titleDeedType:unknown → amber WARN badge; NPA_LISTING → calm violet NPA badge. */}
+        <StatusBadge listing={RENTAL} t={t} />
+        <StatusBadge listing={NPA_LISTING} t={t} />
       </Section>
 
       <Section title="PriceDisplay">

@@ -8,7 +8,8 @@
   --badge-urgent: var(--color-warn-bg);
   --badge-urgent-text: var(--color-warn);
   --badge-verified-text: var(--color-primary-600);
-  --badge-npa-text: var(--color-danger);
+  --badge-warn: var(--color-warn-bg);
+  --badge-warn-text: var(--color-warn);
   --spacing-0: 0px;
   --spacing-1: 4px;
   --spacing-2: 8px;
@@ -71,7 +72,8 @@
   --badge-verified: #e8f0fb;
   --badge-owner: #e6f6fb;
   --badge-owner-text: #1a6a8a;
-  --badge-npa: #fdecea;
+  --badge-npa: #f3efff;
+  --badge-npa-text: #5c4295;
   --color-line: #06c755;
   --color-line-text: #ffffff;
 }
@@ -106,7 +108,8 @@
     --badge-verified: oklch(0.96 0.03 240);
     --badge-owner: oklch(0.96 0.04 200);
     --badge-owner-text: oklch(0.4 0.12 200);
-    --badge-npa: oklch(0.96 0.04 20);
+    --badge-npa: oklch(0.96 0.03 295);
+    --badge-npa-text: oklch(0.45 0.13 295);
     --color-line: oklch(0.76 0.23 150);
     --color-line-text: oklch(1 0 0);
   }

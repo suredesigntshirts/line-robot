@@ -26,6 +26,8 @@ export interface CardViewInput {
   /** Localized fragments the caller's translator produced; "" = not applicable. */
   bedroomsLabel: string;
   bathroomsLabel: string;
+  /** COMP-06 new-vs-resale, pre-localized; "" when unstated (omitted from the spec line). */
+  conditionLabel?: string;
 }
 
 export function toCardView(input: CardViewInput): CardView {
@@ -50,6 +52,8 @@ export function toCardView(input: CardViewInput): CardView {
   } else if (listing.landSqm !== null) {
     specs.push(`${listing.landSqm} ตร.ม.`);
   }
+  // COMP-06: new-vs-resale is subtle card meta — trails the physical specs, omitted when unstated.
+  if (input.conditionLabel) specs.push(input.conditionLabel);
   return {
     id: listing.id,
     headline: input.headline,

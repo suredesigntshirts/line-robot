@@ -54,6 +54,10 @@ const roadValue = roadParts.length > 0 ? roadParts.join(" · ") : null;
 
 const fieldRows = [
   { label: t("filter.propertyType"), value: t(`ptype.${listing.propertyType}`) },
+  // COMP-06 new-vs-resale: a first-class buyer signal, shown as subtle meta (omit when unstated).
+  ...(listing.saleCondition !== "unknown"
+    ? [{ label: t("filter.newVsResale"), value: t(`condition.${listing.saleCondition}`) }]
+    : []),
   { label: t("listing.deedSection"), value: deedValue },
   ...(landParts.length > 0 ? [{ label: t("listing.landArea"), value: landParts.join(" ") }] : []),
   ...(listing.floorAreaSqm !== null
@@ -159,6 +163,26 @@ const rentalRows = rental
     ]
   : [];
 
+// DIST-01/02/P8 provenance disclosure (NPA / LED auction). Delivered CALMLY — a category note in
+// muted text, with the DIST-02 caveats as visible (non-collapsed) lines for auctions — NOT a red
+// alert banner (founder tone direction). `normal` listings get nothing. The calm NPA category badge
+// itself rides on StatusBadge above; this is the honest contextual text the register's P8 requires.
+const provenanceNote =
+  listing.listingType === "npa"
+    ? t("provenance.npa")
+    : listing.listingType === "auction"
+      ? t("provenance.auction")
+      : null;
+// DIST-02: LED auction listings carry three mandatory caveats (as-is / may be occupied / verify title).
+const auctionCaveats =
+  listing.listingType === "auction"
+    ? [
+        t("provenance.auctionAsIs"),
+        t("provenance.auctionOccupied"),
+        t("provenance.auctionVerifyTitle"),
+      ]
+    : [];
+
 const locationLine = [listing.landmark, listing.tambon, listing.amphoe, listing.province]
   .filter((p): p is string => p !== null && p !== "")
   .join(" · ");
@@ -217,6 +241,29 @@ const jsonLd = safeJsonLdScript(
       {detail.headline}
     </h1>
     <StatusBadge listing={listing} t={t} />
+    {/* DIST-01/02/P8: calm provenance disclosure for NPA / LED auction stock. A muted surface card
+        (NOT a danger banner — founder tone direction), but the DIST-02 caveats are visible text, not
+        collapsed. `normal` listings render nothing (omit-when-absent). */}
+    {provenanceNote !== null && (
+      <section
+        aria-label={t("provenance.heading")}
+        style="background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-3); display: grid; gap: var(--spacing-2);"
+      >
+        <strong style="font-size: var(--text-sm); color: var(--color-text);" lang={locale}>
+          {t("provenance.heading")}
+        </strong>
+        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text-2);" lang={locale}>
+          {provenanceNote}
+        </p>
+        {auctionCaveats.length > 0 && (
+          <ul style="margin: 0; padding-inline-start: var(--spacing-5); display: grid; gap: var(--spacing-1); font-size: var(--text-sm); color: var(--color-text-2);">
+            {auctionCaveats.map((c) => (
+              <li lang={locale}>{c}</li>
+            ))}
+          </ul>
+        )}
+      </section>
+    )}
     <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} t={t} />
     {/* TH-08: place names are verbatim Thai on both locales (like land units, TH-03) — tag the
         container lang="th" so an /en/ page (html lang="en") still gets Thai line-breaking, not break-all. */}

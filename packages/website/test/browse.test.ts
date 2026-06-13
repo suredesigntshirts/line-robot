@@ -18,6 +18,25 @@ describe("parseBrowseQuery", () => {
     expect(parse("page=-2")).toEqual({ page: 1 });
   });
 
+  it("4.7: parses the new-vs-resale + provenance facets", () => {
+    expect(parse("cond=resale&ltype=npa")).toEqual({
+      saleCondition: "resale",
+      listingType: "npa",
+      page: 1,
+    });
+    expect(parse("cond=new&ltype=auction")).toEqual({
+      saleCondition: "new",
+      listingType: "auction",
+      page: 1,
+    });
+  });
+
+  it("4.7: drops the non-filter defaults (`normal`/`unknown`) and junk facet values", () => {
+    // `normal`/`unknown` are valid enum members but mean "no filter" — never carried in the query.
+    expect(parse("cond=unknown&ltype=normal")).toEqual({ page: 1 });
+    expect(parse("cond=mint&ltype=foreclosure")).toEqual({ page: 1 });
+  });
+
   it("defaults to page 1 with no params", () => {
     expect(parse("")).toEqual({ page: 1 });
   });
@@ -37,6 +56,8 @@ describe("browseQueryString", () => {
     const q: BrowseQuery = {
       dealType: "sale",
       propertyType: "land",
+      saleCondition: "resale",
+      listingType: "npa",
       province: "เชียงใหม่",
       text: "นิมมาน",
       page: 2,

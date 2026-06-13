@@ -1,4 +1,4 @@
-import { dealType, propertyType } from "@line-robot/domain";
+import { dealType, listingType, propertyType, saleCondition } from "@line-robot/domain";
 import {
   createTranslator,
   type FilterGroup,
@@ -41,6 +41,22 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
       label: t("filter.propertyType"),
       chips: propertyType.options.map((v) => ({ id: `type:${v}`, label: t(`ptype.${v}`) })),
     },
+    {
+      // COMP-06: new-vs-resale, a first-class facet (only the meaningful members, not `unknown`).
+      id: "cond",
+      label: t("filter.newVsResale"),
+      chips: saleCondition.options
+        .filter((v) => v !== "unknown")
+        .map((v) => ({ id: `cond:${v}`, label: t(`condition.${v}`) })),
+    },
+    {
+      // DIST-01/COMP-05: provenance facet — bank-owned (NPA) / court-auction stock (not `normal`).
+      id: "ltype",
+      label: t("filter.npa"),
+      chips: listingType.options
+        .filter((v) => v !== "normal")
+        .map((v) => ({ id: `ltype:${v}`, label: t(`listingType.${v}`) })),
+    },
     ...(provinces.length > 1
       ? [
           {
@@ -55,6 +71,8 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
   const value = [
     ...(query.dealType ? [`deal:${query.dealType}`] : []),
     ...(query.propertyType ? [`type:${query.propertyType}`] : []),
+    ...(query.saleCondition ? [`cond:${query.saleCondition}`] : []),
+    ...(query.listingType ? [`ltype:${query.listingType}`] : []),
     ...(query.province ? [`province:${query.province}`] : []),
   ];
 
@@ -68,10 +86,14 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
     };
     const deal = dealType.safeParse(pick("deal"));
     const ptype = propertyType.safeParse(pick("type"));
+    const cond = saleCondition.safeParse(pick("cond"));
+    const ltype = listingType.safeParse(pick("ltype"));
     const province = pick("province");
     const target: BrowseQuery = {
       ...(deal.success ? { dealType: deal.data } : {}),
       ...(ptype.success ? { propertyType: ptype.data } : {}),
+      ...(cond.success && cond.data !== "unknown" ? { saleCondition: cond.data } : {}),
+      ...(ltype.success && ltype.data !== "normal" ? { listingType: ltype.data } : {}),
       ...(province ? { province } : {}),
       ...(text.trim() !== "" ? { text: text.trim() } : {}),
       page: 1,

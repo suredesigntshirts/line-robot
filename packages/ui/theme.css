@@ -58,8 +58,15 @@
   --badge-verified-text: var(--color-primary-600);
   --badge-owner: oklch(0.96 0.04 200) /* #e6f6fb */;
   --badge-owner-text: oklch(0.4 0.12 200) /* #1a6a8a */;
-  --badge-npa: oklch(0.96 0.04 20) /* #fdecea */;
-  --badge-npa-text: var(--color-danger);
+  /* DIST-01 NPA/auction category — a CALM violet highlight, NOT danger-red
+     (founder direction: distressed is a category, not an alert). The honest
+     DIST-02 caveats ride alongside as contextual text, not in this badge. */
+  --badge-npa: oklch(0.96 0.03 295) /* #f3efff */;
+  --badge-npa-text: oklch(0.45 0.13 295) /* #5c4295 */;
+  /* FIELD-02 deed-unverified = a genuine warning (amber, never red — it's a
+     "verify before deposit" nudge, not a danger). Distinct from the NPA category. */
+  --badge-warn: var(--color-warn-bg);
+  --badge-warn-text: var(--color-warn);
 
   /* --- Brand constants (identical across all candidates) --- */
   --color-line: oklch(0.76 0.23 150) /* #06c755 */; /* LINE brand green (CONV-06) */
@@ -131,6 +138,10 @@
   --badge-urgent: var(--color-warn-bg);
   --badge-verified: oklch(0.22 0.06 240) /* #0d1a38 */;
   --badge-verified-text: oklch(0.75 0.12 240) /* #7eb3f0 */;
+  --badge-npa: oklch(0.24 0.06 295) /* #221a3a */;
+  --badge-npa-text: oklch(0.8 0.09 295) /* #c1b3f2 */;
+  --badge-warn: var(--color-warn-bg);
+  --badge-warn-text: var(--color-warn);
   --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.3);
   --shadow-sm: 0 1px 4px oklch(0 0 0 / 0.4), 0 0 1px oklch(0 0 0 / 0.2);
   --shadow-md: 0 4px 12px oklch(0 0 0 / 0.5), 0 1px 3px oklch(0 0 0 / 0.3);
@@ -159,5 +170,9 @@
     --badge-urgent: var(--color-warn-bg);
     --badge-verified: oklch(0.22 0.06 240) /* #0d1a38 */;
     --badge-verified-text: oklch(0.75 0.12 240) /* #7eb3f0 */;
+    --badge-npa: oklch(0.24 0.06 295) /* #221a3a */;
+    --badge-npa-text: oklch(0.8 0.09 295) /* #c1b3f2 */;
+    --badge-warn: var(--color-warn-bg);
+    --badge-warn-text: var(--color-warn);
   }
 }

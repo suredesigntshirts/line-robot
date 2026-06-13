@@ -32,6 +32,8 @@ const LISTING: Listing = {
   priceNegotiable: true,
   urgency: "quick_sale",
   transactionType: "normal",
+  listingType: "normal",
+  saleCondition: "unknown",
   redemptionPeriodYears: null,
   province: "เชียงใหม่",
   amphoe: "เมืองเชียงใหม่",
@@ -71,9 +73,37 @@ describe("StatusBadge", () => {
     expect(screen.getByText("เจ้าของขายเอง")).toBeDefined();
   });
 
-  it("FIELD-02: unknown deed wears the unverified badge", () => {
-    render(<StatusBadge listing={{ ...LISTING, titleDeedType: "unknown" }} t={t} />);
+  it("FIELD-02: unknown deed wears the amber WARN badge, not the NPA category colour", () => {
+    const { container } = render(
+      <StatusBadge listing={{ ...LISTING, titleDeedType: "unknown" }} t={t} />,
+    );
     expect(screen.getByText("ยังไม่ยืนยันโฉนด")).toBeDefined();
+    // Must render as `warn` (amber nudge), never `npa` — the two are distinct concepts now.
+    expect(container.querySelector('[data-badge="warn"]')).not.toBeNull();
+    expect(container.querySelector('[data-badge="npa"]')).toBeNull();
+  });
+
+  it("DIST-01: NPA stock wears the calm bank-asset label (npa category badge, never danger)", () => {
+    const { container } = render(
+      <StatusBadge listing={{ ...LISTING, listingType: "npa", urgency: "normal" }} t={t} />,
+    );
+    expect(screen.getByText("ทรัพย์ธนาคาร")).toBeDefined();
+    const npaBadge = container.querySelector('[data-badge="npa"]');
+    expect(npaBadge).not.toBeNull();
+    // The calm category token — NOT the danger badge (there is no `danger` badge kind at all).
+    expect(container.querySelector('[data-badge="danger"]')).toBeNull();
+  });
+
+  it("DIST-01: LED auction stock wears the court-auction label (same calm category)", () => {
+    render(
+      <StatusBadge listing={{ ...LISTING, listingType: "auction", urgency: "normal" }} t={t} />,
+    );
+    expect(screen.getByText("ขายทอดตลาด (บังคับคดี)")).toBeDefined();
+  });
+
+  it("a normal listing shows no provenance badge", () => {
+    const { container } = render(<StatusBadge listing={{ ...LISTING, urgency: "normal" }} t={t} />);
+    expect(container.querySelector('[data-badge="npa"]')).toBeNull();
   });
 
   it("TH-04: verified poster badge appears when verified", () => {

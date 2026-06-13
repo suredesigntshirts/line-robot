@@ -26,7 +26,9 @@ export const th = {
   "badge.urgent": "ขายด่วน",
   "badge.verified": "ยืนยันตัวตนแล้ว",
   "badge.ownerDirect": "เจ้าของขายเอง",
-  "badge.npa": "ทรัพย์ NPA",
+  // DIST-01 source labels (calm category, not danger): bank-owned vs court-auction stock.
+  "badge.npa": "ทรัพย์ธนาคาร",
+  "badge.auction": "ขายทอดตลาด (บังคับคดี)",
   "badge.deedUnverified": "ยังไม่ยืนยันโฉนด",
   "badge.forRent": "ให้เช่า",
   "badge.forSale": "ขาย",
@@ -38,11 +40,17 @@ export const th = {
   // Search & filters (COMP-05/06)
   "filter.all": "ทั้งหมด",
   "filter.newVsResale": "มือหนึ่ง/มือสอง",
-  "filter.npa": "ทรัพย์ธนาคาร",
+  "filter.npa": "ประเภททรัพย์ (ธนาคาร/บังคับคดี)",
   "filter.petFriendly": "เลี้ยงสัตว์ได้",
   "filter.deedType": "ประเภทโฉนด",
   "filter.priceRange": "ช่วงราคา",
   "filter.clear": "ล้างตัวกรอง",
+  // COMP-06 new-vs-resale chip labels + the subtle card/detail meta.
+  "condition.new": "มือหนึ่ง",
+  "condition.resale": "มือสอง",
+  // DIST-01 provenance chip labels (the NPA filter group).
+  "listingType.npa": "ทรัพย์ธนาคาร",
+  "listingType.auction": "ขายทอดตลาด (บังคับคดี)",
 
   // Empty / error states (COPY-07: what + why + next)
   "empty.title": "ไม่พบประกาศ",
@@ -144,6 +152,16 @@ export const th = {
   "utility.government": "อัตราราชการ (การไฟฟ้า/ประปา)",
   "utility.landlord_rate": "อัตราที่ผู้ให้เช่ากำหนด",
   "utility.included": "รวมในค่าเช่า",
+  // DIST-01/DIST-02/P8 provenance disclosure — shown CALMLY as contextual text on the detail page
+  // (a category note + honest caveats), never as a red alert banner (founder tone direction). The
+  // caveats are visible (not collapsed) per DIST-02; the calm delivery is the founder's call.
+  "provenance.heading": "ที่มาของทรัพย์",
+  "provenance.npa": "ทรัพย์รอการขายของสถาบันการเงิน (NPA) ราคาและเงื่อนไขเป็นไปตามที่ธนาคารกำหนด",
+  "provenance.auction": "ทรัพย์ขายทอดตลาดโดยกรมบังคับคดี การประมูลเป็นไปตามเงื่อนไขของกรมบังคับคดี",
+  // DIST-02 mandatory caveats for LED auction listings (3 visible lines).
+  "provenance.auctionAsIs": "ขายตามสภาพ ไม่รับประกันสภาพทรัพย์",
+  "provenance.auctionOccupied": "อาจมีผู้อยู่อาศัยหรือผู้ครอบครองในทรัพย์",
+  "provenance.auctionVerifyTitle": "ตรวจสอบกรรมสิทธิ์และภาระผูกพันก่อนเข้าประมูล",
   "legal.posterProvided": "ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม",
   // LEGAL-07: non-dismissible foreign-ownership notice (FIELD-05). Foreigners
   // cannot own land; condos carry a 49% foreign-quota cap; leasehold is common.

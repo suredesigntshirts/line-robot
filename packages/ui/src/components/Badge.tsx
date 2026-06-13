@@ -1,7 +1,9 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/** One name per register concept (COPY-04/05/10, DIST-01, TH-04) → badge token pair. */
-export type BadgeKind = "available" | "reserved" | "urgent" | "verified" | "owner" | "npa";
+/** One name per register concept (COPY-04/05/10, DIST-01/02, FIELD-02, TH-04) → badge token pair.
+ * `npa` is the CALM distressed-category highlight (DIST-01); `warn` is the amber FIELD-02
+ * deed-unverified nudge — kept distinct so the NPA category never wears a warning colour. */
+export type BadgeKind = "available" | "reserved" | "urgent" | "verified" | "owner" | "npa" | "warn";
 
 const styleFor = (kind: BadgeKind): CSSProperties => ({
   display: "inline-flex",
