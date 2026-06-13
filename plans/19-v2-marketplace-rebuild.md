@@ -151,6 +151,11 @@ Thin bespoke TS runner (not promptfoo). Per-field deterministic scoring (exact f
 
 ## 6. Stages
 
+**What's still left to build is consolidated in [`BACKLOG.md`](../../BACKLOG.md)** (repo root) — the
+single source of truth for outstanding items across stages, rolled up from the per-stage iteration
+logs so nothing hides in a deviation row. Per-increment spec conformance is checked by
+`/increment-review` (spec auditor); deferrals it logs must land in `BACKLOG.md`.
+
 Stage specs in `plans/19-v2-marketplace-rebuild/`. Lifecycle of each stage doc:
 
 ```
