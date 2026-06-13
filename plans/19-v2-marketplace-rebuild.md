@@ -166,12 +166,11 @@ skeleton (now) → fleshed spec → user approval → build (increment reviews)
 | 2 | `stage-2-extraction-pipeline.md` | Pipeline v2 (classify→segment→extract→dedup→translate→gate), eval harness + golden set, hybrid sync/batch, writes to Postgres | Bot extracting into the new model, scorecard live |
 | 3 | `stage-3-shared-ui.md` | packages/ui: React + Tailwind + shadcn, design tokens, Thai/English i18n plumbing, core listing components | Storybook-style component gallery |
 | 4 | `stage-4-public-website.md` | Astro 6 SSR site: browse/search/detail (SEO), LINE Login + email auth + account linking, owner submission form, domain/ACM | **First public milestone** |
-| 4b | `v2-catalog-cutover.md` | **Full v2 launch** (founder ruling 2026-06-13: fully migrate, retire v1). Flip `PIPELINE_V2=on` + move ALL v1 catalog readers to Postgres via one shared `PostgresPropertyStore` + `listing_event` table: bot processor, reminder, AND the **mini-app read-api** (Path A — Preact SPA unchanged, no Stage 5 rebuild needed for the data migration). Includes the small, proven image/classify/OCR increment. v1 catalog abandoned (no backfill, D2). Stage 5 = the optional React UI rebuild, decoupled | Real data live on website + mini-app + in-chat; v1 retired |
 | 5 | `stage-5-miniapp-rebuild.md` | React mini-app on packages/ui: claim/publish opt-in, my listings, saved/viewings, edit-by-reply kept | Preact retired |
 | 6 | `stage-6-groups-dealflow.md` | Mirrored groups, exclusivity windows + release mechanics, role vetting + admin screens, quick-quote flow | Private dealflow live |
 | 7 | `stage-7-avm-market-data.md` | Land-office data ingestion pipeline, comparable-based estimates + time-to-sell, quick-sale matching | Estimates live |
 
-Dependencies: 0 → 1 → 2; 3 can overlap 2; 4 needs 1+2+3; 4b needs 1+2+4 (website live, the trigger); 5 needs 3 (+4's auth) and subsumes the MINI-App half of 4b; 6 needs 5; 7 needs 1 (data) and 6 (quote flow), estimate math can start earlier.
+Dependencies: 0 → 1 → 2; 3 can overlap 2; 4 needs 1+2+3; 5 needs 3 (+4's auth); 6 needs 5; 7 needs 1 (data) and 6 (quote flow), estimate math can start earlier.
 
 ---
 

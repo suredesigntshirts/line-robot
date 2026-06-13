@@ -95,6 +95,17 @@ Each: spec-auditor + correctness + simplicity-critic review (master plan §5.3).
 4. Flip prod. The webhook Function URL and CloudFront LIFF endpoint are untouched (immovable). 
 5. Delete `claudeExtractor.ts`, its schema test, and the v1 catalog **write** paths. The v1 catalog **table** stays (read-only) — deleted in a later cleanup stage, not here.
 
+> **Gap this plan originally missed (found 2026-06-13): the catalog READERS.** Steps 1–5 scope the
+> *writer* only. But the bot processor's in-chat commands AND the read-api / MINI App still READ the
+> v1 DynamoDB catalog, so once the writer flips they serve a frozen catalog. Repointing them is a
+> **post-flip follow-up, not a flip blocker** (the flip is reversible; do it first per MORNING.md §3).
+> When done: build a Postgres `PropertyStore` (the `PropertyStore` slice of `core/ports/catalog.ts`;
+> the `ConversationStore` slice — tracker/membership/memory — stays DynamoDB), then repoint the
+> read-api with one `read-api.ts` `buildDeps()` line + `DATABASE_URL` — the Preact MINI App SPA is
+> **unchanged** (it only speaks the shared `Property`→DTO contract). Needs a new **`listing_event`**
+> Postgres table (the `viewing` table does NOT cover follow-up reminders — no `notify_conversation_key`/
+> `notified_at`, no write path). Verified by adversarial sub-agent review 2026-06-13.
+
 ## Stage gate checklist
 
 - [ ] `npm run eval` produces a synthetic scorecard (N≥50); baseline committed; segmentation property-count ≥90%, dedup P/R ≥90% (advisory thresholds, founder confirms).
