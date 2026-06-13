@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as pulumi from "@pulumi/pulumi";
+import { createAlarms } from "./src/alarms";
 import { createDatabase } from "./src/database";
 import { createBotLambdas } from "./src/lambdas";
 import { createMiniApp } from "./src/miniapp";
@@ -21,9 +22,18 @@ const WEBSITE_CLIENT_DIST = path.resolve(__dirname, "../packages/website/dist/cl
 // ---------------------------------------------------------------------------
 const storage = createStorage();
 const database = createDatabase();
-const { ingestUrl, sweepFn, reminderFn } = createBotLambdas(storage, database);
-const { readApiUrl, siteDistribution, siteBucket } = createMiniApp(storage, MINIAPP_DIST, database);
+const { ingestUrl, processorFn, sweepFn, reminderFn } = createBotLambdas(storage, database);
+const { readApiUrl, readApiFn, siteDistribution, siteBucket } = createMiniApp(
+  storage,
+  MINIAPP_DIST,
+  database,
+);
 const website = createWebsite(database, WEBSITE_CLIENT_DIST);
+
+// A5 cutover hardening: an SNS topic + an Errors alarm per production Lambda, so a Lambda failing
+// is observable rather than silent. The website SSR Lambda is omitted — it serves the public site,
+// not the v2 ingestion/catalog path this hardening covers (it has its own gate work, 4.x).
+const alarms = createAlarms({ processorFn, sweepFn, reminderFn, readApiFn });
 
 // ---------------------------------------------------------------------------
 // Outputs
@@ -37,6 +47,9 @@ export const eventsQueueUrl = storage.eventsQueue.url;
 export const deadLetterQueueUrl = storage.dlq.url;
 export const sweepFunctionName = sweepFn.name;
 export const reminderFunctionName = reminderFn.name;
+// A5: the alarm SNS topic. Subscribe an endpoint to actually receive notifications, e.g.
+//   aws sns subscribe --topic-arn <this> --protocol email --notification-endpoint you@example.com
+export const alarmTopicArn = alarms.topic.arn;
 // Mini app (plan 14): the read-api endpoint (→ VITE_READ_API_URL) + the CloudFront SPA host
 // (→ the LIFF Endpoint URL set in the LINE console, and the SPA's public origin).
 export const readApiUrlOutput = readApiUrl.functionUrl;

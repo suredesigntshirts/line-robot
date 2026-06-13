@@ -15,6 +15,7 @@ import type { Storage } from "./storage";
 /** The bot-path handles `index.ts` must export or the mini-app does not touch. */
 export interface BotLambdas {
   ingestUrl: aws.lambda.FunctionUrl;
+  processorFn: aws.lambda.Function;
   sweepFn: aws.lambda.Function;
   reminderFn: aws.lambda.Function;
 }
@@ -349,5 +350,5 @@ export function createBotLambdas(
     sourceArn: reminderSchedule.arn,
   });
 
-  return { ingestUrl, sweepFn, reminderFn };
+  return { ingestUrl, processorFn, sweepFn, reminderFn };
 }

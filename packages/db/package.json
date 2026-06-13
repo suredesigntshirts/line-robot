@@ -19,7 +19,9 @@
     "typecheck": "tsc --noEmit",
     "generate": "drizzle-kit generate",
     "db:migrate": "node src/migrate.ts",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "db:check-cutover": "node src/checkCutover.ts",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:rds": "vitest run --config vitest.rds.config.ts"
   },
   "dependencies": {
     "@line-robot/domain": "*",

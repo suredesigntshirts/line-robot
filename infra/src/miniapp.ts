@@ -8,6 +8,7 @@ import type { Storage } from "./storage";
 /** The mini-app handles `index.ts` must export. */
 export interface MiniApp {
   readApiUrl: aws.lambda.FunctionUrl;
+  readApiFn: aws.lambda.Function;
   siteDistribution: aws.cloudfront.Distribution;
   siteBucket: aws.s3.BucketV2;
 }
@@ -197,5 +198,5 @@ export function createMiniApp(
     },
   });
 
-  return { readApiUrl, siteDistribution, siteBucket };
+  return { readApiUrl, readApiFn, siteDistribution, siteBucket };
 }
