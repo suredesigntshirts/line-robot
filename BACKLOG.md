@@ -102,11 +102,11 @@ Lambda mechanics proven.
   OA basic ID); env-only `pulumi up` (website-ssr), verified — detail pages render the "แชทผ่าน LINE"
   CTA (CONV-06), and the founder confirmed the link opens the right OA. _No LINE verification was
   needed (basic ID auto-exists; add-friend link works unverified)._
-- **Deploy-policy gap (infra):** the scoped deploy policy (`infra/deploy-user-policy.json`) grants no
-  `sns`/`cloudwatch` perms — needed before **A5 monitoring** (CloudWatch error alarms on the now-
-  Postgres-dependent processor/reminder/read-api + sweep) can ship. Add via tea-admin
-  (`AWS_PROFILE=default`); the policy is at the IAM 5-version cap, so `delete-policy-version` the
-  oldest non-default first.
+- ~~**Deploy-policy gap (infra):** no `sns`/`cloudwatch` perms for A5 monitoring.~~ **DONE 2026-06-14**
+  (`be4ab81`): scoped `sns:*` on `linerobot-*` topics + cloudwatch alarm actions on `linerobot-*`
+  alarms + `cloudwatch:DescribeAlarms` global, applied as policy **v10** via tea-admin (pruned v5 for
+  the 5-version cap). Verified live: `line-robot` can `DescribeAlarms` + sns on `linerobot-*`. **A5
+  alarm deploy is unblocked.**
 - **Bless or flag** the logged deviations in Stage 1–3 specs (built under blanket sprint approval).
 - **Domain (D19):** real domain + Route 53 + ACM (interim canonical = staging CloudFront is set; the real
   domain unblocks LINE Login redirect + real SEO).
