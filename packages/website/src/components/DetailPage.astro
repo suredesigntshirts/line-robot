@@ -218,7 +218,9 @@ const jsonLd = safeJsonLdScript(
     </h1>
     <StatusBadge listing={listing} t={t} />
     <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} t={t} />
-    <p style="color: var(--color-text-2); margin: 0;">{locationLine}</p>
+    {/* TH-08: place names are verbatim Thai on both locales (like land units, TH-03) — tag the
+        container lang="th" so an /en/ page (html lang="en") still gets Thai line-breaking, not break-all. */}
+    <p lang="th" style="color: var(--color-text-2); margin: 0;">{locationLine}</p>
     {listing.bedrooms !== null && listing.bathrooms !== null && (
       <p style="margin: 0;">
         {t("listing.bedrooms", { count: listing.bedrooms })} ·{" "}
