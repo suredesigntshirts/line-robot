@@ -51,20 +51,6 @@ export class FakeCatalog implements CatalogRepository {
     return null;
   }
 
-  // --- Edit context ---
-  readonly editContexts = new Map<string, { propertyId: string; armedAt: number }>();
-  async armEdit(conversationKey: string, propertyId: string, armedAtMs: number): Promise<void> {
-    this.editContexts.set(conversationKey, { propertyId, armedAt: armedAtMs });
-  }
-  async getEditContext(
-    conversationKey: string,
-  ): Promise<{ propertyId: string; armedAt: number } | null> {
-    return this.editContexts.get(conversationKey) ?? null;
-  }
-  async clearEdit(conversationKey: string): Promise<void> {
-    this.editContexts.delete(conversationKey);
-  }
-
   // --- Membership ---
   async recordMembership(userId: string, conversationKey: string): Promise<void> {
     this.seedMembership(userId, conversationKey);

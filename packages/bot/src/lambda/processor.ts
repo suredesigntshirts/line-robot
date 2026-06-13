@@ -5,9 +5,8 @@ import { S3Client } from "@aws-sdk/client-s3";
 import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import { getDb } from "@line-robot/db";
 import type { SQSEvent, SQSHandler, SQSRecord } from "aws-lambda";
-import { createClaudeExtractor } from "../adapters/anthropic/claudeExtractor.js";
 import { CompositeCatalogRepository } from "../adapters/compositeCatalogRepository.js";
-import { loadAnthropicApiKey, loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
+import { loadChannelAccessToken, loadEnv } from "../adapters/config/config.js";
 import { DynamoCatalogRepository } from "../adapters/dynamodb/catalogRepository.js";
 import { DynamoMessageRepository } from "../adapters/dynamodb/messageRepository.js";
 import {
@@ -57,26 +56,10 @@ async function buildDeps(): Promise<Deps> {
   const signer = new S3MediaUrlSigner(s3, env.ARCHIVE_BUCKET);
   const logger = new PowertoolsLoggerAdapter();
 
-  // Enables the free-text "reply to update" edit path. Gated on the Anthropic key being wired to
-  // the processor (env + SSM read grant); absent → the handler chain is the command handler alone.
-  // CRITICAL: this runs synchronously inside the 30s processor timeout, so it must stay fast — a
-  // single Haiku tier (NO escalation ladder) with a hard 12s client timeout and no retries. The
-  // ingestion sweep keeps the full Haiku→Sonnet→Opus ladder (it has its own longer-running Lambda).
-  const extractor =
-    env.ANTHROPIC_API_KEY_PARAM !== undefined
-      ? createClaudeExtractor(
-          await loadAnthropicApiKey(env),
-          [{ model: "claude-haiku-4-5" }],
-          logger,
-          { timeout: 12_000, maxRetries: 0 },
-        )
-      : undefined;
-
   const { messageHandler, postbackRouter } = createHandlers({
     catalog,
     clock: SYSTEM_CLOCK,
     signer,
-    extractor,
     logger,
     // When set, the detail card gains an "Open in Catalog" deep link to the MINI App listing screen.
     miniappUrl: env.MINIAPP_URL,

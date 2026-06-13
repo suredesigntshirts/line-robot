@@ -49,15 +49,6 @@ export class CompositeCatalogRepository implements CatalogRepository {
   getConversation(conversationKey: string): Promise<ConversationTracker | null> {
     return this.conversations.getConversation(conversationKey);
   }
-  armEdit(conversationKey: string, propertyId: string, armedAtMs: number): Promise<void> {
-    return this.conversations.armEdit(conversationKey, propertyId, armedAtMs);
-  }
-  getEditContext(conversationKey: string): Promise<{ propertyId: string; armedAt: number } | null> {
-    return this.conversations.getEditContext(conversationKey);
-  }
-  clearEdit(conversationKey: string): Promise<void> {
-    return this.conversations.clearEdit(conversationKey);
-  }
   recordMembership(userId: string, conversationKey: string, seenAtMs: number): Promise<void> {
     return this.conversations.recordMembership(userId, conversationKey, seenAtMs);
   }

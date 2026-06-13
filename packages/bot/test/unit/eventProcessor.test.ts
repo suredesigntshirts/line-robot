@@ -91,12 +91,9 @@ function makeProcessor(
       failConversation: async () => {},
       getConversation: async () => null,
       listUserConversations: async () => [],
-      // EventProcessorDeps.catalog is the ConversationStore aggregate (tracker + edit + membership +
-      // memory). The processor only touches the tracker + membership edges; the edit/memory methods
+      // EventProcessorDeps.catalog is the ConversationStore aggregate (tracker + membership +
+      // memory). The processor only touches the tracker + membership edges; the memory methods
       // are stubbed no-ops here purely to satisfy the interface (this path never calls them).
-      armEdit: async () => {},
-      getEditContext: async () => null,
-      clearEdit: async () => {},
       getMemoryDoc: async () => null,
       putMemoryDoc: async () => {},
     },

@@ -17,10 +17,9 @@ import type {
 
 /**
  * Everything keyed by a conversation or its user, sharing the `CONV#…` / `USER#…` partitions: the
- * debounced-ingestion tracker, the edit context stored on that same tracker item, the
- * user↔conversation membership edges (read-access), and the per-conversation memory note. One
- * aggregate because these items co-locate and mutate together (e.g. the edit context lives on the
- * tracker META item).
+ * debounced-ingestion tracker, the user↔conversation membership edges (read-access), and the
+ * per-conversation memory note. One aggregate because these items co-locate in the shared `CONV#…`
+ * partition and mutate together.
  */
 export interface ConversationStore {
   // --- Conversation tracker (debounced-ingestion state machine) ---
@@ -71,21 +70,6 @@ export interface ConversationStore {
   ): Promise<void>;
 
   getConversation(conversationKey: string): Promise<ConversationTracker | null>;
-
-  // --- Edit context (last-viewed property → free-text "reply to update") ---
-
-  /**
-   * Arm a short-lived "edit context": the next plain-text reply in this conversation targets
-   * `propertyId` (see {@link ../handlers/editReplyHandler}). Stored on the tracker META item; it
-   * MUST NOT touch the ingestion (GSI1/pending) keys — viewing a listing isn't ingestion work.
-   */
-  armEdit(conversationKey: string, propertyId: string, armedAtMs: number): Promise<void>;
-
-  /** The conversation's armed edit context (most-recently-viewed property + when), or null. */
-  getEditContext(conversationKey: string): Promise<{ propertyId: string; armedAt: number } | null>;
-
-  /** Clear the armed edit context (after applying an edit, or when the reply didn't match it). */
-  clearEdit(conversationKey: string): Promise<void>;
 
   // --- User ↔ Conversation membership (read-access edges) ---
 

@@ -29,7 +29,7 @@ export class CatalogPostbackRouter implements PostbackRouter {
       case ACTIONS.help:
         return this.assistant.help();
       case ACTIONS.view:
-        return this.assistant.viewProperty(params.get("id") ?? "", conversationKey(ref));
+        return this.assistant.viewProperty(params.get("id") ?? "");
       case ACTIONS.photos:
         return this.assistant.showPhotos(params.get("id") ?? "");
       case ACTIONS.delete:

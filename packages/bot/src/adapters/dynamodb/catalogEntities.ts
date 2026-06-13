@@ -29,7 +29,7 @@ export const GSI1_PENDING_PK = "PENDING";
 export const GSI2_DUE_PK = "DUE";
 
 /** The `entityType` discriminator stamped on the conversation tracker META item — the one item the
- * raw UpdateCommands write outside ElectroDB (in `touchConversation` + `armEdit`). */
+ * raw UpdateCommands write outside ElectroDB (in `touchConversation`). */
 export const TRACKER_ENTITY_TYPE = "conversationTracker";
 
 // ---------------------------------------------------------------------------

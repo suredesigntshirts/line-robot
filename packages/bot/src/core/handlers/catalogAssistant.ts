@@ -160,15 +160,10 @@ export class CatalogAssistant {
     return [searchPromptMessage()];
   }
 
-  async viewProperty(propertyId: string, conversationKey?: string): Promise<OutboundMessage[]> {
+  async viewProperty(propertyId: string): Promise<OutboundMessage[]> {
     const property = await this.catalog.getProperty(propertyId);
     if (property === null) {
       return [{ type: "text", text: "I couldn't find that listing — it may have been merged." }];
-    }
-    // Arm a short-lived edit context so the user's next plain-text reply targets THIS listing
-    // ({@link ./editReplyHandler}). Only when we know the conversation (a tap carries the ref).
-    if (conversationKey !== undefined) {
-      await this.catalog.armEdit(conversationKey, propertyId, this.clock.now());
     }
     // Presign every photo so the detail's hero and its "Photos (N)" count reflect what we can
     // actually show (no signer / all presigns failed → no hero, no Photos button).
@@ -202,7 +197,6 @@ export class CatalogAssistant {
     await this.catalog.deletePropertyEvents(propertyId);
     await this.catalog.unlinkConversationProperty(conversationKey, propertyId);
     await this.catalog.deleteProperty(propertyId);
-    await this.catalog.clearEdit(conversationKey); // don't leave a deleted listing armed for edits
     return [{ type: "text", text: `🗑 Deleted “${title}”.` }];
   }
 

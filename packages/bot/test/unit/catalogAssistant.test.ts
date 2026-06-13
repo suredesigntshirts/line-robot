@@ -243,21 +243,7 @@ describe("CatalogAssistant — retrieval", () => {
     expect(logger.warns[0]?.ctx).toMatchObject({ propertyId: "p1", s3Key: "boom.jpg" });
   });
 
-  it("arms an edit context for the conversation only when a conversationKey is given", async () => {
-    const catalog = new FakeCatalog().seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }));
-    const assistant = new CatalogAssistant(catalog, clock);
-
-    await assistant.viewProperty("p1"); // no convKey (e.g. a unit call) → nothing armed
-    expect(await catalog.getEditContext("user#U1")).toBeNull();
-
-    await assistant.viewProperty("p1", "user#U1");
-    expect(await catalog.getEditContext("user#U1")).toEqual({
-      propertyId: "p1",
-      armedAt: 1_000_000,
-    });
-  });
-
-  it("deletes a listing: removes its events, edge, property, and any armed edit", async () => {
+  it("deletes a listing: removes its events, edge, and property", async () => {
     const catalog = new FakeCatalog()
       .seedProperty(prop("p1", { normalizedAddress: "1 Rama IX" }))
       .seedEdge("user#U1", "p1")
@@ -267,7 +253,6 @@ describe("CatalogAssistant — retrieval", () => {
         dueAt: 1,
         notifyConversationKey: "user#U1",
       });
-    await catalog.armEdit("user#U1", "p1", 1);
     const assistant = new CatalogAssistant(catalog, clock);
 
     // Prompt first (confirmation), then confirm.
@@ -277,7 +262,6 @@ describe("CatalogAssistant — retrieval", () => {
     expect(catalog.properties.has("p1")).toBe(false);
     expect(await catalog.listPropertyEvents("p1")).toEqual([]);
     expect(await catalog.listConversationProperties("user#U1")).not.toContain("p1");
-    expect(await catalog.getEditContext("user#U1")).toBeNull();
   });
 
   it("returns help and search-prompt copy", () => {
