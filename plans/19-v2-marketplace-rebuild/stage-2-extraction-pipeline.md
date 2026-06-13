@@ -148,4 +148,128 @@ Resolve during build (each is increment-sized or folds into an existing incremen
 | Date | What changed | Why |
 |---|---|---|
 | 2026-06-13 | Sprint-01 build: increments 1–8 CODE-COMPLETE (panel-reviewed, 95 tests). Amendments: (a) `deed_no` added to `listing` via migration 0002 — D2.6 deed-exact needs a stored deed number; the Stage 1 schema lacked it. (b) Eval scores segment/extract/dedup; classify/translate/gate stay n/a until image fixtures + judge scoring (follow-up). (c) Eval has an `EVAL_LLM=oracle` harness-smoke mode; the committed baseline awaits a real-model run (BLOCKERS B2). (d) Increment 7's live acceptance (real batch sweep, confirmed cache hit) and ALL of increment 9 (PIPELINE_V2 bot wiring, staging flip, claudeExtractor deletion) are parked behind the deploy blocker — also note sharp-on-Lambda packaging is an open deploy-engineering item for the sweep bundle. (e) Gate model-fail with empty missing routes to needs_review so the DF-6 loop can't dead-end. | Build + increment reviews |
+| 2026-06-14 | **A8 — Stage 2 stage gate run (verdict below).** Folded in the A3 deferral (direct unit coverage for `createPipelineV2Port` + `buildTranscript`); two gate-found correctness fixes (intra-run geo-dedup pool coords; non-image attachment filter); DF-6 loop deviation logged for founder. | Stage gate |
 | 2026-06-12 | Skeleton → fleshed spec | All open questions resolved per founder rulings (synthetic-first evals, DF-6 loop, hybrid batch, deploy-over-stack cutover, 2 image sizes, enum hard-blocks, th↔en translate). Built unattended; pending founder approval. |
+
+## Stage gate (run 2026-06-14 — GATE-PASS, conditional on a founder ruling for the DF-6 deviation)
+
+The Stage 2 extraction pipeline was built + flipped live across increments **A1–A5** (sprint-01 built
+the `packages/pipeline` internals; A1–A5 wired the bot, repointed readers to Postgres, added
+image/OCR, deleted the v1 extractor, proved batch transport, and hardened the cutover) but was never
+formally gated. This is that gate: a high-effort full-diff review of the Stage 2 cluster, the eval
+scorecard vs the committed baseline, an architecture-conformance check, and the folded-in A3 test
+deferral. **Stage 2 diff under review: `9c067f7..HEAD`** (parent of A1's `d4d43b6` through the A5 tip).
+
+**Method (master plan §5.3):** three fresh-context read-only reviewers that did not write the Stage 2
+code — a **spec auditor** (full diff vs the Increments 1–9 + this checklist), an **architecture-
+conformance auditor** (hexagonal boundaries / claudeExtractor / 16-union rule / file-size watchlist),
+and a **correctness reviewer** (bug-hunt the cluster). Findings were skeptic-adjudicated; confirmed
+ones fixed, false positives refuted with evidence. (Stage 2 is backend pipeline — no Playwright smoke;
+the ingest→catalog flow is proven by the live sweep cold-start + the A1 end-to-end composite-path
+verification in the deploy-status record.)
+
+### Checklist
+
+- [x] `npm run eval` synthetic scorecard (N=62 ≥ 50); baseline committed; segmentation + dedup ≥ 0.90.
+  *Oracle smoke: 62 cases / 0 failures, all per-step at/above threshold. **Real-model (`EVAL_LLM=anthropic`)
+  re-run 2026-06-14 — 62/0, scores identical to the committed baseline (delta 0.00 every step)** — see the
+  eval-delta line at the end of this section. D21 advisory.*
+- [x] Batch path: 50% pricing + ≥1 confirmed cache hit (`cache_read_input_tokens>0`).
+  *Proven on staging (A4): 6/6 `mode=batch`, `cache_read_input_tokens=3076` on a warm `EXTRACT_SYSTEM`
+  prefix. **Live cron wiring + the D2.4 batch-pending copy are DEFERRED to BACKLOG A4d** (founder decision
+  2026-06-14 — the sync path already cache-hits; cents of savings at ~5 listings/day don't justify the
+  cross-tick state machine yet). The box is met as a one-off acceptance; the live sweep is still sync.*
+- [x] Integration test: sweep → pipeline → Postgres round-trip. *`packages/pipeline/test/integration/pipeline.test.ts`
+  (real Dockerized Postgres; `runPipeline` end-to-end). The bot-level `ingestionSweep` test uses a fake v2
+  port — the DB write is asserted one layer down in the pipeline package.*
+- [x] FIELD-03 hard-block, COPY-05 badge, COPY-12 emoji strip, FIELD-11 no-re-judge each have a passing case.
+  *FIELD-03: `steps/gate.test.ts:44` (ส.ป.ก. sale blocks deterministically) + `:58` (rent exempt). COPY-05 +
+  COPY-12: `steps/steps.test.ts:175`. FIELD-11: `steps/steps.test.ts:187`.*
+- [⚠] DF-6 loop: gate emits the structured missing/weak list; **bot DM iterates to pass**. *PARTIAL — see the
+  deviation below. The pipeline EMITS the `GateResult` contract and routes hard blockers / `needs_review` to the
+  moderation queue (`run.ts:261-279` → `createModerationItem`), so D11 auto-publish-behind-a-gate works. But the
+  **iterative bot-DM completion loop** (ask poster → re-extract on reply → re-gate) was never wired: the sweep
+  discards `l.gate` (`pipelineV2Sweep.ts`). It is mooted by the founder's A3a ruling "we don't edit via reply
+  anymore" (a reply-driven completion loop cannot coexist with retired reply-driven editing). Logged for founder
+  blessing; not blocking — the quality gate itself functions.*
+- [x] No surviving import of `claudeExtractor.ts`; v1 catalog table read-only. *Grep over `packages/`+`infra/`:
+  zero references; `adapters/anthropic/` dir deleted. v1 DynamoDB catalog left intact, read-only (D2.5).*
+- [x] High-effort full-diff review; hexagonal conformance; docs/CLAUDE.md updated (16-union rule dropped).
+  *Architecture auditor: **boundaries CLEAN** — pipeline core imports only `@line-robot/domain` + `@line-robot/db`
+  (public API) + the Anthropic SDK behind the `StepLlm`/`MediaStore` ports; no LINE-adapter import; bot `core/`
+  never reaches into `adapters/`/`app/`/`lambda/`. The retired 16-nullable RULE is gone from root `CLAUDE.md` and
+  the deleted `adapters/anthropic/CLAUDE.md`; the surviving "≤16 unions" guard test in
+  `pipeline/src/steps/steps.test.ts` is the NEW per-step invariant (each small schema stays well under the cap) —
+  correctly distinguished, kept. File-size watchlist: only `db/src/repositories/listings.ts` (429) is borderline —
+  a cohesive flat repository of thin queries, safe to ship, optional future split. No premature abstraction
+  introduced by A1–A5.*
+- [x] A3 deferral folded in: direct unit coverage for `createPipelineV2Port` + `buildTranscript`.
+  *`packages/bot/test/unit/pipelineV2Sweep.test.ts` — 11 tests (6 `buildTranscript`: chronological ordering,
+  `[IMG n]` kind/label/ocr formatting, index-by-classified-position, `[MAP n]` rewrite + dedup, skip
+  empty/attachment-less, empty batch; 5 `createPipelineV2Port.run`: empty-batch short-circuit, outcome→
+  AppliedProperty mapping, owner find-or-create, per-photo derivative-failure degradation, geo-hint threading).*
+- [x] Retro appended below.
+
+### Confirmed fixes (gate-found, this increment)
+
+- **Intra-run geo-dedup gap** (`pipeline/src/run.ts`) — the in-memory dedup pool entry for a freshly-created
+  listing was pushed with `lat:null, lon:null` even though the extraction had coordinates, so a second segment in
+  the SAME batch that is the same property (no shared deed, weak address text, nearby coords) would not geo-block
+  against it (only caught on the next sweep). Now carries `extracted.lat/lon`. Covered by the existing real-Postgres
+  integration test.
+- **Non-image attachments reached `buildDerivatives`** (`bot/src/app/pipelineV2Sweep.ts`) — a PDF/video/audio
+  attachment flowed into sharp, threw, and degraded into a media row pointing at a non-image as if it were a photo
+  (no crash — the try/catch held — but a data-quality smell). Now filtered by `contentType.startsWith("image/")` at
+  the single attachments source, keeping the `photos`/`markers`/`[IMG n]` indices aligned. New unit test covers the
+  degradation path.
+- **`bootFailFast.test.ts` read-api case** tightened from a bare `.toThrow()` to `.toThrow(/DATABASE_URL/)` so an
+  unrelated parse error can't masquerade as the guard passing.
+
+Refuted (not actioned, with reason): migration `--> statement-breakpoint` omission (cosmetic; migrations already
+applied + verified on staging; node-postgres simple-query tolerates it); `checkCutover.ts:76` "plans" comment
+(index presence is separately asserted by check #5).
+
+### Deviation logged for the founder
+
+- **DF-6 iterative completion loop not built.** The Stage 2 spec's increment 5 promised a bot-DM loop that asks the
+  poster for missing important fields/photos and re-runs the gate on each reply until `pass:true`. This is a
+  reply-driven flow, and the founder's **A3a ruling "we don't edit listings via plain-text reply anymore"** retired
+  reply-driven editing (deleted `EditReplyHandler` + the edit-context machinery), which moots the loop. The pipeline
+  half (structured `GateResult` + moderation-queue routing for hard blockers / `needs_review`) shipped and works.
+  **This needs an explicit founder ruling:** (a) bless the descope (DF-6 superseded by claim/publish + admin
+  moderation — recommended, consistent with A3a), or (b) schedule a non-reply completion surface (e.g. a mini-app
+  "complete your listing" prompt) as a Stage 5 item. Tracked in BACKLOG (Stage 2 row + founder queue). Not gate-blocking.
+
+### Eval scorecard (advisory — D21)
+
+Re-run for this gate 2026-06-14, model `claude-sonnet-4-6` @ temp=0, **62 synthetic cases, 0 failures**.
+Scores are **identical to the committed baseline** (`packages/pipeline/eval-baseline.json`, mode
+`anthropic`) — delta 0.00 on every step — so the existing baseline file already reflects this gate's
+result (temp=0 is deterministic); no rewrite was needed. D21 advisory.
+
+| step | score | threshold | Δ vs prior baseline |
+|---|---|---|---|
+| classify | n/a | 0.95 | 0.00 (no image fixtures yet — A7) |
+| segment | 1.00 | 0.90 | 0.00 |
+| extract | 1.00 | 0.90 | 0.00 |
+| dedup | 1.00 | 0.90 | 0.00 |
+| translate | 0.98 | 0.85 | 0.00 |
+| gate | 1.00 | 0.95 | 0.00 |
+
+Per-field all 1.00 (dealType / propertyType / titleDeedType / urgency / province / amphoe / tambon /
+priceThb / bedrooms / bathrooms). Cost ~$1.11. **No regression** (delta 0.00 every step vs the
+2026-06-12 committed baseline). The oracle smoke (`EVAL_LLM=oracle`, default) also passes 62/0. Per the
+2026-06-13 amendment, classify/translate/gate scoring stays a contract/parse-health smoke until image
+fixtures + LLM-judge scoring land (BACKLOG A7, deferred — advisory, D21).
+
+### Retro
+
+The gate did its job: the full-diff panel caught the one substantive un-shipped deliverable (the DF-6 loop) that
+per-increment reviews structurally could not — A3a retired its substrate in a *different* increment, so no single
+increment's spec auditor saw the gap. That is exactly the failure mode BACKLOG.md was created to catch, and the
+stage gate is the level that catches it. The architecture stayed clean through the whole cluster (boundaries, the
+clean retirement of the v1 16-union constraint, no premature abstraction in the new composite/Postgres wiring),
+which is the strongest signal that the hexagonal discipline held under a large multi-increment refactor. Two real
+(if narrow) correctness gaps in the now-sole extraction path were found and fixed cheaply. **Verdict: GATE-PASS**,
+conditional only on the founder's DF-6 ruling (descope vs reschedule) — the pipeline is correct, well-tested, and
+live; nothing blocks. Stage 2 build cluster is complete.
