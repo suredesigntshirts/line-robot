@@ -1,171 +1,183 @@
-# v2 Catalog Cutover — PIPELINE_V2 flip + reader migration
+# v2 Catalog Cutover — full launch of v2 on website + mini-app, retire v1
 
-**Spec status: FLESHED (2026-06-13) — BUILD NOT STARTED.** Written at founder request after Stage 4
-(public website) went live reading Postgres while ingestion still writes the v1 DynamoDB catalog.
-Open questions below carry recommended defaults; every one is flagged for founder review because
-several touch settled decisions (D2, D13) and the Stage 5 boundary. No code written.
+**Spec status: FLESHED + DECISIONS RESOLVED (2026-06-13). BUILD AWAITS FOUNDER CONFIRMATION.**
+Founder ruling 2026-06-13: *"We don't need to maintain our v1 pipeline and want to fully migrate to
+v2 — whatever gets us to wrap up cleanly. Launch the v2 pipeline on the website and mini-app on AWS,
+then move forward."* All open decisions below are now resolved to that end (recorded in §Decisions).
+One decision remains for the founder: whether the small image/classify/OCR increment ships *in* the
+launch or as a fast-follow (§Decision E).
 
-## Why this exists (the problem)
+## Goal
 
-Today there are **two catalogs**:
+The public **website** already reads the v2 Postgres catalog (live). This cutover brings the **bot
+in-chat commands** and the **LINE MINI App** onto v2 as well, flips ingestion (`PIPELINE_V2=on`) so
+real LINE listings flow into Postgres, and **retires the v1 DynamoDB catalog** (writes stop; the
+table is abandoned per D2, not migrated). End state: one catalog (Postgres), three read surfaces
+(website, mini-app, in-chat), one writer (the v2 `runPipeline` sweep).
 
-- **v1 — DynamoDB** (`linerobot-staging-catalog`): written by the sweep (`PIPELINE_V2=off`), read by
-  the **bot processor** (in-chat "My Listings", view, merge, edit-by-reply, follow-ups) and the
-  **read-api** (the v1 MINI App). Holds 17 real listings from the friends launch.
-- **v2 — Postgres/RDS**: written by `runPipeline` when `PIPELINE_V2=on`, read by the **public
-  website** (Stage 4, live). Currently holds only the 24 synthetic seed listings.
+## The problem being closed
 
-So the website shows synthetic data, and flipping `PIPELINE_V2=on` is a **hard cutover** (the sweep
-delegates extract-and-apply wholesale to v2 — no dual-write): new LINE listings would flow to
-Postgres/website but stop landing in v1, so the in-chat bot commands and the v1 MINI App would
-freeze at their current 17 listings. The website's v2 read path and write path are both verified
-against real RDS (TLS/CA fix `9c1e203`; live `runPipeline` extract→RDS run, 2026-06-13). What is
-missing is a path for the **bot/MINI-App read+write surfaces** to follow ingestion onto Postgres.
+Two catalogs exist: **v1 DynamoDB** (written by the sweep when `PIPELINE_V2=off`; read by the bot
+processor's in-chat commands and the read-api / MINI App) and **v2 Postgres** (written by
+`runPipeline` when on; read by the website). Flipping the writer alone is a *hard cutover* (no
+dual-write) and would strand the DynamoDB readers. This spec moves those readers to Postgres so the
+flip is coherent.
 
-## Reconciling with settled decisions (read before scoping)
+## Decisions (resolved 2026-06-13)
 
-This cutover intersects three already-settled items; the spec is shaped by them, not the reverse:
-
-- **D2 — "Data migration: None. Clean slate. v1 catalog is disposable."** The 17 v1 listings are,
-  per the settled plan, **disposable**. Backfilling them into Postgres is a *deviation* — only worth
-  it if the founder now values those specific 17 records (see Decision C). The default that honors
-  D2 is: **do not backfill; let v1 go stale and retire it.**
-- **D13 — CRM vs marketplace split.** v2 listings carry a *marketplace* lifecycle
-  (draft/active/under-offer/sold/rented/withdrawn); per-user saved/viewings/follow-ups/notes are
-  separate per-user features. The bot's v1 `Property` is a *CRM-lead* shape (status lead→closed,
-  tags, chanote, source). These models genuinely differ — a 1:1 projection is lossy (see Decision A).
-- **Stage 5 — MINI App rebuild** already scopes: rebuild the MINI App on `packages/ui` + v2, retire
-  the v1 read-api and the v1 Preact SPA, implement claim/publish + my-listings + viewings +
-  follow-ups on the v2 model. **The MINI-App half of "migrate readers" IS Stage 5.** Building a
-  Postgres adapter behind the *old* read-api would be throwaway.
-
-**Consequence:** "migrate readers to v2" decomposes into three parts, only one of which is net-new
-here:
-1. **MINI App reader** → already Stage 5 (rebuild, not adapt). Do not duplicate.
-2. **Bot in-chat catalog commands (processor)** → net-new; not covered by any existing stage. This
-   spec owns it.
-3. **The flip itself + shared gaps** (a Postgres home for follow-up events; the owner/scope model) →
-   net-new; this spec owns it.
+- **A — `Property` ⇆ `listing` model mapping → `jsonb listing_crm` sidecar.** The bot `Property`
+  (CRM-lead shape: `status`, `tags`, `source`, `originConversationKey`, full `chanote` OCR struct)
+  carries fields the marketplace `listing` doesn't model. Store those bot-only fields in a `jsonb
+  listing_crm` column on `listing` so the projection round-trips losslessly and the marketplace
+  columns stay clean. A proper CRM model is deferred.
+- **B — single-owner model.** A v2 `listing.owner_user_id` is the origin conversation's Postgres
+  user (matches `runPipeline`'s `ensureOwner`). Cross-chat read fan-out still works via DynamoDB
+  membership → owner-conversation lookup. No conv→property edge table.
+- **C — no backfill (honors D2).** The 17 v1 listings are disposable; they are NOT migrated. v1 goes
+  stale and is abandoned. (Founder confirmed v1 need not be maintained.)
+- **D — the MINI App migrates NOW, not in Stage 5 (supersedes the earlier deferral).** Investigation
+  showed the read-api needs **no adapter of its own**: it calls five `PropertyStore` methods
+  (`getProperty`, `listConversationProperties`, `listPropertiesForUser`, `listPropertyEvents`,
+  `addEvent`) — all already built for the processor's `PostgresPropertyStore` — plus one
+  `ConversationStore` method (`listUserConversations`, stays DynamoDB). Repointing it is a
+  **composite-wiring + `DATABASE_URL`** change (Path A below). The **Preact SPA stays byte-identical**
+  (it speaks the shared DTO contract, produced purely from a bot `Property`). So Stage 5's React
+  rebuild is decoupled: this cutover does the **data** migration; Stage 5 remains the optional **UI**
+  rebuild, later and non-blocking.
+- **E — OPEN (founder): v2-lite image/classify/OCR — ship in the launch or fast-follow?** See
+  §"Image fidelity" + §Decision E. Recommendation: **ship it in the launch** (small + proven).
 
 ## Scope
 
 **In:**
-- A Postgres implementation of the bot's `PropertyStore` slice of `CatalogRepository`
-  (`packages/bot/src/core/ports/catalog.ts`), so the **processor** in-chat commands read+write v2.
-- A new Postgres **follow-up events** table (no v2 home exists today) + its reminder-sweep due-query.
-- The `PIPELINE_V2=on` flip (Pulumi `pipelineV2` config) + the env/wiring to make the processor and
-  reminder Lambdas Postgres-connected (they have no `DATABASE_URL` today — only website-ssr + sweep).
-- A `Property ⇆ listing` projection/mapping (v2 listing → bot `Property` for reads; bot edits →
-  listing writes).
-- The end-to-end verification + rollback procedure for the flip.
+- `PostgresPropertyStore` — Postgres impl of the `PropertyStore` slice of the bot `CatalogRepository`
+  (`packages/bot/src/core/ports/catalog.ts`), with the `Property ⇆ listing` projection (Decision A).
+- New `listing_event` Postgres table (no v2 home today) + `findDueEvents`/`markEventNotified` so the
+  reminder sweep and the mini-app booking flow (plan 17 R4) work on Postgres.
+- Composite catalog wiring for the **processor**, **reminder**, and **read-api** Lambdas:
+  `{ ...dynamoConversationStore, ...postgresPropertyStore }`; give all three `DATABASE_URL` + the RDS
+  pool (`packages/db/src/pool.ts`, CA path already works). No handler signatures change.
+- **Path A mini-app**: one `buildDeps()` line in `packages/bot/src/lambda/read-api.ts` (swap the
+  catalog source) — SPA, Function URL, CORS, DTOs all unchanged.
+- The `PIPELINE_V2=on` flip + retirement of the v1 catalog **write** paths (the table is abandoned).
+- **(Decision E, recommended in-scope)** wire image derivatives + classify + chanote OCR into the v2
+  sweep port (sharp-on-Lambda mechanics proven — `spikes/sharp-lambda-packaging/FINDINGS.md`).
+- Layer-1 hardening (§Hardening) — boot-time asserts, real-RDS gate, observability.
 
-**Out (explicitly):**
-- The MINI App reader migration and read-api retirement — **Stage 5**.
-- Any change to the `ConversationStore` slice (tracker/debounce/claim/watermark, edit context,
-  membership edges, memory docs) — these are ingestion/conversation state, **kept on DynamoDB** per
-  the Stage 0 spine audit and D1. The cutover keeps them exactly as-is.
-- Marketplace lifecycle UX, claim/publish, exclusivity — Stages 5/6.
-- Backfilling v1 → v2 unless Decision C overrides D2.
+**Out:**
+- Stage 5's **React UI rebuild** of the mini-app (separate, later — the *data* migration is here).
+- Marketplace lifecycle UX, claim/publish, exclusivity, groups (Stages 5/6).
+- `ConversationStore` (tracker/debounce/claim/watermark, edit context, membership, memory) — stays
+  DynamoDB per the spine audit / D1, unchanged.
+- Backfilling v1 → v2 (Decision C).
 
-## The port split
+## Design
 
-`CatalogRepository = ConversationStore & PropertyStore`. The cutover splits the single
-`DynamoCatalogRepository` consumers get into a **composite**: DynamoDB for `ConversationStore`,
-Postgres for `PropertyStore`. `HandlerDeps.catalog` is assembled from both; no handler signature
-changes (they already depend on the merged port).
+**Port split.** `CatalogRepository = ConversationStore & PropertyStore`. ConversationStore stays
+DynamoDB; PropertyStore becomes `PostgresPropertyStore`. Every catalog consumer (processor, reminder,
+read-api) gets a composite of the two — no handler changes (they already depend on the merged port).
 
-**Stays on DynamoDB (ConversationStore — unchanged):**
-`touchConversation`, `findPendingConversations`, `claimConversation`, `failConversation`,
-`releaseConversation`, `getConversation`, `armEdit`, `getEditContext`, `clearEdit`,
-`recordMembership`, `removeMembership`, `listUserConversations`, `getMemoryDoc`, `putMemoryDoc`.
+**PropertyStore → Postgres (the moved methods):** `upsertProperty`, `getProperty`, `deleteProperty`,
+`linkConversationProperty`/`unlinkConversationProperty`/`listConversationProperties` (owner-by-
+conversation, Decision B), `listPropertiesForUser` (hybrid: DynamoDB membership → conversation keys
+→ Postgres users `(line,key)` → `listing WHERE owner_user_id = ANY(...)`), and the event methods
+(`addEvent`, `listPropertyEvents`, `deletePropertyEvents`, `findDueEvents`, `markEventNotified`).
 
-**Moves to Postgres (PropertyStore — new adapter):**
-
-| Method | Postgres mapping |
-| --- | --- |
-| `upsertProperty(PropertyUpsert)` | Update `listing` (+ child tables) by id; set-if-present merge semantics. The hard part: bot CRM fields with no v2 column (see Decision A). |
-| `getProperty(id)` | Select `listing` joined to condo/rental/fees/content/media → project to `Property`. |
-| `deleteProperty(id)` | Delete `listing` + children (no cascade FKs today → delete children first, or add `ON DELETE CASCADE` in a migration — recommended). |
-| `linkConversationProperty` / `unlinkConversationProperty` / `listConversationProperties` | v2 has no conv→property edge table. A listing's owner is the conversation's Postgres user (`runPipeline`'s `ensureOwner`: identity `line`/`conversationKey`). "Properties in conversation X" = `listing WHERE owner_user_id = user(line, X)`. **Single-owner**, unlike v1's many-conv→one-property edges (see Decision B). |
-| `listPropertiesForUser(lineUserId)` | Hybrid: DynamoDB membership (`listUserConversations`) → conversation keys → Postgres users `(line, key)` → `listing WHERE owner_user_id = ANY(...)`. Read-access still follows the user across chats via the DynamoDB membership edges. |
-| `addEvent` / `listPropertyEvents` / `deletePropertyEvents` / `findDueEvents` / `markEventNotified` | New `listing_event` table (below). Reminder sweep gets `DATABASE_URL` + Postgres event store. |
+**Mini-app Path A (why the SPA is untouched):** the read-api builds its response DTOs purely from a
+bot `Property` via `toListDto`/`toDetailDto`; the SPA consumes only that DTO contract. As long as
+`PostgresPropertyStore` returns a well-formed `Property` (the Decision-A sidecar makes the projection
+lossless, incl. `photos` from `listing_media` s3Keys, presigned at read time — derivative-agnostic),
+the DTO bytes are identical and the Preact SPA needs zero changes.
 
 ## Schema gaps (additive migrations)
 
-1. **`listing_event`** — no Postgres home for the bot's `PropertyEvent` (P2 follow-ups). New table:
-   `id`, `listing_id` (FK), `due_at timestamptz`, `title text`, `notify_conversation_key text`,
-   `notified_at timestamptz`, `created_at timestamptz`. **Partial index** `WHERE notified_at IS
-   NULL` to serve the reminder sweep's due-query without a scan (the v2 analogue of the sparse GSI2).
-   Follows the existing migration hand-fix rules (`packages/db/CLAUDE.md`).
-2. **`ON DELETE CASCADE`** on the `listing_*` child FKs (today none cascade → `deleteProperty` and
-   the merge flow must delete children by hand). Recommended cleanup so delete/merge is one statement.
-3. **Owner-by-conversation index**: `listing(owner_user_id)` index for the per-conversation /
-   per-user reads (verify it exists; add if not).
+1. **`listing_event`**: `id`, `listing_id` (FK), `due_at timestamptz`, `title text`,
+   `notify_conversation_key text`, `notified_at timestamptz`, `created_at timestamptz`. **Partial
+   index** `WHERE notified_at IS NULL` (the v2 analogue of the sparse GSI2). Migration hand-fix rules
+   per `packages/db/CLAUDE.md`.
+2. **`ON DELETE CASCADE`** on the `listing_*` child FKs (none cascade today) so delete/merge is one
+   statement.
+3. **`jsonb listing_crm`** column on `listing` (Decision A).
+4. Verify/add `listing(owner_user_id)` index for the per-conversation / per-user reads.
 
-## Decisions for the founder
+## Image fidelity (Decision E detail)
 
-- **Decision A — `Property` ⇆ `listing` model reconciliation (D13).** The bot `Property` has CRM
-  fields with no marketplace column: `status` (lead→…→closed deal pipeline), `tags`, `source`,
-  `originConversationKey`, the full `chanote` OCR struct (v2 keeps only `deed_no` / `title_deed_type`).
-  Options: **(A1, recommended)** add a `jsonb listing_crm` sidecar column on `listing` for the
-  bot-only CRM fields the marketplace schema doesn't model — keeps v2 marketplace columns clean,
-  lets the processor round-trip its `Property` losslessly, defers a proper CRM model to a later
-  stage; **(A2)** add first-class columns for each (pollutes the marketplace table with CRM
-  concepts); **(A3)** drop the unmodeled fields on read (lossy — in-chat "My Listings" loses status
-  badges, tags, chanote detail). Recommend **A1**.
-- **Decision B — single-owner vs membership fan-out.** v1 let one property be linked to many
-  conversations (a listing reshared across chats showed in each). v2's `owner_user_id` is single.
-  Recommend accepting **single-owner = origin conversation** (matches `runPipeline` today); the
-  cross-chat *read* fan-out still works via DynamoDB membership → owner-conversation lookup. If true
-  multi-conversation listings are needed, that's a v2 edge table — defer unless required.
-- **Decision C — backfill the 17 v1 listings? (touches D2).** Default honoring D2: **no backfill,
-  v1 is disposable**, the 17 go stale and are retired with the read-api in Stage 5. Override only if
-  the founder wants those exact records preserved — then a one-off DynamoDB→Postgres map script
-  (lossy per Decision A) runs before the flip. Recommend **no backfill** unless the records matter.
-- **Decision D — what happens to the v1 MINI App between the flip and Stage 5.** After the flip the
-  v1 read-api still reads DynamoDB → friends see the frozen 17 (+ whatever they had), not new
-  listings. Options: **(D1)** leave it (it's being retired in Stage 5 anyway — recommended if Stage 5
-  is near); **(D2)** sequence this cutover *into* Stage 5 so the MINI App and bot commands move
-  together and nothing freezes. Recommend **D1** if Stage 5 is the next build, else **D2**.
+v2-lite (`pipelineV2Sweep.ts`) currently hard-codes every photo `kind:"property"` and skips the
+vision pass, so vs v1 it drops: **image classification** (deed/floorplan images leak into galleries),
+**chanote OCR** (no deed fields from images → FIELD-02/03 deed checks + deed-exact dedup can't fire
+on image evidence). Note: **images still render** — both v1 and v2 store/serve original S3 keys; the
+website shows only a photo-count badge, and the mini-app presign path is derivative-agnostic. So this
+is a *data-quality* gap, not a rendering break. The pipeline core already has the classify+OCR path
+built and **gated on a `vision` derivative being present** (`packages/pipeline/src/run.ts`); the
+sharp-on-Lambda packaging is **proven** (`spikes/sharp-lambda-packaging/FINDINGS.md`). So closing the
+gap is a **small, wire-only increment** (produce the derivative, populate `PipelinePhoto.vision`,
+pass the 640px thumb) — not new step logic. **Recommendation (Decision E): include it in the launch**
+so v2 is a true replacement for v1, not a downgrade. Defer only if a same-day soft launch is wanted.
 
-## Increments
+## Increments (ordered; flip + reader-wiring ship in ONE deploy window)
 
-1. **`listing_event` migration + Postgres event store** (`@line-robot/db` repo functions) + unit/
-   integration tests against Docker Postgres. No behavior change yet (nothing reads it).
-2. **`PostgresPropertyStore` adapter** implementing the PropertyStore methods with the `Property ⇆
-   listing` projection (Decision A's `listing_crm` sidecar) + `ON DELETE CASCADE` migration. Covered
-   by the existing in-memory port contract tests, re-run against the Postgres impl.
-3. **Composite wiring**: assemble `HandlerDeps.catalog` from `{ ...dynamoConversationStore,
-   ...postgresPropertyStore }`; give processor + reminder Lambdas `DATABASE_URL` (infra) and the
-   RDS-connected pool (the `pool.ts` CA path already works). No handler changes.
-4. **Flip**: `pulumi config set pipelineV2 on` + `pulumi up`. Verify (below). Keep the one-line
-   rollback ready (`pipelineV2 off` + up).
-5. **(Conditional, Decision C)** backfill script, run once before increment 4 if chosen.
+1. **`listing_event` table + Postgres event store** (`@line-robot/db`) + the `listing_crm` and
+   `ON DELETE CASCADE` migrations. Tested against Docker Postgres AND once against staging RDS
+   (§Hardening). No behavior change yet.
+2. **`PostgresPropertyStore`** with the `Property ⇆ listing` projection. Re-run the existing
+   in-memory port **contract tests** against the Postgres impl; one pass against **staging RDS**.
+3. **(Decision E, recommended)** image derivatives + classify + chanote OCR wired into the v2 sweep
+   port (apply the sharp recipe scoped to `dist/sweep`).
+4. **Composite wiring + infra**: processor, reminder, and read-api get the composite catalog +
+   `DATABASE_URL` (fail-fast if absent — §Hardening). Path A's one read-api `buildDeps()` line.
+5. **Flip + retire v1 writes**, in the **same deploy window** as #4: `pulumi config set pipelineV2
+   on` + `pulumi up`; delete the v1 catalog write paths + `claudeExtractor.ts` + its 16-union test.
+6. **Post-flip verification + observability live** (§Verification).
 
-## Verification & rollback
+## Hardening (Layer-1 — addresses the deploy-fragility root cause)
 
-- **Pre-flip**, against staging RDS: port contract tests green on `PostgresPropertyStore`; a live
-  `runPipeline` sweep writes a listing and the processor's `getProperty`/`listPropertiesForUser`
-  read it back projected to `Property`; a follow-up event round-trips through `listing_event` and
-  the reminder sweep's due-query finds it.
-- **Post-flip smoke**: send a test listing via LINE → sweep (now v2) writes Postgres → it appears on
-  the **website** AND in the in-chat **"My Listings"** (proves the processor reads v2) → set a
-  follow-up → reminder fires from `listing_event`. Then a controlled cleanup.
-- **Rollback**: `pipelineV2=off` + `pulumi up` returns ingestion to DynamoDB. The processor would
-  then read Postgres while the sweep writes DynamoDB — so rollback is only clean *before* increment 3
-  ships; after, rollback means reverting increments 3–4 together. Sequence the flip and the
-  composite wiring in the **same** deploy window to keep rollback atomic.
+- **Boot-time fail-fast**: processor, reminder, read-api must throw on missing `DATABASE_URL` (the
+  sweep already does — `"PIPELINE_V2=on requires DATABASE_URL"`). No silent fallback to a broken
+  state — this is the class that bit us twice (env-less SPA, SITE_URL placeholder).
+- **Real-RDS gate, not just Docker/fakes**: the `PostgresPropertyStore` contract suite must run once
+  against **staging RDS** before the flip (the TLS bug slipped through precisely because tests use
+  fakes/Docker). We have the harness now.
+- **Observability**: a CloudWatch alarm on the sweep error rate, and a one-command post-flip
+  invariant check ("writer catalog == reader catalog; a v2 listing is visible in website + mini-app +
+  in-chat"). The v1/v2 divergence was only caught by eyeballing — make it observable.
+
+## Verification
+
+- **Pre-flip (staging RDS)**: PropertyStore contract tests green on RDS; a live `runPipeline` sweep
+  writes a listing and the processor + read-api read it back projected to `Property`; a follow-up
+  round-trips through `listing_event` and the reminder due-query finds it. With Decision E: a deployed
+  cold-start resize smoke (the one thing the sharp spike couldn't prove on an x86 host).
+- **Post-flip**: send a test listing via LINE → v2 sweep writes Postgres → it appears on the
+  **website**, in **My Listings** in the mini-app, and in the **in-chat** command → book a viewing →
+  reminder fires. Then a controlled cleanup.
+
+## Rollback (forward-only)
+
+Per Decision C the founder is **not maintaining v1**, so rollback is forward-only: `pipelineV2=off`
+exists as an emergency stop, but listings written to Postgres during the v2 window are NOT
+back-migrated to DynamoDB (accepted — staging, low volume). To keep even the emergency stop coherent,
+ship the reader-wiring (inc 4) and the flip (inc 5) in the **same deploy** so there's never a window
+where the writer and readers point at different catalogs (no split-brain).
 
 ## Risk register
 
-- **Split-brain window**: if the processor reads Postgres before the sweep writes Postgres (or vice
-  versa), in-chat commands and ingestion disagree. Mitigation: ship composite-read wiring (inc 3) and
-  the flip (inc 4) together; never half-deployed.
-- **Connection budget (D-S1-4)**: adding processor + reminder as Postgres clients raises concurrency
-  × `pool.max`. Recheck against t4g.micro's ~85 `max_connections` before the flip (today only
-  website-ssr + sweep connect; `pool.max=2`). Processor is SQS-driven (can spike) — size its reserved
-  concurrency or pool accordingly.
-- **Model-mismatch surprises (Decision A)**: in-chat features that depend on CRM fields (status
-  badges, tags, chanote gallery) silently degrade if A3 is chosen. A1 avoids this.
-- **D2 drift**: backfilling (Decision C) reintroduces v1 data into the "clean slate" — only do it
-  deliberately.
+- **Split-brain**: never half-deploy inc 4/5 — same window. (Mitigated by sequencing.)
+- **Connection budget (D-S1-4)**: processor (SQS-driven, can spike) + reminder + read-api become
+  Postgres clients on top of website-ssr + sweep. Recheck concurrency × `pool.max` (=2) against
+  t4g.micro's ~85 `max_connections` before the flip; size reserved concurrency / pool accordingly.
+- **Data-quality regression if Decision E deferred**: no deed OCR / unfiltered galleries on new
+  listings until the (small) increment lands. Recommend shipping E in the launch.
+- **v1 abandonment is irreversible-ish** (Decision C): once writes stop and the window passes, v1
+  data is stale; acceptable per the founder ruling.
+
+## Founder manual actions (the only steps not automatable)
+
+The permission classifier blocks unattended `pulumi up`, so the founder runs (or grants
+`Bash(bash scripts/deploy-staging.sh)` via `/permissions`):
+1. `npm run build` then the deploy `pulumi up` (provisions/updates Lambdas) — already done for the
+   current stack; re-run after the cutover increments land.
+2. The flip: `cd infra && pulumi config set pipelineV2 on && pulumi up` — in the same window as the
+   reader-wiring deploy.
+3. **No LINE console change** (channels, LIFF URLs, webhook, R3 consent all unchanged), **no
+   rich-menu change** (the Catalog tab's LIFF URL is unchanged), **no IAM policy change** (VPC lookup
+   already passes `defaultVpcId` as config). LINE.md needs no edits and is correctly gitignored.
