@@ -22,7 +22,7 @@ _Last updated: 2026-06-13 (audited each OPEN item against code + git log; correc
 | 0 Quality bootstrap | Built + gated PASS. 2 minor carry-forwards. |
 | 0 Spine re-audit | Done; Q-SA2/3/4 thread into Stage 1/2 (below). |
 | 1 Data foundations | Built **+ DEPLOYED** (today). Minor + pre-prod items remain. |
-| 2 Extraction pipeline | Code-complete, **flipped live** (`PIPELINE_V2=on`); **readers repointed to Postgres (A1 done + deployed 2026-06-13)**. **NOT formally gated.** Fast-follow tail (A2–A5). |
+| 2 Extraction pipeline | Code-complete, **flipped live** (`PIPELINE_V2=on`); **readers repointed (A1) + image derivatives/classify/OCR wired (A2)**, both deployed + verified 2026-06-13. **NOT formally gated.** Fast-follow tail (A3–A5). |
 | 3 Shared UI | Built + gated PASS **pending the founder design-token pick**. |
 | 4 Public website | **Live**, but **NOT formally gated** and has a real tail (incl. orphaned image rendering). |
 | 5–7 | Not started (by design). Stage 5 spec fleshed, awaits approval. |
@@ -44,7 +44,7 @@ Lambda mechanics proven.
    deployed + verified on real infra). The bot processor, reminder, and read-api/mini-app now read the
    v2 Postgres catalog; v2 listings are visible in-chat + in the mini-app. Next blocking work is the
    Stage 2 fast-follow cluster below (A2–A5) and the Stage 2/4 gates.
-2. **Clear the Stage 2 fast-follow cluster** that ships with/after A1: **A2** image+OCR wiring,
+2. **Clear the Stage 2 fast-follow cluster:** ~~A2 image+OCR wiring~~ **(done 2026-06-13)**; remaining —
    **A3** delete `claudeExtractor`, **A4** batch routing + warm-cache check, **A5** cutover hardening.
 3. **Run the Stage 2 + Stage 4 stage gates** (never done) — the heavy full-diff review that reconciles
    shipped vs spec. This is where **4.1 image rendering** and any other gaps get formally caught/closed.
@@ -59,7 +59,7 @@ Lambda mechanics proven.
 | # | Item | Priority |
 |---|---|---|
 | A1 | ~~**Repoint catalog readers to Postgres**~~ **DONE + DEPLOYED + VERIFIED 2026-06-13** (`d4d43b6`). `PostgresPropertyStore` (PropertyStore slice; ConversationStore stays DynamoDB) + `listing_event` table (+ partial `due & un-notified` index) + `CompositeCatalogRepository` (Dynamo conv + Postgres props, stitches `listPropertiesForUser` which moved PropertyStore→CatalogRepository). Processor + read-api → composite; reminder → bare PostgresPropertyStore; `DATABASE_URL` on all three (boot fail-fast). Read-api `book a viewing` write now lands in Postgres → its DynamoDB `PutItem` grant dropped. **Verified on real infra:** 2 real LINE users → their 5 real listings (16/10/11 photos) via the exact composite path; reminder Lambda queries `listing_event` clean post-deploy; read-api boots 401 (not 500). Increment-review PASS (3 seats). _Minor logged: edit-by-reply drops free-text values that aren't valid v2 enums (documented graceful-degrade); `listPropertiesForUser` is N+1 (same as v1, fine at scale)._ | ~~BLOCKING~~ **DONE** |
-| A2 | **Wire image derivatives + classify + chanote OCR** into the v2 sweep port (apply the proven sharp-on-Lambda recipe scoped to `dist/sweep`). v2-lite skips these → no deed OCR, unfiltered galleries. (= spine Q-SA3 archive-derivatives port.) | Fast-follow (recommended with A1) |
+| A2 | ~~**Wire image derivatives + classify + chanote OCR** into the v2 sweep port~~ **DONE + DEPLOYED + VERIFIED 2026-06-13** (`60fc7cf`). Each swept image now gets a 1568px vision derivative (feeds classify + chanote OCR → deed numbers to dedup, gallery kinds) + a 640px thumb (stored on `listing_media.thumb_key` for 4.1). `buildDerivatives` re-keyed by a hash of the original key (built pre-segmentation); `S3RawArchive` implements the pipeline `MediaStore` (Q-SA3); per-photo build failure degrades just that photo (Q-SA2). sharp's arm64 binaries packaged into `dist/sweep` only (isolated temp-dir install; `.bin`/wasm pruned). Sweep role +`s3:PutObject`. **Verified:** sharp downscales real listing photos locally; pipeline 89 unit + 8 integration green; post-deploy sweep cold-starts clean (sharp loads on arm64 Lambda, 0 import errors); `thumb_key` column live. _Full classify+OCR on new listings exercises on next ingestion._ | ~~Fast-follow~~ **DONE** |
 | A3 | **Delete `claudeExtractor.ts` + the 16-union regression test**, and drop the 16-union rule from the CLAUDE.md files once gone (D2.5 step 5). | Fast-follow |
 | A4 | **Batch-mode routing in the sweep** + the live warm-cache acceptance (`cache_read_input_tokens > 0`) and one Lambda-side batch sweep in staging. | Fast-follow |
 | A5 | **Cutover hardening** — boot fail-fast on missing `DATABASE_URL` (processor/reminder/read-api), a real-RDS test gate (not just Docker/fakes — how the TLS bug slipped), a CloudWatch sweep-error alarm + a post-flip invariant check. | Fast-follow (resilience) |
