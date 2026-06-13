@@ -28,4 +28,5 @@ config:
     secure: v1:rHlJ4iiRB3O+0LwH:gcTQRc16VZlrp7LI3S4ZOlVmzeAzjego4GkVXIQY/ybC6U3B3zT1WMZIbJxFlOrg0VmAxG4sAeUD2bJP
   line-robot:defaultVpcId: vpc-aa662dcf
   line-robot:pipelineV2: "on"
+  line-robot:lineOaUrl: https://line.me/R/ti/p/@685kqtou
 encryptionsalt: v1:BuAIHbVKRfA=:v1:8R81wMHonD29TnuL:PzcC3+AhNJ9PFpLCr6yywZnUG39rfg==

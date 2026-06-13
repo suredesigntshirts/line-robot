@@ -102,9 +102,10 @@ export function createBotLambdas(
       Resource: messagesTable.arn,
     },
     {
-      // Read captured media (photos / chanote scans) to feed extraction.
+      // Read captured media (photos / chanote scans) to feed extraction; write the image
+      // derivatives (vision/thumb) back under `derivatives/…` (A2 / D2.7).
       Effect: "Allow",
-      Action: ["s3:GetObject"],
+      Action: ["s3:GetObject", "s3:PutObject"],
       Resource: pulumi.interpolate`${archiveBucket.arn}/*`,
     },
     {

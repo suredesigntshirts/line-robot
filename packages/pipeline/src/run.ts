@@ -7,7 +7,7 @@ import {
   getListing,
   listDedupPool,
 } from "@line-robot/db";
-import type { ContentLang, GateResult } from "@line-robot/domain";
+import type { ContentLang, GateResult, MediaKind } from "@line-robot/domain";
 import { blockCandidates, type DedupCandidate } from "./dedup/candidateFinder.ts";
 import { dedupConfig } from "./dedup/config.ts";
 import { dedupVerify } from "./dedup/verify.ts";
@@ -32,8 +32,23 @@ export interface PipelinePhoto {
   index: number;
   /** S3 key of the archived original (media row source). */
   s3Key: string;
+  /** 640px web derivative key (D2.7); stored on the media row for the public website. */
+  thumbKey?: string;
   /** 1568px vision derivative; absent = skip classification for this photo. */
   vision?: VisionImage;
+}
+
+/** One media row to persist: the original + its (optional) web thumb + its classified kind. */
+interface SegmentMedia {
+  s3Key: string;
+  thumbKey?: string;
+  kind: MediaKind;
+}
+
+/** The classify step's kind → the storage `media_kind`. Only chanote is distinguished; maps,
+ * chat-logs and unrecognised images ("other") store as a plain photo (no floorplan/render detector). */
+function classifyToMediaKind(c: ClassifyResult | null): MediaKind {
+  return c?.kind === "chanote" ? "chanote" : "photo";
 }
 
 export interface PipelineInput {
@@ -87,7 +102,7 @@ async function persistNewListing(
   input: PipelineInput,
   extracted: ExtractedListing,
   deedNo: string | null,
-  photoKeys: string[],
+  media: SegmentMedia[],
 ): Promise<string> {
   const isRent = extracted.dealType === "rent";
   const translated = await translateContent(ctx, {
@@ -147,7 +162,12 @@ async function persistNewListing(
     },
     content,
     rental: isRent ? { monthlyRent: extracted.priceThb, utilityRateType: "unknown" } : undefined,
-    media: photoKeys.map((s3Key, i) => ({ s3Key, kind: "photo" as const, heroIndex: i })),
+    media: media.map((m, i) => ({
+      s3Key: m.s3Key,
+      thumbKey: m.thumbKey ?? null,
+      kind: m.kind,
+      heroIndex: i,
+    })),
   });
   return listing.id;
 }
@@ -197,13 +217,15 @@ export async function runPipeline(
 
     // Indices come from the model — tolerate hallucinated markers by lookup, never by position.
     const photoByIndex = new Map(input.photos.map((p, i) => [p.index, { photo: p, slot: i }]));
-    const segmentClassifications = segment.imageIndices.map(
-      (i) => classifications[photoByIndex.get(i)?.slot ?? -1] ?? null,
-    );
-    const deedNo = deedNoFrom(segmentClassifications);
-    const photoKeys = segment.imageIndices
-      .map((i) => photoByIndex.get(i)?.photo.s3Key)
-      .filter((k): k is string => k !== undefined);
+    const segmentEntries = segment.imageIndices
+      .map((i) => photoByIndex.get(i))
+      .filter((e): e is { photo: PipelinePhoto; slot: number } => e !== undefined);
+    const deedNo = deedNoFrom(segmentEntries.map((e) => classifications[e.slot] ?? null));
+    const segmentMedia: SegmentMedia[] = segmentEntries.map((e) => ({
+      s3Key: e.photo.s3Key,
+      thumbKey: e.photo.thumbKey,
+      kind: classifyToMediaKind(classifications[e.slot] ?? null),
+    }));
 
     // 4. dedup: deterministic block → LLM verify; default new.
     const blocked = blockCandidates({ ...extracted, deedNo }, pool, config);
@@ -223,7 +245,7 @@ export async function runPipeline(
         }
       }
     } else {
-      listingId = await persistNewListing(db, ctx, input, extracted, deedNo, photoKeys);
+      listingId = await persistNewListing(db, ctx, input, extracted, deedNo, segmentMedia);
       pool.push({
         id: listingId,
         deedNo,
@@ -238,7 +260,7 @@ export async function runPipeline(
 
     const gate = await runGate(ctx, {
       extracted,
-      photoCount: photoKeys.length,
+      photoCount: segmentMedia.length,
       deedType: extracted.titleDeedType,
       listingType: extracted.dealType,
     });

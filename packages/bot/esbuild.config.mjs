@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 import { build } from "esbuild";
 
 // Bundle each Lambda entrypoint into a single ESM file. We bundle the AWS SDK too (rather than
@@ -51,3 +55,29 @@ await Promise.all([
 console.log(
   "Built dist/{ingest,processor,sweep,reminder,read-api}/index.mjs + dist/scripts/setup-rich-menu.mjs",
 );
+
+// sharp on the sweep Lambda (A2 / D2.7 image derivatives). esbuild keeps `sharp` external, so its
+// native binaries ship as a SIBLING node_modules in dist/sweep ONLY — no other Lambda imports it.
+// Install in an ISOLATED temp dir outside the monorepo (running `npm install` inside dist/sweep
+// makes npm walk up to the workspace root and re-run its installs — which breaks), then copy the
+// native packages in. Cross-platform fetch (arm64 from an x86 host) is proven in
+// spikes/sharp-lambda-packaging. The wasm fallback is pruned to stay well inside Lambda's 250MB cap.
+const sweepDir = resolve("dist/sweep");
+const sharpTmp = mkdtempSync(resolve(tmpdir(), "sweep-sharp-"));
+writeFileSync(
+  resolve(sharpTmp, "package.json"),
+  JSON.stringify({ name: "sharp-fetch", private: true }),
+);
+execFileSync("npm", ["install", "--no-package-lock", "--os=linux", "--cpu=arm64", "sharp@0.35.1"], {
+  cwd: sharpTmp,
+  stdio: "inherit",
+});
+// Clear any prior copy first — cpSync can't merge over the existing `.bin` symlinks (EEXIST on rebuild).
+rmSync(resolve(sweepDir, "node_modules"), { recursive: true, force: true });
+cpSync(resolve(sharpTmp, "node_modules"), resolve(sweepDir, "node_modules"), { recursive: true });
+rmSync(resolve(sweepDir, "node_modules/@img/sharp-wasm32"), { recursive: true, force: true });
+// Drop npm's `.bin` CLI shims: unused at runtime (`require('sharp')` never touches them) and their
+// dangling symlinks break Pulumi's archive-hash walk (stat of a missing target).
+rmSync(resolve(sweepDir, "node_modules/.bin"), { recursive: true, force: true });
+rmSync(sharpTmp, { recursive: true, force: true });
+console.log("Installed sharp arm64 binaries into dist/sweep/node_modules (sweep only)");

@@ -27,6 +27,11 @@ async function buildSweep(): Promise<IngestionSweep> {
     loadChannelAccessToken(env),
   ]);
 
+  const logger = new PowertoolsLoggerAdapter();
+  // S3RawArchive doubles as the pipeline's MediaStore: it reads originals and writes the image
+  // derivatives. One instance backs both the v1 classifier (MediaReader) and the v2 pipeline.
+  const archive = new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET);
+
   // PIPELINE_V2 (stage-2 increment 9): flag-gated cutover — sweep extraction runs
   // packages/pipeline and writes Postgres. Default off; v1 path untouched until
   // staging verification (D2.5).
@@ -43,13 +48,13 @@ async function buildSweep(): Promise<IngestionSweep> {
     v2 = createPipelineV2Port({
       db: getDb(process.env.DATABASE_URL),
       llm: new AnthropicStepLlm(new Anthropic({ apiKey: anthropicApiKey })),
-      logger: new PowertoolsLoggerAdapter(),
+      media: archive,
+      logger,
     });
   }
 
   const ddb = new DynamoDBClient({});
   const doc = DynamoDBDocumentClient.from(ddb);
-  const logger = new PowertoolsLoggerAdapter();
   // ClaudeExtractor implements both PropertyExtractor and PropertySegmenter — one instance, two roles.
   const extractor = createClaudeExtractor(anthropicApiKey, undefined, logger);
   return new IngestionSweep({
@@ -59,7 +64,7 @@ async function buildSweep(): Promise<IngestionSweep> {
     segmenter: extractor,
     // Per-image classify + OCR (plan 13): one cheap Haiku vision call per image.
     classifier: createClaudeImageClassifier(anthropicApiKey, undefined, logger),
-    media: new S3RawArchive(new S3Client({}), env.ARCHIVE_BUCKET),
+    media: archive,
     gateway: createLineMessagingGateway(channelAccessToken),
     logger,
     clock: SYSTEM_CLOCK,

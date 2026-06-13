@@ -1,4 +1,5 @@
 import { GetObjectCommand, PutObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import type { MediaStore } from "@line-robot/pipeline";
 import type { ConversationRef } from "../../core/domain/conversation.js";
 import { conversationKey } from "../../core/domain/conversation.js";
 import type { MediaReader } from "../../core/ports/mediaReader.js";
@@ -25,9 +26,10 @@ function extensionFor(contentType: string): string {
   return map[contentType] ?? "";
 }
 
-/** Archives every raw webhook event to S3 as immutable JSON (audit log / future training data), and
- * reads media back for the ingestion sweep (the write and read sides of the same bucket). */
-export class S3RawArchive implements RawArchive, MediaReader {
+/** Archives every raw webhook event to S3 as immutable JSON (audit log / future training data),
+ * reads media back for the ingestion sweep, and (Q-SA3) stores the pipeline's image derivatives —
+ * the write and read sides of the same bucket. */
+export class S3RawArchive implements RawArchive, MediaReader, MediaStore {
   constructor(
     private readonly client: S3Client,
     private readonly bucket: string,
@@ -65,13 +67,34 @@ export class S3RawArchive implements RawArchive, MediaReader {
   }
 
   async getMedia(s3Key: string): Promise<Buffer> {
+    return Buffer.from((await this.getOriginal(s3Key)).bytes);
+  }
+
+  // --- MediaStore (pipeline image derivatives) ---
+
+  async getOriginal(s3Key: string): Promise<{ bytes: Uint8Array; contentType: string }> {
     const result = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucket, Key: s3Key }),
     );
     if (result.Body === undefined) {
       throw new Error(`S3 object has no body: ${s3Key}`);
     }
-    return Buffer.from(await result.Body.transformToByteArray());
+    return {
+      bytes: await result.Body.transformToByteArray(),
+      contentType: result.ContentType ?? "application/octet-stream",
+    };
+  }
+
+  /** Store a derivative (vision/thumb) under its `derivatives/…` key in the same archive bucket. */
+  async putDerivative(key: string, bytes: Uint8Array, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: bytes,
+        ContentType: contentType,
+      }),
+    );
   }
 }
 

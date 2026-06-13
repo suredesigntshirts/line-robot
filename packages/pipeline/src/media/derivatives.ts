@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { MediaStore } from "../ports.ts";
 
@@ -18,8 +19,13 @@ export interface DerivativeSet {
   visionJpeg: Uint8Array;
 }
 
-function derivativeKey(propertyId: string, photoId: string, kind: "vision" | "thumb"): string {
-  return `derivatives/${propertyId}/${photoId}-${kind}.jpg`;
+// Keyed by a stable hash of the ORIGINAL key, not the listing id: derivatives are built before
+// segmentation/dedup, so the listing a photo lands on isn't known yet. The original key is unique
+// per archived photo, so the hash is a stable, collision-free derivative id (and idempotent across
+// re-sweeps of the same photo).
+function derivativeKey(originalKey: string, kind: "vision" | "thumb"): string {
+  const id = createHash("sha256").update(originalKey).digest("hex").slice(0, 16);
+  return `derivatives/${id}-${kind}.jpg`;
 }
 
 async function downscale(
@@ -38,16 +44,14 @@ async function downscale(
 export async function buildDerivatives(
   store: MediaStore,
   originalKey: string,
-  propertyId: string,
-  photoId: string,
 ): Promise<DerivativeSet> {
   const { bytes } = await store.getOriginal(originalKey);
   const [visionJpeg, thumbJpeg] = await Promise.all([
     downscale(bytes, VISION_LONG_EDGE, 80),
     downscale(bytes, THUMB_LONG_EDGE, 70),
   ]);
-  const visionKey = derivativeKey(propertyId, photoId, "vision");
-  const thumbKey = derivativeKey(propertyId, photoId, "thumb");
+  const visionKey = derivativeKey(originalKey, "vision");
+  const thumbKey = derivativeKey(originalKey, "thumb");
   await Promise.all([
     store.putDerivative(visionKey, visionJpeg, "image/jpeg"),
     store.putDerivative(thumbKey, thumbJpeg, "image/jpeg"),

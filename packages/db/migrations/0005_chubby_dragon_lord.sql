@@ -1,0 +1,1 @@
+ALTER TABLE "listing_media" ADD COLUMN "thumb_key" text;

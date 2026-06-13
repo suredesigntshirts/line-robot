@@ -318,7 +318,10 @@ export const listingMedia = pgTable("listing_media", {
   listingId: uuid("listing_id")
     .notNull()
     .references(() => listings.id),
-  s3Key: text("s3_key").notNull(),
+  s3Key: text("s3_key").notNull(), // the archived ORIGINAL
+  // 640px web derivative (D2.7), written by the sweep once sharp runs; null for v2-lite rows that
+  // predate the derivative wiring. The public website serves this; the bot presigns the original.
+  thumbKey: text("thumb_key"),
   kind: mediaKindPg("kind").notNull(),
   heroIndex: integer("hero_index"),
   isRender: boolean("is_render").notNull().default(false), // P4 label
