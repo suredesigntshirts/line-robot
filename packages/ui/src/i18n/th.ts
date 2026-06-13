@@ -96,6 +96,10 @@ export const th = {
   "field.project": "โครงการ",
   "detail.description": "รายละเอียด",
   "legal.posterProvided": "ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม",
+  // LEGAL-07: non-dismissible foreign-ownership notice (FIELD-05). Foreigners
+  // cannot own land; condos carry a 49% foreign-quota cap; leasehold is common.
+  "legal.foreignOwnership":
+    "ชาวต่างชาติมีข้อจำกัดในการถือครองอสังหาริมทรัพย์ในไทย (ห้ามถือครองที่ดิน คอนโดจำกัดโควตาต่างชาติ 49%) โปรดตรวจสอบสิทธิ์กับผู้เชี่ยวชาญด้านกฎหมายก่อนทำธุรกรรม",
 } as const;
 
 export type MessageKey = keyof typeof th;

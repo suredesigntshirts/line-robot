@@ -24,7 +24,12 @@ const basePath = locale === "en" ? "/en" : "";
 const PAGE_SIZE = 24;
 
 // COPY-07 "next" for the SSR error state (a JSX prop can't be written in an Astro template).
-const retryLink = createElement("a", { href: Astro.url.pathname }, t("error.retry"));
+// Keep the query string so a retry after a transient DB error preserves the user's filters.
+const retryLink = createElement(
+  "a",
+  { href: `${Astro.url.pathname}${Astro.url.search}` },
+  t("error.retry"),
+);
 
 const query = parseBrowseQuery(Astro.url.searchParams);
 let cards: CardRow[] = [];

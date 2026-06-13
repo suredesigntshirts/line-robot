@@ -85,4 +85,6 @@ export const en: Record<keyof typeof th, string> = {
   "detail.description": "Details",
   "legal.posterProvided":
     "Information is poster-provided — verify independently before any transaction",
+  "legal.foreignOwnership":
+    "Foreign nationals face ownership restrictions in Thailand (no land ownership; condos are capped at 49% foreign quota; leasehold is common). Verify eligibility with a legal professional before any transaction.",
 };

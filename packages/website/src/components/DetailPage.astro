@@ -92,7 +92,7 @@ const jsonLd = safeJsonLdScript(
   canonicalPath={canonicalPath}
   ogImage={heroUrl}
 >
-  <script type="application/ld+json" set:html={jsonLd} slot="head" />
+  <script is:inline type="application/ld+json" set:html={jsonLd} slot="head" />
   <main style="max-width: 48rem; margin: 0 auto; padding: var(--spacing-4); display: grid; gap: var(--spacing-4);">
     <a href={`${basePath}/`} style="color: var(--color-primary-600); font-size: var(--text-sm);">
       ← {t("home.title")}
@@ -159,6 +159,11 @@ const jsonLd = safeJsonLdScript(
     )}
     <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
       {t("legal.posterProvided")}
+    </p>
+    {/* LEGAL-07: non-dismissible foreign-ownership disclaimer (always shown, not a
+        closeable banner). Per-unit foreign-quota display (FIELD-05) is deferred (4.8). */}
+    <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
+      {t("legal.foreignOwnership")}
     </p>
   </main>
 </Base>
