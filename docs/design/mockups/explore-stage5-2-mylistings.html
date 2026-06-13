@@ -1,0 +1,1653 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage 5 · V2 — My Listings CRM Dashboard</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       THEME A — "Baania-clean" tokens (TECH-06: hex-first, OKLCH override)
+       Source of truth: packages/ui/theme.css
+       ============================================================ */
+
+    :root {
+      /* Primary trust-blue */
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+
+      /* Surface */
+      --color-bg:        #faf9f7;
+      --color-surface:   #ffffff;
+      --color-surface-2: #f3f2ef;
+      --color-border:    #e4e2de;
+      --color-border-2:  #d4d2cd;
+
+      /* Text */
+      --color-text:          #141820;
+      --color-text-2:        #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      /* Semantic */
+      --color-success:    #1a8a4a;
+      --color-success-bg: #e9f7ef;
+      --color-warn:       #d97706;
+      --color-warn-bg:    #fef9eb;
+      --color-danger:     #c0392b;
+      --color-danger-bg:  #fdecea;
+
+      /* Badge tokens — lifecycle states (D13 / DF-4, COPY-04/05/10, DIST-01, TH-04) */
+      /* draft: ฉบับร่าง */
+      --badge-draft:         #f3f2ef;
+      --badge-draft-text:    #5a6375;
+      /* active: ประกาศอยู่ */
+      --badge-active:        #e9f7ef;
+      --badge-active-text:   #1a8a4a;
+      /* under-offer: มีผู้สนใจ */
+      --badge-offer:         #eef1fd;
+      --badge-offer-text:    #3b4ec8;
+      /* sold: ขายแล้ว */
+      --badge-sold:          #fdecea;
+      --badge-sold-text:     #c0392b;
+      /* rented: เช่าแล้ว */
+      --badge-rented:        #fdecea;
+      --badge-rented-text:   #c0392b;
+      /* withdrawn: ถอนประกาศ */
+      --badge-withdrawn:     #f3f2ef;
+      --badge-withdrawn-text:#9aa0ad;
+      /* verified (canonical badge tokens) */
+      --badge-verified:      #e8f0fb;
+      --badge-verified-text: #174d93;
+      /* urgent */
+      --badge-urgent:        #fef9eb;
+      --badge-urgent-text:   #d97706;
+
+      /* LINE green */
+      --color-line:      #06c755;
+      --color-line-text: #ffffff;
+
+      /* Spacing */
+      --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+      --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+
+      /* Radius */
+      --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+      --radius-xl: 20px; --radius-full: 9999px;
+
+      /* Shadow */
+      --shadow-xs: 0 1px 2px rgba(20,24,32,0.06);
+      --shadow-sm: 0 1px 4px rgba(20,24,32,0.08), 0 0 1px rgba(20,24,32,0.04);
+      --shadow-md: 0 4px 12px rgba(20,24,32,0.10), 0 1px 3px rgba(20,24,32,0.06);
+
+      /* Typography */
+      --font-body-th:    'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+      --font-heading-th: 'Noto Sans Thai', 'Sarabun', Arial, sans-serif;
+      --font-latin:      'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+      --text-xs: 11px; --text-sm: 13px; --text-base: 15px;
+      --text-md: 17px; --text-lg: 20px; --text-xl: 24px;
+      --leading-body: 1.65;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-300: oklch(0.76 0.10  240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-primary-700: oklch(0.38 0.13  240);
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+        --color-danger:      oklch(0.54 0.20   20);
+        --color-danger-bg:   oklch(0.96 0.04   20);
+        --badge-draft:         oklch(0.96 0.008 80);
+        --badge-draft-text:    oklch(0.45 0.015 240);
+        --badge-active:        oklch(0.95 0.04  150);
+        --badge-active-text:   oklch(0.52 0.15  150);
+        --badge-offer:         oklch(0.95 0.04  270);
+        --badge-offer-text:    oklch(0.42 0.14  270);
+        --badge-sold:          oklch(0.96 0.04   20);
+        --badge-sold-text:     oklch(0.54 0.20   20);
+        --badge-rented:        oklch(0.96 0.04   20);
+        --badge-rented-text:   oklch(0.54 0.20   20);
+        --badge-withdrawn:     oklch(0.96 0.008 80);
+        --badge-withdrawn-text:oklch(0.68 0.010 240);
+        --badge-verified:      oklch(0.96 0.03  240);
+        --badge-verified-text: oklch(0.46 0.15  240);
+        --badge-urgent:        oklch(0.97 0.04   75);
+        --badge-urgent-text:   oklch(0.70 0.17   75);
+      }
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #d6dde8;
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+    /* TH-08: lang=th + overflow-wrap for Thai line-break */
+    [lang="th"] { word-break: normal; overflow-wrap: anywhere; }
+
+    /* ============================================================
+       STAGE LABEL BAR
+       ============================================================ */
+    .stage-label {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-primary-600);
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .stage-label span {
+      opacity: 0.72;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 11px;
+    }
+    .stage-label-toggle {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: var(--radius-full);
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 12px;
+      cursor: pointer;
+    }
+
+    /* ============================================================
+       DEVICE FRAME
+       ============================================================ */
+    .device-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px 48px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 24px;
+    }
+
+    .device {
+      width: 390px;
+      max-width: 100%;
+      background: var(--color-bg);
+      border-radius: 32px;
+      box-shadow: 0 0 0 8px #1a1a2e, 0 24px 64px rgba(0,0,0,0.35);
+      overflow: hidden;
+      color: var(--color-text);
+    }
+
+    .device-scroll {
+      max-height: 780px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+    .device-scroll::-webkit-scrollbar { width: 4px; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+
+    /* Fake status bar */
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px 6px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    /* ============================================================
+       APP HEADER
+       ============================================================ */
+    .app-header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px 10px;
+    }
+
+    .header-back {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      color: var(--color-text);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    .header-title-block {
+      flex: 1;
+      padding: 0 10px;
+    }
+
+    .header-title {
+      font-family: var(--font-heading-th);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.3;
+    }
+
+    .header-subtitle {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-2);
+    }
+
+    .header-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      color: var(--color-primary-600);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       TAB BAR (ประกาศของฉัน / บันทึกไว้ / นัดดูทรัพย์)
+       ============================================================ */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+      background: var(--color-surface);
+    }
+
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 4px 9px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-disabled);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+      transition: color 0.12s, border-color 0.12s;
+      position: relative;
+    }
+
+    .tab.active {
+      color: var(--color-primary-500);
+      border-bottom-color: var(--color-primary-500);
+      font-weight: 600;
+    }
+
+    .tab-icon { font-size: 17px; margin-bottom: 2px; }
+
+    .tab-badge {
+      position: absolute;
+      top: 6px;
+      right: calc(50% - 16px);
+      background: var(--color-danger);
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 9px;
+      font-weight: 700;
+      border-radius: var(--radius-full);
+      padding: 0 5px;
+      min-width: 16px;
+      height: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ============================================================
+       STATS STRIP (summary header above listings)
+       ============================================================ */
+    .stats-strip {
+      background: var(--color-primary-50);
+      border-bottom: 1px solid var(--color-primary-100);
+      display: flex;
+      padding: 10px 16px;
+      gap: 0;
+    }
+
+    .stat-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .stat-item + .stat-item {
+      border-left: 1px solid var(--color-primary-100);
+    }
+
+    .stat-count {
+      font-family: var(--font-latin);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--color-primary-600);
+      line-height: 1.1;
+    }
+
+    .stat-label {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-primary-500);
+      text-align: center;
+    }
+
+    /* ============================================================
+       ADD LISTING CTA STRIP
+       ============================================================ */
+    .add-listing-strip {
+      margin: 12px 14px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .section-heading {
+      font-family: var(--font-heading-th);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      position: relative;
+      padding-bottom: 3px;
+    }
+
+    .section-heading::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--color-warn);
+      border-radius: 2px;
+    }
+
+    .btn-add {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      border-radius: var(--radius-full);
+      border: none;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(31,95,173,0.25);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       FILTER CHIPS (lifecycle filter row)
+       ============================================================ */
+    .filter-scroll {
+      padding: 10px 14px 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-scroll::-webkit-scrollbar { display: none; }
+
+    .filter-inner {
+      display: flex;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+
+    .chip.active {
+      background: var(--color-primary-500);
+      color: #fff;
+      border-color: var(--color-primary-500);
+      font-weight: 600;
+    }
+
+    .chip-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       LISTING CARDS — CRM VARIANT
+       ============================================================ */
+    .listings-list {
+      padding: 4px 14px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .crm-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      transition: box-shadow 0.15s;
+    }
+
+    .crm-card:hover { box-shadow: var(--shadow-md); }
+
+    /* Card row: thumbnail + info */
+    .card-main {
+      display: flex;
+      gap: 0;
+    }
+
+    .card-thumb {
+      width: 96px;
+      flex-shrink: 0;
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-primary-100) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      color: var(--color-primary-300);
+      position: relative;
+    }
+
+    /* Status overlay stripe on thumbnail (DIST-01 pattern) */
+    .thumb-status {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 2px 6px;
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .card-info {
+      flex: 1;
+      padding: 10px 12px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .card-status-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* Lifecycle badge color map (D13, DF-4) */
+    .badge-draft     { background: var(--badge-draft);     color: var(--badge-draft-text); }
+    .badge-active    { background: var(--badge-active);    color: var(--badge-active-text); }
+    .badge-offer     { background: var(--badge-offer);     color: var(--badge-offer-text); }
+    .badge-sold      { background: var(--badge-sold);      color: var(--badge-sold-text); }
+    .badge-rented    { background: var(--badge-rented);    color: var(--badge-rented-text); }
+    .badge-withdrawn { background: var(--badge-withdrawn); color: var(--badge-withdrawn-text); }
+    .badge-verified  { background: var(--badge-verified);  color: var(--badge-verified-text); }
+    .badge-urgent    { background: var(--badge-urgent);    color: var(--badge-urgent-text); }
+
+    .card-title {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-price {
+      font-family: var(--font-latin);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+    .card-price .thb { font-family: var(--font-body-th); font-size: 13px; }
+
+    .card-meta {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 8px;
+      align-items: center;
+    }
+
+    .meta-dot {
+      width: 2px; height: 2px; border-radius: 50%;
+      background: var(--color-border-2); flex-shrink: 0;
+    }
+
+    /* ============================================================
+       QUICK ACTIONS ROW (per card)
+       ============================================================ */
+    .card-actions {
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      gap: 0;
+    }
+
+    .action-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 4px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      color: var(--color-text-2);
+      border-right: 1px solid var(--color-border);
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .action-btn:last-child { border-right: none; }
+    .action-btn:hover { background: var(--color-surface-2); color: var(--color-primary-600); }
+
+    .action-btn.primary-action {
+      color: var(--color-primary-600);
+      font-weight: 600;
+    }
+
+    .action-btn.danger-action { color: var(--color-danger); }
+
+    .action-icon { font-size: 16px; line-height: 1; }
+
+    /* Sold/rented card — muted overlay */
+    .crm-card.status-closed .card-thumb {
+      filter: grayscale(60%) opacity(0.75);
+    }
+    .crm-card.status-closed .card-title {
+      color: var(--color-text-2);
+    }
+
+    /* Draft card — dashed border top accent */
+    .crm-card.status-draft {
+      border-left: 3px solid var(--color-text-disabled);
+    }
+
+    /* Active card — strong left accent */
+    .crm-card.status-active {
+      border-left: 3px solid var(--color-success);
+    }
+
+    /* Under-offer card — indigo left accent */
+    .crm-card.status-offer {
+      border-left: 3px solid #3b4ec8;
+    }
+
+    /* ============================================================
+       INTEREST NOTIFICATIONS (มีผู้สนใจ section on active cards)
+       ============================================================ */
+    .interest-bar {
+      background: var(--badge-offer);
+      border-top: 1px solid #c7d3f8;
+      padding: 7px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .interest-icon { font-size: 15px; flex-shrink: 0; }
+
+    .interest-text {
+      flex: 1;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: #3b4ec8;
+      line-height: 1.4;
+    }
+
+    .interest-cta {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 700;
+      color: #3b4ec8;
+      background: rgba(59,78,200,0.1);
+      border: 1px solid rgba(59,78,200,0.25);
+      border-radius: var(--radius-full);
+      padding: 3px 10px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       FRESHNESS INDICATOR (CONV-11 / listing age + expiry)
+       ============================================================ */
+    .freshness-bar {
+      padding: 5px 12px 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-surface-2);
+      border-top: 1px solid var(--color-border);
+    }
+
+    .freshness-dot {
+      width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .freshness-text {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      flex: 1;
+    }
+
+    .freshness-action {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-primary-600);
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    /* ============================================================
+       EMPTY STATE
+       ============================================================ */
+    .empty-state {
+      text-align: center;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .empty-icon { font-size: 40px; opacity: 0.4; }
+
+    .empty-title {
+      font-family: var(--font-heading-th);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .empty-body {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+      line-height: 1.65;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 11px 20px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-body-th);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(31,95,173,0.28);
+    }
+
+    /* ============================================================
+       SAVED TAB PANEL (stub — Saved listings)
+       ============================================================ */
+    .saved-panel {
+      display: none;
+    }
+
+    .viewings-panel {
+      display: none;
+    }
+
+    /* ============================================================
+       VIEWING CARD
+       ============================================================ */
+    .viewing-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xs);
+      overflow: hidden;
+    }
+
+    .viewing-header {
+      background: var(--color-primary-50);
+      border-bottom: 1px solid var(--color-primary-100);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .viewing-date {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--color-primary-500);
+      border-radius: var(--radius-md);
+      padding: 5px 10px;
+      min-width: 46px;
+      flex-shrink: 0;
+    }
+
+    .viewing-day {
+      font-family: var(--font-latin);
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .viewing-month {
+      font-family: var(--font-latin);
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.8);
+      text-transform: uppercase;
+    }
+
+    .viewing-info { flex: 1; min-width: 0; }
+
+    .viewing-time {
+      font-family: var(--font-latin);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-primary-600);
+    }
+
+    .viewing-property {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .viewing-buyer {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-2);
+    }
+
+    .viewing-badge {
+      display: inline-flex;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .viewing-upcoming { background: var(--badge-active); color: var(--badge-active-text); }
+    .viewing-past     { background: var(--badge-withdrawn); color: var(--badge-withdrawn-text); }
+
+    .viewing-actions {
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      gap: 0;
+    }
+
+    .viewing-action {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: none;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-600);
+      font-weight: 600;
+      cursor: pointer;
+      border-right: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .viewing-action:last-child { border-right: none; }
+
+    /* ============================================================
+       SAVED LISTING CARD (compact horizontal)
+       ============================================================ */
+    .saved-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-xs);
+      display: flex;
+      overflow: hidden;
+    }
+
+    .saved-thumb {
+      width: 80px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+    }
+
+    .saved-info {
+      flex: 1;
+      padding: 10px 12px;
+      min-width: 0;
+    }
+
+    .saved-title {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      display: -webkit-box;
+      -webkit-line-clamp: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .saved-price {
+      font-family: var(--font-latin);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .saved-meta {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+    }
+
+    .saved-actions {
+      display: flex;
+      flex-direction: column;
+      border-left: 1px solid var(--color-border);
+    }
+
+    .saved-action {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 12px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--color-text-2);
+      transition: color 0.12s, background 0.12s;
+    }
+
+    .saved-action:first-child {
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .saved-action:hover { background: var(--color-surface-2); }
+
+    /* ============================================================
+       BOTTOM NAVIGATION (P1: LINE is the rail — chat tab prominent)
+       ============================================================ */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 0 10px;
+    }
+
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px;
+      text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      transition: color 0.12s;
+    }
+
+    .nav-item.active { color: var(--color-primary-500); }
+
+    .nav-item-line {
+      color: var(--color-line);
+    }
+
+    .nav-icon { font-size: 20px; line-height: 1; }
+
+    /* ============================================================
+       DISCLAIMER
+       ============================================================ */
+    .disclaimer {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      padding: 6px 14px 10px;
+      line-height: 1.6;
+    }
+
+    /* ============================================================
+       FOOTER HEURISTICS NOTE
+       ============================================================ */
+    .device-label {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-top: 10px;
+    }
+
+    .heuristics-footer {
+      max-width: 840px;
+      margin: 0 auto 32px;
+      padding: 14px 20px;
+      background: rgba(255,255,255,0.12);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-latin);
+      font-size: 11px;
+      color: rgba(255,255,255,0.7);
+      line-height: 1.65;
+    }
+
+    .heuristics-footer strong {
+      color: rgba(255,255,255,0.95);
+      font-weight: 600;
+    }
+
+    /* Dark toggle */
+    .dark-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 200;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-md);
+      padding: 6px 14px 6px 10px;
+      cursor: pointer;
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text-2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Stage label bar -->
+  <div class="stage-label">
+    Stage 5 &middot; V2 &mdash; My Listings CRM Dashboard
+    <span>D13 CRM · DF-4 lifecycle · CONV-11 freshness · TH-06/07/08 Thai type · P1/P2/P6</span>
+    <button class="stage-label-toggle" onclick="
+      var h = document.documentElement;
+      h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+      this.textContent = h.dataset.theme === 'dark' ? '☀ Light' : '🌙 Dark';
+    ">🌙 Dark</button>
+  </div>
+
+  <div class="device-wrap">
+
+    <!-- ========== MY LISTINGS DEVICE ========== -->
+    <div>
+      <div class="device" lang="th">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="time">10:23</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- App header -->
+          <header class="app-header">
+            <div class="header-top">
+              <button class="header-back" aria-label="ย้อนกลับ">←</button>
+              <div class="header-title-block">
+                <div class="header-title" lang="th">บัญชีของฉัน</div>
+                <div class="header-subtitle" lang="th">ธนวัฒน์ ศรีสมบัติ · group#C0835</div>
+              </div>
+              <button class="header-btn" aria-label="การตั้งค่า">⚙</button>
+            </div>
+
+            <!-- Tab bar (D13: CRM split — my listings / saved / viewings) -->
+            <div class="tab-bar">
+              <button class="tab active" onclick="showTab('listings', this)">
+                <span class="tab-icon">🏠</span>
+                ประกาศของฉัน
+                <span class="tab-badge">3</span>
+              </button>
+              <button class="tab" onclick="showTab('saved', this)">
+                <span class="tab-icon">🔖</span>
+                บันทึกไว้
+              </button>
+              <button class="tab" onclick="showTab('viewings', this)">
+                <span class="tab-icon">📅</span>
+                นัดดูทรัพย์
+                <span class="tab-badge" style="background: var(--color-primary-500);">2</span>
+              </button>
+            </div>
+          </header>
+
+          <!-- ===== MY LISTINGS PANEL ===== -->
+          <div id="panel-listings">
+
+            <!-- Stats strip -->
+            <div class="stats-strip">
+              <div class="stat-item">
+                <div class="stat-count">5</div>
+                <div class="stat-label" lang="th">ทั้งหมด</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-count" style="color: var(--color-success);">2</div>
+                <div class="stat-label" lang="th">ประกาศอยู่</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-count" style="color: #3b4ec8;">1</div>
+                <div class="stat-label" lang="th">มีผู้สนใจ</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-count" style="color: var(--color-text-disabled);">1</div>
+                <div class="stat-label" lang="th">ฉบับร่าง</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-count" style="color: var(--color-danger);">1</div>
+                <div class="stat-label" lang="th">ขายแล้ว</div>
+              </div>
+            </div>
+
+            <!-- Section heading + add button -->
+            <div class="add-listing-strip">
+              <div class="section-heading" lang="th">ประกาศของฉัน</div>
+              <button class="btn-add">➕ ลงประกาศใหม่</button>
+            </div>
+
+            <!-- Lifecycle filter chips -->
+            <div class="filter-scroll">
+              <div class="filter-inner">
+                <button class="chip active">ทั้งหมด</button>
+                <button class="chip">
+                  <span class="chip-dot" style="background: var(--color-success);"></span>
+                  ประกาศอยู่
+                </button>
+                <button class="chip">
+                  <span class="chip-dot" style="background: #3b4ec8;"></span>
+                  มีผู้สนใจ
+                </button>
+                <button class="chip">
+                  <span class="chip-dot" style="background: var(--color-text-disabled);"></span>
+                  ฉบับร่าง
+                </button>
+                <button class="chip">
+                  <span class="chip-dot" style="background: var(--color-danger);"></span>
+                  ขายแล้ว/เช่าแล้ว
+                </button>
+              </div>
+            </div>
+
+            <!-- === CARD LIST === -->
+            <div class="listings-list" lang="th">
+
+              <!-- Card 1: มีผู้สนใจ (under-offer) — interested buyer notification -->
+              <div class="crm-card status-offer">
+                <div class="card-main">
+                  <div class="card-thumb">
+                    🏘
+                    <div class="thumb-status" style="background: var(--badge-offer); color: var(--badge-offer-text);">มีผู้สนใจ</div>
+                  </div>
+                  <div class="card-info">
+                    <div class="card-status-row">
+                      <span class="badge badge-offer">🔔 มีผู้สนใจ</span>
+                      <span class="badge badge-verified">✓ ยืนยัน</span>
+                    </div>
+                    <div class="card-title">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+                    <div class="card-price"><span class="thb">฿</span>4,800,000</div>
+                    <div class="card-meta">
+                      <span>52 ตร.ว.</span>
+                      <span class="meta-dot"></span>
+                      <span>📍 บ่อสร้าง</span>
+                      <span class="meta-dot"></span>
+                      <span>👁 47 ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Buyer interest notification -->
+                <div class="interest-bar">
+                  <span class="interest-icon">👤</span>
+                  <div class="interest-text">ผู้สนใจ 2 ราย · สอบถามเข้ามาวันนี้</div>
+                  <button class="interest-cta">ดูแชท</button>
+                </div>
+
+                <!-- Freshness (CONV-11) -->
+                <div class="freshness-bar">
+                  <div class="freshness-dot" style="background: var(--color-success);"></div>
+                  <div class="freshness-text">อัปเดต 13 มิ.ย. 2026 · หมดอายุใน 14 วัน</div>
+                  <button class="freshness-action">ต่ออายุ</button>
+                </div>
+
+                <!-- Quick actions (edit-by-reply, share, mark-sold) -->
+                <div class="card-actions">
+                  <button class="action-btn primary-action">
+                    <span class="action-icon">✏</span>
+                    แก้ไข
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">↑</span>
+                    แชร์
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">📅</span>
+                    นัดดู
+                  </button>
+                  <button class="action-btn danger-action">
+                    <span class="action-icon">✓</span>
+                    ขายแล้ว
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card 2: ประกาศอยู่ (active) — good freshness -->
+              <div class="crm-card status-active">
+                <div class="card-main">
+                  <div class="card-thumb">
+                    🏡
+                    <div class="thumb-status" style="background: var(--badge-active); color: var(--badge-active-text);">ประกาศอยู่</div>
+                  </div>
+                  <div class="card-info">
+                    <div class="card-status-row">
+                      <span class="badge badge-active">● ประกาศอยู่</span>
+                    </div>
+                    <div class="card-title">ขายบ้าน 2 ชั้น โครงการบ้านหลักชัย สันทราย 3 นอน 2 น้ำ</div>
+                    <div class="card-price"><span class="thb">฿</span>1,200,000</div>
+                    <div class="card-meta">
+                      <span>30 ตร.ว.</span>
+                      <span class="meta-dot"></span>
+                      <span>📍 สันทราย</span>
+                      <span class="meta-dot"></span>
+                      <span>👁 23 ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="freshness-bar">
+                  <div class="freshness-dot" style="background: var(--color-success);"></div>
+                  <div class="freshness-text">อัปเดต 10 มิ.ย. 2026 · หมดอายุใน 17 วัน</div>
+                  <button class="freshness-action">ต่ออายุ</button>
+                </div>
+
+                <div class="card-actions">
+                  <button class="action-btn primary-action">
+                    <span class="action-icon">✏</span>
+                    แก้ไข
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">↑</span>
+                    แชร์
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">📅</span>
+                    นัดดู
+                  </button>
+                  <button class="action-btn danger-action">
+                    <span class="action-icon">✓</span>
+                    ขายแล้ว
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card 3: ประกาศอยู่ (active rental) — near expiry warning -->
+              <div class="crm-card status-active">
+                <div class="card-main">
+                  <div class="card-thumb" style="background: linear-gradient(135deg, #e6f6fb, #c8e9f5);">
+                    🏠
+                    <div class="thumb-status" style="background: var(--badge-active); color: var(--badge-active-text);">ประกาศอยู่</div>
+                  </div>
+                  <div class="card-info">
+                    <div class="card-status-row">
+                      <span class="badge badge-active">● ประกาศอยู่</span>
+                      <span class="badge badge-urgent">⚠ ใกล้หมดอายุ</span>
+                    </div>
+                    <div class="card-title">ให้เช่า ใกล้ มช. ประตูหลัง 3 นอน 2 น้ำ</div>
+                    <div class="card-price"><span class="thb">฿</span>13,000<span style="font-family: var(--font-body-th); font-size: 11px; font-weight: 400; color: var(--color-text-2);">/เดือน</span></div>
+                    <div class="card-meta">
+                      <span>101 ตร.ม.</span>
+                      <span class="meta-dot"></span>
+                      <span>📍 สุเทพ</span>
+                      <span class="meta-dot"></span>
+                      <span>👁 61 ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Near-expiry freshness warning -->
+                <div class="freshness-bar" style="background: var(--color-warn-bg); border-color: #f0d080;">
+                  <div class="freshness-dot" style="background: var(--color-warn);"></div>
+                  <div class="freshness-text" style="color: var(--color-warn);">หมดอายุใน 3 วัน · กด "ต่ออายุ" เพื่อประกาศต่อ</div>
+                  <button class="freshness-action" style="color: var(--color-warn);">ต่ออายุ</button>
+                </div>
+
+                <div class="card-actions">
+                  <button class="action-btn primary-action">
+                    <span class="action-icon">✏</span>
+                    แก้ไข
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">↑</span>
+                    แชร์
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">📅</span>
+                    นัดดู
+                  </button>
+                  <button class="action-btn danger-action">
+                    <span class="action-icon">✓</span>
+                    เช่าแล้ว
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card 4: ฉบับร่าง (draft) — incomplete, claim flow pending -->
+              <div class="crm-card status-draft">
+                <div class="card-main">
+                  <div class="card-thumb" style="background: var(--color-surface-2);">
+                    📝
+                    <div class="thumb-status" style="background: var(--badge-draft); color: var(--badge-draft-text);">ฉบับร่าง</div>
+                  </div>
+                  <div class="card-info">
+                    <div class="card-status-row">
+                      <span class="badge badge-draft">○ ฉบับร่าง</span>
+                    </div>
+                    <div class="card-title" style="color: var(--color-text-2);">ขายที่ดิน 2 ไร่ 1 งาน แม่ริม ใกล้สวนพฤกษศาสตร์</div>
+                    <div class="card-price" style="color: var(--color-text-2);"><span class="thb">฿</span>3,200,000</div>
+                    <div class="card-meta">
+                      <span>⚠ รูปภาพ 2/9 รูป — ต้องการอีก 7 รูป</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Draft: publish prompt -->
+                <div class="interest-bar" style="background: var(--color-primary-50); border-color: var(--color-primary-100);">
+                  <span class="interest-icon">📣</span>
+                  <div class="interest-text" style="color: var(--color-primary-600);">เพิ่มรูปและยืนยันเพื่อประกาศสาธารณะ (P6)</div>
+                  <button class="interest-cta" style="color: var(--color-primary-600); background: rgba(31,95,173,0.08); border-color: rgba(31,95,173,0.2);">ดำเนินการ</button>
+                </div>
+
+                <div class="card-actions">
+                  <button class="action-btn primary-action">
+                    <span class="action-icon">✏</span>
+                    แก้ไข
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">📣</span>
+                    ประกาศ
+                  </button>
+                  <button class="action-btn" style="flex: 2; color: var(--color-text-disabled);">
+                    <span class="action-icon">🗑</span>
+                    ลบร่าง
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card 5: ขายแล้ว (sold) — closed/greyed -->
+              <div class="crm-card status-closed">
+                <div class="card-main">
+                  <div class="card-thumb">
+                    🏘
+                    <div class="thumb-status" style="background: var(--badge-sold); color: var(--badge-sold-text);">ขายแล้ว</div>
+                  </div>
+                  <div class="card-info">
+                    <div class="card-status-row">
+                      <span class="badge badge-sold">✓ ขายแล้ว</span>
+                    </div>
+                    <div class="card-title">ขายหอพัก 2 ชั้น 39 ห้อง ใกล้ ม.แม่โจ้</div>
+                    <div class="card-price" style="color: var(--color-text-2);"><span class="thb">฿</span>13,800,000</div>
+                    <div class="card-meta">
+                      <span>ปิดขาย 5 มิ.ย. 2026</span>
+                      <span class="meta-dot"></span>
+                      <span>👁 128 ครั้ง</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="card-actions">
+                  <button class="action-btn">
+                    <span class="action-icon">📋</span>
+                    ดูรายละเอียด
+                  </button>
+                  <button class="action-btn">
+                    <span class="action-icon">➕</span>
+                    ลงประกาศใหม่
+                  </button>
+                </div>
+              </div>
+
+            </div><!-- /listings-list -->
+
+            <!-- Legal footer (LEGAL-06 / P4) -->
+            <p class="disclaimer" lang="th">ข้อมูลประกาศจากผู้ลงประกาศโดยตรง โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+          </div><!-- /panel-listings -->
+
+          <!-- ===== SAVED PANEL ===== -->
+          <div id="panel-saved" class="saved-panel">
+            <div style="padding: 12px 14px 4px;">
+              <div class="section-heading" lang="th">บันทึกไว้</div>
+            </div>
+            <div class="listings-list" lang="th">
+
+              <div class="saved-card">
+                <div class="saved-thumb">🏡</div>
+                <div class="saved-info">
+                  <div class="saved-title">ขาย ใกล้ตลาดช้างเผือก 2 นอน 1 น้ำ</div>
+                  <div class="saved-price">฿5,300,000</div>
+                  <div class="saved-meta">📍 ช้างเผือก · บันทึก 2 วันที่แล้ว</div>
+                </div>
+                <div class="saved-actions">
+                  <button class="saved-action" title="ดูรายละเอียด">👁</button>
+                  <button class="saved-action" title="เอาออก" style="color: var(--color-text-disabled);">✕</button>
+                </div>
+              </div>
+
+              <div class="saved-card">
+                <div class="saved-thumb">🏘</div>
+                <div class="saved-info">
+                  <div class="saved-title">ขาย ใกล้ Central Festival 4 นอน 2 น้ำ</div>
+                  <div class="saved-price">฿6,800,000</div>
+                  <div class="saved-meta">📍 หนองป่าครั่ง · บันทึก 5 วันที่แล้ว</div>
+                </div>
+                <div class="saved-actions">
+                  <button class="saved-action" title="ดูรายละเอียด">👁</button>
+                  <button class="saved-action" title="เอาออก" style="color: var(--color-text-disabled);">✕</button>
+                </div>
+              </div>
+
+              <div class="saved-card">
+                <div class="saved-thumb" style="background: linear-gradient(135deg, #e6f6fb, #c8e9f5);">🏠</div>
+                <div class="saved-info">
+                  <div class="saved-title">ให้เช่า ใกล้กาดฝรั่ง หางดง 3 นอน</div>
+                  <div class="saved-price">฿10,000/เดือน</div>
+                  <div class="saved-meta">📍 แม่เหียะ · บันทึก 1 สัปดาห์ที่แล้ว</div>
+                </div>
+                <div class="saved-actions">
+                  <button class="saved-action" title="ดูรายละเอียด">👁</button>
+                  <button class="saved-action" title="เอาออก" style="color: var(--color-text-disabled);">✕</button>
+                </div>
+              </div>
+
+            </div>
+            <p class="disclaimer" lang="th">ทรัพย์ที่บันทึกไว้จะถูกแจ้งเตือนเมื่อราคาเปลี่ยน (CONV-11)</p>
+          </div><!-- /panel-saved -->
+
+          <!-- ===== VIEWINGS PANEL ===== -->
+          <div id="panel-viewings" class="viewings-panel">
+            <div style="padding: 12px 14px 4px;">
+              <div class="section-heading" lang="th">นัดดูทรัพย์ & ติดตามผล</div>
+            </div>
+            <div class="listings-list" lang="th">
+
+              <!-- Upcoming viewing 1 -->
+              <div class="viewing-card">
+                <div class="viewing-header">
+                  <div class="viewing-date">
+                    <div class="viewing-day">15</div>
+                    <div class="viewing-month">JUN</div>
+                  </div>
+                  <div class="viewing-info">
+                    <div class="viewing-time">10:00 – 11:30 น.</div>
+                    <div class="viewing-property">ขายหอพักย่านบ่อสร้าง 14 ห้อง</div>
+                    <div class="viewing-buyer">ผู้สนใจ: คุณสมชาย ว. (+66 81-234-5678)</div>
+                  </div>
+                  <span class="viewing-badge viewing-upcoming">นัดไว้</span>
+                </div>
+                <div class="viewing-actions">
+                  <button class="viewing-action">💬 แชท LINE</button>
+                  <button class="viewing-action">📍 แผนที่</button>
+                  <button class="viewing-action" style="color: var(--color-text-disabled);">✕ ยกเลิก</button>
+                </div>
+              </div>
+
+              <!-- Upcoming viewing 2 -->
+              <div class="viewing-card">
+                <div class="viewing-header">
+                  <div class="viewing-date" style="background: var(--color-primary-400);">
+                    <div class="viewing-day">18</div>
+                    <div class="viewing-month">JUN</div>
+                  </div>
+                  <div class="viewing-info">
+                    <div class="viewing-time">14:00 – 15:00 น.</div>
+                    <div class="viewing-property">ขายบ้าน 2 ชั้น โครงการบ้านหลักชัย สันทราย</div>
+                    <div class="viewing-buyer">ผู้สนใจ: คุณณัฐ ป. (LINE: @nattapong_re)</div>
+                  </div>
+                  <span class="viewing-badge viewing-upcoming">นัดไว้</span>
+                </div>
+                <div class="viewing-actions">
+                  <button class="viewing-action">💬 แชท LINE</button>
+                  <button class="viewing-action">📍 แผนที่</button>
+                  <button class="viewing-action" style="color: var(--color-text-disabled);">✕ ยกเลิก</button>
+                </div>
+              </div>
+
+              <!-- Past viewing (completed) -->
+              <div class="viewing-card" style="opacity: 0.75;">
+                <div class="viewing-header">
+                  <div class="viewing-date" style="background: var(--color-text-disabled);">
+                    <div class="viewing-day">5</div>
+                    <div class="viewing-month">JUN</div>
+                  </div>
+                  <div class="viewing-info">
+                    <div class="viewing-time">09:30 น.</div>
+                    <div class="viewing-property">ขายหอพัก 39 ห้อง ใกล้ ม.แม่โจ้</div>
+                    <div class="viewing-buyer">ผู้สนใจ: คุณวิภา ช. · ✓ ขายแล้ว</div>
+                  </div>
+                  <span class="viewing-badge viewing-past">ผ่านไปแล้ว</span>
+                </div>
+                <div class="viewing-actions">
+                  <button class="viewing-action" style="color: var(--color-text-2);">📋 ดูบันทึก</button>
+                  <button class="viewing-action" style="color: var(--color-text-2);">⭐ ประเมินผล</button>
+                </div>
+              </div>
+
+            </div>
+            <p class="disclaimer" lang="th">การนัดดูทรัพย์จะส่งการแจ้งเตือนผ่าน LINE ก่อนถึงกำหนด 1 ชั่วโมง</p>
+          </div><!-- /panel-viewings -->
+
+          <!-- Bottom navigation (P1: LINE is the rail, chat tab present) -->
+          <nav class="bottom-nav">
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🏠</span>
+              หน้าแรก
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🔍</span>
+              ค้นหา
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">➕</span>
+              ลงประกาศ
+            </a>
+            <a class="nav-item nav-item-line" href="#">
+              <span class="nav-icon">💬</span>
+              แชท LINE
+            </a>
+            <a class="nav-item active" href="#">
+              <span class="nav-icon">👤</span>
+              บัญชี
+            </a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+      <div class="device-label">My Listings — CRM Dashboard · Stage 5</div>
+    </div>
+
+  </div><!-- /device-wrap -->
+
+  <!-- Heuristics footer -->
+  <div class="heuristics-footer">
+    <strong>Heuristics applied:</strong>
+    D13 (CRM/marketplace split — My Listings / Saved / Viewings as three distinct owner surfaces) &middot;
+    DF-4 (lifecycle enum: ฉบับร่าง / ประกาศอยู่ / มีผู้สนใจ / ขายแล้ว / เช่าแล้ว — badge tokens paired bg+text) &middot;
+    CONV-11 (freshness timestamps + expiry countdown + ต่ออายุ action on every active card) &middot;
+    P1 (LINE is the rail — แชท LINE nav tab + interest-bar "ดูแชท" CTA routes to LINE 1:1) &middot;
+    P2 (provenance moat — poster identity, group ref, verified badge, poster-provided disclaimer) &middot;
+    P6 (opt-in publish gate — draft card shows publish prompt with explicit group-private/public choice) &middot;
+    TH-06 (Sarabun looped body), TH-07 (line-height 1.65 ≥ 1.6), TH-08 (lang=th + overflow-wrap:anywhere, no break-all) &middot;
+    TH-09 (390px phone frame, all CTAs thumb-reachable) &middot;
+    TH-11 (dense only on decision surfaces — listing list is a decision screen; clean header) &middot;
+    CONV-04 (above-fold: price + specs + status + primary action) &middot;
+    COPY-04 (lifecycle status badge on every card) &middot;
+    COPY-10 (owner-direct provenance on each card) &middot;
+    TECH-06 (hex-first tokens, OKLCH @supports override).
+  </div>
+
+  <!-- Dark toggle -->
+  <button class="dark-toggle" onclick="
+    var h = document.documentElement;
+    h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+    this.textContent = h.dataset.theme === 'dark' ? '☀ Light mode' : '🌙 Dark mode';
+  ">🌙 Dark mode</button>
+
+  <script>
+    function showTab(name, btn) {
+      // Hide all panels
+      ['listings', 'saved', 'viewings'].forEach(function(id) {
+        var el = document.getElementById('panel-' + id);
+        if (el) {
+          el.style.display = 'none';
+          el.className = el.className.replace(/\bsaved-panel\b|\bviewings-panel\b/g, '').trim();
+        }
+      });
+      // Show selected
+      var panel = document.getElementById('panel-' + name);
+      if (panel) panel.style.display = 'block';
+
+      // Update tab active state
+      document.querySelectorAll('.tab').forEach(function(t) {
+        t.classList.remove('active');
+      });
+      btn.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>

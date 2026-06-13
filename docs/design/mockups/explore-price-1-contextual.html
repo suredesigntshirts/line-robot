@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Price filter · V1 — Contextual (Buy/Rent relabels one range)</title>
+
+  <!-- Google Fonts: Sarabun (looped Thai body TH-06), Noto Sans Thai (heading TH-13), Inter (Latin/numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       THEME A — "Baania-clean" EXACT TOKENS (trust-blue)
+       Hex-first; OKLCH override for modern browsers (TECH-06).
+       ============================================================ */
+    :root {
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+      --color-primary-800: #0c2c58;
+      --color-primary-900: #071d3a;
+
+      --color-bg:          #faf9f7;
+      --color-surface:     #ffffff;
+      --color-surface-2:   #f3f2ef;
+      --color-border:      #e4e2de;
+      --color-border-2:    #d4d2cd;
+
+      --color-text:        #141820;
+      --color-text-2:      #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      --color-success:     #1a8a4a;
+      --color-success-bg:  #e9f7ef;
+      --color-warn:        #d97706;
+      --color-warn-bg:     #fef9eb;
+      --color-danger:      #c0392b;
+      --color-danger-bg:   #fdecea;
+
+      --badge-available:      #e9f7ef;
+      --badge-available-text: #1a8a4a;
+      --badge-urgent:         #fef9eb;
+      --badge-urgent-text:    #d97706;
+      --badge-verified:       #e8f0fb;
+      --badge-verified-text:  #174d93;
+      --badge-owner:          #e6f6fb;
+      --badge-owner-text:     #1a6a8a;
+      --badge-npa:            #fdecea;
+      --badge-npa-text:       #c0392b;
+
+      --spacing-1:  4px;
+      --spacing-2:  8px;
+      --spacing-3:  12px;
+      --spacing-4:  16px;
+      --spacing-5:  20px;
+      --spacing-6:  24px;
+      --spacing-8:  32px;
+
+      --radius-sm:   6px;
+      --radius-md:   10px;
+      --radius-lg:   14px;
+      --radius-xl:   20px;
+      --radius-full: 9999px;
+
+      --shadow-xs: 0 1px 2px rgba(20,24,32,0.06);
+      --shadow-sm: 0 1px 4px rgba(20,24,32,0.08), 0 0 1px rgba(20,24,32,0.04);
+      --shadow-md: 0 4px 12px rgba(20,24,32,0.10), 0 1px 3px rgba(20,24,32,0.06);
+
+      --font-body-th:    'Sarabun','Noto Sans Thai',Arial,sans-serif;
+      --font-heading-th: 'Noto Sans Thai','Sarabun',Arial,sans-serif;
+      --font-latin:      'Inter','Helvetica Neue',Arial,sans-serif;
+
+      --text-xs:   11px;
+      --text-sm:   13px;
+      --text-base: 15px;
+      --text-md:   17px;
+      --text-lg:   20px;
+      --text-xl:   24px;
+      --text-2xl:  28px;
+
+      --leading-body: 1.65;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-300: oklch(0.76 0.10  240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-primary-700: oklch(0.38 0.13  240);
+        --color-primary-800: oklch(0.30 0.10  240);
+        --color-primary-900: oklch(0.22 0.07  240);
+
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+
+        --badge-available:      oklch(0.95 0.04 150);
+        --badge-available-text: oklch(0.52 0.15 150);
+        --badge-urgent:         oklch(0.97 0.04  75);
+        --badge-urgent-text:    oklch(0.70 0.17  75);
+        --badge-verified:       oklch(0.96 0.03 240);
+        --badge-verified-text:  oklch(0.46 0.15 240);
+        --badge-owner:          oklch(0.96 0.04 200);
+        --badge-owner-text:     oklch(0.40 0.12 200);
+        --badge-npa:            oklch(0.96 0.04  20);
+        --badge-npa-text:       oklch(0.54 0.20  20);
+      }
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #d6dde8;
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* TH-08 */
+    [lang="th"] { word-break: normal; overflow-wrap: anywhere; }
+
+    /* ============================================================
+       TOP LABEL BAR
+       ============================================================ */
+    .label-bar {
+      width: 100%;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: #174d93;
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 7px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .label-bar span { opacity: 0.72; font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 10.5px; }
+
+    /* ============================================================
+       PHONE FRAME
+       ============================================================ */
+    .device-wrap {
+      padding: 24px 16px 56px;
+    }
+
+    .device {
+      width: 390px;
+      max-width: calc(100vw - 32px);
+      background: var(--color-bg);
+      border-radius: 36px;
+      box-shadow: 0 0 0 9px #18182e, 0 28px 72px rgba(0,0,0,0.38);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Fake status bar */
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 9px 22px 7px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    /* Scrollable inner */
+    .device-scroll {
+      max-height: 800px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+    .device-scroll::-webkit-scrollbar { width: 3px; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 3px; }
+
+    /* ============================================================
+       APP HEADER
+       ============================================================ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .app-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+    }
+
+    .app-logo {
+      font-family: var(--font-heading-th);
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--color-primary-500);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .app-logo span { color: var(--color-primary-300); }
+
+    .search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+    }
+    .search-box .icon { color: var(--color-text-disabled); font-size: 13px; flex-shrink: 0; }
+    .search-box .placeholder {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .icon-btn {
+      width: 34px; height: 34px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      color: var(--color-primary-600);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       FILTER ROW  (standard chip bar below search)
+       ============================================================ */
+    .filter-row {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 7px 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+
+    .filter-row-inner {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+
+    .filter-divider {
+      width: 1px; height: 16px;
+      background: var(--color-border-2);
+      flex-shrink: 0;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 11px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .chip.active {
+      background: var(--color-primary-500);
+      color: #fff;
+      border-color: var(--color-primary-500);
+      font-weight: 600;
+    }
+
+    .chip.soft-active {
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      border-color: var(--color-primary-200);
+      font-weight: 600;
+    }
+
+    /* Price chip — shows active range summary */
+    .chip.price-active {
+      background: var(--color-primary-600);
+      color: #fff;
+      border-color: var(--color-primary-600);
+      font-weight: 700;
+      gap: 5px;
+    }
+    .chip.price-active .chip-close {
+      font-size: 11px;
+      opacity: 0.75;
+      line-height: 1;
+      margin-left: 1px;
+    }
+
+    /* ============================================================
+       PRICE FILTER SHEET  (key component)
+       ============================================================ */
+    .price-sheet {
+      background: var(--color-surface);
+      border-bottom: 2px solid var(--color-border);
+      padding: 0 14px 16px;
+    }
+
+    /* ---- Buy/Rent segmented toggle ---- */
+    .mode-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      background: var(--color-surface-2);
+      border-radius: var(--radius-md);
+      padding: 3px;
+      margin-bottom: 14px;
+      margin-top: 14px;
+    }
+
+    .mode-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 8px 0;
+      border: none;
+      border-radius: calc(var(--radius-md) - 3px);
+      font-family: var(--font-body-th);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, box-shadow 0.12s;
+      color: var(--color-text-2);
+      background: transparent;
+    }
+
+    .mode-btn.selected {
+      background: var(--color-surface);
+      color: var(--color-primary-600);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .mode-btn .mode-icon {
+      font-size: 15px;
+      line-height: 1;
+    }
+
+    /* ---- Range label row ---- */
+    .range-label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+
+    .range-title {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+
+    .range-active-display {
+      font-family: var(--font-latin);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-primary-600);
+      letter-spacing: -0.01em;
+    }
+
+    .range-unit-label {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    /* ---- Dual-thumb slider (CSS-only visual mock) ---- */
+    .slider-track-wrap {
+      position: relative;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      margin: 0 8px 12px;
+      touch-action: none;
+    }
+
+    .slider-rail {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--color-border);
+      border-radius: 2px;
+    }
+
+    .slider-fill {
+      position: absolute;
+      height: 4px;
+      background: var(--color-primary-500);
+      border-radius: 2px;
+      /* JS-updated via CSS vars */
+      left: var(--fill-left, 10%);
+      right: var(--fill-right, 35%);
+    }
+
+    .slider-thumb {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--color-surface);
+      border: 2.5px solid var(--color-primary-500);
+      box-shadow: var(--shadow-sm);
+      cursor: grab;
+      transform: translateX(-50%);
+      transition: box-shadow 0.1s;
+      touch-action: none;
+    }
+    .slider-thumb:active { cursor: grabbing; box-shadow: 0 0 0 6px rgba(31,95,173,0.14); }
+    .slider-thumb.thumb-lo { left: var(--thumb-lo, 10%); }
+    .slider-thumb.thumb-hi { left: var(--thumb-hi, 65%); }
+
+    /* ---- Scale ticks below slider ---- */
+    .slider-ticks {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 6px;
+      margin-bottom: 14px;
+    }
+
+    .tick-label {
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    /* ---- Quick preset chips ---- */
+    .preset-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .preset-chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 11px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface-2);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.1s;
+      white-space: nowrap;
+    }
+    .preset-chip.selected {
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      border-color: var(--color-primary-200);
+      font-weight: 700;
+    }
+
+    /* ---- Apply / Reset row ---- */
+    .sheet-actions {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-reset {
+      padding: 9px 14px;
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      border-radius: var(--radius-md);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-apply {
+      padding: 9px 16px;
+      border: none;
+      border-radius: var(--radius-md);
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-body-th);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(31,95,173,0.25);
+    }
+
+    /* ============================================================
+       RESULTS BAR
+       ============================================================ */
+    .results-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 14px 4px;
+    }
+
+    .results-count {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+    }
+
+    .results-count strong {
+      font-family: var(--font-latin);
+      font-weight: 700;
+      color: var(--color-primary-600);
+      font-size: 14px;
+    }
+
+    .sort-btn {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-600);
+      font-weight: 600;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ============================================================
+       CARD GRID
+       ============================================================ */
+    .card-grid {
+      padding: 2px 12px 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+
+    .card-wide { grid-column: 1 / -1; }
+
+    /* ============================================================
+       LISTING CARD
+       ============================================================ */
+    .listing-card {
+      display: block;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--color-text);
+      font-family: var(--font-body-th);
+    }
+
+    .card-photo {
+      position: relative;
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--color-primary-50) 0%, var(--color-primary-100) 100%);
+      overflow: hidden;
+    }
+
+    .card-photo-icon {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      opacity: 0.32;
+      color: var(--color-primary-400);
+    }
+
+    .deal-pill {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      padding: 2px 7px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      font-weight: 700;
+      backdrop-filter: blur(4px);
+    }
+    .deal-sell { background: rgba(255,255,255,0.92); color: #174d93; border: 1px solid #b8d0ef; }
+    .deal-rent { background: rgba(255,255,255,0.92); color: #1a6a8a; border: 1px solid #b8d9e8; }
+
+    .photo-count {
+      position: absolute;
+      right: 6px; bottom: 6px;
+      background: rgba(20,24,32,0.72);
+      color: #fff;
+      border-radius: var(--radius-sm);
+      padding: 1px 6px;
+      font-family: var(--font-latin);
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .card-body {
+      padding: 9px 10px 10px;
+      display: grid;
+      gap: 4px;
+    }
+
+    .card-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-available { background: var(--badge-available); color: var(--badge-available-text); }
+    .badge-urgent    { background: var(--badge-urgent);    color: var(--badge-urgent-text); }
+    .badge-verified  { background: var(--badge-verified);  color: var(--badge-verified-text); }
+    .badge-npa       { background: var(--badge-npa);       color: var(--badge-npa-text); }
+    .badge-rent      { background: var(--badge-owner);     color: var(--badge-owner-text); }
+
+    .card-headline {
+      font-family: var(--font-heading-th);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--color-text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .card-price-label {
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      margin-bottom: -1px;
+    }
+
+    .card-price {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text);
+      font-family: var(--font-latin);
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+    }
+    .card-price .thb { font-family: var(--font-body-th); font-size: 13px; }
+    .card-price .per-unit {
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      font-weight: 400;
+      color: var(--color-text-2);
+    }
+
+    .card-specs {
+      font-size: 11px;
+      color: var(--color-text-2);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+    }
+    .spec-dot {
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: var(--color-border-2);
+      flex-shrink: 0;
+    }
+
+    .card-location {
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ============================================================
+       BOTTOM NAV
+       ============================================================ */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5,1fr);
+      padding: 5px 0 10px;
+    }
+    .nav-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 3px 4px;
+      text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      font-size: 9.5px;
+    }
+    .nav-item.active { color: var(--color-primary-500); }
+    .nav-icon { font-size: 19px; line-height: 1; }
+
+    /* Disclaimer */
+    .disclaimer {
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      padding: 0 14px 12px;
+      line-height: 1.6;
+    }
+
+    /* Device caption */
+    .device-label {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.50);
+      margin-top: 12px;
+    }
+
+    /* ============================================================
+       FOOTER / HEURISTIC NOTE
+       ============================================================ */
+    .heuristic-footer {
+      width: 390px;
+      max-width: calc(100vw - 32px);
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.20);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      margin: 0 16px 40px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      color: rgba(255,255,255,0.70);
+      line-height: 1.7;
+    }
+    .heuristic-footer strong {
+      color: rgba(255,255,255,0.90);
+      display: block;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .heuristic-footer .h-id {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      margin-right: 3px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Label bar -->
+  <div class="label-bar">
+    Price filter &middot; V1 &mdash; Contextual (Buy/Rent relabels one range)
+    <span>Theme A · Baania-clean · trust-blue #1f5fad</span>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device" lang="th">
+
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="time">9:41</span>
+        <span>เชียงใหม่ ●●● 5G</span>
+      </div>
+
+      <div class="device-scroll" id="deviceScroll">
+
+        <!-- App header -->
+        <header class="app-header">
+          <div class="app-header-inner">
+            <div class="app-logo">ทรัพย์<span>ดี</span></div>
+            <div class="search-box">
+              <span class="icon">🔍</span>
+              <span class="placeholder">ค้นหาทำเล โครงการ คำอธิบาย</span>
+            </div>
+            <button class="icon-btn" aria-label="แผนที่">🗺</button>
+          </div>
+
+          <!-- Standard chip filter row -->
+          <div class="filter-row">
+            <div class="filter-row-inner">
+              <!-- Deal type — mirrors the mode toggle inside the sheet -->
+              <button class="chip" id="chipBuy" onclick="setMode('buy')" aria-pressed="true">ขาย</button>
+              <button class="chip" id="chipRent" onclick="setMode('rent')" aria-pressed="false">เช่า</button>
+              <div class="filter-divider"></div>
+              <!-- Property type -->
+              <button class="chip soft-active">บ้านเดี่ยว</button>
+              <button class="chip">ที่ดิน</button>
+              <button class="chip">ทาวน์เฮาส์</button>
+              <button class="chip">คอนโด</button>
+              <div class="filter-divider"></div>
+              <!-- PRICE chip — the active filter badge -->
+              <button class="chip price-active" id="priceChip" onclick="scrollToSheet()">
+                <span id="priceChipLabel">1–5 ล้าน</span>
+                <span class="chip-close">✕</span>
+              </button>
+              <button class="chip">⚙ เพิ่มเติม</button>
+            </div>
+          </div>
+        </header>
+
+        <!-- ================================================
+             PRICE FILTER SHEET (the core component)
+             ================================================ -->
+        <div class="price-sheet" id="priceSheet">
+
+          <!-- Buy/Rent segmented toggle -->
+          <div class="mode-toggle">
+            <button class="mode-btn selected" id="modeBuy" onclick="setMode('buy')">
+              <span class="mode-icon">🏠</span>ซื้อ (Buy)
+            </button>
+            <button class="mode-btn" id="modeRent" onclick="setMode('rent')">
+              <span class="mode-icon">🔑</span>เช่า (Rent)
+            </button>
+          </div>
+
+          <!-- Dynamic label row -->
+          <div class="range-label-row">
+            <div>
+              <div class="range-title" id="rangeTitle">ราคาเสนอขาย</div>
+              <div class="range-unit-label" id="rangeUnit">(หน่วย: ล้านบาท)</div>
+            </div>
+            <div class="range-active-display" id="activeDisplay">฿1M – ฿5M</div>
+          </div>
+
+          <!-- Dual-thumb slider track -->
+          <div class="slider-track-wrap" id="sliderWrap"
+               style="--fill-left:10%; --fill-right:35%; --thumb-lo:10%; --thumb-hi:65%">
+            <div class="slider-rail"></div>
+            <div class="slider-fill" id="sliderFill"></div>
+            <div class="slider-thumb thumb-lo" id="thumbLo"
+                 onmousedown="startDrag(event,'lo')"
+                 ontouchstart="startDrag(event,'lo')"></div>
+            <div class="slider-thumb thumb-hi" id="thumbHi"
+                 onmousedown="startDrag(event,'hi')"
+                 ontouchstart="startDrag(event,'hi')"></div>
+          </div>
+
+          <!-- Scale tick labels — dynamic per mode -->
+          <div class="slider-ticks" id="sliderTicks">
+            <!-- populated by JS -->
+          </div>
+
+          <!-- Quick preset chips -->
+          <div class="preset-row" id="presetRow">
+            <!-- populated by JS -->
+          </div>
+
+          <!-- Apply / Reset -->
+          <div class="sheet-actions">
+            <button class="btn-reset" onclick="resetFilter()">ล้างค่า</button>
+            <button class="btn-apply" onclick="applyFilter()">
+              ดูผลลัพธ์ (<span id="resultCountBtn">14</span> ประกาศ)
+            </button>
+          </div>
+        </div>
+
+        <!-- Results bar -->
+        <div class="results-bar">
+          <span class="results-count">
+            <strong id="resultCountBar">14</strong> ประกาศ &middot; เชียงใหม่
+          </span>
+          <button class="sort-btn">เรียงตาม ▾</button>
+        </div>
+
+        <!-- ============================================================
+             CARD GRID — real Chiang Mai listing content
+             ============================================================ -->
+        <div class="card-grid" lang="th">
+
+          <!-- Card 1: Wide featured — บ่อสร้าง หอพัก -->
+          <a class="listing-card card-wide" href="#">
+            <div class="card-photo">
+              <div class="card-photo-icon">🏘</div>
+              <span class="deal-pill deal-sell">ขาย</span>
+              <span class="photo-count">📷 12</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges">
+                <span class="badge badge-available">ขาย</span>
+                <span class="badge badge-npa">ยังไม่ยืนยันโฉนด</span>
+              </div>
+              <div class="card-headline">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+              <div>
+                <div class="card-price-label">ราคาเสนอขาย</div>
+                <div class="card-price"><span class="thb">฿</span>4,800,000</div>
+              </div>
+              <div class="card-specs"><span>52 ตร.ว.</span></div>
+              <div class="card-location">ใกล้แยกบ่อสร้าง · ต้นเปา · สันกำแพง</div>
+            </div>
+          </a>
+
+          <!-- Card 2: ทาวน์โฮม อรสิริน -->
+          <a class="listing-card" href="#">
+            <div class="card-photo">
+              <div class="card-photo-icon">🏠</div>
+              <span class="deal-pill deal-sell">ขาย</span>
+              <span class="photo-count">📷 10</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges">
+                <span class="badge badge-available">ขาย</span>
+              </div>
+              <div class="card-headline">ทาวน์โฮมในโครงการอรสิริน 6</div>
+              <div>
+                <div class="card-price-label">ราคาเสนอขาย</div>
+                <div class="card-price"><span class="thb">฿</span>1,300,000</div>
+              </div>
+              <div class="card-specs"><span>31 ตร.ว.</span></div>
+              <div class="card-location">โครงการอรสิริน 6</div>
+            </div>
+          </a>
+
+          <!-- Card 3: บ้านหลักชัย สันทราย -->
+          <a class="listing-card" href="#">
+            <div class="card-photo">
+              <div class="card-photo-icon">🏡</div>
+              <span class="deal-pill deal-sell">ขาย</span>
+              <span class="photo-count">📷 16</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges">
+                <span class="badge badge-available">ขาย</span>
+                <span class="badge badge-verified">✓ ยืนยัน</span>
+              </div>
+              <div class="card-headline">ขายฝากบ้าน 2 ชั้น โครงการบ้านหลักชัย สันทราย</div>
+              <div>
+                <div class="card-price-label">ราคาเสนอขาย</div>
+                <div class="card-price"><span class="thb">฿</span>1,200,000</div>
+              </div>
+              <div class="card-specs">
+                <span>3 นอน</span><span class="spec-dot"></span>
+                <span>2 น้ำ</span>
+              </div>
+              <div class="card-location">ตรงข้ามกาดแม่กวง · สันนาเม็ง</div>
+            </div>
+          </a>
+
+          <!-- Card 4: ช้างเผือก ขายด่วน -->
+          <a class="listing-card" href="#">
+            <div class="card-photo">
+              <div class="card-photo-icon">🏠</div>
+              <span class="deal-pill deal-sell">ขาย</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges">
+                <span class="badge badge-available">ขาย</span>
+                <span class="badge badge-urgent">ขายด่วน</span>
+              </div>
+              <div class="card-headline">ขาย ใกล้ตลาดช้างเผือก</div>
+              <div>
+                <div class="card-price-label">ราคาเสนอขาย</div>
+                <div class="card-price"><span class="thb">฿</span>5,300,000</div>
+              </div>
+              <div class="card-specs">
+                <span>2 นอน</span><span class="spec-dot"></span>
+                <span>1 น้ำ</span><span class="spec-dot"></span>
+                <span>106 ตร.ม.</span>
+              </div>
+              <div class="card-location">ช้างเผือก · เมืองเชียงใหม่</div>
+            </div>
+          </a>
+
+          <!-- Card 5 (Rent): มช. ประตูหลัง -->
+          <a class="listing-card" href="#" id="rentCard1"
+             style="display:none">
+            <div class="card-photo" style="background:linear-gradient(135deg,#e6f6fb,#c8e9f5)">
+              <div class="card-photo-icon" style="color:#1a6a8a">🏠</div>
+              <span class="deal-pill deal-rent">เช่า</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges"><span class="badge badge-rent">ให้เช่า</span></div>
+              <div class="card-headline">ให้เช่า ใกล้ มช. ประตูหลัง</div>
+              <div>
+                <div class="card-price-label">ค่าเช่า/เดือน</div>
+                <div class="card-price"><span class="thb">฿</span>13,000 <span class="per-unit">/เดือน</span></div>
+              </div>
+              <div class="card-specs">
+                <span>3 นอน</span><span class="spec-dot"></span>
+                <span>101 ตร.ม.</span>
+              </div>
+              <div class="card-location">สุเทพ · เมืองเชียงใหม่</div>
+            </div>
+          </a>
+
+          <!-- Card 6 (Rent): กาดฝรั่ง หางดง -->
+          <a class="listing-card" href="#" id="rentCard2"
+             style="display:none">
+            <div class="card-photo" style="background:linear-gradient(135deg,#e6f6fb,#c8e9f5)">
+              <div class="card-photo-icon" style="color:#1a6a8a">🏡</div>
+              <span class="deal-pill deal-rent">เช่า</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges">
+                <span class="badge badge-rent">ให้เช่า</span>
+                <span class="badge badge-urgent">ลดราคา</span>
+              </div>
+              <div class="card-headline">ให้เช่า ใกล้กาดฝรั่ง หางดง</div>
+              <div>
+                <div class="card-price-label">ค่าเช่า/เดือน</div>
+                <div class="card-price"><span class="thb">฿</span>10,000 <span class="per-unit">/เดือน</span></div>
+              </div>
+              <div class="card-specs">
+                <span>3 นอน</span><span class="spec-dot"></span>
+                <span>210 ตร.ม.</span>
+              </div>
+              <div class="card-location">แม่เหียะ · เมืองเชียงใหม่</div>
+            </div>
+          </a>
+
+          <!-- Card 7 (Rent): นิมมาน ซอย 12 -->
+          <a class="listing-card" href="#" id="rentCard3"
+             style="display:none">
+            <div class="card-photo" style="background:linear-gradient(135deg,#e6f6fb,#c8e9f5)">
+              <div class="card-photo-icon" style="color:#1a6a8a">🏢</div>
+              <span class="deal-pill deal-rent">เช่า</span>
+              <span class="photo-count">📷 8</span>
+            </div>
+            <div class="card-body" lang="th">
+              <div class="card-badges"><span class="badge badge-rent">ให้เช่า</span></div>
+              <div class="card-headline">ให้เช่า หลัง มช. Nimman ซอย 12</div>
+              <div>
+                <div class="card-price-label">ค่าเช่า/เดือน</div>
+                <div class="card-price"><span class="thb">฿</span>12,000 <span class="per-unit">/เดือน</span></div>
+              </div>
+              <div class="card-specs">
+                <span>1 นอน</span><span class="spec-dot"></span>
+                <span>35 ตร.ม.</span>
+              </div>
+              <div class="card-location">สุเทพ · เมืองเชียงใหม่</div>
+            </div>
+          </a>
+
+        </div><!-- /card-grid -->
+
+        <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+        <!-- Bottom nav -->
+        <nav class="bottom-nav">
+          <a class="nav-item active" href="#"><span class="nav-icon">🏠</span>หน้าแรก</a>
+          <a class="nav-item" href="#"><span class="nav-icon">🔍</span>ค้นหา</a>
+          <a class="nav-item" href="#"><span class="nav-icon">➕</span>ลงประกาศ</a>
+          <a class="nav-item" href="#"><span class="nav-icon">💬</span>แชท</a>
+          <a class="nav-item" href="#"><span class="nav-icon">👤</span>บัญชี</a>
+        </nav>
+
+      </div><!-- /device-scroll -->
+    </div><!-- /device -->
+
+    <div class="device-label">Price filter V1 — Contextual (Buy/Rent) · เชียงใหม่</div>
+  </div><!-- /device-wrap -->
+
+  <!-- Heuristic footer -->
+  <div class="heuristic-footer">
+    <strong>Heuristics applied in this design</strong>
+
+    <span class="h-id">TH-09</span> Mobile-first 390px frame; filter placed at thumb-reach top zone (not buried in a modal bottom-sheet requiring a second tap) — one primary interaction surface, immediately visible.<br><br>
+
+    <span class="h-id">TH-11</span> Filter sheet avoids over-density on the browse/landing level: one segmented toggle + one slider + presets — not parallel buy/rent price rows. Complexity reserved for search-result/decision screens.<br><br>
+
+    <span class="h-id">TH-12</span> Trust-blue (#1f5fad) token drives the mode toggle active state, the slider fill, and the apply CTA — consistent brand color register (blue = safe/credible), not a decorative hue.<br><br>
+
+    <span class="h-id">CONV-08</span> List-first with prominent filter as the primary search surface; the price chip in the filter row shows the active range summary at a glance so users can confirm their constraint without reopening the sheet.<br><br>
+
+    <span class="h-id">CONV-09</span> Price always carries the "ราคาเสนอขาย" (asking) label — never presented as transaction value. The rent mode relabels to "ค่าเช่า/เดือน" so the framing is always honest.<br><br>
+
+    <span class="h-id">B2-F11 / A2-F11</span> Thai number formatting in presets uses ล้าน (millions) for Buy and พัน/หมื่น (thousands) for Rent — matching the real Chiang Mai price distribution: houses ฿1–9M (A2-F6), long-term rents ฿7k–45k/mo (A2-F11). Choice overload is reduced by offering only 4–5 presets calibrated to this market's real range.<br><br>
+
+    <span class="h-id">B1-F11</span> Segmented ซื้อ/เช่า control doubles as a mode-aware deal-type filter (not a redundant second chip) — the SAME toggle in the filter row and the sheet stays in sync, preventing the "two controls that can disagree" anti-pattern that causes confusion on Thai property portals (DDProperty/LivingInsider baseline, B2-F16).
+  </div>
+
+  <script>
+    /* ============================================================
+       STATE
+       ============================================================ */
+    let mode = 'buy';   // 'buy' | 'rent'
+
+    // Buy config: price in millions THB; range 0.5M – 30M
+    const BUY = {
+      min: 0.5, max: 30,
+      lo: 1, hi: 5,
+      unit: '(หน่วย: ล้านบาท)',
+      rangeTitle: 'ราคาเสนอขาย',
+      ticks: ['< 1 ล้าน','3 ล้าน','6 ล้าน','10 ล้าน','15 ล้าน','20 ล้าน+'],
+      tickPositions: [0, 10, 20, 33, 50, 66, 100],
+      presets: [
+        { label: 'ไม่เกิน 2 ล้าน', lo: 0.5, hi: 2 },
+        { label: '1–5 ล้าน',       lo: 1,   hi: 5 },
+        { label: '3–10 ล้าน',      lo: 3,   hi: 10 },
+        { label: '5–15 ล้าน',      lo: 5,   hi: 15 },
+        { label: '10 ล้านขึ้นไป',  lo: 10,  hi: 30 },
+      ],
+      formatLo: v => v < 1 ? `฿${(v*1000).toFixed(0)}K` : `฿${v % 1 === 0 ? v : v.toFixed(1)}M`,
+      formatHi: v => v >= 30 ? '฿30M+' : `฿${v % 1 === 0 ? v : v.toFixed(1)}M`,
+      displayRange: (lo, hi) => `฿${numTh(lo)}M – ฿${hi >= 30 ? '30M+' : numTh(hi)+'M'}`,
+      chipLabel: (lo, hi) => `${numTh(lo)}–${hi >= 30 ? '30+' : numTh(hi)} ล้าน`,
+      resultCount: (lo, hi) => {
+        // rough count from real listings: most between 1–9M
+        const base = [1.2, 1.3, 4.8, 5.3, 6.8, 5.6, 5.1, 4.5, 9.2, 10.8, 11, 7.2, 3.5, 2.3];
+        return base.filter(p => p >= lo && p <= hi).length;
+      },
+    };
+
+    // Rent config: price in thousands THB/month; range 5k – 50k
+    const RENT = {
+      min: 5, max: 50,
+      lo: 8, hi: 20,
+      unit: '(หน่วย: พัน ฿/เดือน)',
+      rangeTitle: 'ค่าเช่า/เดือน',
+      ticks: ['< 7K','10K','15K','20K','30K','40K+'],
+      tickPositions: [0, 11, 22, 33, 56, 78, 100],
+      presets: [
+        { label: 'ไม่เกิน 8K/เดือน', lo: 5,  hi: 8  },
+        { label: '8–15K/เดือน',      lo: 8,  hi: 15 },
+        { label: '10–20K/เดือน',     lo: 10, hi: 20 },
+        { label: '15–30K/เดือน',     lo: 15, hi: 30 },
+        { label: '30K+/เดือน',       lo: 30, hi: 50 },
+      ],
+      formatLo: v => `฿${v}K`,
+      formatHi: v => v >= 50 ? '฿50K+' : `฿${v}K`,
+      displayRange: (lo, hi) => `฿${lo}K – ฿${hi >= 50 ? '50K+' : hi+'K'}/เดือน`,
+      chipLabel: (lo, hi) => `${lo}–${hi >= 50 ? '50K+' : hi+'K'} บาท/ด.`,
+      resultCount: () => 3, // 3 rental listings visible
+    };
+
+    let cfg = BUY;
+    let loVal = cfg.lo;
+    let hiVal = cfg.hi;
+    let activePreset = 1; // index into presets
+
+    /* ============================================================
+       MODE SWITCH
+       ============================================================ */
+    function setMode(m) {
+      mode = m;
+      cfg = (m === 'buy') ? BUY : RENT;
+      loVal = cfg.lo;
+      hiVal = cfg.hi;
+      activePreset = (m === 'buy') ? 1 : 1;
+
+      // Update segmented toggle buttons
+      document.getElementById('modeBuy').classList.toggle('selected', m === 'buy');
+      document.getElementById('modeRent').classList.toggle('selected', m === 'rent');
+
+      // Update deal-type chips in filter row
+      document.getElementById('chipBuy').classList.toggle('active', m === 'buy');
+      document.getElementById('chipRent').classList.toggle('active', m === 'rent');
+
+      // Show/hide rent cards
+      ['rentCard1','rentCard2','rentCard3'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (m === 'rent') ? 'block' : 'none';
+      });
+
+      renderAll();
+    }
+
+    /* ============================================================
+       RENDER
+       ============================================================ */
+    function toPercent(v) {
+      return ((v - cfg.min) / (cfg.max - cfg.min)) * 100;
+    }
+
+    function fromPercent(pct) {
+      return cfg.min + (pct / 100) * (cfg.max - cfg.min);
+    }
+
+    function numTh(v) {
+      if (Number.isInteger(v)) return v.toString();
+      return v.toFixed(1).replace(/\.0$/, '');
+    }
+
+    function renderAll() {
+      const loPct = toPercent(loVal);
+      const hiPct = toPercent(hiVal);
+
+      // Update CSS vars on slider wrap
+      const wrap = document.getElementById('sliderWrap');
+      wrap.style.setProperty('--thumb-lo', loPct + '%');
+      wrap.style.setProperty('--thumb-hi', hiPct + '%');
+      wrap.style.setProperty('--fill-left', loPct + '%');
+      wrap.style.setProperty('--fill-right', (100 - hiPct) + '%');
+
+      // Range title & unit
+      document.getElementById('rangeTitle').textContent = cfg.rangeTitle;
+      document.getElementById('rangeUnit').textContent = cfg.unit;
+
+      // Active display
+      document.getElementById('activeDisplay').textContent = cfg.displayRange(loVal, hiVal);
+
+      // Chip in filter row
+      document.getElementById('priceChipLabel').textContent = cfg.chipLabel(loVal, hiVal);
+
+      // Ticks
+      const ticksEl = document.getElementById('sliderTicks');
+      ticksEl.innerHTML = '';
+      cfg.ticks.forEach(t => {
+        const d = document.createElement('div');
+        d.className = 'tick-label';
+        d.textContent = t;
+        ticksEl.appendChild(d);
+      });
+
+      // Presets
+      const presetEl = document.getElementById('presetRow');
+      presetEl.innerHTML = '';
+      cfg.presets.forEach((p, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'preset-chip' + (i === activePreset ? ' selected' : '');
+        btn.textContent = p.label;
+        btn.onclick = () => applyPreset(i);
+        presetEl.appendChild(btn);
+      });
+
+      // Result count
+      const count = cfg.resultCount(loVal, hiVal);
+      document.getElementById('resultCountBtn').textContent = count;
+      document.getElementById('resultCountBar').textContent = count;
+    }
+
+    function applyPreset(i) {
+      activePreset = i;
+      loVal = cfg.presets[i].lo;
+      hiVal = cfg.presets[i].hi;
+      renderAll();
+    }
+
+    function resetFilter() {
+      loVal = cfg.lo;
+      hiVal = cfg.hi;
+      activePreset = 1;
+      renderAll();
+    }
+
+    function applyFilter() {
+      // Animate the apply button as UX feedback
+      const btn = document.querySelector('.btn-apply');
+      btn.textContent = '✓ ใช้ตัวกรองแล้ว';
+      btn.style.background = '#1a8a4a';
+      setTimeout(() => {
+        btn.innerHTML = `ดูผลลัพธ์ (<span id="resultCountBtn">${cfg.resultCount(loVal,hiVal)}</span> ประกาศ)`;
+        btn.style.background = '';
+      }, 900);
+    }
+
+    function scrollToSheet() {
+      document.getElementById('priceSheet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    /* ============================================================
+       SLIDER DRAG (mouse + touch)
+       ============================================================ */
+    let dragging = null;
+
+    function startDrag(e, which) {
+      e.preventDefault();
+      dragging = which;
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', stopDrag);
+      document.addEventListener('touchmove', onDrag, { passive: false });
+      document.addEventListener('touchend', stopDrag);
+    }
+
+    function onDrag(e) {
+      if (!dragging) return;
+      e.preventDefault();
+      const wrap = document.getElementById('sliderWrap');
+      const rect = wrap.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      let pct = ((clientX - rect.left) / rect.width) * 100;
+      pct = Math.max(0, Math.min(100, pct));
+      const val = fromPercent(pct);
+
+      if (dragging === 'lo') {
+        loVal = Math.min(val, hiVal - (cfg.max - cfg.min) * 0.05);
+        loVal = Math.max(cfg.min, loVal);
+      } else {
+        hiVal = Math.max(val, loVal + (cfg.max - cfg.min) * 0.05);
+        hiVal = Math.min(cfg.max, hiVal);
+      }
+
+      // Round to sensible step
+      const step = (cfg === RENT) ? 1 : 0.5;
+      loVal = Math.round(loVal / step) * step;
+      hiVal = Math.round(hiVal / step) * step;
+
+      activePreset = -1; // custom
+      renderAll();
+    }
+
+    function stopDrag() {
+      dragging = null;
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', stopDrag);
+      document.removeEventListener('touchmove', onDrag);
+      document.removeEventListener('touchend', stopDrag);
+    }
+
+    /* ============================================================
+       INIT
+       ============================================================ */
+    setMode('buy');
+  </script>
+
+</body>
+</html>

@@ -96,8 +96,8 @@ Lambda mechanics proven.
 ## Founder action queue (unblocks built work)
 
 - ~~Pick the design-token direction~~ **DONE 2026-06-13: Direction A "Baania-clean" (trust-blue) confirmed** after side-by-side HTML mockups (`docs/design/mockups/direction-*.html`); `theme.css` header updated to founder-confirmed, fallbacks regenerated. **Stage 3 design-token gate is now unblocked.**
-- **Approve the Stage 5 build** (spec fleshed) — or amend its logged defaults.
-- **Rulings:** price-filter sale-vs-rent (4.3); the two schema gaps NPA/`listing_type` + new-vs-resale (4.7).
+- ~~Approve the Stage 5 build~~ **DONE 2026-06-13: Stage 5 shape approved** (claim/publish + My-Listings + viewings/follow-ups). Build it; the mocks in `docs/design/mockups/` are inspiration only.
+- ~~Rulings: price-filter + schema gaps~~ **DONE 2026-06-13** (directions only — see `docs/design/mockups/README.md`): price filter = **contextual** (Buy/Rent relabels one range); **add both** schema fields (NPA/`listing_type` + new-vs-resale), surfaced via **detail-page disclosure + subtle meta**. **CONSTRAINTS for the real build:** rebuild UI from scratch (mocks = inspiration only); price ranges must use ACTUAL North-Thai bands from `a2-market-landscape-north.md` (NOT the demo brackets); **tone DOWN the NPA red** — it reads as alert/warning, should be a calm category highlight, not danger.
 - **Set `lineOaUrl`** Pulumi config to light the detail-page "Chat on LINE" CTA (CONV-06).
 - **Bless or flag** the logged deviations in Stage 1–3 specs (built under blanket sprint approval).
 - **Domain (D19):** real domain + Route 53 + ACM (interim canonical = staging CloudFront is set; the real

@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schema fields · V3 — Detail disclosure + subtle meta</title>
+
+  <!-- Google Fonts: Sarabun (looped Thai body), Noto Sans Thai (heading), Inter (Latin/numbers) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       THEME A — "Baania-clean" tokens (exact hex from theme.css)
+       OKLCH authoritative; hex fallback for LINE WebView (TECH-06)
+       ============================================================ */
+    :root {
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+      --color-primary-800: #0c2c58;
+      --color-primary-900: #071d3a;
+
+      --color-bg:          #faf9f7;
+      --color-surface:     #ffffff;
+      --color-surface-2:   #f3f2ef;
+      --color-border:      #e4e2de;
+      --color-border-2:    #d4d2cd;
+
+      --color-text:        #141820;
+      --color-text-2:      #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      --color-success:     #1a8a4a;
+      --color-success-bg:  #e9f7ef;
+      --color-warn:        #d97706;
+      --color-warn-bg:     #fef9eb;
+      --color-danger:      #c0392b;
+      --color-danger-bg:   #fdecea;
+
+      /* Badge token pairs */
+      --badge-available:      #e9f7ef;
+      --badge-available-text: #1a8a4a;
+      --badge-reserved:       #eef1fd;
+      --badge-reserved-text:  #3b4ec8;
+      --badge-urgent:         #fef9eb;
+      --badge-urgent-text:    #d97706;
+      --badge-verified:       #e8f0fb;
+      --badge-verified-text:  #174d93;
+      --badge-owner:          #e6f6fb;
+      --badge-owner-text:     #1a6a8a;
+      --badge-npa:            #fdecea;
+      --badge-npa-text:       #c0392b;
+
+      /* Typography */
+      --font-body-th:    'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+      --font-heading-th: 'Noto Sans Thai', 'Sarabun', Arial, sans-serif;
+      --font-latin:      'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+      --text-xs:   11px;
+      --text-sm:   13px;
+      --text-base: 15px;
+      --text-md:   17px;
+      --text-lg:   20px;
+      --text-xl:   24px;
+
+      --leading-body: 1.65;
+
+      /* Spacing */
+      --sp-1:  4px;
+      --sp-2:  8px;
+      --sp-3: 12px;
+      --sp-4: 16px;
+      --sp-5: 20px;
+      --sp-6: 24px;
+
+      /* Radius */
+      --radius-sm:   6px;
+      --radius-md:   10px;
+      --radius-lg:   14px;
+      --radius-full: 9999px;
+
+      /* Shadow */
+      --shadow-xs: 0 1px 2px rgba(20, 24, 32, 0.06);
+      --shadow-sm: 0 1px 4px rgba(20, 24, 32, 0.08), 0 0 1px rgba(20, 24, 32, 0.04);
+      --shadow-md: 0 4px 12px rgba(20, 24, 32, 0.10), 0 1px 3px rgba(20, 24, 32, 0.06);
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-300: oklch(0.76 0.10  240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-primary-700: oklch(0.38 0.13  240);
+        --color-primary-800: oklch(0.30 0.10  240);
+        --color-primary-900: oklch(0.22 0.07  240);
+
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+        --color-danger:      oklch(0.54 0.20   20);
+        --color-danger-bg:   oklch(0.96 0.04   20);
+        --badge-available:      oklch(0.95 0.04  150);
+        --badge-available-text: oklch(0.52 0.15  150);
+        --badge-npa:            oklch(0.96 0.04   20);
+        --badge-npa-text:       oklch(0.54 0.20   20);
+        --badge-verified:       oklch(0.96 0.03  240);
+        --badge-verified-text:  oklch(0.46 0.15  240);
+        --badge-urgent:         oklch(0.97 0.04   75);
+        --badge-urgent-text:    oklch(0.70 0.17   75);
+        --badge-owner:          oklch(0.96 0.04  200);
+        --badge-owner-text:     oklch(0.40 0.12  200);
+      }
+    }
+
+    /* ============================================================ RESET */
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #dde5ef;
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+    [lang="th"] { word-break: normal; overflow-wrap: anywhere; }
+
+    /* ============================================================
+       TOP LABEL BAR
+       ============================================================ */
+    .schema-label {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-primary-600);
+      color: #ffffff;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .schema-label-tag {
+      background: rgba(255,255,255,0.18);
+      border-radius: var(--radius-full);
+      padding: 2px 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .schema-label-sub {
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    /* ============================================================
+       DEVICE FRAME
+       ============================================================ */
+    .device-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 28px;
+      padding: 24px 16px 56px;
+      flex-wrap: wrap;
+    }
+
+    .device-col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+    .device {
+      width: 390px;
+      max-width: 100%;
+      background: var(--color-bg);
+      border-radius: 32px;
+      box-shadow: 0 0 0 8px #1a1a2e, 0 24px 64px rgba(0,0,0,0.35);
+      overflow: hidden;
+      color: var(--color-text);
+    }
+    .device-scroll {
+      max-height: 820px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+    .device-scroll::-webkit-scrollbar { width: 4px; }
+    .device-scroll::-webkit-scrollbar-track { background: transparent; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+
+    .device-label {
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* Fake status bar */
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px 6px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    /* ============================================================
+       SHARED COMPONENTS
+       ============================================================ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .badge-available { background: var(--badge-available); color: var(--badge-available-text); }
+    .badge-npa       { background: var(--badge-npa);       color: var(--badge-npa-text); }
+    .badge-verified  { background: var(--badge-verified);  color: var(--badge-verified-text); }
+    .badge-urgent    { background: var(--badge-urgent);    color: var(--badge-urgent-text); }
+    .badge-owner     { background: var(--badge-owner);     color: var(--badge-owner-text); }
+
+    /* ============================================================
+       DETAIL VIEW
+       ============================================================ */
+
+    /* Top bar */
+    .detail-topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .back-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      color: var(--color-text);
+      font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      text-decoration: none;
+    }
+    .topbar-title {
+      font-family: var(--font-heading-th);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .share-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: 1px solid var(--color-primary-200);
+      color: var(--color-primary-600);
+      font-size: 14px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Gallery */
+    .gallery-strip {
+      aspect-ratio: 16 / 9;
+      background: linear-gradient(135deg, var(--color-primary-100) 0%, var(--color-primary-200) 60%, var(--color-primary-300) 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    .gallery-overlay {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 6px;
+    }
+    .gallery-icon { font-size: 38px; opacity: 0.4; color: var(--color-primary-700); }
+    .gallery-label {
+      font-family: var(--font-latin);
+      font-size: 11px; font-weight: 600;
+      color: var(--color-primary-700); opacity: 0.6;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .thumb-strip {
+      display: flex; gap: 5px;
+      padding: 6px 14px;
+      overflow-x: auto; scrollbar-width: none;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+    }
+    .thumb-strip::-webkit-scrollbar { display: none; }
+    .thumb {
+      flex-shrink: 0; width: 50px; height: 37px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      border: 2px solid transparent;
+    }
+    .thumb.active { border-color: var(--color-primary-500); }
+
+    /* Detail body */
+    .detail-body {
+      padding: 14px;
+      display: grid;
+      gap: 13px;
+    }
+
+    .detail-title {
+      font-family: var(--font-heading-th);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.42;
+      margin: 0;
+    }
+    .detail-badges { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+
+    /* -------- NEW-VS-RESALE meta line -------- */
+    /* Subtle inline row in the badge cluster, not a loud badge */
+    .meta-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 1px 8px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface-2);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .meta-inline .meta-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--color-text-disabled);
+      flex-shrink: 0;
+    }
+
+    /* Price block */
+    .detail-price-block {
+      background: var(--color-primary-50);
+      border-radius: var(--radius-md);
+      padding: 11px 14px;
+      border: 1px solid var(--color-primary-100);
+    }
+    .detail-price-label {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-primary-600);
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .detail-price {
+      font-family: var(--font-latin);
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+    }
+    .detail-price .thb { font-family: var(--font-body-th); font-size: 20px; }
+
+    /* -------- COMP NOTE row below price -------- */
+    /* Quiet one-liner: "ต่ำกว่า NPA ย่านนี้เฉลี่ย ~12%" */
+    .comp-note {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--color-primary-100);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-2);
+    }
+    .comp-note .comp-pct {
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-warn);
+      background: var(--color-warn-bg);
+      border-radius: var(--radius-full);
+      padding: 1px 6px;
+    }
+    .comp-note .comp-flag {
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      cursor: help;
+    }
+
+    /* Location */
+    .detail-location {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+      line-height: 1.5;
+    }
+
+    /* Spec table */
+    .spec-table {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .spec-row {
+      display: flex;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .spec-row:last-child { border-bottom: none; }
+    .spec-dt {
+      width: 106px; flex-shrink: 0;
+      padding: 8px 11px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-2);
+      background: var(--color-surface-2);
+      border-right: 1px solid var(--color-border);
+      display: flex; align-items: center;
+    }
+    .spec-dd {
+      flex: 1;
+      padding: 8px 11px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-text);
+      background: var(--color-surface);
+      display: flex; align-items: center;
+      gap: 6px;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+    /* -------- NEW-VS-RESALE field row -------- */
+    /* Inline quiet chip inside spec-dd */
+    .resale-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--color-text-2);
+      background: var(--color-surface-2);
+    }
+
+    /* ============================================================
+       NPA / DISTRESSED DISCLOSURE BLOCK
+       ============================================================ */
+    .npa-disclosure {
+      border: 1.5px solid var(--color-danger);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      /* Slightly softened — not alarm-red, careful danger (P4 honesty) */
+      background: var(--color-danger-bg);
+    }
+    .npa-disclosure-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px 8px;
+      background: var(--badge-npa);
+      border-bottom: 1.5px solid var(--color-danger);
+    }
+    .npa-disclosure-icon {
+      font-size: 15px;
+      flex-shrink: 0;
+    }
+    .npa-disclosure-title {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-danger);
+      flex: 1;
+    }
+    .npa-disclosure-source {
+      font-family: var(--font-latin);
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      white-space: nowrap;
+    }
+    .npa-disclosure-body {
+      padding: 10px 12px 11px;
+    }
+    /* Three mandatory risk caveats (DIST-02: always visible, never collapsed) */
+    .npa-caveat-list {
+      list-style: none;
+      padding: 0; margin: 0 0 9px 0;
+      display: grid;
+      gap: 6px;
+    }
+    .npa-caveat-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 7px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-danger);
+      line-height: 1.55;
+    }
+    .npa-caveat-list li .caveat-icon {
+      font-size: 12px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    /* Seller-disclosed notice (FIELD-07, LEGAL-06 — not verified by platform) */
+    .npa-unverified-note {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      padding: 7px 9px;
+      border-radius: var(--radius-sm);
+      background: rgba(255,255,255,0.60);
+      border: 1px solid rgba(192, 57, 43, 0.18);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-2);
+      line-height: 1.55;
+    }
+    .npa-unverified-note .note-icon {
+      font-size: 11px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    /* Source label (DIST-01: explicit source labelling) */
+    .npa-source-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(192,57,43,0.18);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+    }
+    .npa-source-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-danger);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--color-danger);
+      background: transparent;
+      font-family: var(--font-body-th);
+    }
+
+    /* Description */
+    .desc-block {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .desc-header {
+      padding: 9px 13px;
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text);
+      background: var(--color-surface-2);
+      border-bottom: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .desc-header span { font-size: 10px; font-weight: 400; color: var(--color-text-disabled); }
+    .desc-body {
+      padding: 11px 13px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-2);
+      line-height: 1.68;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+
+    /* Yield pill */
+    .yield-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 9px;
+      border-radius: var(--radius-full);
+      background: var(--badge-verified);
+      color: var(--badge-verified-text);
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    /* CTA */
+    .cta-area { display: grid; gap: 8px; }
+    .btn-primary {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 13px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--color-primary-500);
+      color: #ffffff;
+      font-family: var(--font-body-th);
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(31, 95, 173, 0.28);
+      text-decoration: none;
+    }
+    .btn-secondary {
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      width: 100%; padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1.5px solid var(--color-primary-200);
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      font-family: var(--font-body-th);
+      font-size: 14px; font-weight: 600;
+      cursor: pointer; text-decoration: none;
+    }
+
+    .poster-credit {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      text-align: center;
+    }
+    .disclaimer {
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      text-align: center;
+      padding: 0 14px 14px;
+      line-height: 1.6;
+    }
+
+    /* Bottom nav */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 0 10px;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 2px; padding: 4px;
+      text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+    }
+    .nav-item.active { color: var(--color-primary-500); }
+    .nav-icon { font-size: 19px; line-height: 1; }
+
+    /* ============================================================
+       BROWSE STRIP — card meta line showing subtle new-vs-resale
+       ============================================================ */
+    .browse-header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 9px 14px 6px;
+    }
+    .browse-header-inner {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .app-logo {
+      font-family: var(--font-heading-th);
+      font-weight: 700; font-size: 17px;
+      color: var(--color-primary-500);
+      white-space: nowrap;
+    }
+    .app-logo em { color: var(--color-primary-300); font-style: normal; }
+    .search-box {
+      flex: 1;
+      display: flex; align-items: center; gap: 6px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 5px 11px;
+    }
+    .search-ph { font-family: var(--font-body-th); font-size: 12px; color: var(--color-text-disabled); }
+    .filter-row {
+      overflow-x: auto; scrollbar-width: none;
+      padding: 6px 14px 7px;
+      border-top: 1px solid var(--color-border);
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-inner { display: flex; gap: 6px; white-space: nowrap; }
+    .chip {
+      display: inline-flex; align-items: center;
+      padding: 3px 11px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .chip.active {
+      background: var(--color-primary-500); color: #fff;
+      border-color: var(--color-primary-500); font-weight: 600;
+    }
+    .chip.soft {
+      background: var(--color-primary-50); color: var(--color-primary-600);
+      border-color: var(--color-primary-200); font-weight: 600;
+    }
+
+    /* Card grid */
+    .card-list { padding: 8px 12px 4px; display: grid; gap: 9px; }
+    .listing-card {
+      display: flex;
+      gap: 0;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--color-text);
+    }
+
+    /* Thumbnail */
+    .card-thumb {
+      width: 90px; flex-shrink: 0;
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .card-thumb-icon { font-size: 26px; opacity: 0.35; color: var(--color-primary-400); }
+    .card-thumb-pill {
+      position: absolute; top: 6px; left: 6px;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      font-size: 9px; font-weight: 700;
+      background: rgba(255,255,255,0.92);
+      color: var(--color-primary-600);
+      border: 1px solid var(--color-primary-200);
+      font-family: var(--font-body-th);
+    }
+
+    /* Card content */
+    .card-content {
+      flex: 1; padding: 9px 11px;
+      display: grid; gap: 3px;
+    }
+    .card-headline {
+      font-family: var(--font-heading-th);
+      font-size: 13px; font-weight: 600;
+      line-height: 1.42;
+      color: var(--color-text);
+      display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* ---- CARD META LINE ----
+       Priority order per COPY-03: price > location > beds.
+       New-vs-resale + comp note sit at the END of the meta row —
+       subordinate to the primary scan fields (COMP-06 subtle integration)
+    */
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-2);
+    }
+    .meta-sep {
+      width: 2px; height: 2px;
+      border-radius: 50%;
+      background: var(--color-border-2);
+      flex-shrink: 0;
+    }
+    .card-price {
+      font-family: var(--font-latin);
+      font-size: 15px; font-weight: 700;
+      color: var(--color-text);
+      letter-spacing: -0.01em;
+    }
+    .card-price .thb-s { font-family: var(--font-body-th); font-size: 13px; }
+    .card-location { font-size: 11px; color: var(--color-text-disabled); }
+
+    /* Inline "มือสอง" / "ใหม่" quiet suffix — not a badge, just copy (COMP-06 subtle) */
+    .resale-inline {
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      border-left: 1px solid var(--color-border-2);
+      padding-left: 5px;
+      white-space: nowrap;
+    }
+    /* Quiet comp note on card: e.g. "~8% ต่ำกว่า NPA" */
+    .card-comp {
+      font-size: 10px;
+      color: var(--color-warn);
+      font-family: var(--font-latin);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* ============================================================
+       FOOTER HEURISTIC BAR
+       ============================================================ */
+    .heuristic-bar {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 16px 20px 32px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      color: rgba(255,255,255,0.55);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: center;
+    }
+    .h-tag {
+      display: inline-flex; align-items: center;
+      padding: 2px 9px;
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.6);
+      font-size: 10px;
+      white-space: nowrap;
+    }
+    .heuristic-bar .sep { opacity: 0.25; }
+  </style>
+</head>
+
+<body>
+
+  <!-- Top label bar -->
+  <div class="schema-label">
+    <span>
+      <span class="schema-label-tag">Schema fields · V3</span>
+      <span style="margin-left:10px;">Detail disclosure + subtle meta</span>
+    </span>
+    <span class="schema-label-sub">Theme A — Baania-clean · NPA disclosure block · new-vs-resale inline · comp note</span>
+  </div>
+
+  <div class="device-wrap">
+
+    <!-- ==================== DEVICE 1: DETAIL VIEW ==================== -->
+    <div class="device-col">
+      <div class="device" lang="th">
+
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- Top nav bar -->
+          <div class="detail-topbar">
+            <a class="back-btn" href="#" aria-label="ย้อนกลับ">←</a>
+            <div class="topbar-title">ขายหอพักย่านบ่อสร้าง 14 ห้อง</div>
+            <button class="share-btn" aria-label="แชร์">↑</button>
+          </div>
+
+          <!-- Gallery -->
+          <div class="gallery-strip">
+            <div class="gallery-overlay">
+              <div class="gallery-icon">📷</div>
+              <div class="gallery-label">Photos (12)</div>
+            </div>
+          </div>
+
+          <!-- Thumbnails -->
+          <div class="thumb-strip">
+            <div class="thumb active"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+            <div class="thumb"></div>
+          </div>
+
+          <!-- Detail body -->
+          <div class="detail-body" lang="th">
+
+            <!-- Title -->
+            <h1 class="detail-title">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</h1>
+
+            <!-- Badge cluster:
+                 • ขาย (status badge, COPY-05)
+                 • มือสอง (new-vs-resale — subtle meta-inline, not loud badge, COMP-06)
+                 • yield pill (verified-blue, secondary data point)
+            -->
+            <div class="detail-badges">
+              <span class="badge badge-available">ขาย</span>
+              <!-- New-vs-resale: quiet inline chip, sits after status, before yield -->
+              <span class="meta-inline">
+                <span class="meta-dot"></span>
+                มือสอง · ทรัพย์เจ้าของ
+              </span>
+              <span class="yield-pill">ผลตอบแทน 9.2% / ปี</span>
+            </div>
+
+            <!-- Price block -->
+            <div class="detail-price-block">
+              <div class="detail-price-label">ราคาเสนอขาย (asking price)</div>
+              <div class="detail-price"><span class="thb">฿</span>4,800,000</div>
+              <!-- Quiet comp note below price (DIST-01/10 channel-aware; DIST-04 discount curve) -->
+              <div class="comp-note">
+                <span class="comp-pct">~12% ต่ำกว่า</span>
+                <span>ทรัพย์ธนาคารย่านนี้เฉลี่ย</span>
+                <span class="comp-flag" title="ข้อมูลเปรียบเทียบจากทรัพย์ NPA ที่เสนอขายในรัศมี 2 กม. โดยผู้ลงประกาศ ยังไม่ผ่านการตรวจสอบ">ⓘ</span>
+              </div>
+            </div>
+
+            <!-- Location -->
+            <div class="detail-location">
+              📍 ใกล้แยกบ่อสร้าง, ใกล้กาดอุ้ยทา · ต้นเปา · สันกำแพง · เชียงใหม่
+            </div>
+
+            <!-- Spec table — new-vs-resale integrated as field row (COMP-06 subtle) -->
+            <div class="spec-table">
+              <div class="spec-row">
+                <div class="spec-dt">ประเภท</div>
+                <div class="spec-dd">อาคารพาณิชย์ / หอพัก</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">สภาพทรัพย์</div>
+                <!-- new-vs-resale field value + quiet resale chip -->
+                <div class="spec-dd">
+                  มือสอง
+                  <span class="resale-chip">ใช้งานอยู่ · 14 ห้องเต็ม</span>
+                </div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">เอกสารสิทธิ์</div>
+                <div class="spec-dd" style="color:var(--color-warn);font-weight:700;">ยังไม่ระบุ</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">เนื้อที่</div>
+                <div class="spec-dd">52 ตร.ว. (208 ตร.ม.)</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">จำนวนห้อง</div>
+                <div class="spec-dd">14 ห้อง</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">รายได้/เดือน</div>
+                <div class="spec-dd" style="color:var(--color-success);font-weight:700;">฿36,000</div>
+              </div>
+              <div class="spec-row">
+                <div class="spec-dt">ลงประกาศ</div>
+                <div class="spec-dd">เจ้าของโดยตรง</div>
+              </div>
+            </div>
+
+            <!-- ============================================================
+                 NPA / DISTRESSED DISCLOSURE BLOCK
+                 Heuristics applied:
+                   DIST-01  — explicit source label (ทรัพย์เจ้าของ / ไม่ใช่ทรัพย์ธนาคาร)
+                   DIST-02  — 3 mandatory visible risk caveats (never collapsed)
+                   FIELD-07 — "seller-disclosed, unverified" label
+                   LEGAL-06 — "poster-provided, verify independently"
+                   A6 F11   — Consumer Protection Act disclaimer (accuracy not guaranteed)
+                   P4       — honesty-by-default; seller-disclosed framing
+                 ============================================================ -->
+            <div class="npa-disclosure" aria-label="ข้อมูลการเปิดเผยเพิ่มเติม">
+
+              <div class="npa-disclosure-header">
+                <span class="npa-disclosure-icon">⚠️</span>
+                <span class="npa-disclosure-title">ข้อมูลสำคัญจากผู้ลงประกาศ</span>
+                <span class="npa-disclosure-source">แจ้งโดยเจ้าของ · ยังไม่ตรวจสอบ</span>
+              </div>
+
+              <div class="npa-disclosure-body">
+
+                <!-- Context sentence: what kind of asset this is -->
+                <div style="font-family:var(--font-body-th);font-size:12px;color:var(--color-text-2);margin-bottom:8px;line-height:1.6;">
+                  ทรัพย์นี้เป็น<strong style="color:var(--color-text);">ทรัพย์มือสองจากเจ้าของโดยตรง</strong> (ไม่ใช่ทรัพย์ธนาคาร/ทรัพย์ NPA) — ผู้ขายแจ้งว่ายังไม่มีสำเนาโฉนดพร้อมส่ง ขอให้ผู้สนใจตรวจสอบเอกสารสิทธิ์ก่อนทำสัญญา
+                </div>
+
+                <!-- 3 mandatory caveats (DIST-02 style; adapted for private-owner context) -->
+                <ul class="npa-caveat-list">
+                  <li>
+                    <span class="caveat-icon">📋</span>
+                    <span><strong>เอกสารสิทธิ์ยังไม่ยืนยัน</strong> — ผู้ขายยังไม่ได้ระบุประเภทโฉนด กรุณาขอสำเนาและตรวจสอบที่สำนักงานที่ดินก่อนมัดจำ</span>
+                  </li>
+                  <li>
+                    <span class="caveat-icon">🏠</span>
+                    <span><strong>มีผู้อยู่อาศัย/เช่าอยู่</strong> — ทรัพย์มีผู้เช่าอยู่ครบ 14 ห้อง ผู้ซื้อต้องรับภาระสัญญาเช่าที่มีอยู่หรือดำเนินการสิ้นสุดสัญญาเอง</span>
+                  </li>
+                  <li>
+                    <span class="caveat-icon">🔍</span>
+                    <span><strong>ราคาเปรียบเทียบ NPA ไม่ผ่านการรับรอง</strong> — ตัวเลข "~12% ต่ำกว่า NPA ย่านนี้" เป็นข้อมูลจากผู้ลงประกาศ ยังไม่ผ่านการตรวจสอบอิสระ</span>
+                  </li>
+                </ul>
+
+                <!-- Seller-disclosed / unverified note (FIELD-07, LEGAL-06) -->
+                <div class="npa-unverified-note">
+                  <span class="note-icon">ℹ️</span>
+                  <span>ข้อมูลทั้งหมดในส่วนนี้<strong>แจ้งโดยผู้ลงประกาศ ยังไม่ผ่านการตรวจสอบโดยแพลตฟอร์ม</strong> — โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม (LEGAL-06)</span>
+                </div>
+
+                <!-- Source label (DIST-01) -->
+                <div class="npa-source-row">
+                  <span class="npa-source-badge">เจ้าของโดยตรง</span>
+                  <span>ไม่ใช่ทรัพย์ธนาคาร (NPA) หรือทรัพย์บังคับคดี (LED)</span>
+                </div>
+
+              </div>
+            </div><!-- /npa-disclosure -->
+
+            <!-- Description -->
+            <div class="desc-block">
+              <div class="desc-header">
+                รายละเอียด
+                <span>อัปเดต 13 มิ.ย. 2569</span>
+              </div>
+              <div class="desc-body">
+                ขายหอพักย่านบ่อสร้าง 14 ห้อง เต็มทุกห้อง ซื้อแล้วเก็บค่าเช่าต่อได้เลย
+                เนื้อที่ 52 ตร.ว. ราคา 4.8 ล้านบาท (รวมโอน)<br><br>
+                รายได้ 36,000 บาท/เดือน ผลตอบแทน 9.2% ต่อปี<br>
+                ค่าเช่า: 2,400 บาท (2 ห้อง) · 2,500 บาท (6 ห้อง) · 2,700 บาท (6 ห้อง)<br><br>
+                ทำเลดี ต้นเปา สันกำแพง ใกล้แยกบ่อสร้าง 900 ม. ใกล้กาดอุ้ยทา
+                เข้าเมืองง่าย ใกล้เซ็นทรัลเฟสติวัล 10 นาที พื้นที่ไม่เคยน้ำท่วม
+              </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="cta-area">
+              <a class="btn-primary" href="#">
+                <span style="font-size:19px;">💬</span>
+                Chat on LINE
+              </a>
+              <a class="btn-secondary" href="#">📅 นัดชมทรัพย์</a>
+            </div>
+
+            <!-- Poster credit -->
+            <div class="poster-credit">ลงประกาศโดย เจ้าของโดยตรง · group#C0835</div>
+
+          </div><!-- /detail-body -->
+
+          <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม · แพลตฟอร์มไม่รับรองความถูกต้องของข้อมูล</p>
+
+          <!-- Bottom nav -->
+          <nav class="bottom-nav">
+            <a class="nav-item" href="#"><span class="nav-icon">🏠</span>หน้าแรก</a>
+            <a class="nav-item" href="#"><span class="nav-icon">🔍</span>ค้นหา</a>
+            <a class="nav-item" href="#"><span class="nav-icon">➕</span>ลงประกาศ</a>
+            <a class="nav-item active" href="#"><span class="nav-icon">💬</span>แชท</a>
+            <a class="nav-item" href="#"><span class="nav-icon">👤</span>บัญชี</a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+      <div class="device-label">Detail — NPA disclosure · resale meta</div>
+    </div>
+
+    <!-- ==================== DEVICE 2: BROWSE STRIP ==================== -->
+    <div class="device-col">
+      <div class="device" lang="th">
+
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- App header -->
+          <div class="browse-header">
+            <div class="browse-header-inner">
+              <div class="app-logo">ทรัพย์<em>ดี</em></div>
+              <div class="search-box">
+                <span style="font-size:12px;color:var(--color-text-disabled);">🔍</span>
+                <span class="search-ph">ค้นหาทำเล โครงการ คำอธิบาย</span>
+              </div>
+            </div>
+            <div class="filter-row">
+              <div class="filter-inner">
+                <button class="chip active">ขาย</button>
+                <button class="chip">ให้เช่า</button>
+                <!-- COMP-06: new-vs-resale as first-class filter chip (subtle, not loud) -->
+                <button class="chip soft">มือสอง</button>
+                <button class="chip">ใหม่</button>
+                <button class="chip">ทรัพย์ธนาคาร</button>
+                <button class="chip">⚙ ตัวกรอง</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results count -->
+          <div style="padding:6px 14px 2px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-family:var(--font-body-th);font-size:12px;color:var(--color-text-2);">20 ประกาศ · เชียงใหม่ · มือสอง</span>
+            <button style="font-family:var(--font-body-th);font-size:12px;color:var(--color-primary-600);font-weight:600;background:none;border:none;cursor:pointer;">เรียงตาม ▾</button>
+          </div>
+
+          <!-- Card list — horizontal card layout showing meta line integration -->
+          <div class="card-list" lang="th">
+
+            <!-- Card A: NPA-adjacent private sale with comp note -->
+            <a class="listing-card" href="#">
+              <div class="card-thumb">
+                <div class="card-thumb-icon">🏘</div>
+                <span class="card-thumb-pill">ขาย</span>
+              </div>
+              <div class="card-content">
+                <div class="card-headline">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+                <div class="card-price"><span class="thb-s">฿</span>4,800,000</div>
+                <!-- meta line: location · specs · resale suffix · comp note — all quiet -->
+                <div class="card-meta">
+                  <span>สันกำแพง · 52 ตร.ว.</span>
+                  <span class="resale-inline">มือสอง</span>
+                  <span class="card-comp">~12% ต่ำกว่า NPA</span>
+                </div>
+                <div class="card-location">📍 ต้นเปา · สันกำแพง · เชียงใหม่</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">
+                  <span class="badge badge-available" style="font-size:10px;padding:0 6px;">ขาย</span>
+                  <span class="badge" style="font-size:10px;padding:0 6px;background:var(--color-warn-bg);color:var(--color-warn);">โฉนดยังไม่ยืนยัน</span>
+                </div>
+              </div>
+            </a>
+
+            <!-- Card B: New project (ใหม่) — resale signal absent, just quiet note -->
+            <a class="listing-card" href="#">
+              <div class="card-thumb" style="background:linear-gradient(135deg,#e6f6fb,#c8e9f5);">
+                <div class="card-thumb-icon" style="color:#1a6a8a;">🏢</div>
+                <span class="card-thumb-pill" style="color:#1a6a8a;border-color:#b8d9e8;">ขาย</span>
+              </div>
+              <div class="card-content">
+                <div class="card-headline">คอนโดใหม่ ใกล้ Central Festival นิมมาน</div>
+                <div class="card-price"><span class="thb-s">฿</span>2,490,000</div>
+                <div class="card-meta">
+                  <span>นิมมาน · 32 ตร.ม.</span>
+                  <span class="resale-inline" style="color:var(--color-primary-600);border-color:var(--color-primary-200);">ใหม่ · โครงการ</span>
+                </div>
+                <div class="card-location">📍 ป่าตัน · เมืองเชียงใหม่</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">
+                  <span class="badge badge-available" style="font-size:10px;padding:0 6px;">ขาย</span>
+                  <span class="badge badge-verified" style="font-size:10px;padding:0 6px;">✓ ยืนยัน</span>
+                </div>
+              </div>
+            </a>
+
+            <!-- Card C: NPA/bank asset — proper DIST-01 source label in card -->
+            <a class="listing-card" href="#">
+              <div class="card-thumb" style="background:linear-gradient(135deg,#fdecea,#f5c6c2);">
+                <div class="card-thumb-icon" style="color:#c0392b;">🏠</div>
+                <span class="card-thumb-pill" style="color:#c0392b;border-color:#f5c6c2;">ทรัพย์ธนาคาร</span>
+              </div>
+              <div class="card-content">
+                <div class="card-headline">ขายบ้านเดี่ยว 3 นอน ทรัพย์ KTB ย่านหนองจ๊อม</div>
+                <div class="card-price"><span class="thb-s">฿</span>1,890,000</div>
+                <div class="card-meta">
+                  <span>หนองจ๊อม · 3 นอน · 2 น้ำ</span>
+                  <!-- NPA/resale: inline note instead of loud badge -->
+                  <span class="resale-inline" style="color:var(--color-danger);border-color:rgba(192,57,43,0.3);">ทรัพย์ NPA</span>
+                </div>
+                <div class="card-location">📍 สันทราย · เชียงใหม่</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">
+                  <span class="badge badge-npa" style="font-size:10px;padding:0 6px;">ทรัพย์ธนาคาร</span>
+                  <span class="badge" style="font-size:10px;padding:0 6px;background:var(--color-warn-bg);color:var(--color-warn);">ขายด่วน</span>
+                </div>
+              </div>
+            </a>
+
+            <!-- Card D: Resale / มือสอง with price-reduced note -->
+            <a class="listing-card" href="#">
+              <div class="card-thumb">
+                <div class="card-thumb-icon">🏡</div>
+                <span class="card-thumb-pill">ขาย</span>
+              </div>
+              <div class="card-content">
+                <div class="card-headline">ขายบ้านหลักชัย 2 ชั้น 3 นอน โครงการเก่า สันทราย</div>
+                <div class="card-price"><span class="thb-s">฿</span>1,200,000</div>
+                <div class="card-meta">
+                  <span>สันทราย · 3 นอน · 30 ตร.ว.</span>
+                  <span class="resale-inline">มือสอง</span>
+                  <!-- Quiet "ต่อรองได้" inline (COPY-11) not a separate badge here -->
+                  <span style="font-size:10px;color:var(--color-text-disabled);">ต่อรองได้</span>
+                </div>
+                <div class="card-location">📍 สันนาเม็ง · สันทราย · เชียงใหม่</div>
+                <div style="display:flex;gap:4px;margin-top:2px;">
+                  <span class="badge badge-available" style="font-size:10px;padding:0 6px;">ขาย</span>
+                  <span class="badge badge-verified" style="font-size:10px;padding:0 6px;">✓ ยืนยัน</span>
+                </div>
+              </div>
+            </a>
+
+          </div><!-- /card-list -->
+
+          <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+          <!-- Bottom nav -->
+          <nav class="bottom-nav">
+            <a class="nav-item active" href="#"><span class="nav-icon">🏠</span>หน้าแรก</a>
+            <a class="nav-item" href="#"><span class="nav-icon">🔍</span>ค้นหา</a>
+            <a class="nav-item" href="#"><span class="nav-icon">➕</span>ลงประกาศ</a>
+            <a class="nav-item" href="#"><span class="nav-icon">💬</span>แชท</a>
+            <a class="nav-item" href="#"><span class="nav-icon">👤</span>บัญชี</a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+      <div class="device-label">Browse — new-vs-resale filter · card meta</div>
+    </div>
+
+  </div><!-- /device-wrap -->
+
+  <!-- Heuristic footer -->
+  <div class="heuristic-bar">
+    <span style="color:rgba(255,255,255,0.35);font-size:10px;letter-spacing:0.05em;text-transform:uppercase;margin-right:4px;">Heuristics applied</span>
+    <span class="h-tag">DIST-01 source labelling</span>
+    <span class="sep">·</span>
+    <span class="h-tag">DIST-02 3 visible risk caveats</span>
+    <span class="sep">·</span>
+    <span class="h-tag">DIST-04 comp note w/ discount context</span>
+    <span class="sep">·</span>
+    <span class="h-tag">COMP-06 new-vs-resale first-class filter</span>
+    <span class="sep">·</span>
+    <span class="h-tag">FIELD-07 seller-disclosed / unverified</span>
+    <span class="sep">·</span>
+    <span class="h-tag">LEGAL-06 poster-provided disclaimer</span>
+    <span class="sep">·</span>
+    <span class="h-tag">P4 honesty-by-default</span>
+    <span class="sep">·</span>
+    <span class="h-tag">COPY-05 ขายด่วน boolean badge</span>
+    <span class="sep">·</span>
+    <span class="h-tag">COPY-10 owner-direct neutral badge</span>
+    <span class="sep">·</span>
+    <span class="h-tag">TH-06/07/08 looped-Thai body · line-height 1.65 · lang+ICU</span>
+  </div>
+
+</body>
+</html>

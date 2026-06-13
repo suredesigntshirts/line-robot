@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stage 5 · V3 — Viewings &amp; Follow-ups CRM</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       TOKENS — Theme A "Baania-clean" hex-first cascade (TECH-06)
+       OKLCH override for modern browsers.
+       ============================================================ */
+    :root {
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+
+      --color-bg:          #faf9f7;
+      --color-surface:     #ffffff;
+      --color-surface-2:   #f3f2ef;
+      --color-border:      #e4e2de;
+      --color-border-2:    #d4d2cd;
+
+      --color-text:        #141820;
+      --color-text-2:      #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      --color-success:     #1a8a4a;
+      --color-success-bg:  #e9f7ef;
+      --color-warn:        #d97706;
+      --color-warn-bg:     #fef9eb;
+      --color-danger:      #c0392b;
+      --color-danger-bg:   #fdecea;
+
+      --badge-available:      #e9f7ef;
+      --badge-available-text: #1a8a4a;
+      --badge-reserved:       #eef1fd;
+      --badge-reserved-text:  #3b4ec8;
+      --badge-urgent:         #fef9eb;
+      --badge-urgent-text:    #d97706;
+      --badge-verified:       #e8f0fb;
+      --badge-verified-text:  #174d93;
+      --badge-owner:          #e6f6fb;
+      --badge-owner-text:     #1a6a8a;
+
+      --color-line:  #06c755;
+
+      --spacing-1:  4px;  --spacing-2:  8px;  --spacing-3:  12px;
+      --spacing-4:  16px; --spacing-5:  20px; --spacing-6:  24px;
+      --spacing-8:  32px; --spacing-10: 40px;
+
+      --radius-sm:   6px; --radius-md: 10px; --radius-lg: 14px;
+      --radius-xl:  20px; --radius-full: 9999px;
+
+      --shadow-xs: 0 1px 2px rgba(20,24,32,0.06);
+      --shadow-sm: 0 1px 4px rgba(20,24,32,0.08), 0 0 1px rgba(20,24,32,0.04);
+      --shadow-md: 0 4px 12px rgba(20,24,32,0.10), 0 1px 3px rgba(20,24,32,0.06);
+
+      --font-body-th:    'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+      --font-heading-th: 'Noto Sans Thai', 'Sarabun', Arial, sans-serif;
+      --font-latin:      'Inter', 'Helvetica Neue', Arial, sans-serif;
+
+      --text-xs:   11px; --text-sm:   13px; --text-base: 15px;
+      --text-md:   17px; --text-lg:   20px; --text-xl:   24px;
+      --leading-body: 1.65;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+        --color-danger:      oklch(0.54 0.20   20);
+        --color-danger-bg:   oklch(0.96 0.04   20);
+        --badge-available:   oklch(0.95 0.04 150);
+        --badge-available-text: oklch(0.52 0.15 150);
+        --badge-reserved:    oklch(0.95 0.04 270);
+        --badge-reserved-text: oklch(0.42 0.14 270);
+        --badge-verified:    oklch(0.96 0.03 240);
+        --badge-verified-text: oklch(0.46 0.15 240);
+        --badge-owner:       oklch(0.96 0.04 200);
+        --badge-owner-text:  oklch(0.40 0.12 200);
+      }
+    }
+
+    /* Dark mode */
+    :root[data-theme="dark"], .dark {
+      --color-bg:          #111318;
+      --color-surface:     #1a1e26;
+      --color-surface-2:   #202530;
+      --color-border:      #2d3444;
+      --color-border-2:    #374055;
+      --color-text:        #e8eaf0;
+      --color-text-2:      #9aa0b4;
+      --color-text-disabled: #525b6e;
+      --color-primary-50:  #1a2340;
+      --color-primary-100: #1e2d54;
+      --color-primary-200: #233870;
+      --color-primary-500: #5b9de0;
+      --color-primary-600: #7eb3f0;
+      --color-success:     #3dba74;
+      --color-success-bg:  #0d2e1c;
+      --color-warn:        #f59e0b;
+      --color-warn-bg:     #2d1e05;
+      --color-danger:      #f87171;
+      --color-danger-bg:   #2d0f0f;
+      --badge-available:   #0d2e1c;
+      --badge-available-text: #3dba74;
+      --badge-reserved:    #1a204a;
+      --badge-reserved-text: #8fa4f0;
+      --badge-verified:    #0d1a38;
+      --badge-verified-text: #7eb3f0;
+      --badge-owner:       #0a2230;
+      --badge-owner-text:  #4db8e0;
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.35);
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.45), 0 0 1px rgba(0,0,0,0.25);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    /* ============================================================
+       RESET + PAGE
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #d6dde8;
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+    [lang="th"] { word-break: normal; overflow-wrap: anywhere; }
+
+    /* ============================================================
+       STAGE LABEL BAR
+       ============================================================ */
+    .stage-label {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .stage-label span { opacity: 0.7; font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11px; }
+    .stage-label button {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      border-radius: 999px;
+      padding: 3px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: var(--font-latin);
+    }
+
+    /* ============================================================
+       DEVICE FRAME
+       ============================================================ */
+    .device-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px 60px;
+    }
+
+    .device {
+      width: 390px;
+      max-width: 100%;
+      background: var(--color-bg);
+      border-radius: 32px;
+      box-shadow: 0 0 0 8px #1a1a2e, 0 24px 64px rgba(0,0,0,0.35);
+      overflow: hidden;
+      color: var(--color-text);
+    }
+
+    /* Fake status bar */
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px 6px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    /* ============================================================
+       SCROLLABLE INNER
+       ============================================================ */
+    .device-scroll {
+      max-height: 780px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+    .device-scroll::-webkit-scrollbar { width: 4px; }
+    .device-scroll::-webkit-scrollbar-track { background: transparent; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+
+    /* ============================================================
+       APP HEADER
+       ============================================================ */
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+    }
+    .app-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 14px 10px;
+    }
+    .back-btn {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: var(--color-text);
+      flex-shrink: 0; cursor: pointer;
+    }
+    .header-title {
+      flex: 1;
+      font-family: var(--font-heading-th);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--color-text);
+    }
+    .header-action {
+      width: 32px; height: 32px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: 1px solid var(--color-primary-100);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: var(--color-primary-600);
+      flex-shrink: 0; cursor: pointer;
+    }
+
+    /* ============================================================
+       TAB SWITCHER
+       ============================================================ */
+    .tab-row {
+      display: flex;
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 0 14px;
+      gap: 0;
+    }
+    .tab-item {
+      flex: 1;
+      display: flex; align-items: center; justify-content: center;
+      gap: 5px;
+      padding: 10px 4px 9px;
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text-disabled);
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.12s, border-color 0.12s;
+      white-space: nowrap;
+    }
+    .tab-item.active {
+      color: var(--color-primary-500);
+      border-bottom-color: var(--color-primary-500);
+      font-weight: 700;
+    }
+    .tab-badge {
+      background: var(--color-primary-500);
+      color: #fff;
+      border-radius: var(--radius-full);
+      font-family: var(--font-latin);
+      font-size: 10px;
+      font-weight: 700;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tab-badge.muted {
+      background: var(--color-surface-2);
+      color: var(--color-text-disabled);
+    }
+
+    /* ============================================================
+       SECTION LABELS
+       ============================================================ */
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 14px 6px;
+    }
+    .section-title {
+      font-family: var(--font-heading-th);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text);
+      position: relative;
+      padding-bottom: 4px;
+    }
+    .section-title::after {
+      content: '';
+      position: absolute;
+      left: 0; bottom: 0;
+      width: 100%; height: 2px;
+      background: var(--color-warn);
+      border-radius: 2px;
+    }
+    .section-count {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-disabled);
+    }
+
+    /* ============================================================
+       DIVIDER
+       ============================================================ */
+    .divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: 0 14px;
+    }
+    .section-divider {
+      height: 8px;
+      background: var(--color-surface-2);
+      border-top: 1px solid var(--color-border);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    /* ============================================================
+       TIMELINE (UPCOMING VIEWINGS)
+       ============================================================ */
+    .timeline {
+      padding: 4px 14px 8px;
+      display: grid;
+      gap: 0;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 0 12px;
+      position: relative;
+    }
+
+    /* Vertical connector between items */
+    .timeline-item:not(:last-child) .t-connector {
+      display: block;
+    }
+
+    /* Left: date column */
+    .t-date-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 14px;
+    }
+    .t-date-bubble {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: var(--color-primary-500);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .t-date-bubble.past {
+      background: var(--color-surface-2);
+      color: var(--color-text-disabled);
+      border: 1px solid var(--color-border);
+    }
+    .t-date-bubble.soon {
+      background: var(--color-warn);
+    }
+    .t-date-day {
+      font-family: var(--font-latin);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .t-date-mon {
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      font-weight: 600;
+      line-height: 1.2;
+      opacity: 0.9;
+    }
+    .t-connector {
+      display: none;
+      width: 2px;
+      flex: 1;
+      min-height: 12px;
+      background: var(--color-border-2);
+      align-self: stretch;
+      margin: 4px auto 0;
+    }
+    .timeline-item:not(:last-child) .t-connector { display: block; }
+
+    /* Right: card */
+    .t-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      padding: 11px 13px 12px;
+      margin: 10px 0 10px;
+      display: grid;
+      gap: 6px;
+    }
+    .t-card.past-card {
+      opacity: 0.7;
+      box-shadow: none;
+    }
+
+    .t-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .t-listing-name {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.4;
+      flex: 1;
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .pill-upcoming   { background: var(--badge-verified);      color: var(--badge-verified-text); }
+    .pill-confirmed  { background: var(--color-success-bg);    color: var(--color-success); }
+    .pill-done       { background: var(--color-surface-2);     color: var(--color-text-disabled); }
+    .pill-soon       { background: var(--color-warn-bg);       color: var(--color-warn); }
+
+    .t-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 12px;
+      align-items: center;
+    }
+    .t-meta-item {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-2);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .t-meta-item .icon {
+      font-size: 13px;
+      opacity: 0.75;
+    }
+
+    /* inline price small */
+    .t-price-small {
+      font-family: var(--font-latin);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .t-price-small .thb { font-family: var(--font-body-th); }
+
+    /* CTA row inside timeline card */
+    .t-cta-row {
+      display: flex;
+      gap: 7px;
+      margin-top: 2px;
+    }
+    .btn-sm {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 7px 10px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+    }
+    .btn-sm-primary {
+      background: var(--color-primary-500);
+      color: #fff;
+    }
+    .btn-sm-secondary {
+      background: var(--color-primary-50);
+      border: 1px solid var(--color-primary-200);
+      color: var(--color-primary-600);
+    }
+    .btn-sm-ghost {
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      color: var(--color-text-2);
+    }
+    .btn-sm-line {
+      background: var(--color-line);
+      color: #fff;
+    }
+
+    /* ============================================================
+       FOLLOW-UP REMINDERS SECTION
+       ============================================================ */
+    .reminder-list {
+      padding: 4px 14px 8px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .reminder-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xs);
+      padding: 11px 13px 12px;
+      display: grid;
+      gap: 5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .reminder-card::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+    }
+    .reminder-card.due::before  { background: var(--color-warn); }
+    .reminder-card.ok::before   { background: var(--color-primary-400); }
+    .reminder-card.done::before { background: var(--color-border-2); }
+
+    .reminder-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .reminder-label {
+      font-family: var(--font-heading-th);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--color-text);
+      line-height: 1.4;
+      flex: 1;
+    }
+    .reminder-date {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-2);
+      white-space: nowrap;
+    }
+    .reminder-note {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-2);
+      line-height: 1.55;
+    }
+    .reminder-actions {
+      display: flex;
+      gap: 6px;
+    }
+
+    /* ============================================================
+       NOTES SECTION
+       ============================================================ */
+    .note-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-xs);
+      padding: 11px 13px 12px;
+      margin: 0 14px;
+      display: grid;
+      gap: 5px;
+      margin-bottom: 10px;
+    }
+    .note-listing {
+      font-family: var(--font-heading-th);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--color-primary-600);
+    }
+    .note-body {
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      color: var(--color-text);
+      line-height: 1.6;
+    }
+    .note-meta {
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+    }
+
+    /* ============================================================
+       "ตั้งการติดตาม" FAB (floating action button)
+       ============================================================ */
+    .fab-area {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      background: linear-gradient(to top, var(--color-bg) 70%, transparent);
+      padding: 12px 14px 6px;
+    }
+    .fab-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-body-th);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 12px rgba(31,95,173,0.35), 0 1px 3px rgba(31,95,173,0.2);
+    }
+
+    /* ============================================================
+       BOTTOM NAV
+       ============================================================ */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 0 10px;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 4px;
+      text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th);
+      font-size: 10px;
+    }
+    .nav-item.active { color: var(--color-primary-500); }
+    .nav-icon { font-size: 20px; line-height: 1; }
+    .nav-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--color-primary-500);
+      position: absolute; top: 2px; right: 2px;
+    }
+    .nav-icon-wrap { position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+
+    /* ============================================================
+       EMPTY STATE
+       ============================================================ */
+    .empty-state {
+      padding: 28px 24px 20px;
+      text-align: center;
+      display: grid;
+      gap: 8px;
+    }
+    .empty-icon { font-size: 36px; opacity: 0.4; }
+    .empty-title {
+      font-family: var(--font-heading-th);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--color-text-2);
+    }
+    .empty-sub {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-text-disabled);
+      line-height: 1.6;
+    }
+
+    /* ============================================================
+       DARK TOGGLE
+       ============================================================ */
+    .dark-toggle {
+      position: fixed;
+      bottom: 20px; right: 20px; z-index: 200;
+      display: flex; align-items: center; gap: 7px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border-2);
+      border-radius: var(--radius-full);
+      box-shadow: var(--shadow-md);
+      padding: 6px 14px 6px 10px;
+      cursor: pointer;
+      font-family: var(--font-latin);
+      font-size: 12px; font-weight: 600;
+      color: var(--color-text-2);
+    }
+
+    /* ============================================================
+       DEVICE LABEL UNDER FRAME
+       ============================================================ */
+    .device-label {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+      margin-top: 10px;
+    }
+
+    /* ============================================================
+       FOOTNOTE
+       ============================================================ */
+    .footnote {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 10px;
+      color: rgba(255,255,255,0.45);
+      padding: 0 24px 32px;
+      line-height: 1.7;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Inline number badge on listing card time */
+    .t-time-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 1px 7px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--color-primary-50);
+      color: var(--color-primary-600);
+      border: 1px solid var(--color-primary-100);
+    }
+
+    /* Listing thumbnail strip inside viewing card */
+    .listing-thumb {
+      width: 48px; height: 36px;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px; opacity: 0.6;
+      overflow: hidden;
+    }
+    .listing-thumb.past-thumb {
+      background: var(--color-surface-2);
+      opacity: 0.45;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- Stage label bar -->
+  <div class="stage-label">
+    Stage 5 &middot; V3 &mdash; Viewings &amp; Follow-ups CRM
+    <span>Theme A &nbsp;·&nbsp; trust-blue &nbsp;·&nbsp; Sarabun &nbsp;·&nbsp; &nbsp;TH-06 / TH-07 / TH-09 / CONV-06 / D13</span>
+    <button onclick="
+      var h = document.documentElement;
+      h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+      this.textContent = h.dataset.theme === 'dark' ? '☀ Light' : '🌙 Dark';
+    ">🌙 Dark</button>
+  </div>
+
+  <div class="device-wrap">
+    <div>
+      <div class="device" lang="th">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll">
+
+          <!-- App header -->
+          <div class="app-header">
+            <div class="app-header-inner">
+              <div class="back-btn">←</div>
+              <div class="header-title">การดูทรัพย์ &amp; ติดตาม</div>
+              <div class="header-action" title="กรอง">⚙</div>
+            </div>
+
+            <!-- Tab switcher -->
+            <div class="tab-row">
+              <div class="tab-item active">
+                นัดดู <span class="tab-badge">3</span>
+              </div>
+              <div class="tab-item">
+                ติดตาม <span class="tab-badge muted">5</span>
+              </div>
+              <div class="tab-item">
+                บันทึก <span class="tab-badge muted">2</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- =================== UPCOMING VIEWINGS =================== -->
+          <div class="section-head">
+            <div class="section-title">นัดดูที่กำลังจะถึง</div>
+            <div class="section-count">3 รายการ</div>
+          </div>
+
+          <div class="timeline" lang="th">
+
+            <!-- ---- Viewing 1: SOON (tomorrow) ---- -->
+            <div class="timeline-item">
+              <div class="t-date-col">
+                <div class="t-date-bubble soon">
+                  <div class="t-date-day">14</div>
+                  <div class="t-date-mon">มิ.ย.</div>
+                </div>
+                <div class="t-connector"></div>
+              </div>
+              <div class="t-card">
+                <div class="t-card-top">
+                  <div class="t-listing-name">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+                  <span class="status-pill pill-soon">พรุ่งนี้</span>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">🕐</span>
+                    <span>10:00 – 11:30</span>
+                    <span class="t-time-tag">เช้า</span>
+                  </div>
+                  <div class="t-meta-item">
+                    <span class="icon">📍</span>
+                    <span>ต้นเปา &middot; สันกำแพง</span>
+                  </div>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">💰</span>
+                    <span class="t-price-small"><span class="thb">฿</span>4,800,000 &middot; ต่อรองได้</span>
+                  </div>
+                </div>
+                <div class="t-cta-row">
+                  <button class="btn-sm btn-sm-line">💬 Chat LINE</button>
+                  <button class="btn-sm btn-sm-secondary">📍 แผนที่</button>
+                  <button class="btn-sm btn-sm-ghost">เลื่อน</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- Viewing 2: UPCOMING (Mon 16 Jun) ---- -->
+            <div class="timeline-item">
+              <div class="t-date-col">
+                <div class="t-date-bubble">
+                  <div class="t-date-day">16</div>
+                  <div class="t-date-mon">มิ.ย.</div>
+                </div>
+                <div class="t-connector"></div>
+              </div>
+              <div class="t-card">
+                <div class="t-card-top">
+                  <div class="t-listing-name">ทาวน์โฮมอรสิริน 6 &middot; 3 นอน ใกล้ห้างฯ</div>
+                  <span class="status-pill pill-confirmed">ยืนยันแล้ว</span>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">🕑</span>
+                    <span>14:00 – 15:00</span>
+                    <span class="t-time-tag">บ่าย</span>
+                  </div>
+                  <div class="t-meta-item">
+                    <span class="icon">👤</span>
+                    <span>นายหน้า: คุณสมชาย</span>
+                  </div>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">💰</span>
+                    <span class="t-price-small"><span class="thb">฿</span>1,300,000</span>
+                  </div>
+                  <div class="t-meta-item">
+                    <span class="icon">🏠</span>
+                    <span>ทาวน์เฮาส์ &middot; 31 ตร.ว.</span>
+                  </div>
+                </div>
+                <div class="t-cta-row">
+                  <button class="btn-sm btn-sm-primary">ดูรายละเอียด</button>
+                  <button class="btn-sm btn-sm-ghost">ยกเลิก</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- Viewing 3: UPCOMING (Fri 20 Jun) ---- -->
+            <div class="timeline-item">
+              <div class="t-date-col">
+                <div class="t-date-bubble">
+                  <div class="t-date-day">20</div>
+                  <div class="t-date-mon">มิ.ย.</div>
+                </div>
+                <!-- no connector — last item -->
+              </div>
+              <div class="t-card">
+                <div class="t-card-top">
+                  <div class="t-listing-name">บ้านเดี่ยว 3 นอน โครงการบ้านหลักชัย สันทราย</div>
+                  <span class="status-pill pill-upcoming">รอยืนยัน</span>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">🕙</span>
+                    <span>10:30 – 12:00</span>
+                  </div>
+                  <div class="t-meta-item">
+                    <span class="icon">📍</span>
+                    <span>สันนาเม็ง &middot; สันทราย</span>
+                  </div>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item">
+                    <span class="icon">💰</span>
+                    <span class="t-price-small"><span class="thb">฿</span>1,200,000 &middot; ✓ ยืนยัน</span>
+                  </div>
+                </div>
+                <div class="t-cta-row">
+                  <button class="btn-sm btn-sm-secondary">ยืนยันนัด</button>
+                  <button class="btn-sm btn-sm-ghost">📝 เพิ่มบันทึก</button>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /timeline -->
+
+          <!-- Divider to past section -->
+          <div class="section-divider"></div>
+
+          <!-- =================== PAST VIEWINGS =================== -->
+          <div class="section-head">
+            <div class="section-title">ดูแล้ว</div>
+            <div class="section-count">2 รายการ</div>
+          </div>
+
+          <div class="timeline" lang="th" style="opacity:0.85;">
+
+            <!-- ---- Past 1: 5 Jun ---- -->
+            <div class="timeline-item">
+              <div class="t-date-col">
+                <div class="t-date-bubble past">
+                  <div class="t-date-day">5</div>
+                  <div class="t-date-mon">มิ.ย.</div>
+                </div>
+                <div class="t-connector"></div>
+              </div>
+              <div class="t-card past-card">
+                <div class="t-card-top">
+                  <div class="t-listing-name">ขายหอพัก 39 ห้อง ใกล้ ม.แม่โจ้</div>
+                  <span class="status-pill pill-done">ดูแล้ว</span>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item"><span class="icon">🕑</span><span>13:00 น.</span></div>
+                  <div class="t-meta-item"><span class="icon">📍</span><span>สันทราย เชียงใหม่</span></div>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item"><span class="icon">💰</span>
+                    <span class="t-price-small"><span class="thb">฿</span>13,800,000</span>
+                  </div>
+                </div>
+                <div class="t-cta-row">
+                  <button class="btn-sm btn-sm-ghost" style="flex:1.5;">📝 เพิ่มบันทึกหลังดู</button>
+                  <button class="btn-sm btn-sm-secondary">ติดตาม</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ---- Past 2: 1 Jun ---- -->
+            <div class="timeline-item">
+              <div class="t-date-col">
+                <div class="t-date-bubble past">
+                  <div class="t-date-day">1</div>
+                  <div class="t-date-mon">มิ.ย.</div>
+                </div>
+              </div>
+              <div class="t-card past-card">
+                <div class="t-card-top">
+                  <div class="t-listing-name">ขาย ใกล้ตลาดช้างเผือก &middot; 2 นอน</div>
+                  <span class="status-pill pill-done">ดูแล้ว</span>
+                </div>
+                <div class="t-meta">
+                  <div class="t-meta-item"><span class="icon">💰</span>
+                    <span class="t-price-small"><span class="thb">฿</span>5,300,000</span>
+                  </div>
+                  <div class="t-meta-item"><span class="icon">📝</span><span style="color:var(--color-success);font-size:11px;font-weight:600;">มีบันทึก</span></div>
+                </div>
+                <div class="t-cta-row">
+                  <button class="btn-sm btn-sm-ghost">ดูบันทึก</button>
+                  <button class="btn-sm btn-sm-primary">ดูรายละเอียด</button>
+                </div>
+              </div>
+            </div>
+
+          </div><!-- /past timeline -->
+
+          <!-- =================== FOLLOW-UP REMINDERS =================== -->
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-title">การติดตาม</div>
+            <div class="section-count">5 รายการ</div>
+          </div>
+
+          <div class="reminder-list" lang="th">
+
+            <!-- Reminder 1: DUE today -->
+            <div class="reminder-card due">
+              <div class="reminder-top">
+                <div class="reminder-label">ขายหอพักย่านบ่อสร้าง 14 ห้อง</div>
+                <div class="reminder-date" style="color:var(--color-warn);font-weight:700;">วันนี้ 13:00</div>
+              </div>
+              <div class="reminder-note">โทรถามสถานะราคา — เจ้าของบอกว่าต่อรองได้อีก ควรโทรยืนยันก่อนนัดดู</div>
+              <div class="reminder-actions">
+                <button class="btn-sm btn-sm-line" style="flex:none;padding:6px 14px;">💬 Chat LINE</button>
+                <button class="btn-sm btn-sm-ghost" style="flex:none;padding:6px 14px;">เลื่อน 1 ชม.</button>
+                <button class="btn-sm btn-sm-ghost" style="flex:none;padding:6px 14px;">เสร็จสิ้น</button>
+              </div>
+            </div>
+
+            <!-- Reminder 2: Upcoming -->
+            <div class="reminder-card ok">
+              <div class="reminder-top">
+                <div class="reminder-label">ทาวน์โฮมอรสิริน 6 &middot; ยื่นกู้</div>
+                <div class="reminder-date">พฤ. 19 มิ.ย. 09:00</div>
+              </div>
+              <div class="reminder-note">เตรียมเอกสารธนาคาร — สลิปเงินเดือน 3 เดือน, บัญชีออมทรัพย์ย้อนหลัง 6 เดือน</div>
+              <div class="reminder-actions">
+                <button class="btn-sm btn-sm-secondary" style="flex:none;padding:6px 14px;">แก้ไข</button>
+                <button class="btn-sm btn-sm-ghost" style="flex:none;padding:6px 14px;">เสร็จสิ้น</button>
+              </div>
+            </div>
+
+            <!-- Reminder 3: Pending question -->
+            <div class="reminder-card ok">
+              <div class="reminder-top">
+                <div class="reminder-label">บ้านหลักชัย สันทราย &middot; ถามสถานะโฉนด</div>
+                <div class="reminder-date">ศ. 20 มิ.ย. 11:00</div>
+              </div>
+              <div class="reminder-note">สอบถามเอกสารสิทธิ์ให้ชัดเจน — โฉนดหรือ น.ส.3? เจ้าของยังไม่ยืนยัน</div>
+              <div class="reminder-actions">
+                <button class="btn-sm btn-sm-line" style="flex:none;padding:6px 14px;">💬 ถามใน LINE</button>
+                <button class="btn-sm btn-sm-ghost" style="flex:none;padding:6px 14px;">เลื่อน</button>
+              </div>
+            </div>
+
+          </div><!-- /reminder-list -->
+
+          <!-- =================== NOTES =================== -->
+          <div class="section-divider"></div>
+
+          <div class="section-head">
+            <div class="section-title">บันทึกของฉัน</div>
+            <div class="section-count">2 รายการ</div>
+          </div>
+
+          <!-- Note 1 -->
+          <div class="note-card" lang="th">
+            <div class="note-listing">ขาย ใกล้ตลาดช้างเผือก · ช้างเผือก เมืองเชียงใหม่</div>
+            <div class="note-body">ห้องเล็กกว่าที่คาด 106 ตร.ม. แต่ทำเลดีมาก ใกล้ตลาด 5 นาที เจ้าของบอกลดได้ถึง 5 ล้าน ถ้าโอนทันกรกฎา (ก่อนโปรฯ ค่าโอน 0.01% หมด) — น่าสนใจถ้าต่อรองได้</div>
+            <div class="note-meta">บันทึกเมื่อ 1 มิ.ย. 2569 · หลังดูทรัพย์</div>
+          </div>
+
+          <!-- Note 2 -->
+          <div class="note-card" lang="th">
+            <div class="note-listing">ขายหอพัก 39 ห้อง ใกล้ ม.แม่โจ้ · สันทราย</div>
+            <div class="note-body">ราคาสูงไปสำหรับงบ แต่ผลตอบแทน 8.9%/ปี น่าสนใจมาก ถ้ามีหุ้นส่วนช่วยออกอีก 30% น่าคุยต่อ — จดไว้ถามคุณสมชาย</div>
+            <div class="note-meta">บันทึกเมื่อ 5 มิ.ย. 2569 · ระหว่างดูทรัพย์</div>
+          </div>
+
+          <!-- =================== "SET FOLLOW-UP" FAB =================== -->
+          <div class="fab-area">
+            <button class="fab-btn">
+              <span style="font-size:18px;">🔔</span>
+              ตั้งการติดตาม
+            </button>
+          </div>
+
+          <!-- Bottom nav -->
+          <nav class="bottom-nav">
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🏠</span>
+              หน้าแรก
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">🔍</span>
+              ค้นหา
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">❤️</span>
+              บันทึก
+            </a>
+            <a class="nav-item active" href="#">
+              <div class="nav-icon-wrap">
+                <span class="nav-icon">📅</span>
+                <span class="nav-dot"></span>
+              </div>
+              นัดดู
+            </a>
+            <a class="nav-item" href="#">
+              <span class="nav-icon">👤</span>
+              ฉัน
+            </a>
+          </nav>
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+
+      <div class="device-label">Stage 5 · Viewings &amp; Follow-ups CRM</div>
+    </div>
+  </div><!-- /device-wrap -->
+
+  <!-- Footnote / heuristic credits -->
+  <p class="footnote">
+    Heuristics applied: <strong>D13</strong> (viewings + follow-ups + notes as per-user CRM scope) ·
+    <strong>CONV-06</strong> (LINE CTA primary, phone secondary, email never) ·
+    <strong>CONV-09</strong> (ต่อรองได้ / ราคาเสนอขาย — asking framing, never final) ·
+    <strong>DEAL-01</strong> (saleStage awareness: ยืนยันแล้ว / รอยืนยัน shown on viewing cards) ·
+    <strong>DEAL-03/04</strong> (fee incentive window noted in notes copy: โปรฯ ค่าโอน 0.01% หมด กรกฎา) ·
+    <strong>DEAL-05/06</strong> (co-agent name surfaced on viewing card: คุณสมชาย) ·
+    <strong>TH-06/07</strong> (Sarabun looped body, line-height 1.65) ·
+    <strong>TH-08</strong> (lang="th" + overflow-wrap on all Thai blocks) ·
+    <strong>TH-09 / COMP-14</strong> (mobile-first 390px frame) ·
+    <strong>COPY-02</strong> (bare verb buttons: ดูรายละเอียด / ยืนยัน / เลื่อน — no particles) ·
+    <strong>COPY-06</strong> (land area in ตร.ว. Thai-units-first) ·
+    <strong>LEGAL-06</strong> (บันทึกของฉัน notes are private, poster-attributed) ·
+    <strong>B3/COPY-08</strong> (canonical place names: สันกำแพง, ช้างเผือก, สันทราย, ต้นเปา)
+  </p>
+
+  <!-- Floating dark toggle -->
+  <button class="dark-toggle" onclick="
+    var h = document.documentElement;
+    h.dataset.theme = h.dataset.theme === 'dark' ? 'light' : 'dark';
+    this.innerHTML = h.dataset.theme === 'dark' ? '☀ Light mode' : '🌙 Dark mode';
+  ">🌙 Dark mode</button>
+
+</body>
+</html>

@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Price filter · V3 — Dual independent ranges (filter sheet)</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;600;700&family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       THEME A — "Baania-clean" token cascade
+       Hex-first fallback; OKLCH override for modern browsers.
+       ============================================================ */
+    :root {
+      --color-primary-50:  #f0f4fb;
+      --color-primary-100: #dde8f7;
+      --color-primary-200: #b8d0ef;
+      --color-primary-300: #84aedf;
+      --color-primary-400: #4a84c8;
+      --color-primary-500: #1f5fad;
+      --color-primary-600: #174d93;
+      --color-primary-700: #113b74;
+      --color-primary-800: #0c2c58;
+      --color-primary-900: #071d3a;
+
+      --color-bg:          #faf9f7;
+      --color-surface:     #ffffff;
+      --color-surface-2:   #f3f2ef;
+      --color-border:      #e4e2de;
+      --color-border-2:    #d4d2cd;
+
+      --color-text:        #141820;
+      --color-text-2:      #5a6375;
+      --color-text-disabled: #9aa0ad;
+
+      --color-success:     #1a8a4a;
+      --color-success-bg:  #e9f7ef;
+      --color-warn:        #d97706;
+      --color-warn-bg:     #fef9eb;
+      --color-danger:      #c0392b;
+      --color-danger-bg:   #fdecea;
+
+      --badge-available:      #e9f7ef;
+      --badge-available-text: #1a8a4a;
+      --badge-reserved:       #eef1fd;
+      --badge-reserved-text:  #3b4ec8;
+      --badge-urgent:         #fef9eb;
+      --badge-urgent-text:    #d97706;
+      --badge-verified:       #e8f0fb;
+      --badge-verified-text:  #174d93;
+      --badge-owner:          #e6f6fb;
+      --badge-owner-text:     #1a6a8a;
+      --badge-npa:            #fdecea;
+      --badge-npa-text:       #c0392b;
+
+      /* Spacing */
+      --spacing-1: 4px;  --spacing-2: 8px;  --spacing-3: 12px;
+      --spacing-4: 16px; --spacing-5: 20px; --spacing-6: 24px;
+      --spacing-8: 32px; --spacing-10: 40px;
+
+      /* Radius */
+      --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+      --radius-xl: 20px; --radius-full: 9999px;
+
+      /* Shadow */
+      --shadow-xs: 0 1px 2px rgba(20,24,32,0.06);
+      --shadow-sm: 0 1px 4px rgba(20,24,32,0.08), 0 0 1px rgba(20,24,32,0.04);
+      --shadow-md: 0 4px 12px rgba(20,24,32,0.10), 0 1px 3px rgba(20,24,32,0.06);
+      --shadow-lg: 0 8px 24px rgba(20,24,32,0.12), 0 2px 6px rgba(20,24,32,0.08);
+
+      /* Typography */
+      --font-body-th:    'Sarabun', 'Noto Sans Thai', Arial, sans-serif;
+      --font-heading-th: 'Noto Sans Thai', 'Sarabun', Arial, sans-serif;
+      --font-latin:      'Inter', 'Helvetica Neue', Arial, sans-serif;
+      --text-xs: 11px; --text-sm: 13px; --text-base: 15px;
+      --text-md: 17px; --text-lg: 20px; --text-xl: 24px;
+      --text-2xl: 28px; --text-3xl: 34px;
+      --leading-body: 1.65;
+    }
+
+    @supports (color: oklch(0 0 0)) {
+      :root {
+        --color-primary-50:  oklch(0.97 0.015 240);
+        --color-primary-100: oklch(0.93 0.035 240);
+        --color-primary-200: oklch(0.86 0.065 240);
+        --color-primary-300: oklch(0.76 0.10  240);
+        --color-primary-400: oklch(0.64 0.135 240);
+        --color-primary-500: oklch(0.54 0.155 240);
+        --color-primary-600: oklch(0.46 0.15  240);
+        --color-primary-700: oklch(0.38 0.13  240);
+        --color-primary-800: oklch(0.30 0.10  240);
+        --color-primary-900: oklch(0.22 0.07  240);
+        --color-bg:          oklch(0.98 0.006 80);
+        --color-surface:     oklch(1.00 0.000  0);
+        --color-surface-2:   oklch(0.96 0.008 80);
+        --color-border:      oklch(0.90 0.008 80);
+        --color-border-2:    oklch(0.84 0.010 80);
+        --color-text:        oklch(0.18 0.010 240);
+        --color-text-2:      oklch(0.45 0.015 240);
+        --color-text-disabled: oklch(0.68 0.010 240);
+        --color-success:     oklch(0.52 0.15  150);
+        --color-success-bg:  oklch(0.95 0.04  150);
+        --color-warn:        oklch(0.70 0.17   75);
+        --color-warn-bg:     oklch(0.97 0.04   75);
+        --color-danger:      oklch(0.54 0.20   20);
+        --color-danger-bg:   oklch(0.96 0.04   20);
+        --badge-available:      oklch(0.95 0.04  150);
+        --badge-available-text: oklch(0.52 0.15  150);
+        --badge-urgent:         oklch(0.97 0.04   75);
+        --badge-urgent-text:    oklch(0.70 0.17   75);
+        --badge-verified:       oklch(0.96 0.03  240);
+        --badge-verified-text:  oklch(0.46 0.15  240);
+        --badge-owner:          oklch(0.96 0.04  200);
+        --badge-owner-text:     oklch(0.40 0.12  200);
+        --badge-npa:            oklch(0.96 0.04   20);
+        --badge-npa-text:       oklch(0.54 0.20   20);
+      }
+    }
+
+    /* Dark mode */
+    :root[data-theme="dark"], .dark {
+      --color-bg:          #111318;
+      --color-surface:     #1a1e26;
+      --color-surface-2:   #202530;
+      --color-border:      #2d3444;
+      --color-border-2:    #374055;
+      --color-text:        #e8eaf0;
+      --color-text-2:      #9aa0b4;
+      --color-text-disabled: #525b6e;
+      --color-primary-500: #5b9de0;
+      --color-primary-50:  #1a2340;
+      --color-primary-100: #1d2a52;
+      --color-primary-200: #23336b;
+      --color-success:     #3dba74;
+      --color-success-bg:  #0d2e1c;
+      --color-warn:        #f59e0b;
+      --color-warn-bg:     #2d1e05;
+      --badge-available:   #0d2e1c;
+      --badge-available-text: #3dba74;
+      --badge-urgent:      #2d1e05;
+      --badge-urgent-text: #f59e0b;
+      --badge-verified:    #0d1a38;
+      --badge-verified-text: #7eb3f0;
+      --badge-npa:         #2d0f0f;
+      --badge-npa-text:    #f87171;
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.30);
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.40), 0 0 1px rgba(0,0,0,0.20);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.50), 0 1px 3px rgba(0,0,0,0.30);
+      --shadow-lg: 0 8px 24px rgba(0,0,0,0.60), 0 2px 6px rgba(0,0,0,0.40);
+    }
+
+    /* ============================================================
+       RESET
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #d6dde8;
+      font-family: var(--font-body-th);
+      line-height: var(--leading-body);
+      color: var(--color-text);
+      min-height: 100vh;
+    }
+
+    [lang="th"] { word-break: normal; overflow-wrap: anywhere; }
+
+    /* ============================================================
+       LABEL BAR
+       ============================================================ */
+    .label-bar {
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .label-bar .sub {
+      opacity: 0.75;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      font-size: 11px;
+    }
+
+    .dark-toggle-inline {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      border-radius: var(--radius-full);
+      padding: 3px 11px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    /* ============================================================
+       DEVICE FRAME
+       ============================================================ */
+    .device-wrap {
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px 60px;
+      gap: 24px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .device-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .device-label-text {
+      font-family: var(--font-latin);
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+    }
+
+    .device {
+      width: 390px;
+      max-width: 100%;
+      background: var(--color-bg);
+      border-radius: 32px;
+      box-shadow: 0 0 0 8px #1a1a2e, 0 24px 64px rgba(0,0,0,0.35);
+      overflow: hidden;
+      color: var(--color-text);
+      position: relative;
+    }
+
+    .status-bar {
+      background: var(--color-primary-600);
+      color: #fff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 20px 6px;
+      font-family: var(--font-latin);
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-bar .time { font-size: 13px; font-weight: 700; }
+
+    .device-scroll {
+      max-height: 790px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border-2) transparent;
+    }
+    .device-scroll::-webkit-scrollbar { width: 4px; }
+    .device-scroll::-webkit-scrollbar-track { background: transparent; }
+    .device-scroll::-webkit-scrollbar-thumb { background: var(--color-border-2); border-radius: 4px; }
+
+    /* ============================================================
+       APP HEADER
+       ============================================================ */
+    .app-header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-xs);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .app-header-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+    }
+
+    .app-logo {
+      font-family: var(--font-heading-th);
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--color-primary-500);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .app-logo span { color: var(--color-primary-300); }
+
+    .search-box {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-full);
+      padding: 6px 12px;
+      cursor: text;
+    }
+    .search-box .si { color: var(--color-text-disabled); font-size: 14px; flex-shrink: 0; }
+    .search-ph { font-family: var(--font-body-th); font-size: 13px; color: var(--color-text-disabled); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .hdr-btn {
+      width: 36px; height: 36px;
+      border-radius: var(--radius-full);
+      background: var(--color-primary-50);
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; color: var(--color-primary-600);
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       FILTER ROW  (horizontal scroll chips)
+       ============================================================ */
+    .filter-row {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      padding: 8px 14px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .filter-row::-webkit-scrollbar { display: none; }
+    .filter-row-inner {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .fdivider { width: 1px; height: 18px; background: var(--color-border-2); flex-shrink: 0; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap; flex-shrink: 0;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
+    }
+    .chip.active { background: var(--color-primary-500); color: #fff; border-color: var(--color-primary-500); font-weight: 600; }
+    .chip.soft { background: var(--color-primary-50); color: var(--color-primary-600); border-color: var(--color-primary-200); font-weight: 600; }
+
+    /* "active" filter chip with a little ×-close */
+    .chip.filter-live {
+      background: var(--color-primary-50);
+      color: var(--color-primary-700);
+      border-color: var(--color-primary-300);
+      font-weight: 600;
+      padding-right: 8px;
+    }
+    .chip-close {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--color-primary-200);
+      color: var(--color-primary-700);
+      font-size: 10px; font-weight: 700; line-height: 1;
+      margin-left: 2px;
+    }
+
+    /* ============================================================
+       ACTIVE FILTERS SUMMARY ROW  (above grid, dismissible)
+       ============================================================ */
+    .active-filters-bar {
+      background: var(--color-primary-50);
+      border-bottom: 1px solid var(--color-primary-100);
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .active-filters-bar::-webkit-scrollbar { display: none; }
+
+    .afb-label {
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-700);
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .afb-pill {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: var(--color-surface);
+      border: 1px solid var(--color-primary-200);
+      border-radius: var(--radius-full);
+      padding: 2px 8px;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-primary-700);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .afb-pill .aclose {
+      color: var(--color-text-disabled);
+      font-size: 11px; font-weight: 700;
+      margin-left: 2px; cursor: pointer;
+    }
+    .afb-clear-all {
+      margin-left: auto;
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      color: var(--color-danger);
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      background: none; border: none; padding: 0;
+    }
+
+    /* ============================================================
+       RESULTS BAR
+       ============================================================ */
+    .results-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px 4px;
+    }
+    .results-count { font-family: var(--font-body-th); font-size: 13px; color: var(--color-text-2); }
+    .sort-btn {
+      display: flex; align-items: center; gap: 4px;
+      font-family: var(--font-body-th); font-size: 13px;
+      color: var(--color-primary-600); font-weight: 600;
+      background: none; border: none; cursor: pointer; padding: 0;
+    }
+
+    /* ============================================================
+       LISTING CARDS
+       ============================================================ */
+    .card-grid {
+      padding: 0 12px 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .card-wide { grid-column: 1 / -1; }
+
+    .listing-card {
+      display: block;
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+      text-decoration: none;
+      color: var(--color-text);
+      font-family: var(--font-body-th);
+      transition: box-shadow 0.15s, transform 0.12s;
+    }
+    .listing-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+
+    .card-photo {
+      position: relative;
+      aspect-ratio: 4/3;
+      background: linear-gradient(135deg, var(--color-primary-50), var(--color-primary-100));
+      overflow: hidden;
+    }
+    .card-photo-icon {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; opacity: 0.35; color: var(--color-primary-400);
+    }
+    .card-photo.rent-bg { background: linear-gradient(135deg, #e6f6fb, #c8e9f5); }
+    .card-photo.rent-bg .card-photo-icon { color: #1a6a8a; }
+
+    .deal-pill {
+      position: absolute; top: 8px; left: 8px;
+      display: inline-flex; align-items: center;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-family: var(--font-body-th);
+      font-size: 11px; font-weight: 700;
+      white-space: nowrap;
+      backdrop-filter: blur(4px);
+    }
+    .deal-sell  { background: rgba(255,255,255,0.92); color: var(--color-primary-600); border: 1px solid var(--color-primary-200); }
+    .deal-rent  { background: rgba(255,255,255,0.92); color: #1a6a8a; border: 1px solid #b8d9e8; }
+
+    .photo-count {
+      position: absolute; right: 7px; bottom: 7px;
+      background: rgba(20,24,32,0.75); color: #fff;
+      border-radius: var(--radius-sm);
+      padding: 1px 7px;
+      font-family: var(--font-latin); font-size: 11px; font-weight: 500;
+      display: flex; align-items: center; gap: 3px;
+    }
+
+    .card-body { padding: 10px 11px 11px; display: grid; gap: 5px; }
+
+    .card-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 1px 8px; border-radius: var(--radius-full);
+      font-family: var(--font-body-th); font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .ba { background: var(--badge-available); color: var(--badge-available-text); }
+    .bu { background: var(--badge-urgent);    color: var(--badge-urgent-text); }
+    .bv { background: var(--badge-verified);  color: var(--badge-verified-text); }
+    .bn { background: var(--badge-npa);       color: var(--badge-npa-text); }
+    .br { background: var(--badge-owner);     color: var(--badge-owner-text); }
+
+    .card-headline {
+      font-family: var(--font-heading-th); font-size: 13px; font-weight: 600;
+      line-height: 1.45; color: var(--color-text);
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .card-price-label { font-size: 11px; color: var(--color-text-disabled); font-family: var(--font-body-th); margin-bottom: -2px; }
+    .card-price { font-size: 17px; font-weight: 700; color: var(--color-text); font-family: var(--font-latin); letter-spacing: -0.01em; line-height: 1.2; }
+    .card-price .thb { font-family: var(--font-body-th); font-size: 15px; }
+    .card-specs { font-size: 12px; color: var(--color-text-2); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .spec-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--color-border-2); flex-shrink: 0; }
+    .card-location { font-size: 11px; color: var(--color-text-disabled); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* ============================================================
+       BOTTOM NAV
+       ============================================================ */
+    .bottom-nav {
+      border-top: 1px solid var(--color-border);
+      background: var(--color-surface);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      padding: 6px 0 10px;
+    }
+    .nav-item {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 4px; text-decoration: none;
+      color: var(--color-text-disabled);
+      font-family: var(--font-body-th); font-size: 10px;
+    }
+    .nav-item.active { color: var(--color-primary-500); }
+    .nav-icon { font-size: 20px; line-height: 1; }
+
+    .disclaimer {
+      font-family: var(--font-body-th); font-size: 11px;
+      color: var(--color-text-disabled); text-align: center;
+      padding: 4px 14px 12px; line-height: 1.6;
+    }
+
+    /* ============================================================
+       FILTER SHEET OVERLAY  (bottom-sheet)
+       ============================================================ */
+    .sheet-overlay {
+      position: absolute; inset: 0;
+      background: rgba(14,18,28,0.55);
+      backdrop-filter: blur(2px);
+      z-index: 50;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .sheet {
+      width: 100%;
+      background: var(--color-surface);
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.18);
+      overflow: hidden;
+      /* Simulate the sheet at ~70% height — it slides up from bottom */
+      max-height: 86%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sheet-handle {
+      display: flex; justify-content: center;
+      padding: 10px 0 4px;
+    }
+    .sheet-handle-bar {
+      width: 36px; height: 4px;
+      border-radius: 2px;
+      background: var(--color-border-2);
+    }
+
+    .sheet-header {
+      display: flex; align-items: center;
+      padding: 0 16px 12px;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .sheet-title {
+      font-family: var(--font-heading-th);
+      font-size: 17px; font-weight: 700;
+      color: var(--color-text);
+      flex: 1;
+    }
+    .sheet-reset {
+      font-family: var(--font-body-th); font-size: 13px;
+      color: var(--color-text-2); font-weight: 600;
+      background: none; border: none; cursor: pointer; padding: 4px 0;
+    }
+    .sheet-close {
+      width: 30px; height: 30px;
+      border-radius: var(--radius-full);
+      background: var(--color-surface-2);
+      border: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer; margin-left: 10px;
+      color: var(--color-text-2);
+    }
+
+    .sheet-body {
+      overflow-y: auto;
+      flex: 1;
+      padding: 16px;
+      display: flex; flex-direction: column; gap: 20px;
+    }
+
+    /* ============================================================
+       RANGE SECTION  (inside sheet)
+       ============================================================ */
+    .range-section {
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .range-section-header {
+      display: flex; align-items: baseline; gap: 8px;
+    }
+
+    .range-section-title {
+      font-family: var(--font-heading-th);
+      font-size: 15px; font-weight: 700;
+      color: var(--color-text);
+    }
+    .range-section-unit {
+      font-family: var(--font-latin);
+      font-size: 12px; color: var(--color-text-2);
+    }
+
+    /* Quick presets row */
+    .preset-row {
+      display: flex; gap: 6px; flex-wrap: wrap;
+    }
+    .preset-btn {
+      padding: 4px 11px;
+      border-radius: var(--radius-full);
+      border: 1px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.12s;
+    }
+    .preset-btn.sel {
+      background: var(--color-primary-50);
+      border-color: var(--color-primary-300);
+      color: var(--color-primary-700);
+      font-weight: 600;
+    }
+
+    /* Min/Max input row */
+    .range-inputs {
+      display: grid;
+      grid-template-columns: 1fr 16px 1fr;
+      gap: 8px;
+      align-items: center;
+    }
+    .range-sep {
+      text-align: center;
+      font-family: var(--font-latin);
+      font-size: 15px;
+      color: var(--color-text-disabled);
+      font-weight: 400;
+    }
+
+    .range-input-wrap {
+      position: relative;
+    }
+    .range-input-label {
+      position: absolute;
+      top: -1px; left: 9px;
+      font-family: var(--font-body-th);
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      background: var(--color-surface);
+      padding: 0 3px;
+      line-height: 1;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .range-input {
+      width: 100%;
+      padding: 10px 9px 7px;
+      border: 1.5px solid var(--color-border-2);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      font-family: var(--font-latin);
+      font-size: 15px; font-weight: 600;
+      color: var(--color-text);
+      outline: none;
+      transition: border-color 0.12s;
+      -moz-appearance: textfield;
+    }
+    .range-input::-webkit-outer-spin-button,
+    .range-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .range-input:focus { border-color: var(--color-primary-400); }
+    .range-input.has-val { border-color: var(--color-primary-300); color: var(--color-primary-700); }
+    .range-input-unit {
+      position: absolute;
+      right: 10px; bottom: 8px;
+      font-family: var(--font-body-th);
+      font-size: 11px;
+      color: var(--color-text-disabled);
+      pointer-events: none;
+    }
+
+    /* Dual-thumb track (visual only — pure CSS) */
+    .range-track-wrap {
+      padding: 0 2px;
+    }
+    .range-track {
+      height: 4px;
+      background: var(--color-border);
+      border-radius: 2px;
+      position: relative;
+      margin: 8px 0 4px;
+    }
+    .range-fill {
+      position: absolute;
+      height: 100%;
+      border-radius: 2px;
+      background: var(--color-primary-400);
+    }
+    .range-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: var(--color-surface);
+      border: 2.5px solid var(--color-primary-500);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+    }
+
+    .range-limits {
+      display: flex; justify-content: space-between;
+      font-family: var(--font-latin); font-size: 10px;
+      color: var(--color-text-disabled);
+      margin-top: 2px;
+    }
+
+    /* Divider between the two range sections */
+    .sheet-divider {
+      height: 1px;
+      background: var(--color-border);
+      margin: 0 -16px;
+    }
+
+    /* ============================================================
+       SHEET FOOTER: Apply / Clear
+       ============================================================ */
+    .sheet-footer {
+      border-top: 1px solid var(--color-border);
+      padding: 12px 16px 16px;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      align-items: center;
+      background: var(--color-surface);
+    }
+
+    .btn-clear {
+      padding: 11px 18px;
+      border-radius: var(--radius-md);
+      border: 1.5px solid var(--color-border-2);
+      background: var(--color-surface);
+      color: var(--color-text-2);
+      font-family: var(--font-body-th); font-size: 14px; font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn-clear:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+    .btn-apply {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 13px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--color-primary-500);
+      color: #fff;
+      font-family: var(--font-body-th); font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(31,95,173,0.30);
+    }
+
+    .apply-count-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 20px; height: 20px;
+      border-radius: var(--radius-full);
+      background: #fff;
+      color: var(--color-primary-600);
+      font-family: var(--font-latin);
+      font-size: 11px; font-weight: 700;
+      padding: 0 5px;
+      line-height: 1;
+    }
+
+    /* ============================================================
+       STATE HELPERS — JS toggles these
+       ============================================================ */
+    .sheet-overlay { display: none; }
+    .sheet-overlay.open { display: flex; }
+    .active-filters-bar { display: none; }
+    .active-filters-bar.visible { display: flex; }
+  </style>
+</head>
+
+<body>
+
+  <!-- Label bar -->
+  <div class="label-bar">
+    <span>Price filter · V3 — Dual independent ranges (filter sheet)</span>
+    <span class="sub">Theme A · Baania-clean · 390px mobile</span>
+    <button class="dark-toggle-inline" onclick="
+      var h=document.documentElement;
+      if(h.dataset.theme==='dark'){h.dataset.theme='light';this.textContent='🌙 Dark';}
+      else{h.dataset.theme='dark';this.textContent='☀ Light';}
+    ">🌙 Dark</button>
+  </div>
+
+  <div class="device-wrap">
+    <div class="device-col">
+
+      <!-- ==== DEVICE ==== -->
+      <div class="device" lang="th" id="phone">
+
+        <!-- Status bar -->
+        <div class="status-bar">
+          <span class="time">9:41</span>
+          <span>เชียงใหม่ ●●● 5G</span>
+        </div>
+
+        <div class="device-scroll" id="deviceScroll">
+
+          <!-- App header + filter row -->
+          <header class="app-header">
+            <div class="app-header-inner">
+              <div class="app-logo">ทรัพย์<span>ดี</span></div>
+              <div class="search-box">
+                <span class="si">🔍</span>
+                <span class="search-ph">ค้นหาทำเล โครงการ คำอธิบาย</span>
+              </div>
+              <button class="hdr-btn" aria-label="แผนที่">🗺</button>
+            </div>
+
+            <div class="filter-row">
+              <div class="filter-row-inner">
+                <button class="chip active">ขาย</button>
+                <button class="chip">ให้เช่า</button>
+                <div class="fdivider"></div>
+                <button class="chip soft">บ้านเดี่ยว</button>
+                <button class="chip">ที่ดิน</button>
+                <button class="chip">ทาวน์เฮาส์</button>
+                <button class="chip">คอนโด</button>
+                <div class="fdivider"></div>
+                <!-- FILTER BUTTON — triggers sheet -->
+                <button class="chip filter-live" id="openSheetBtn" onclick="openSheet()">
+                  ⚙ ตัวกรอง
+                  <span class="chip-close">2</span>
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <!-- Active-filters summary row -->
+          <div class="active-filters-bar visible" id="afBar">
+            <span class="afb-label">กรองแล้ว:</span>
+            <span class="afb-pill">ราคาขาย 1–10 ล้าน <span class="aclose" onclick="clearSale()">×</span></span>
+            <span class="afb-pill">ค่าเช่า ≤30k/เดือน <span class="aclose" onclick="clearRent()">×</span></span>
+            <button class="afb-clear-all" onclick="clearAll()">ล้างทั้งหมด</button>
+          </div>
+
+          <!-- Results bar -->
+          <div class="results-bar">
+            <span class="results-count" id="resultsCount">14 ประกาศ · เชียงใหม่</span>
+            <button class="sort-btn">เรียงตาม ▾</button>
+          </div>
+
+          <!-- Listing cards -->
+          <div class="card-grid" lang="th">
+
+            <!-- Card 1: Wide — Featured -->
+            <a class="listing-card card-wide" href="#">
+              <div class="card-photo">
+                <div class="card-photo-icon">🏘</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 12 รูป</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge ba">ขาย</span>
+                  <span class="badge bn">ยังไม่ยืนยันโฉนด</span>
+                </div>
+                <div class="card-headline">ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>4,800,000</div>
+                </div>
+                <div class="card-specs"><span>52 ตร.ว.</span></div>
+                <div class="card-location">ใกล้แยกบ่อสร้าง · ต้นเปา · สันกำแพง</div>
+              </div>
+            </a>
+
+            <!-- Card 2 -->
+            <a class="listing-card" href="#">
+              <div class="card-photo"><div class="card-photo-icon">🏠</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 10</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges"><span class="badge ba">ขาย</span></div>
+                <div class="card-headline">ทาวน์โฮมในโครงการอรสิริน 6</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>1,300,000</div>
+                </div>
+                <div class="card-specs"><span>31 ตร.ว.</span></div>
+                <div class="card-location">โครงการอรสิริน 6</div>
+              </div>
+            </a>
+
+            <!-- Card 3 -->
+            <a class="listing-card" href="#">
+              <div class="card-photo"><div class="card-photo-icon">🏡</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 16</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge ba">ขาย</span>
+                  <span class="badge bv">✓ ยืนยัน</span>
+                </div>
+                <div class="card-headline">ขายฝากบ้าน 2 ชั้น โครงการบ้านหลักชัย สันทราย</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>1,200,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span><span class="spec-dot"></span>
+                  <span>30 ตร.ว.</span>
+                </div>
+                <div class="card-location">ตรงข้ามกาดแม่กวง · สันนาเม็ง · สันทราย</div>
+              </div>
+            </a>
+
+            <!-- Card 4 -->
+            <a class="listing-card" href="#">
+              <div class="card-photo"><div class="card-photo-icon">🏠</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge ba">ขาย</span>
+                  <span class="badge bu">ขายด่วน</span>
+                </div>
+                <div class="card-headline">ขาย ใกล้ตลาดช้างเผือก</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>5,300,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>2 นอน</span><span class="spec-dot"></span>
+                  <span>1 น้ำ</span><span class="spec-dot"></span>
+                  <span>106 ตร.ม.</span>
+                </div>
+                <div class="card-location">ช้างเผือก · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 5: Rent -->
+            <a class="listing-card" href="#">
+              <div class="card-photo rent-bg"><div class="card-photo-icon">🏠</div>
+                <span class="deal-pill deal-rent">เช่า</span>
+                <span class="photo-count">📷 8</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges"><span class="badge br">ให้เช่า</span></div>
+                <div class="card-headline">ให้เช่า ใกล้ มช. ประตูหลัง</div>
+                <div>
+                  <div class="card-price-label">ค่าเช่า/เดือน</div>
+                  <div class="card-price"><span class="thb">฿</span>13,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span>
+                </div>
+                <div class="card-location">สุเทพ · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 6: Rent -->
+            <a class="listing-card" href="#">
+              <div class="card-photo rent-bg"><div class="card-photo-icon">🏡</div>
+                <span class="deal-pill deal-rent">เช่า</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges">
+                  <span class="badge br">ให้เช่า</span>
+                  <span class="badge bu">ลดแล้ว</span>
+                </div>
+                <div class="card-headline">ให้เช่า ใกล้กาดฝรั่ง หางดง</div>
+                <div>
+                  <div class="card-price-label">ค่าเช่า/เดือน</div>
+                  <div class="card-price"><span class="thb">฿</span>10,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>3 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span>
+                </div>
+                <div class="card-location">แม่เหียะ · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+            <!-- Card 7 -->
+            <a class="listing-card" href="#">
+              <div class="card-photo"><div class="card-photo-icon">🏢</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+                <span class="photo-count">📷 11</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges"><span class="badge ba">ขาย</span></div>
+                <div class="card-headline">ขายหอพัก 2 ชั้น 39 ห้อง ใกล้ ม.แม่โจ้</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>9,200,000</div>
+                </div>
+                <div class="card-specs"><span>700 ตร.ว.</span></div>
+                <div class="card-location">ใกล้ ม.แม่โจ้ · สันทราย</div>
+              </div>
+            </a>
+
+            <!-- Card 8 -->
+            <a class="listing-card" href="#">
+              <div class="card-photo"><div class="card-photo-icon">🏘</div>
+                <span class="deal-pill deal-sell">ขาย</span>
+              </div>
+              <div class="card-body" lang="th">
+                <div class="card-badges"><span class="badge ba">ขาย</span></div>
+                <div class="card-headline">ขาย ใกล้ Central Festival</div>
+                <div>
+                  <div class="card-price-label">ราคาเสนอขาย</div>
+                  <div class="card-price"><span class="thb">฿</span>6,800,000</div>
+                </div>
+                <div class="card-specs">
+                  <span>4 นอน</span><span class="spec-dot"></span>
+                  <span>2 น้ำ</span>
+                </div>
+                <div class="card-location">หนองป่าครั่ง · เมืองเชียงใหม่</div>
+              </div>
+            </a>
+
+          </div><!-- /card-grid -->
+
+          <p class="disclaimer">ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม</p>
+
+          <nav class="bottom-nav">
+            <a class="nav-item active" href="#"><span class="nav-icon">🏠</span>หน้าแรก</a>
+            <a class="nav-item" href="#"><span class="nav-icon">🔍</span>ค้นหา</a>
+            <a class="nav-item" href="#"><span class="nav-icon">➕</span>ลงประกาศ</a>
+            <a class="nav-item" href="#"><span class="nav-icon">💬</span>แชท</a>
+            <a class="nav-item" href="#"><span class="nav-icon">👤</span>บัญชี</a>
+          </nav>
+
+          <!-- ================================================
+               FILTER SHEET  (absolute inside device-scroll,
+               overlays the content)
+               ================================================ -->
+          <div class="sheet-overlay open" id="sheetOverlay" onclick="handleOverlayClick(event)">
+            <div class="sheet" id="filterSheet" lang="th">
+
+              <div class="sheet-handle"><div class="sheet-handle-bar"></div></div>
+
+              <div class="sheet-header">
+                <div class="sheet-title">ตัวกรองราคา</div>
+                <button class="sheet-reset" onclick="resetSheet()">รีเซ็ต</button>
+                <button class="sheet-close" onclick="closeSheet()">✕</button>
+              </div>
+
+              <div class="sheet-body">
+
+                <!-- ====== SECTION 1: Sale price ====== -->
+                <div class="range-section">
+                  <div class="range-section-header">
+                    <div class="range-section-title">ราคาขาย</div>
+                    <div class="range-section-unit">(ล้านบาท)</div>
+                  </div>
+
+                  <!-- Quick presets -->
+                  <div class="preset-row">
+                    <button class="preset-btn" onclick="setSalePreset(this,0,1)">ต่ำกว่า 1M</button>
+                    <button class="preset-btn sel" onclick="setSalePreset(this,1,10)">1–10M</button>
+                    <button class="preset-btn" onclick="setSalePreset(this,5,20)">5–20M</button>
+                    <button class="preset-btn" onclick="setSalePreset(this,10,9999)">10M+</button>
+                  </div>
+
+                  <!-- Min/max inputs -->
+                  <div class="range-inputs">
+                    <div class="range-input-wrap">
+                      <span class="range-input-label">ขั้นต่ำ</span>
+                      <input class="range-input has-val" id="saleMin" type="number" value="1" min="0" max="200" placeholder="">
+                      <span class="range-input-unit">ล้าน</span>
+                    </div>
+                    <div class="range-sep">–</div>
+                    <div class="range-input-wrap">
+                      <span class="range-input-label">สูงสุด</span>
+                      <input class="range-input has-val" id="saleMax" type="number" value="10" min="0" max="200" placeholder="">
+                      <span class="range-input-unit">ล้าน</span>
+                    </div>
+                  </div>
+
+                  <!-- Visual track (decorative — shows current selection) -->
+                  <div class="range-track-wrap">
+                    <div class="range-track">
+                      <!-- fill: 1–10 out of 0–50 range → left 2%, right 80% fill = 78% width -->
+                      <div class="range-fill" style="left:2%;width:18%;"></div>
+                      <div class="range-thumb" style="left:2%;"></div>
+                      <div class="range-thumb" style="left:20%;"></div>
+                    </div>
+                    <div class="range-limits"><span>0</span><span>50M+</span></div>
+                  </div>
+                </div>
+
+                <div class="sheet-divider"></div>
+
+                <!-- ====== SECTION 2: Rent price ====== -->
+                <div class="range-section">
+                  <div class="range-section-header">
+                    <div class="range-section-title">ค่าเช่า/เดือน</div>
+                    <div class="range-section-unit">(บาท/เดือน)</div>
+                  </div>
+
+                  <!-- Quick presets -->
+                  <div class="preset-row">
+                    <button class="preset-btn" onclick="setRentPreset(this,0,5000)">≤5,000</button>
+                    <button class="preset-btn" onclick="setRentPreset(this,5000,15000)">5k–15k</button>
+                    <button class="preset-btn" onclick="setRentPreset(this,10000,30000)">10k–30k</button>
+                    <button class="preset-btn sel" onclick="setRentPreset(this,0,30000)">≤30k</button>
+                    <button class="preset-btn" onclick="setRentPreset(this,30000,9999999)">30k+</button>
+                  </div>
+
+                  <!-- Min/max inputs -->
+                  <div class="range-inputs">
+                    <div class="range-input-wrap">
+                      <span class="range-input-label">ขั้นต่ำ</span>
+                      <input class="range-input" id="rentMin" type="number" value="" min="0" max="999999" placeholder="ไม่จำกัด">
+                      <span class="range-input-unit">฿</span>
+                    </div>
+                    <div class="range-sep">–</div>
+                    <div class="range-input-wrap">
+                      <span class="range-input-label">สูงสุด</span>
+                      <input class="range-input has-val" id="rentMax" type="number" value="30000" min="0" max="999999" placeholder="">
+                      <span class="range-input-unit">฿</span>
+                    </div>
+                  </div>
+
+                  <!-- Visual track -->
+                  <div class="range-track-wrap">
+                    <div class="range-track">
+                      <!-- max=30k out of 0–200k → 0–15% fill -->
+                      <div class="range-fill" style="left:0%;width:15%;"></div>
+                      <div class="range-thumb" style="left:0%;"></div>
+                      <div class="range-thumb" style="left:15%;"></div>
+                    </div>
+                    <div class="range-limits"><span>0</span><span>200k+</span></div>
+                  </div>
+                </div>
+
+              </div><!-- /sheet-body -->
+
+              <!-- Sheet footer -->
+              <div class="sheet-footer">
+                <button class="btn-clear" onclick="resetSheet()">ล้างค่า</button>
+                <button class="btn-apply" onclick="applyFilters()">
+                  แสดงผล
+                  <span class="apply-count-badge">14</span>
+                </button>
+              </div>
+
+            </div><!-- /sheet -->
+          </div><!-- /sheet-overlay -->
+
+        </div><!-- /device-scroll -->
+      </div><!-- /device -->
+
+      <div class="device-label-text">V3 · Filter sheet · ตัวกรองราคา</div>
+    </div><!-- /device-col -->
+  </div><!-- /device-wrap -->
+
+  <!-- Footer heuristics note -->
+  <div style="
+    background: #1a1a2e; color: rgba(255,255,255,0.55);
+    font-family: 'Inter','Helvetica Neue',Arial,sans-serif;
+    font-size: 11px; line-height: 1.6;
+    padding: 14px 20px; text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  ">
+    Heuristics applied:
+    <strong style="color:rgba(255,255,255,0.80)">CONV-08</strong> (list-first + prominent filters as table-stakes MVP) ·
+    <strong style="color:rgba(255,255,255,0.80)">CONV-09</strong> (ราคาเสนอขาย labelling; ต่อรองได้ framing) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-06</strong> (Sarabun looped body) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-07</strong> (leading ≥1.6) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-08</strong> (lang=th ICU breaks) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-09</strong> (mobile-first 390px) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-11</strong> (clean card landing; dense on comparison) ·
+    <strong style="color:rgba(255,255,255,0.80)">TH-12</strong> (trust-blue primary) ·
+    <strong style="color:rgba(255,255,255,0.80)">A4-F09</strong> (rent/sale as distinct filter axes) ·
+    <strong style="color:rgba(255,255,255,0.80)">A5-Finding 4</strong> (price/bedroom filter parity with DDProperty) ·
+    <strong style="color:rgba(255,255,255,0.80)">B2-F8/B2-CONV-08</strong> (list-first, filters prominent) ·
+    <strong style="color:rgba(255,255,255,0.80)">B2-F10/F11</strong> (Thai negotiation padding → ราคาเสนอขาย labels)
+  </div>
+
+  <script>
+    /* ============================================================
+       MINIMAL STATE — no framework, one function per action.
+       Power-browser can set EITHER or BOTH ranges independently,
+       regardless of the ขาย/เช่า chip toggle.
+       ============================================================ */
+
+    var saleActive = true;
+    var rentActive = true;
+
+    function openSheet() {
+      document.getElementById('sheetOverlay').classList.add('open');
+    }
+
+    function closeSheet() {
+      document.getElementById('sheetOverlay').classList.remove('open');
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('sheetOverlay')) closeSheet();
+    }
+
+    /* Preset buttons — sale */
+    function setSalePreset(btn, min, max) {
+      document.querySelectorAll('.range-section:first-of-type .preset-btn')
+        .forEach(function(b){ b.classList.remove('sel'); });
+      btn.classList.add('sel');
+      var saleMinEl = document.getElementById('saleMin');
+      var saleMaxEl = document.getElementById('saleMax');
+      saleMinEl.value = min === 0 ? '' : min;
+      saleMaxEl.value = max === 9999 ? '' : max;
+      saleMinEl.classList.toggle('has-val', !!saleMinEl.value);
+      saleMaxEl.classList.toggle('has-val', !!saleMaxEl.value);
+    }
+
+    /* Preset buttons — rent */
+    function setRentPreset(btn, min, max) {
+      document.querySelectorAll('.range-section:last-of-type .preset-btn')
+        .forEach(function(b){ b.classList.remove('sel'); });
+      btn.classList.add('sel');
+      var rentMinEl = document.getElementById('rentMin');
+      var rentMaxEl = document.getElementById('rentMax');
+      rentMinEl.value = min === 0 ? '' : min;
+      rentMaxEl.value = max === 9999999 ? '' : max;
+      rentMinEl.classList.toggle('has-val', !!rentMinEl.value);
+      rentMaxEl.classList.toggle('has-val', !!rentMaxEl.value);
+    }
+
+    function resetSheet() {
+      document.getElementById('saleMin').value = '';
+      document.getElementById('saleMax').value = '';
+      document.getElementById('rentMin').value = '';
+      document.getElementById('rentMax').value = '';
+      document.querySelectorAll('.preset-btn').forEach(function(b){ b.classList.remove('sel'); });
+      document.querySelectorAll('.range-input').forEach(function(i){ i.classList.remove('has-val'); });
+    }
+
+    function applyFilters() {
+      var saleMin = document.getElementById('saleMin').value;
+      var saleMax = document.getElementById('saleMax').value;
+      var rentMin = document.getElementById('rentMin').value;
+      var rentMax = document.getElementById('rentMax').value;
+
+      var afBar = document.getElementById('afBar');
+      var pills = '';
+      var count = 0;
+
+      if (saleMin || saleMax) {
+        count++;
+        var lo = saleMin ? saleMin + 'M' : 'ไม่จำกัด';
+        var hi = saleMax ? saleMax + 'M' : 'ไม่จำกัด';
+        pills += '<span class="afb-pill">ราคาขาย ' + lo + '–' + hi + ' <span class="aclose" onclick="clearSale()">×</span></span>';
+      }
+      if (rentMin || rentMax) {
+        count++;
+        var rlo = rentMin ? '฿' + Number(rentMin).toLocaleString() : 'ไม่จำกัด';
+        var rhi = rentMax ? '≤฿' + Number(rentMax).toLocaleString() + '/เดือน' : 'ไม่จำกัด';
+        pills += '<span class="afb-pill">' + (rentMin ? rlo + '–' + rhi : rhi) + ' <span class="aclose" onclick="clearRent()">×</span></span>';
+      }
+
+      if (count > 0) {
+        afBar.innerHTML = '<span class="afb-label">กรองแล้ว:</span>' + pills + '<button class="afb-clear-all" onclick="clearAll()">ล้างทั้งหมด</button>';
+        afBar.classList.add('visible');
+        document.getElementById('openSheetBtn').innerHTML = '⚙ ตัวกรอง <span class="chip-close">' + count + '</span>';
+        /* Simulate fewer results */
+        document.getElementById('resultsCount').textContent = (count === 2 ? '14' : '18') + ' ประกาศ · เชียงใหม่';
+      } else {
+        afBar.classList.remove('visible');
+        document.getElementById('openSheetBtn').innerHTML = '⚙ ตัวกรองเพิ่มเติม';
+        document.getElementById('resultsCount').textContent = '20 ประกาศ · เชียงใหม่';
+      }
+
+      closeSheet();
+    }
+
+    function clearSale() {
+      document.getElementById('saleMin').value = '';
+      document.getElementById('saleMax').value = '';
+      applyFilters();
+    }
+    function clearRent() {
+      document.getElementById('rentMin').value = '';
+      document.getElementById('rentMax').value = '';
+      applyFilters();
+    }
+    function clearAll() {
+      resetSheet();
+      applyFilters();
+    }
+
+    /* Input → has-val class */
+    document.querySelectorAll('.range-input').forEach(function(inp) {
+      inp.addEventListener('input', function() {
+        this.classList.toggle('has-val', !!this.value);
+      });
+    });
+  </script>
+
+</body>
+</html>
