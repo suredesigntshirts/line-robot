@@ -13,7 +13,7 @@ be deferred and then forgotten. This file supersedes the sprint-01 `BLOCKERS.md`
   shipped." **Stage 2 and Stage 4 were never formally gated** — running those gates is itself a
   backlog item (below), and is how 4.1 (image rendering) should have been caught.
 
-_Last updated: 2026-06-13._
+_Last updated: 2026-06-13 (audited each OPEN item against code + git log; corrections below)._
 
 ## Status at a glance
 
@@ -88,9 +88,9 @@ Lambda mechanics proven.
 |---|---|---|
 | 0.1 | Run `/increment-review` once on a real diff — closes the Stage 0 gate's skill-invocation loop (gate passed on procedure execution). | Founder/eng (one run) |
 | 0.2 | `scoreFuzzy` (LLM-judge) + photo-attribution scorers — deferred to Stage 2 eval (= A7). | Deferred |
-| 1.1 | **Q-SA4** — state the raw-archive retention as explicit infra config (S3 lifecycle rule + data-handling note). Small, do when next touching infra. | Eng (small) |
+| 1.1 | ~~**Q-SA4** — state the raw-archive retention as explicit infra config (S3 lifecycle rule + data-handling note).~~ **DONE** (audit 2026-06-13): `infra/src/storage.ts:105-120` has the `archive-lifecycle` rule + the recorded retention decision (keep indefinitely for now; revisit before launch). | ~~Eng (small)~~ DONE |
 | 1.2 | Production RDS hardening (pre-launch): private subnets + VPC endpoints/NAT + restrict SG (D-S1-2); RDS Proxy if Stage 2 fan-out raises concurrency (D-S1-4). | Pre-launch |
-| 1.3 | CKAN live open-data pull (`CKAN_DATASTORE_URL=… npm run db:seed`) — optional; data.go.th was unreachable from the sandbox. | Optional |
+| 1.3 | CKAN ingestor is **built + wired + tested** (`packages/pipeline/src/seed/ckanIngestor.ts`, imported in `seed/run.ts`, unit + integration tests). Only the **live** open-data pull (`CKAN_DATASTORE_URL=… npm run db:seed`) is outstanding — optional; data.go.th was unreachable from the sandbox. | Optional (code done) |
 | 3.1 | `shadcn init` never done (D3.1) — components hand-rolled on tokens; adoption deferred to Stage 4/5 consumers. Native `<details>` used for accordion. | Deferred |
 
 ## Founder action queue (unblocks built work)
