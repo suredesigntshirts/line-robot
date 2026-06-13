@@ -1,0 +1,4 @@
+# Re-include the committed production build config (overrides the repo-root `.env.*` ignore).
+# These are PUBLIC build-time values (LIFF id + Lambda Function URL) and MUST be tracked so a clean
+# rebuild always bakes them in. Local overrides (.env, .env.local, .env.*.local) stay ignored.
+!.env.production
