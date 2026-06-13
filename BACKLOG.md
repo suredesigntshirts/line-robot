@@ -98,7 +98,18 @@ Lambda mechanics proven.
 - ~~Pick the design-token direction~~ **DONE 2026-06-13: Direction A "Baania-clean" (trust-blue) confirmed** after side-by-side HTML mockups (`docs/design/mockups/direction-*.html`); `theme.css` header updated to founder-confirmed, fallbacks regenerated. **Stage 3 design-token gate is now unblocked.**
 - ~~Approve the Stage 5 build~~ **DONE 2026-06-13: Stage 5 shape approved** (claim/publish + My-Listings + viewings/follow-ups). Build it; the mocks in `docs/design/mockups/` are inspiration only.
 - ~~Rulings: price-filter + schema gaps~~ **DONE 2026-06-13** (directions only — see `docs/design/mockups/README.md`): price filter = **contextual** (Buy/Rent relabels one range); **add both** schema fields (NPA/`listing_type` + new-vs-resale), surfaced via **detail-page disclosure + subtle meta**. **CONSTRAINTS for the real build:** rebuild UI from scratch (mocks = inspiration only); price ranges must use ACTUAL North-Thai bands from `a2-market-landscape-north.md` (NOT the demo brackets); **tone DOWN the NPA red** — it reads as alert/warning, should be a calm category highlight, not danger.
-- **Set `lineOaUrl`** Pulumi config to light the detail-page "Chat on LINE" CTA (CONV-06).
+- **Set `lineOaUrl`** Pulumi config to light the detail-page "Chat on LINE" CTA (CONV-06). **No LINE
+  verification/approval needed** — the OA's *Bot basic ID* (`@…`) is auto-created with the existing
+  Messaging API channel, and the `https://line.me/R/ti/p/@<id>` add-friend link works for an
+  unverified OA (verification only adds a badge + in-app search discoverability, which the website CTA
+  doesn't depend on). Get the basic ID from the LINE Developers Console → channel → Messaging API tab
+  (or the `lin.ee` short link in LINE Official Account Manager). _Distinct from the deferred MINI App
+  verification — unrelated._
+- **Deploy-policy gap (infra):** the scoped deploy policy (`infra/deploy-user-policy.json`) grants no
+  `sns`/`cloudwatch` perms — needed before **A5 monitoring** (CloudWatch error alarms on the now-
+  Postgres-dependent processor/reminder/read-api + sweep) can ship. Add via tea-admin
+  (`AWS_PROFILE=default`); the policy is at the IAM 5-version cap, so `delete-policy-version` the
+  oldest non-default first.
 - **Bless or flag** the logged deviations in Stage 1–3 specs (built under blanket sprint approval).
 - **Domain (D19):** real domain + Route 53 + ACM (interim canonical = staging CloudFront is set; the real
   domain unblocks LINE Login redirect + real SEO).
