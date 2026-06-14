@@ -10,13 +10,18 @@
  * helpers when those builds land, never a speculative interface now.
  */
 import type {
+  AdminDecision,
+  AdminRoleApplicationDto,
   InterestFlagDto,
   ListingCardDto,
   ListingDetailDto,
   ListingPatch,
+  ModerationItemDto,
+  MyRoleApplicationDto,
   NoteDto,
   QuoteDto,
   QuoteInput,
+  RoleApplicationInput,
   ViewingsDto,
 } from "./types.ts";
 
@@ -46,7 +51,9 @@ export type TokenSource = () => string | null;
 /** Build an api client bound to a base URL + a token source. A factory (not a singleton) so the e2e
  * harness + unit tests can point it at a fixture base and a stub token without touching globals. */
 export function createApiClient(base: string, getToken: TokenSource) {
-  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // The ONE token/header/fetch/throw path — returns the raw OK Response. `request` parses its body;
+  // `requestWithStatus` also reads its status (the 201-vs-200 the role-application screen needs).
+  async function send(path: string, init: RequestInit): Promise<Response> {
     const token = getToken();
     if (token === null) {
       // No id-token → treat as unauthorized without a round-trip (the api would 401 anyway).
@@ -59,7 +66,22 @@ export function createApiClient(base: string, getToken: TokenSource) {
     if (init.body !== undefined) headers["Content-Type"] = "application/json";
     const response = await fetch(base + path, { ...init, headers });
     if (!response.ok) throw new ApiError(response.status);
+    return response;
+  }
+
+  async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+    const response = await send(path, init);
     return (await response.json()) as T;
+  }
+
+  /** Like {@link request} but also returns the HTTP status — for the one endpoint (role-application)
+   * whose 201-vs-200 distinguishes a fresh application from the re-application-guard short-circuit. */
+  async function requestWithStatus<T>(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<{ status: number; body: T }> {
+    const response = await send(path, init);
+    return { status: response.status, body: (await response.json()) as T };
   }
 
   const propertyPath = (id: string): string => `/properties/${encodeURIComponent(id)}`;
@@ -151,6 +173,52 @@ export function createApiClient(base: string, getToken: TokenSource) {
     /** `GET /properties/{id}/quotes` — the CLAIMANT/admin lists submitted offers (newest-first). A plain
      * member is `404` (only the poster/admin reviews offers). */
     quotes: (id: string): Promise<QuoteDto[]> => request<QuoteDto[]>(`${propertyPath(id)}/quotes`),
+
+    // --- Stage 6 role application + admin (D9, D-S6-5/6/7/8) ---------------------
+
+    /** `POST /me/role-application` — apply for a broker/investor role with quick-quote preferences (D9,
+     * D-S6-6). `201 {status:"pending"}` on a fresh application; `200 {status}` when the caller already
+     * has a live role of that kind (the re-application guard short-circuits). `created` reflects the
+     * 201 vs 200 so the screen can show the right outcome ("submitted" vs "already applied"). */
+    applyForRole: async (
+      input: RoleApplicationInput,
+    ): Promise<{ status: string; created: boolean }> => {
+      const { status, body } = await requestWithStatus<{ status: string }>("/me/role-application", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+      return { status: body.status, created: status === 201 };
+    },
+    /** `GET /me/role-application` — the caller's current broker/investor application + status (pending/
+     * approved/rejected/none). Self-service (no admin gate). */
+    myRoleApplication: (): Promise<MyRoleApplicationDto> =>
+      request<MyRoleApplicationDto>("/me/role-application"),
+
+    /** `GET /admin/role-applications` — the pending vetting queue (D-S6-8). ADMIN-gated SERVER-SIDE: a
+     * non-admin caller is `404` (the UI shows the calm no-access state — it never asserts admin-ness). */
+    adminRoleApplications: (): Promise<AdminRoleApplicationDto[]> =>
+      request<AdminRoleApplicationDto[]>("/admin/role-applications"),
+    /** `POST /admin/role-applications/{roleId}` — approve/reject a pending application (D-S6-8). `200
+     * {status}` on a real transition; `409 already_decided` on a stale/double decision; `404` for a
+     * non-admin or a missing role. */
+    adminVetRole: (roleId: string, decision: AdminDecision): Promise<{ status: string }> =>
+      request<{ status: string }>(`/admin/role-applications/${encodeURIComponent(roleId)}`, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      }),
+
+    /** `GET /admin/moderation` — the pending gate-failed listings queue (D-S6-7). ADMIN-gated
+     * SERVER-SIDE: a non-admin caller is `404` (→ the calm no-access state). */
+    adminModeration: (): Promise<ModerationItemDto[]> =>
+      request<ModerationItemDto[]>("/admin/moderation"),
+    /** `POST /admin/moderation/{id}` — record an approve/reject decision on a gate-failed listing
+     * (D-S6-7; LEGAL-02: approve RECORDS the review, it does NOT publish). `200 {status}` on a real
+     * transition; `409 already_decided` on a stale/double decision; `404` for a non-admin / missing. */
+    adminResolveModeration: (id: string, decision: AdminDecision): Promise<{ status: string }> =>
+      request<{ status: string }>(`/admin/moderation/${encodeURIComponent(id)}`, {
+        method: "POST",
+        body: JSON.stringify({ decision }),
+      }),
   };
 }
 

@@ -10,6 +10,7 @@
 
 import {
   addMembership,
+  applyForRole,
   brokerPreferences,
   createGroup,
   createListing,
@@ -17,6 +18,7 @@ import {
   ewktPoint,
   grantPublishConsent,
   listings,
+  moderationItems,
   roles,
 } from "@line-robot/db";
 
@@ -27,14 +29,21 @@ export const SEED_LINE_SUBJECT = "e2e-user";
 /** A SECOND user's subject — owns the "claimed by another" listing for the 409-loser path. */
 export const OTHER_LINE_SUBJECT = "e2e-other-user";
 
-/** Stage 6 MULTI-IDENTITY (INC-B3). Each role's LINE subject is the value the stub verifier maps its
- * fixture token to (server.mjs) — `loginAs(page, role)` sets the token, the verifier resolves it here.
- *   - MEMBER: in the listing's group but NOT the claimant — may flag interest (D-S6-3).
- *   - BROKER: an `approved` broker role + a `broker_preference` row — may submit quotes (D10, vetted).
- * The ADMIN identity (the `admin`-role server gate) is deferred to INC-B3b (the admin screens), where a
- * spec drives it — INC-B3's read gates only take the CLAIMANT branch, never the admin one. */
+/** Stage 6 MULTI-IDENTITY (INC-B3 / INC-B3b). Each role's LINE subject is the value the stub verifier
+ * maps its fixture token to (server.mjs) — `loginAs(page, role)` sets the token, the verifier resolves
+ * it here.
+ *   - MEMBER: in the listing's group but NOT the claimant — may flag interest (D-S6-3); also the
+ *     role-application round-trip's applicant (it applies, then the admin vets ITS application).
+ *   - BROKER: an `approved` broker role + a `broker_preference` row — may submit quotes (D10, vetted). */
 export const MEMBER_LINE_SUBJECT = "e2e-member";
 export const BROKER_LINE_SUBJECT = "e2e-broker";
+/** Stage 6 (INC-B3b). The ADMIN identity — holds an `approved` `admin` role, so the server-side
+ * `requireRole('admin')` gate admits it on the /admin/* routes. A non-admin (member/broker/owner) is
+ * 404'd by the server, which the admin-screen specs assert renders the UI's calm no-access state.
+ *   - APPLICANT: a separate user who has a PENDING broker role-application (no admin user applies for
+ *     themselves) so the vetting queue has a real pending row the admin can approve/reject. */
+export const ADMIN_LINE_SUBJECT = "e2e-admin";
+export const APPLICANT_LINE_SUBJECT = "e2e-applicant";
 
 const SUTHEP = { lon: 98.9525, lat: 18.7953 };
 const PINNED = (iso) => new Date(iso);
@@ -93,6 +102,26 @@ export async function seed(db) {
       verifiedAt: PINNED("2026-01-01T00:00:00Z"),
     },
   );
+  // Stage 6 (INC-B3b) — the ADMIN (the server-side `requireRole('admin')` gate) + a separate APPLICANT
+  // whose PENDING broker application gives the vetting queue a real pending row to act on.
+  const admin = await createUserWithIdentity(
+    db,
+    { displayName: "ผู้ดูแลระบบ" },
+    {
+      provider: "line",
+      providerSubject: ADMIN_LINE_SUBJECT,
+      verifiedAt: PINNED("2026-01-01T00:00:00Z"),
+    },
+  );
+  const applicant = await createUserWithIdentity(
+    db,
+    { displayName: "ผู้สมัครนายหน้า" },
+    {
+      provider: "line",
+      providerSubject: APPLICANT_LINE_SUBJECT,
+      verifiedAt: PINNED("2026-01-01T00:00:00Z"),
+    },
+  );
 
   const group = await createGroup(db, { lineGroupId: "C-e2e-group", name: "กลุ่มทดสอบเชียงใหม่" });
   // user/other/member are all group members — the gate admits each to the group's listings (the 409
@@ -111,6 +140,19 @@ export async function seed(db) {
     provinces: ["เชียงใหม่"],
     propertyTypes: ["house", "condo"],
     priceBandIds: [],
+  });
+
+  // ADMIN role (INC-B3b): an APPROVED `admin` role — the server-side `/admin/*` gate. Seeded directly
+  // (no one applies for `admin`; it's assigned). This is the ONLY identity the admin queues admit.
+  await db.insert(roles).values({ userId: admin.id, kind: "admin", approvalStatus: "approved" });
+
+  // A PENDING broker role-application for the APPLICANT (via the real public path) — so the vetting
+  // queue has a real pending row the admin spec can approve/reject (independent of the member's own
+  // live application in the role-app round-trip, which is keyed off the member's display name).
+  await applyForRole(db, applicant.id, "broker", {
+    provinces: ["เชียงใหม่"],
+    propertyTypes: ["house"],
+    priceBandIds: ["s1"],
   });
 
   const base = {
@@ -279,6 +321,41 @@ export async function seed(db) {
     media: photos("totoggle", 6),
   });
 
+  // (g) A listing that FAILED the Stage-2 quality gate (INC-B3b) — the moderation queue's pending row.
+  //     The pipeline writes a `moderation_item` (status='pending') for such a listing; we seed both the
+  //     listing (so the queue shows a real th headline) and the pending item targeting it.
+  const flagged = await createListing(db, {
+    listing: {
+      ...base,
+      ownerUserId: user.id,
+      dealType: "sale",
+      saleStage: "available",
+      propertyType: "condo",
+      priceThb: 1_750_000,
+      bedrooms: 1,
+      bathrooms: 1,
+    },
+    content: [
+      {
+        lang: "th",
+        headline: "ประกาศรอตรวจสอบคุณภาพ คอนโดใจกลางเมือง",
+        description: "ประกาศที่ไม่ผ่านการตรวจสอบคุณภาพอัตโนมัติ รอผู้ดูแลตัดสิน",
+        generatedBy: "llm",
+      },
+    ],
+    media: photos("flagged", 3),
+  });
+  const [moderation] = await db
+    .insert(moderationItems)
+    .values({
+      targetType: "listing",
+      targetId: flagged.id,
+      status: "pending",
+      reason: "ข้อมูลไม่ครบถ้วน — ต้องตรวจสอบราคาและทำเล",
+      createdAt: PINNED("2026-05-10T00:00:00Z"),
+    })
+    .returning();
+
   // Pin freshness so any date-bearing render is deterministic (mirrors the website seed).
   await db.update(listings).set({ updatedAt: PINNED("2026-05-01T00:00:00Z") });
 
@@ -287,7 +364,10 @@ export async function seed(db) {
     otherUserId: other.id,
     memberUserId: member.id,
     brokerUserId: broker.id,
+    adminUserId: admin.id,
+    applicantUserId: applicant.id,
     groupId: group.id,
+    moderationItemId: moderation.id,
     listings: {
       claimable: claimable.id,
       mine: mine.id,
@@ -295,6 +375,7 @@ export async function seed(db) {
       published: published.id,
       quickSale: quickSale.id,
       toToggle: toToggle.id,
+      flagged: flagged.id,
     },
   };
 }

@@ -457,6 +457,82 @@ export const th = {
   "quote.submittedTitle": "ส่งข้อเสนอแล้ว",
   "quote.submittedBody": "ข้อเสนอของคุณถูกส่งถึงเจ้าของประกาศแล้ว เจ้าของจะติดต่อกลับหากสนใจ",
   "quote.doneCta": "เสร็จสิ้น",
+
+  // ============================================================
+  // Stage 6 — ROLE APPLICATION (`/apply`, D9 / D-S6-6). A user applies for a broker/investor role and
+  // captures the quick-quote matching preferences (provinces / property-types / price-band range) in
+  // the same form → POST /me/role-application. The current standing (pending/approved/rejected/none)
+  // is read from GET /me/role-application. Self-service — the admin gate is on the approval step.
+  // ============================================================
+  "apply.title": "สมัครเป็นนายหน้า/นักลงทุน",
+  "apply.intro":
+    "สมัครเพื่อรับแจ้งประกาศขายด่วนที่ตรงกับความสนใจของคุณ และเสนอราคาผ่านระบบ ทีมงานจะตรวจสอบก่อนอนุมัติ",
+  "apply.loading": "กำลังโหลดสถานะการสมัคร…",
+  // Role choice.
+  "apply.roleHead": "สมัครในฐานะ",
+  "apply.roleBroker": "นายหน้า",
+  "apply.roleInvestor": "นักลงทุน",
+  // Preference capture (the quick-quote matching axes — D-S6-6).
+  "apply.provincesHead": "จังหวัดที่สนใจ",
+  "apply.provincesHint": "เลือกได้หลายจังหวัด เว้นว่างไว้หากสนใจทุกจังหวัด",
+  "apply.propertyTypesHead": "ประเภททรัพย์ที่สนใจ",
+  "apply.propertyTypesHint": "เลือกได้หลายประเภท เว้นว่างไว้หากสนใจทุกประเภท",
+  "apply.priceBandsHead": "ช่วงราคาที่สนใจ (ขาย)",
+  "apply.priceBandsHint": "เลือกได้หลายช่วง เว้นว่างไว้หากสนใจทุกช่วงราคา",
+  "apply.submit": "ส่งใบสมัคร",
+  "apply.submitting": "กำลังส่ง…",
+  "apply.error": "ส่งใบสมัครไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+  // Current-status banner (read on load).
+  "apply.statusHead": "สถานะการสมัครของคุณ",
+  "apply.statusPending": "กำลังรอการตรวจสอบ — ทีมงานจะแจ้งผลให้ทราบ",
+  "apply.statusApproved": "ผ่านการตรวจสอบแล้ว — คุณเสนอราคาประกาศขายด่วนได้",
+  "apply.statusRejected": "ใบสมัครไม่ผ่านการตรวจสอบ คุณสมัครใหม่ได้",
+  "apply.statusNone": "คุณยังไม่ได้สมัคร",
+  // Submitted outcome.
+  "apply.submittedTitle": "ส่งใบสมัครแล้ว",
+  "apply.submittedBody": "ใบสมัครของคุณอยู่ระหว่างการตรวจสอบ ทีมงานจะแจ้งผลให้ทราบ",
+  "apply.alreadyTitle": "คุณสมัครไว้แล้ว",
+  "apply.alreadyBody": "เรามีใบสมัครของคุณอยู่แล้ว สถานะปัจจุบันแสดงด้านบน",
+  "apply.doneCta": "เสร็จสิ้น",
+
+  // ============================================================
+  // Stage 6 — ADMIN (mini-app, server-gated by the `admin` role — D-S6-5). The admin reaches these via
+  // a deep link (no nav link for non-admins). The server is AUTHORITATIVE: a non-admin's request 404s,
+  // and the UI shows a calm "no access" state — it NEVER asserts the user's own admin-ness.
+  // ============================================================
+  // The server-authoritative no-access state (a non-admin's 404/403). COPY-07.
+  "admin.noAccessTitle": "ไม่มีสิทธิ์เข้าถึง",
+  "admin.noAccessBody": "หน้านี้สำหรับผู้ดูแลระบบเท่านั้น",
+  "admin.loading": "กำลังโหลด…",
+  "admin.refresh": "รีเฟรช",
+  // The in-flight label on a resolve button — shared by BOTH admin queues (vetting + moderation).
+  "admin.working": "กำลังบันทึก…",
+  // Vetting queue (`/admin/vetting`) — GET /admin/role-applications → approve/reject.
+  "adminVetting.title": "คิวตรวจสอบนายหน้า/นักลงทุน",
+  "adminVetting.empty": "ไม่มีใบสมัครที่รอการตรวจสอบ",
+  "adminVetting.kindBroker": "นายหน้า",
+  "adminVetting.kindInvestor": "นักลงทุน",
+  "adminVetting.approve": "อนุมัติ",
+  "adminVetting.reject": "ปฏิเสธ",
+  "adminVetting.approved": "อนุมัติแล้ว",
+  "adminVetting.rejected": "ปฏิเสธแล้ว",
+  // A stale/double decision the server already resolved (409).
+  "adminVetting.alreadyDecided": "ใบสมัครนี้ถูกตัดสินไปแล้ว",
+  "adminVetting.error": "ดำเนินการไม่สำเร็จ กรุณาลองใหม่",
+  // Moderation queue (`/admin/moderation`) — GET /admin/moderation → approve/reject.
+  "adminMod.title": "คิวตรวจสอบประกาศ",
+  "adminMod.intro": "ประกาศที่ไม่ผ่านการตรวจสอบคุณภาพอัตโนมัติ รอการตัดสินจากผู้ดูแล",
+  "adminMod.empty": "ไม่มีประกาศที่รอการตรวจสอบ",
+  "adminMod.reason": "เหตุผล",
+  "adminMod.noReason": "ไม่ระบุเหตุผล",
+  "adminMod.approve": "อนุมัติ",
+  "adminMod.reject": "ปฏิเสธ",
+  "adminMod.approved": "บันทึกผลอนุมัติแล้ว",
+  "adminMod.rejected": "บันทึกผลปฏิเสธแล้ว",
+  // LEGAL-02 / S6-11: "approve" RECORDS the review — it does NOT itself publish the listing.
+  "adminMod.approveNote": "การอนุมัติเป็นการบันทึกผลตรวจสอบ ไม่ได้เผยแพร่ประกาศโดยอัตโนมัติ",
+  "adminMod.alreadyDecided": "ประกาศนี้ถูกตัดสินไปแล้ว",
+  "adminMod.error": "ดำเนินการไม่สำเร็จ กรุณาลองใหม่",
 } as const;
 
 export type MessageKey = keyof typeof th;

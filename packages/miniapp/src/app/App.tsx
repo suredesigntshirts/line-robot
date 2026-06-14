@@ -17,6 +17,9 @@ import { useEffect, useState } from "react";
 import type { ApiClient } from "../lib/api.ts";
 import { normalizePath, parseRoute, resolveInitialPath } from "../lib/deeplink.ts";
 import type { LiffProfile } from "../lib/liff.ts";
+import { AdminModerationScreen } from "../screens/AdminModerationScreen.tsx";
+import { AdminVettingScreen } from "../screens/AdminVettingScreen.tsx";
+import { ApplyScreen } from "../screens/ApplyScreen.tsx";
 import { ClaimScreen } from "../screens/ClaimScreen.tsx";
 import { DetailScreen } from "../screens/DetailScreen.tsx";
 import { EditScreen } from "../screens/EditScreen.tsx";
@@ -73,6 +76,12 @@ export function App({ api, locale, profile }: AppProps) {
         <EditScreen id={route.id} />
       ) : route.name === "quote" ? (
         <QuoteScreen id={route.id} />
+      ) : route.name === "apply" ? (
+        <ApplyScreen />
+      ) : route.name === "adminVetting" ? (
+        <AdminVettingScreen />
+      ) : route.name === "adminModeration" ? (
+        <AdminModerationScreen />
       ) : (
         <MyListingsScreen />
       )}

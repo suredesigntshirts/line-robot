@@ -8,9 +8,11 @@ import {
   API_ORIGIN,
   DETAIL,
   INTEREST_FLAGS,
+  MODERATION_ITEMS,
   MY_LISTINGS,
   NOTES,
   QUOTES,
+  ROLE_APPLICATIONS,
   SAVED,
   VIEWINGS,
 } from "../test/fixtures.ts";
@@ -24,7 +26,18 @@ import {
 /** Ephemeral review gallery (gitignored). Filenames self-describing ({project}-{screen}.png). */
 export const GALLERY_DIR = "test-results/gallery";
 
-export { API_ORIGIN, DETAIL, INTEREST_FLAGS, MY_LISTINGS, NOTES, QUOTES, SAVED, VIEWINGS };
+export {
+  API_ORIGIN,
+  DETAIL,
+  INTEREST_FLAGS,
+  MODERATION_ITEMS,
+  MY_LISTINGS,
+  NOTES,
+  QUOTES,
+  ROLE_APPLICATIONS,
+  SAVED,
+  VIEWINGS,
+};
 
 // A 1x1 transparent PNG — a real, decodable image so assertNoBrokenImages passes (naturalWidth > 0).
 const PNG_1X1 = Buffer.from(
@@ -52,6 +65,19 @@ export interface MockApiOptions {
   interest?: typeof INTEREST_FLAGS;
   /** Stage 6: override `GET /properties/{id}/quotes` (the owner's offers list; `[]` = the empty state). */
   quotes?: typeof QUOTES;
+  /** Stage 6 (INC-B3b): the status `GET /me/role-application` returns (default 200 with `roleApplication`). */
+  roleApplication?: { kind: "broker" | "investor" | null; status: string };
+  /** Stage 6 (INC-B3b): the status the admin GETs return — 200 (admin) renders the queue, 404 (a
+   * non-admin: the route is server-gated) renders the calm no-access state. Default 200. */
+  adminStatus?: number;
+  /** Stage 6 (INC-B3b): override `GET /admin/role-applications` (the vetting queue; `[]` = empty). */
+  roleApplications?: typeof ROLE_APPLICATIONS;
+  /** Stage 6 (INC-B3b): override `GET /admin/moderation` (the moderation queue; `[]` = empty). */
+  moderation?: typeof MODERATION_ITEMS;
+  /** Stage 6 (INC-B3b): the status the admin RESOLVE POSTs return — 200 (recorded), 409 (already
+   * decided → the row resolves calmly), or a transient 5xx (the row keeps its buttons + a red inline
+   * error, never a green "✓ failed"). Default 200. */
+  resolveStatus?: number;
 }
 
 /** Install the api + image fixtures on a page. Asserts the request carried the Bearer id-token (the
@@ -213,6 +239,69 @@ export async function mockApi(
         status: 201,
         contentType: "application/json",
         body: JSON.stringify({ quoteId: "q-new" }),
+      });
+    }
+    // --- Stage 6 role application + admin (INC-B3b) --------------------------
+    if (req.method() === "GET" && url.pathname === "/me/role-application") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(opts.roleApplication ?? { kind: null, status: "none" }),
+      });
+    }
+    if (req.method() === "POST" && url.pathname === "/me/role-application") {
+      writes.push(`${req.method()} ${url.pathname}`);
+      // A fresh application → 201 (the apply form's "submitted" outcome). The status echoes pending.
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "pending" }),
+      });
+    }
+    // The two admin queues — GATED SERVER-SIDE: `adminStatus` 404 simulates a non-admin (the calm
+    // no-access state); 200 (default) returns the queue rows. The static spec flips it to test both.
+    if (req.method() === "GET" && url.pathname === "/admin/role-applications") {
+      const status = opts.adminStatus ?? 200;
+      return route.fulfill({
+        status,
+        contentType: "application/json",
+        body:
+          status === 200
+            ? JSON.stringify(opts.roleApplications ?? ROLE_APPLICATIONS)
+            : '{"error":"not_found"}',
+      });
+    }
+    if (req.method() === "POST" && /^\/admin\/role-applications\/[^/]+$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const decision =
+        (JSON.parse(req.postData() ?? "{}") as { decision?: string }).decision ?? "approved";
+      const status = opts.resolveStatus ?? 200;
+      return route.fulfill({
+        status,
+        contentType: "application/json",
+        body: status < 300 ? JSON.stringify({ status: decision }) : `{"error":"resolve_failed"}`,
+      });
+    }
+    if (req.method() === "GET" && url.pathname === "/admin/moderation") {
+      const status = opts.adminStatus ?? 200;
+      return route.fulfill({
+        status,
+        contentType: "application/json",
+        body:
+          status === 200
+            ? JSON.stringify(opts.moderation ?? MODERATION_ITEMS)
+            : '{"error":"not_found"}',
+      });
+    }
+    if (req.method() === "POST" && /^\/admin\/moderation\/[^/]+$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const decision =
+        (JSON.parse(req.postData() ?? "{}") as { decision?: string }).decision ?? "approved";
+      const status = opts.resolveStatus ?? 200;
+      return route.fulfill({
+        status,
+        contentType: "application/json",
+        body: status < 300 ? JSON.stringify({ status: decision }) : `{"error":"resolve_failed"}`,
       });
     }
     if (url.pathname.startsWith("/properties/")) {

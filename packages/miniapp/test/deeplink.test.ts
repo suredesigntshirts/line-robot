@@ -108,6 +108,32 @@ describe("quote route (additive)", () => {
   });
 });
 
+// The ADDITIVE id-less Stage-6 routes (INC-B3b) — the role-application form + the two admin queues.
+// The frozen plan-17 shapes + the id-bearing additive routes are untouched.
+describe("apply + admin routes (additive, id-less)", () => {
+  it("`/apply` resolves to the apply form", () => {
+    expect(parseRoute("/apply")).toEqual({ name: "apply" });
+    expect(parseRoute("/apply/")).toEqual({ name: "apply" }); // trailing slash
+  });
+
+  it("`/admin/vetting` + `/admin/moderation` resolve to the admin queues", () => {
+    expect(parseRoute("/admin/vetting")).toEqual({ name: "adminVetting" });
+    expect(parseRoute("/admin/moderation")).toEqual({ name: "adminModeration" });
+  });
+
+  it("an unknown admin sub-path falls back to the list (never throws)", () => {
+    expect(parseRoute("/admin")).toEqual({ name: "list" });
+    expect(parseRoute("/admin/unknown")).toEqual({ name: "list" });
+  });
+
+  it("the frozen + id-bearing additive shapes are NOT shadowed by the new routes", () => {
+    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
+    expect(parseRoute("/claim/abc-123")).toEqual({ name: "claim", id: "abc-123" });
+    expect(parseRoute("/edit/abc-123")).toEqual({ name: "edit", id: "abc-123" });
+    expect(parseRoute("/quote/abc-123")).toEqual({ name: "quote", id: "abc-123" });
+  });
+});
+
 describe("normalizePath", () => {
   it("strips trailing slashes but keeps root", () => {
     expect(normalizePath("/")).toBe("/");

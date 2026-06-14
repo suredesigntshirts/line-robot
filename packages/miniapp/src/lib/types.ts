@@ -113,6 +113,54 @@ export interface PhotoDto {
   readonly isThumb: boolean;
 }
 
+// --- Stage 6 role application + admin (D9, D-S6-5/6/7/8) --------------------
+
+/** A broker/investor role kind (the only two an end-user may apply for; `admin`/`owner`/`visitor` are
+ * server-assigned, never applied for here). Mirrors the @line-robot/domain roleKind subset. */
+export type ApplyRoleKind = "broker" | "investor";
+
+/** The applicant's current standing (`GET /me/role-application`). `none` = never applied. */
+export type RoleApplicationStatusDto = "none" | "pending" | "approved" | "rejected";
+
+/** `GET /me/role-application` → the caller's current broker/investor application + its status. */
+export interface MyRoleApplicationDto {
+  /** The kind applied for, or `null` when the caller has never applied (`status === "none"`). */
+  readonly kind: ApplyRoleKind | null;
+  readonly status: RoleApplicationStatusDto;
+}
+
+/** The body of `POST /me/role-application` — the role + the quick-quote matching preferences captured
+ * in the same form (D-S6-6). Each preference array may be empty ("any" on that axis, server-side). */
+export interface RoleApplicationInput {
+  readonly kind: ApplyRoleKind;
+  readonly provinces: readonly string[];
+  readonly propertyTypes: readonly string[];
+  readonly priceBandIds: readonly string[];
+}
+
+/** One pending role application in the admin vetting queue (`GET /admin/role-applications`, D-S6-8). */
+export interface AdminRoleApplicationDto {
+  readonly roleId: string;
+  readonly userId: string;
+  readonly displayName: string;
+  readonly kind: ApplyRoleKind;
+}
+
+/** One pending gate-failed listing in the admin moderation queue (`GET /admin/moderation`, D-S6-7). */
+export interface ModerationItemDto {
+  readonly id: string;
+  readonly listingId: string;
+  /** The listing's th headline (may be empty when the target has no th content). */
+  readonly headline: string;
+  /** The quality-gate failure reason (null when none was recorded). */
+  readonly reason: string | null;
+  /** ISO-8601 timestamp the item was queued. */
+  readonly createdAt: string;
+}
+
+/** An admin approve/reject decision (the body of the vetting + moderation POSTs). */
+export type AdminDecision = "approved" | "rejected";
+
 /** A listing's full detail from `GET /properties/{id}`. */
 export interface ListingDetailDto {
   readonly id: string;

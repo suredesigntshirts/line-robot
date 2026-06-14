@@ -26,6 +26,7 @@ import pg from "pg";
 import sirv from "sirv";
 import { handleApi } from "../../api/src/handler.ts";
 import {
+  ADMIN_LINE_SUBJECT,
   BROKER_LINE_SUBJECT,
   MEMBER_LINE_SUBJECT,
   OTHER_LINE_SUBJECT,
@@ -67,7 +68,8 @@ const TOKEN_TO_SUBJECT = {
   "e2e.token.member": MEMBER_LINE_SUBJECT,
   "e2e.token.broker": BROKER_LINE_SUBJECT,
   "e2e.token.other": OTHER_LINE_SUBJECT,
-  // The `admin` identity (e2e.token.admin) is deferred to INC-B3b with its admin-screen specs + seed.
+  // The ADMIN identity (INC-B3b) — its `approved` admin role passes the server-side `/admin/*` gate.
+  "e2e.token.admin": ADMIN_LINE_SUBJECT,
 };
 
 const verifier = {
@@ -112,16 +114,23 @@ const {
   createViewing,
   listNotesForUserListing,
   addListingNote,
-  // Stage 6 (INC-B3) — ONLY the dealflow fns the listing-facing endpoints this increment exercises bind:
-  // `getUserRoles` (the vetted/admin server-side gate behind interest/quote reads), interest flags,
-  // quick-sale flag, quotes. The role-application / admin-vetting / moderation repo fns are INC-B3b's
-  // (the admin screens) — bound there, where a spec drives them, NOT speculatively here.
+  // Stage 6 (INC-B3) — the dealflow fns the listing-facing endpoints exercise: `getUserRoles` (the
+  // vetted/admin server-side gate behind interest/quote reads), interest flags, quick-sale flag, quotes.
   getUserRoles,
   createInterestFlag,
   listInterestFlags,
   setListingUrgency,
   createQuote,
   listQuotesForListing,
+  // Stage 6 (INC-B3b) — the role-application + admin-screen fns (re-added here, mirroring lambda/api.ts's
+  // buildDeps): self-service role-application + the caller's own status; the admin vetting queue
+  // (list + approve/reject); the admin moderation queue (list pending + resolve).
+  applyForRole,
+  getLatestRoleApplication,
+  listRoleApplications,
+  setRoleApproval,
+  listPendingModeration,
+  resolveModerationItem,
 } = await import("@line-robot/db");
 
 const repo = {
@@ -156,6 +165,13 @@ const repo = {
   setListingUrgency: (id, urgency) => setListingUrgency(db, id, urgency),
   createQuote: (input) => createQuote(db, input),
   listQuotesForListing: (listingId) => listQuotesForListing(db, listingId),
+  // --- Stage 6 (INC-B3b) — role application + admin vetting/moderation (mirrors lambda/api.ts) -------
+  applyForRole: (userId, kind, prefs) => applyForRole(db, userId, kind, prefs),
+  getLatestRoleApplication: (userId) => getLatestRoleApplication(db, userId),
+  listRoleApplications: (status) => listRoleApplications(db, status),
+  setRoleApproval: (roleId, status, reviewedBy) => setRoleApproval(db, roleId, status, reviewedBy),
+  listPendingModeration: () => listPendingModeration(db),
+  resolveModerationItem: (id, status) => resolveModerationItem(db, id, status),
 };
 
 const deps = { repo, verifier, presign, logger, now: () => FIXED_NOW };

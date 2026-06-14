@@ -16,11 +16,16 @@ const SERVER_BASE = `http://localhost:${SERVER_PORT}`;
 export interface SeedIds {
   userId: string;
   otherUserId: string;
-  /** Stage 6 multi-identity users (the non-claimant member / vetted broker). The admin identity is
-   * added in INC-B3b with its admin-screen specs. */
+  /** Stage 6 multi-identity users (the non-claimant member / vetted broker). */
   memberUserId: string;
   brokerUserId: string;
+  /** Stage 6 (INC-B3b): the ADMIN (server `/admin/*` gate) + a separate APPLICANT with a pending
+   * broker role-application (the vetting queue's seeded pending row). */
+  adminUserId: string;
+  applicantUserId: string;
   groupId: string;
+  /** Stage 6 (INC-B3b): the seeded PENDING moderation item (the moderation queue's target). */
+  moderationItemId: string;
   listings: {
     claimable: string;
     mine: string;
@@ -30,6 +35,8 @@ export interface SeedIds {
     quickSale: string;
     /** Stage 6: a SALE listing NOT yet quick-sale (the quick-sale-toggle round-trip's target). */
     toToggle: string;
+    /** Stage 6 (INC-B3b): a gate-failed listing the seeded moderation item targets. */
+    flagged: string;
   };
 }
 
@@ -41,9 +48,9 @@ export async function seedIds(page: Page): Promise<SeedIds> {
 }
 
 /** A seeded role a spec can authenticate as (Stage 6 multi-identity). `owner` is the DEFAULT — every
- * pre-Stage-6 spec runs as it WITHOUT calling `loginAs` (so they're unaffected). The `admin` role is
- * added in INC-B3b (the admin screens), where a spec seeds + drives it. */
-export type Role = "owner" | "member" | "broker" | "other";
+ * pre-Stage-6 spec runs as it WITHOUT calling `loginAs` (so they're unaffected). `admin` (INC-B3b) holds
+ * the seeded `approved` admin role → the server-side `/admin/*` gate admits it (every other role 404s). */
+export type Role = "owner" | "member" | "broker" | "other" | "admin";
 
 /** The fixture id-token each role's LIFF mock emits — mirrored in e2e/mocks/liff.ts (which reads the
  * active token from localStorage) + server.mjs (the stub verifier maps it → the seeded LINE subject). */
@@ -52,6 +59,7 @@ const ROLE_TOKEN: Record<Role, string> = {
   member: "e2e.token.member",
   broker: "e2e.token.broker",
   other: "e2e.token.other",
+  admin: "e2e.token.admin",
 };
 
 /** localStorage key the LIFF mock reads to choose which token `getIDToken()` returns (see liff.ts). */
@@ -149,7 +157,15 @@ export function watchForErrors(page: Page): () => string[] {
   page.on("requestfailed", (r) => {
     const u = r.url();
     if (u.endsWith("/favicon.ico")) return;
-    problems.push(`requestfailed: ${u} ${r.failure()?.errorText ?? ""}`);
+    // net::ERR_ABORTED is a NAVIGATION/teardown artifact, not a failure: when a spec navigates
+    // (`page.goto`) right after an OPTIMISTIC background write (save/flag/resolve — the UI already
+    // reflected success), the in-flight request is cancelled by the new document. The live assertions
+    // already proved the behaviour; a genuine failure still surfaces as a 5xx response (the `response`
+    // handler below) or a JS console/page error (caught above). So an abort is filtered as benign — it
+    // is the same class of teardown race `forwardApi` already swallows on page-close.
+    const err = r.failure()?.errorText ?? "";
+    if (err.includes("ERR_ABORTED")) return;
+    problems.push(`requestfailed: ${u} ${err}`);
   });
   page.on("response", (r) => r.status() >= 500 && problems.push(`http ${r.status()}: ${r.url()}`));
   return () => problems;

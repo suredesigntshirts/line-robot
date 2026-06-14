@@ -7,7 +7,9 @@
 import { primaryButtonClass, type Translator } from "@line-robot/ui";
 import { HouseIcon } from "./icons.tsx";
 
-const BOX = "grid justify-items-center gap-2 px-4 py-12 text-center font-body-th text-text";
+/** The centred full-screen state layout (spinner / empty / error / no-access). Exported so the admin
+ * screens' no-access state shares the exact same treatment (no re-spelling). */
+export const BOX = "grid justify-items-center gap-2 px-4 py-12 text-center font-body-th text-text";
 
 /** A calm full-screen spinner (theme-coloured ring). aria-live so SR users hear it. */
 export function Loading({ label }: { label: string }) {

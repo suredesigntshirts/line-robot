@@ -694,3 +694,18 @@ immediately on a real **TH-07 regression** — the quotes amount line at line-he
 narrowed the forwardApi catch; trimmed B3b-only harness bindings. Gates GREEN: typecheck, lint, miniapp unit
 127, **e2e static 72 + realapi 13**. Queued S6-12…15 (DIST-11, DIST-04, detail-DTO `urgency` badge, broker
 quote-screen summary). Admin screens + role-app form = INC-B3b (next).
+
+**INC-B3b — role-application form + admin vetting/moderation screens (DONE, committed).** Mini-app: `/apply`
+(broker/investor role + preference capture via `ChipMultiSelect`), `/admin/vetting` (list+approve/reject),
+`/admin/moderation` (list+resolve) — all consuming the INC-B2 api HTTP-only; routes additive. **Server-
+authoritative admin gate**: the UI never asserts admin-ness — `AdminQueue` renders a calm "ไม่มีสิทธิ์เข้าถึง"
+no-access state purely on the server's 404/403; the round-trip proves a MEMBER's raw `GET /admin/*` returns 404
+AND the queue DATA never renders (would bite a UI-only gate). Re-added the admin seed/bindings INC-B3 deferred.
+3 biting real-backend round-trips (role-app approve flow; moderation resolve asserted at the API layer;
+admin-gate-blocks-member). Static computed-style coverage (`admin-style.spec`). Full review cadence: spec PASS,
+**alignment ALIGNED** (LEGAL-02 moderation copy "records, does NOT publish"; COPY-02 bare verbs; styling IDs
+VERIFIED), frontend PASS, correctness found **one real bug** (a transient approve/reject FAILURE rendered a
+green "✓ failed" note + killed retry — the if/else was a no-op) → FIXED (errors keep the buttons + a red inline
+error; the success test now bites), + reuse cleanups (shared BOX/ErrorView/primaryButtonClass; dedup; dead
+exports/i18n). Gates GREEN: typecheck, lint, miniapp unit 131 / ui 26, **e2e static 86 + realapi 16**. Queued
+S6-16 (no in-app discovery for /apply or the admin screens — deep-link-only). **Stage-6 mini-app UI COMPLETE.**

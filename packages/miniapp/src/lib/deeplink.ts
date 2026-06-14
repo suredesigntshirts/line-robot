@@ -19,7 +19,14 @@ export type Route =
   | { readonly name: "detail"; readonly id: string }
   | { readonly name: "claim"; readonly id: string }
   | { readonly name: "edit"; readonly id: string }
-  | { readonly name: "quote"; readonly id: string };
+  | { readonly name: "quote"; readonly id: string }
+  // Stage 6 (INC-B3b) — the role-application form + the two admin queues. ADDITIVE: the frozen
+  // plan-17 shapes (`/`, `/p/{id}`, `/claim/{id}`, `/edit/{id}`, `/quote/{id}`) are untouched. The
+  // admin routes are id-less list screens; the server is authoritative on admin access (a non-admin's
+  // GET 404s → the UI's no-access state), so these routes are NOT UI-gated.
+  | { readonly name: "apply" }
+  | { readonly name: "adminVetting" }
+  | { readonly name: "adminModeration" };
 
 /** Strip a trailing slash (but keep "/"). */
 export function normalizePath(path: string): string {
@@ -82,6 +89,10 @@ export function parseRoute(path: string): Route {
   if (quote?.[1] !== undefined) {
     return { name: "quote", id: decodeId(quote[1]) };
   }
+  // Stage 6 (INC-B3b) — id-less screens (the role-application form + the two admin queues).
+  if (normalized === "/apply") return { name: "apply" };
+  if (normalized === "/admin/vetting") return { name: "adminVetting" };
+  if (normalized === "/admin/moderation") return { name: "adminModeration" };
   return { name: "list" };
 }
 
@@ -109,3 +120,9 @@ export function editPath(listingId: string): string {
 export function quotePath(listingId: string): string {
   return `/quote/${encodeURIComponent(listingId)}`;
 }
+
+// NOTE: the Stage-6 id-less routes `/apply`, `/admin/vetting`, `/admin/moderation` are RESOLVED by
+// parseRoute above but have NO path-builder — nothing in the SPA navigates to them in-app yet (they're
+// reached only by a deep link / a future admin-nav entry, which is QUEUED). A builder with no caller
+// would be a dead one-caller abstraction (anti-over-engineering rule 3); re-add one when the admin-nav
+// entry is built.

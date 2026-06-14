@@ -9,9 +9,11 @@
  */
 import type { ApiClient } from "../src/lib/api.ts";
 import type {
+  AdminRoleApplicationDto,
   InterestFlagDto,
   ListingCardDto,
   ListingDetailDto,
+  ModerationItemDto,
   NoteDto,
   QuoteDto,
   ViewingDto,
@@ -210,6 +212,33 @@ export const QUOTES: QuoteDto[] = [
   },
 ];
 
+/** Pending role applications (`GET /admin/role-applications`, the admin vetting queue, D-S6-8). Two —
+ * a broker + an investor — so the static style spec renders a populated queue (the Thai applicant names
+ * are measured for TH-07; the resolve CTAs for contrast). */
+export const ROLE_APPLICATIONS: AdminRoleApplicationDto[] = [
+  { roleId: "role-1", userId: "u-app-1", displayName: "ผู้สมัครนายหน้า สมชาย", kind: "broker" },
+  { roleId: "role-2", userId: "u-app-2", displayName: "นักลงทุนรายใหม่", kind: "investor" },
+];
+
+/** Pending moderation items (`GET /admin/moderation`, the admin moderation queue, D-S6-7). One with a
+ * reason, one without — both render paths exercised + measured. */
+export const MODERATION_ITEMS: ModerationItemDto[] = [
+  {
+    id: "mod-1",
+    listingId: "l-mod-1",
+    headline: "ประกาศรอตรวจสอบคุณภาพ คอนโดใจกลางเมือง",
+    reason: "ข้อมูลไม่ครบถ้วน — ต้องตรวจสอบราคาและทำเล",
+    createdAt: "2026-06-13T05:00:00.000Z",
+  },
+  {
+    id: "mod-2",
+    listingId: "l-mod-2",
+    headline: "บ้านเดี่ยวรอตรวจสอบ",
+    reason: null,
+    createdAt: "2026-06-12T03:30:00.000Z",
+  },
+];
+
 /** A complete fixture {@link ApiClient} (the injection seam — no LIFF, no network). Every method has a
  * sensible default returning the fixtures above; pass `over` to spy on / override any of them. Shared by
  * the router, claim, and CRM component tests so they don't each re-stub the whole client. */
@@ -238,6 +267,13 @@ export function makeFixtureApi(over: Partial<ApiClient> = {}): ApiClient {
     quickSale: async () => ({ status: "quick_sale" }),
     submitQuote: async () => ({ quoteId: "q-new" }),
     quotes: async () => [],
+    // Stage 6 role application + admin (D9, D-S6-5/6/7/8) — empty/idempotent defaults; specs override.
+    applyForRole: async () => ({ status: "pending", created: true }),
+    myRoleApplication: async () => ({ kind: null, status: "none" }),
+    adminRoleApplications: async () => [],
+    adminVetRole: async (_id, decision) => ({ status: decision }),
+    adminModeration: async () => [],
+    adminResolveModeration: async (_id, decision) => ({ status: decision }),
     ...over,
   };
 }

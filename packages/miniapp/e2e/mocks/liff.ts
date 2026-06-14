@@ -41,7 +41,9 @@ const PROFILES: Record<string, { userId: string; displayName: string }> = {
   "e2e.token.member": { userId: "e2e-member", displayName: "สมาชิกกลุ่ม" },
   "e2e.token.broker": { userId: "e2e-broker", displayName: "นายหน้าตรวจสอบแล้ว" },
   "e2e.token.other": { userId: "e2e-other-user", displayName: "สมาชิกอีกคน" },
-  // The `admin` identity is added in INC-B3b; an unknown token here falls back to the default profile.
+  // The ADMIN identity (INC-B3b) — the server-gated /admin/* surfaces. An unknown token falls back to
+  // the default profile.
+  "e2e.token.admin": { userId: "e2e-admin", displayName: "ผู้ดูแลระบบ" },
 };
 
 const liff = {
