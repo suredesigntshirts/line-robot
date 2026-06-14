@@ -41,6 +41,7 @@ Makes groups first-class entities and activates the private dealflow features th
 9. Matched-push LINE Flex: composed and sent to matched vetted users
 10. Quote response screen in the mini-app: structured quote input form
 11. Quote stored in Postgres (feeds Stage 7 AVM input)
+12. **Delete the v1 read-api Lambda (`packages/bot/src/lambda/read-api.ts` + `src/app/readApiHandler.ts` + its Pulumi `readApiFn` resource/Function-URL/IAM role + the `loadReadApiEnv` schema/config).** Carried from Stage 5 as a parallel-run rollback — `packages/api` superseded it on day one and it has had ZERO callers since the Stage-5 cutover (the rebuilt React SPA calls `packages/api`; the v1 Preact SPA that was its only caller is deleted — grep-proven in Stage 5 Build E). Before deleting, confirm zero invocations on the deployed `readApiFn` (CloudWatch `Invocations` flat at 0 across the parallel-run window), then drop the code + the infra resource in one `pulumi up`. Until then it stays deployed (returns 401 on an unauthenticated probe — boot-healthy) as a one-`pulumi up` rollback path.
 
 ## Dependencies
 

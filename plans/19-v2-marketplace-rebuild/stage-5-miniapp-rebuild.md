@@ -87,6 +87,13 @@ Rebuilds the LINE MINI App (LIFF SPA) from Preact with bespoke CSS to React on `
   serves the rebuilt SPA from day one; the v1 read-api stays deployed (zero callers after cutover)
   through the Stage 5 gate as rollback, and its deletion is an explicit Stage 6 checklist item.
   Known callers: only the v1 SPA (grep-verified at flesh time; re-verify at build).
+  **Build E confirmation (2026-06-14):** the v1 read-api (`packages/bot/src/lambda/read-api.ts` +
+  `src/app/readApiHandler.ts`) is UNTOUCHED by Stage 5 (last commit `d4d43b6`, the 2026-06-13
+  Postgres-cutover, predates the Stage-5 build) and still builds; `packages/api`'s composition root
+  doc-notes "the v1 read-api Lambda is untouched — this runs in parallel". Its only runtime caller —
+  the v1 Preact SPA — is deleted (Preact retirement grep-proven, Build E). The deletion is logged as
+  **Stage 6 deliverable #12** (`stage-6-groups-dealflow.md`) with the exact files/Pulumi resource to
+  remove and the "confirm zero CloudWatch invocations first" precondition.
 - **Stage 4 auth dependency → NOT a prerequisite.** Stage 4 deferred website auth entirely (logged
   in its iteration table), so Stage 5 builds `packages/api` itself, porting the PROVEN LIFF
   id-token verifier from the v1 read-api adapter (spine-audit row 7: KEEP). LIFF token is the only
