@@ -557,7 +557,11 @@ export async function listListingIdsByOwner(db: Db, ownerUserId: string): Promis
   return rows.map((r) => r.id);
 }
 
-/** Patch listing columns (free-text edit / merge). No-op on an empty patch; always bumps updatedAt. */
+/**
+ * Patch listing columns (free-text edit / merge). No-op on an empty patch; always bumps updatedAt.
+ * CAUTION: this does NOT allowlist or validate fields — it writes whatever `patch` it is handed.
+ * Callers must allowlist + sanitize (the api's `handleEdit` enforces EDITABLE_*_FIELDS + non-negativity).
+ */
 export async function updateListingFields(
   db: Db,
   id: string,

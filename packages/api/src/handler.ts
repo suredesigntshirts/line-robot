@@ -302,7 +302,9 @@ async function handleEdit(
   }
   for (const field of EDITABLE_INT_FIELDS) {
     const v = body[field];
-    if (typeof v === "number" && Number.isFinite(v)) patch[field] = Math.trunc(v);
+    // Non-negativity is enforced here (not just client-side) so a direct API call can't persist a
+    // negative price/beds/baths. Skip a non-conforming value rather than 400 (matches the allowlist style).
+    if (typeof v === "number" && Number.isFinite(v) && v >= 0) patch[field] = Math.trunc(v);
   }
   if (Object.keys(patch).length > 0) await deps.repo.updateListingFields(id, patch);
 
@@ -311,7 +313,8 @@ async function handleEdit(
   if (
     detail.listing.dealType === "rent" &&
     typeof monthlyRent === "number" &&
-    Number.isFinite(monthlyRent)
+    Number.isFinite(monthlyRent) &&
+    monthlyRent >= 0
   ) {
     await deps.repo.updateRentalMonthlyRent(id, Math.trunc(monthlyRent));
   }
@@ -377,7 +380,13 @@ async function handleCreateViewing(
   const body = parseJsonBody(rawBody);
   const raw = typeof body?.scheduledAt === "string" ? body.scheduledAt : "";
   const scheduledAt = new Date(raw);
-  if (raw === "" || Number.isNaN(scheduledAt.getTime())) {
+  // Reject unparseable AND past times server-side (the client guards too, but a direct call must not
+  // create a past-dated viewing that lands silently in the "past" section).
+  if (
+    raw === "" ||
+    Number.isNaN(scheduledAt.getTime()) ||
+    scheduledAt.getTime() <= deps.now().getTime()
+  ) {
     return json(400, { error: "invalid_time" });
   }
   const viewing = await deps.repo.createViewing(id, userId, scheduledAt);

@@ -471,6 +471,21 @@ describe("PATCH /properties/{id}", () => {
     });
   });
 
+  it("skips a negative numeric field (server-side non-negativity guard)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () => portalDetail({ claimedByUserId: DB_USER_ID })),
+    });
+    const r = await handleApi(
+      deps(repo),
+      req("PATCH", `/properties/${LISTING_ID}`, {
+        body: { landmark: "ok", priceThb: -5, bedrooms: -1 },
+      }),
+    );
+    expect(r.statusCode).toBe(200);
+    // negatives skipped; only the valid field is written
+    expect(repo.updateListingFields).toHaveBeenCalledWith(LISTING_ID, { landmark: "ok" });
+  });
+
   it("a rent listing's monthlyRent edit hits the rental satellite", async () => {
     const repo = makeRepo({
       getPortalListingDetail: vi.fn(async () =>
@@ -556,6 +571,22 @@ describe("viewings", () => {
     );
     expect(r.statusCode).toBe(400);
     expect(bodyOf(r).error).toBe("invalid_time");
+  });
+
+  it("400s a past scheduledAt (server-side future-time guard)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () => portalDetail({ claimedByUserId: DB_USER_ID })),
+    });
+    // deps.now() = 2026-06-20; this is in the past
+    const r = await handleApi(
+      deps(repo),
+      req("POST", `/properties/${LISTING_ID}/viewings`, {
+        body: { scheduledAt: "2026-06-01T00:00:00Z" },
+      }),
+    );
+    expect(r.statusCode).toBe(400);
+    expect(bodyOf(r).error).toBe("invalid_time");
+    expect(repo.createViewing).not.toHaveBeenCalled();
   });
 });
 
