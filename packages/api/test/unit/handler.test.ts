@@ -1,8 +1,14 @@
 import type {
   ClaimResult,
+  InterestFlagWithUser,
   ListingNoteRow,
+  ModerationItemRow,
   MyListingCard,
+  PendingModerationRow,
   PortalListingDetail,
+  QuoteRow,
+  RoleApplication,
+  RoleRow,
   SavedListingCard,
   UserRow,
   ViewingCard,
@@ -97,6 +103,25 @@ function makeRepo(over: Partial<Repo> = {}): Repo {
       async (listingId, userId, body) =>
         ({ id: "n1", listingId, userId, body, createdAt: new Date() }) as ListingNoteRow,
     ),
+    // Stage 6 (groups & dealflow) — sane defaults; tests override per case.
+    getUserRoles: vi.fn(async () => [] as RoleRow[]),
+    createInterestFlag: vi.fn(async () => {}),
+    listInterestFlags: vi.fn(async () => [] as InterestFlagWithUser[]),
+    applyForRole: vi.fn(async () => ({ created: true, status: "pending" }) as const),
+    getLatestRoleApplication: vi.fn(async () => undefined),
+    listRoleApplications: vi.fn(async () => [] as RoleApplication[]),
+    setRoleApproval: vi.fn(async (roleId) => ({
+      outcome: "updated" as const,
+      row: { id: roleId } as RoleRow,
+    })),
+    listPendingModeration: vi.fn(async () => [] as PendingModerationRow[]),
+    resolveModerationItem: vi.fn(async (id) => ({
+      outcome: "updated" as const,
+      row: { id } as ModerationItemRow,
+    })),
+    setListingUrgency: vi.fn(async () => {}),
+    createQuote: vi.fn(async (input) => ({ id: "q1", ...input }) as QuoteRow),
+    listQuotesForListing: vi.fn(async () => [] as QuoteRow[]),
     ...over,
   };
 }

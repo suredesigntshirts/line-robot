@@ -3,6 +3,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   addRole,
+  applyForRole,
   createInterestFlag,
   createListing,
   createModerationItem,
@@ -13,6 +14,7 @@ import {
   extendExclusivity,
   getBrokerPreference,
   getExclusivity,
+  getLatestRoleApplication,
   getUserRoles,
   listApprovedVettedUsers,
   listInterestFlags,
@@ -208,20 +210,42 @@ describe("moderation queue (list pending + resolve)", () => {
     expect(item?.headline).toBe("บ้านดีลโฟลว์"); // joined th headline
 
     const resolved = await resolveModerationItem(db, item?.id as string, "approved");
-    expect(resolved?.status).toBe("approved");
+    expect(resolved.outcome).toBe("updated");
+    if (resolved.outcome !== "updated") throw new Error("expected updated");
+    expect(resolved.row.status).toBe("approved");
     // No longer pending.
     expect((await listPendingModeration(db)).map((p) => p.id)).not.toContain(item?.id);
   });
 
-  it("reject keeps the item out of pending too; an unknown id returns undefined", async () => {
+  it("reject keeps the item out of pending too; an unknown id returns not_found", async () => {
     const id = await newListing(2_200_000);
     await createModerationItem(db, "listing", id, "blocked");
     const [item] = (await listPendingModeration(db)).filter((p) => p.targetId === id);
     const rejected = await resolveModerationItem(db, item?.id as string, "rejected");
-    expect(rejected?.status).toBe("rejected");
+    expect(rejected.outcome).toBe("updated");
+    if (rejected.outcome !== "updated") throw new Error("expected updated");
+    expect(rejected.row.status).toBe("rejected");
     expect(
-      await resolveModerationItem(db, "00000000-0000-0000-0000-000000000000", "approved"),
-    ).toBeUndefined();
+      (await resolveModerationItem(db, "00000000-0000-0000-0000-000000000000", "approved")).outcome,
+    ).toBe("not_found");
+  });
+
+  it("terminal-state guard (fix B): re-resolving an already-decided item does NOT flip it → already_decided", async () => {
+    const id = await newListing(2_350_000);
+    await createModerationItem(db, "listing", id, "needs_review");
+    const [item] = (await listPendingModeration(db)).filter((p) => p.targetId === id);
+    const first = await resolveModerationItem(db, item?.id as string, "approved");
+    expect(first.outcome).toBe("updated");
+    // A stale/double admin request tries to FLIP approved → rejected: it must NOT take effect.
+    const second = await resolveModerationItem(db, item?.id as string, "rejected");
+    expect(second.outcome).toBe("already_decided");
+    if (second.outcome !== "already_decided") throw new Error("expected already_decided");
+    expect(second.row.status).toBe("approved"); // the prior decision STANDS
+    // Confirm at the row level the status was not rewritten.
+    const { rows } = await pool.query("SELECT status FROM moderation_item WHERE id = $1", [
+      item?.id,
+    ]);
+    expect(rows[0].status).toBe("approved");
   });
 });
 
@@ -235,9 +259,11 @@ describe("role vetting (queue, approve/reject with reviewer, getUserRoles)", () 
     expect(app?.displayName).toBe("Broker CNX");
 
     const approved = await setRoleApproval(db, app?.roleId as string, "approved", admin);
-    expect(approved?.approvalStatus).toBe("approved");
-    expect(approved?.reviewedBy).toBe(admin);
-    expect(approved?.reviewedAt).not.toBeNull();
+    expect(approved.outcome).toBe("updated");
+    if (approved.outcome !== "updated") throw new Error("expected updated");
+    expect(approved.row.approvalStatus).toBe("approved");
+    expect(approved.row.reviewedBy).toBe(admin);
+    expect(approved.row.reviewedAt).not.toBeNull();
 
     // getUserRoles reflects the approval.
     const roles = await getUserRoles(db, brokerCnx);
@@ -250,8 +276,10 @@ describe("role vetting (queue, approve/reject with reviewer, getUserRoles)", () 
     await addRole(db, { userId: brokerPhuket, kind: "investor", approvalStatus: "pending" });
     const [app] = (await listRoleApplications(db)).filter((a) => a.userId === brokerPhuket);
     const rejected = await setRoleApproval(db, app?.roleId as string, "rejected", admin);
-    expect(rejected?.approvalStatus).toBe("rejected");
-    expect(rejected?.reviewedBy).toBe(admin);
+    expect(rejected.outcome).toBe("updated");
+    if (rejected.outcome !== "updated") throw new Error("expected updated");
+    expect(rejected.row.approvalStatus).toBe("rejected");
+    expect(rejected.row.reviewedBy).toBe(admin);
     // Shows up only in the rejected query, not pending.
     expect((await listRoleApplications(db, "rejected")).map((a) => a.roleId)).toContain(
       app?.roleId,
@@ -358,5 +386,107 @@ describe("broker preferences + the vetted-candidate read (feeds matchVettedUsers
     // Prefs survive the dedup (both duplicate rows carried identical prefs via the userId-keyed join).
     expect(dualRows[0]?.provinces).toEqual(["เชียงใหม่"]);
     expect(dualRows[0]?.priceBandIds).toEqual(["s2"]);
+  });
+});
+
+describe("role-application hardening (fixes B/C/D/E)", () => {
+  it("setRoleApproval terminal-state guard (B): an already-decided role is NOT re-flipped → already_decided", async () => {
+    const u = await newUser("Guard A", "U-guard-a");
+    await addRole(db, { userId: u, kind: "broker", approvalStatus: "pending" });
+    const [app] = (await listRoleApplications(db)).filter((a) => a.userId === u);
+    const first = await setRoleApproval(db, app?.roleId as string, "approved", admin);
+    expect(first.outcome).toBe("updated");
+    // A stale/double request tries to FLIP approved → rejected: it must NOT take effect.
+    const second = await setRoleApproval(db, app?.roleId as string, "rejected", admin);
+    expect(second.outcome).toBe("already_decided");
+    if (second.outcome !== "already_decided") throw new Error("expected already_decided");
+    expect(second.row.approvalStatus).toBe("approved"); // the prior decision STANDS
+    const { rows } = await pool.query("SELECT approval_status FROM role WHERE id = $1", [
+      app?.roleId,
+    ]);
+    expect(rows[0].approval_status).toBe("approved");
+  });
+
+  it("setRoleApproval on an unknown role → not_found", async () => {
+    const result = await setRoleApproval(
+      db,
+      "00000000-0000-0000-0000-000000000000",
+      "approved",
+      admin,
+    );
+    expect(result.outcome).toBe("not_found");
+  });
+
+  it("applyForRole (E) atomically creates a pending role AND its preferences in one transaction", async () => {
+    const u = await newUser("Applicant", "U-applicant");
+    const result = await applyForRole(db, u, "broker", {
+      provinces: ["เชียงใหม่"],
+      propertyTypes: ["condo"],
+      priceBandIds: ["s1"],
+    });
+    expect(result).toEqual({ created: true, status: "pending" });
+    // The role row exists AND is pending.
+    const roles = await getUserRoles(db, u);
+    expect(roles.filter((r) => r.kind === "broker")).toHaveLength(1);
+    expect(roles[0]?.approvalStatus).toBe("pending");
+    // The preferences were written in the SAME transaction (no pending role with no prefs).
+    const pref = await getBrokerPreference(db, u);
+    expect(pref?.provinces).toEqual(["เชียงใหม่"]);
+    expect(pref?.propertyTypes).toEqual(["condo"]);
+  });
+
+  it("re-application guard (D): re-applying with a live pending role does NOT insert a duplicate", async () => {
+    const u = await newUser("Re-applicant", "U-reapplicant");
+    await applyForRole(db, u, "broker", { provinces: [], propertyTypes: [], priceBandIds: [] });
+    const again = await applyForRole(db, u, "broker", {
+      provinces: ["ภูเก็ต"], // a different pref — must be IGNORED on the guarded no-op
+      propertyTypes: [],
+      priceBandIds: [],
+    });
+    expect(again).toEqual({ created: false, status: "pending" });
+    // Exactly ONE broker role row (no duplicate).
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM role WHERE user_id = $1 AND kind = 'broker'",
+      [u],
+    );
+    expect(rows[0].n).toBe(1);
+    // The no-op did NOT rewrite the existing prefs.
+    expect((await getBrokerPreference(db, u))?.provinces).toEqual([]);
+  });
+
+  it("re-application guard does NOT block re-applying after a REJECTION", async () => {
+    const u = await newUser("Rejected-then-reapply", "U-rejected-reapply");
+    await applyForRole(db, u, "broker", { provinces: [], propertyTypes: [], priceBandIds: [] });
+    const [app] = (await listRoleApplications(db)).filter((a) => a.userId === u);
+    await setRoleApproval(db, app?.roleId as string, "rejected", admin);
+    // A rejected user may try again — a fresh pending row IS created.
+    const retry = await applyForRole(db, u, "broker", {
+      provinces: ["เชียงใหม่"],
+      propertyTypes: [],
+      priceBandIds: [],
+    });
+    expect(retry).toEqual({ created: true, status: "pending" });
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM role WHERE user_id = $1 AND kind = 'broker'",
+      [u],
+    );
+    expect(rows[0].n).toBe(2); // the rejected one + the new pending one
+  });
+
+  it("getLatestRoleApplication (C) deterministically surfaces the strongest standing (approved over rejected)", async () => {
+    const u = await newUser("Two-apps", "U-two-apps");
+    // A rejected broker application, then a fresh approved investor one.
+    await addRole(db, { userId: u, kind: "broker", approvalStatus: "rejected" });
+    await addRole(db, { userId: u, kind: "investor", approvalStatus: "approved" });
+    const latest = await getLatestRoleApplication(db, u);
+    // approved sorts before rejected → the approved investor role is "current", stably across reads.
+    expect(latest?.kind).toBe("investor");
+    expect(latest?.approvalStatus).toBe("approved");
+    expect((await getLatestRoleApplication(db, u))?.id).toBe(latest?.id); // deterministic re-read
+  });
+
+  it("getLatestRoleApplication returns undefined for a user who never applied", async () => {
+    const u = await newUser("Never-applied", "U-never-applied");
+    expect(await getLatestRoleApplication(db, u)).toBeUndefined();
   });
 });

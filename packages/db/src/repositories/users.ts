@@ -1,5 +1,5 @@
 import type { ApprovalStatus, RoleKind } from "@line-robot/domain";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
 import { brokerPreferences, roles, userIdentities, users } from "../schema.ts";
 
@@ -25,6 +25,68 @@ export async function createUserWithIdentity(
 
 export async function addRole(db: Db, role: NewRole): Promise<void> {
   await db.insert(roles).values(role);
+}
+
+/** The outcome of a broker/investor role application: a fresh PENDING row was created, or the user
+ * already had a live (pending/approved) role of that kind so nothing was inserted. */
+export interface RoleApplicationResult {
+  /** False when an existing live role short-circuited the insert (the re-application guard). */
+  created: boolean;
+  /** The applicant's resulting standing for that kind (the existing or the new row's status). */
+  status: ApprovalStatus;
+}
+
+/**
+ * Apply for a broker/investor role, ATOMICALLY (D-S6-6, fixes D + E). One transaction so a partial
+ * failure can never leave a pending role with no matching-preferences row:
+ *  1. Re-application guard (D): if the user ALREADY has a `pending` or `approved` role of this kind,
+ *     do NOT insert a duplicate — return the existing status. (A previously `rejected` application
+ *     does NOT block re-applying — the user may have fixed whatever was wrong.)
+ *  2. Otherwise insert a fresh `pending` role AND upsert the preferences in the SAME transaction.
+ * Preferences are upserted even on the no-insert path? No — on the guarded short-circuit we leave the
+ * existing prefs untouched (the dedicated edit path owns preference changes); a re-apply that's a
+ * no-op should not silently rewrite them.
+ */
+export async function applyForRole(
+  db: Db,
+  userId: string,
+  kind: "broker" | "investor",
+  prefs: { provinces: string[]; propertyTypes: string[]; priceBandIds: string[] },
+): Promise<RoleApplicationResult> {
+  return db.transaction(async (tx) => {
+    const live = await tx
+      .select({ approvalStatus: roles.approvalStatus })
+      .from(roles)
+      .where(
+        and(
+          eq(roles.userId, userId),
+          eq(roles.kind, kind),
+          inArray(roles.approvalStatus, ["pending", "approved"]),
+        ),
+      );
+    const existing = live[0];
+    if (existing) return { created: false, status: existing.approvalStatus };
+
+    await tx.insert(roles).values({ userId, kind, approvalStatus: "pending" });
+    await tx
+      .insert(brokerPreferences)
+      .values({
+        userId,
+        provinces: prefs.provinces,
+        propertyTypes: prefs.propertyTypes,
+        priceBandIds: prefs.priceBandIds,
+      })
+      .onConflictDoUpdate({
+        target: brokerPreferences.userId,
+        set: {
+          provinces: prefs.provinces,
+          propertyTypes: prefs.propertyTypes,
+          priceBandIds: prefs.priceBandIds,
+          updatedAt: sql`now()`,
+        },
+      });
+    return { created: true, status: "pending" };
+  });
 }
 
 export async function findUserByIdentity(
@@ -84,9 +146,36 @@ export async function findOrCreateUserByIdentity(
 // ---------------------------------------------------------------------------
 
 /** All of a user's roles (every kind + its approvalStatus) — the server-side gate reads this to
- * decide `requireRole('admin')`/`requireVetted` (an approved broker/investor). */
+ * decide `requireRole('admin')`/`requireVetted` (an approved broker/investor). Ordered by `id` for a
+ * STABLE, deterministic result (the `role` table has no `created_at` and `id` is a random UUID, so
+ * `id` is not chronological — but it IS a total order, which is all the gate / "current application"
+ * read needs: the same rows always come back in the same sequence). */
 export async function getUserRoles(db: Db, userId: string): Promise<RoleRow[]> {
-  return db.select().from(roles).where(eq(roles.userId, userId));
+  return db.select().from(roles).where(eq(roles.userId, userId)).orderBy(asc(roles.id));
+}
+
+/**
+ * The caller's "current" broker/investor role application, deterministically (D-S6-6). A user can
+ * accrue several broker/investor rows over time (e.g. a rejected application then a fresh one); this
+ * surfaces the most RELEVANT standing — an `approved` role first, then a `pending` one, then a
+ * `rejected` one — with `id` as the final tiebreaker so the result never flaps between reads. Returns
+ * undefined when the user has never applied. (The re-application guard in `applyForRole` keeps at most
+ * one live pending/approved role per kind, so in practice this resolves to a single clear status.)
+ */
+export async function getLatestRoleApplication(
+  db: Db,
+  userId: string,
+): Promise<RoleRow | undefined> {
+  const rows = await db
+    .select()
+    .from(roles)
+    .where(and(eq(roles.userId, userId), inArray(roles.kind, ["broker", "investor"])))
+    .orderBy(
+      // approved (0) < pending (1) < rejected/other (2) so the strongest standing sorts first.
+      sql`case ${roles.approvalStatus} when 'approved' then 0 when 'pending' then 1 else 2 end`,
+      asc(roles.id),
+    );
+  return rows[0];
 }
 
 /** A role application joined to the applicant's display name — the admin vetting queue. */
@@ -116,20 +205,34 @@ export async function listRoleApplications(
     .where(eq(roles.approvalStatus, status));
 }
 
-/** Vet a role: transition it to approved/rejected and stamp the reviewing admin + the time. Returns
- * the updated row, or undefined if no such role exists. */
+/** The outcome of an admin vetting decision: a real transition, an already-decided no-op (so the
+ * caller can 409 a stale/double request), or no such role (404). */
+export type RoleApprovalResult =
+  | { outcome: "updated"; row: RoleRow }
+  | { outcome: "already_decided"; row: RoleRow }
+  | { outcome: "not_found" };
+
+/**
+ * Vet a role: transition it to approved/rejected and stamp the reviewing admin + the time. The UPDATE
+ * is guarded `WHERE approval_status = 'pending'` (a TERMINAL-STATE guard) so a stale or double admin
+ * request can NEVER silently flip an already-decided role (approved → rejected, or re-stamp a new
+ * reviewer). When the guarded UPDATE touches no row we read the role back to distinguish "already
+ * decided" (it exists but isn't pending → 409) from "no such role" (404).
+ */
 export async function setRoleApproval(
   db: Db,
   roleId: string,
   status: "approved" | "rejected",
   reviewedBy: string,
-): Promise<RoleRow | undefined> {
+): Promise<RoleApprovalResult> {
   const [updated] = await db
     .update(roles)
     .set({ approvalStatus: status, reviewedBy, reviewedAt: sql`now()` })
-    .where(eq(roles.id, roleId))
+    .where(and(eq(roles.id, roleId), eq(roles.approvalStatus, "pending")))
     .returning();
-  return updated;
+  if (updated) return { outcome: "updated", row: updated };
+  const [existing] = await db.select().from(roles).where(eq(roles.id, roleId));
+  return existing ? { outcome: "already_decided", row: existing } : { outcome: "not_found" };
 }
 
 /** An approved-vetted user + their stated quick-quote preferences (their `broker_preference` row, or

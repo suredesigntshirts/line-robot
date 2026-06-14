@@ -1,13 +1,22 @@
 import type {
   ClaimResult,
+  InterestFlagWithUser,
   ListingNoteRow,
+  ModerationResolveResult,
   MyListingCard,
+  PendingModerationRow,
   PortalListingDetail,
+  QuoteRow,
+  RoleApplication,
+  RoleApplicationResult,
+  RoleApprovalResult,
+  RoleRow,
   SavedListingCard,
   UserRow,
   ViewingCard,
   ViewingRow,
 } from "@line-robot/db";
+import type { Urgency } from "@line-robot/domain";
 import type { Presign } from "./adapters/s3Presigner.ts";
 import { bearerToken, type HttpRequest, type HttpResponse, json, parseJsonBody } from "./http.ts";
 import type { LineTokenVerifier } from "./ports/lineTokenVerifier.ts";
@@ -42,6 +51,47 @@ export interface Repo {
   createViewing(listingId: string, userId: string, scheduledAt: Date): Promise<ViewingRow>;
   listNotesForUserListing(listingId: string, userId: string): Promise<ListingNoteRow[]>;
   addListingNote(listingId: string, userId: string, body: string): Promise<ListingNoteRow>;
+
+  // --- Stage 6 (groups & dealflow) -----------------------------------------
+  // The server-side role gate's source of truth: a caller's roles + their kind/approvalStatus.
+  // requireRole/requireVetted read THIS — the client never asserts its own role.
+  getUserRoles(userId: string): Promise<RoleRow[]>;
+  // Interest flags (D-S6-3): a member raises one; the claimant/admin lists them.
+  createInterestFlag(listingId: string, userId: string): Promise<void>;
+  listInterestFlags(listingId: string): Promise<InterestFlagWithUser[]>;
+  // Role application + vetting (D9, D-S6-8). `applyForRole` is ATOMIC (one txn: re-application guard +
+  // pending role + preferences) so a partial failure can't leave a pending role with no prefs. An
+  // admin lists the pending queue and approves/rejects (stamping their own id), terminal-state guarded.
+  applyForRole(
+    userId: string,
+    kind: "broker" | "investor",
+    prefs: { provinces: string[]; propertyTypes: string[]; priceBandIds: string[] },
+  ): Promise<RoleApplicationResult>;
+  getLatestRoleApplication(userId: string): Promise<RoleRow | undefined>;
+  listRoleApplications(status: "pending"): Promise<RoleApplication[]>;
+  setRoleApproval(
+    roleId: string,
+    status: "approved" | "rejected",
+    reviewedBy: string,
+  ): Promise<RoleApprovalResult>;
+  // Moderation queue (D-S6-7): list the pending gate-fail set; resolve one approve/reject (terminal
+  // -state guarded). The typed result lets the `if (outcome)` 404/409 contract compile-check (fix H).
+  listPendingModeration(): Promise<PendingModerationRow[]>;
+  resolveModerationItem(
+    id: string,
+    status: "approved" | "rejected",
+  ): Promise<ModerationResolveResult>;
+  // Quick-sale flag (D10): the claimant marks a listing quick-sale.
+  setListingUrgency(id: string, urgency: Urgency): Promise<void>;
+  // Quotes (D10): a vetted broker/investor submits one; the claimant/admin lists them.
+  createQuote(input: {
+    listingId: string;
+    brokerUserId: string;
+    amountThb: number;
+    discountVsMarket?: number;
+    termsNote?: string;
+  }): Promise<QuoteRow>;
+  listQuotesForListing(listingId: string): Promise<QuoteRow[]>;
 }
 
 // The mini-app API handler — independent of the Lambda Function URL plumbing. It turns a LIFF id-token
@@ -180,6 +230,46 @@ async function authorizedListing(
   if (isClaimant) return detail;
   const member = await deps.repo.isGroupMember(detail.listing.sourceGroupId, userId);
   return member ? detail : null;
+}
+
+// --- Stage-6 server-side role gates (D-S6-5/6 — NEVER UI-gated) --------------
+//
+// The client sends only a verified id-token; `resolveUser` turned that into the trusted Postgres
+// userId BEFORE these run. The role is read SERVER-SIDE from `role` rows — the client can never
+// assert its own role. This is the spec-auditor invariant: admin/quick-quote paths cannot be driven
+// by a non-admin / unvetted caller even with a hand-crafted request.
+
+/** Admit only a caller holding an APPROVED role of `kind` (D-S6-5: 'admin' is the /admin/* gate).
+ * Reads the persisted role rows — the single role predicate (no passthrough wrapper). */
+async function requireRole(deps: ApiDeps, userId: string, kind: RoleRow["kind"]): Promise<boolean> {
+  const roles = await deps.repo.getUserRoles(userId);
+  return roles.some((r) => r.kind === kind && r.approvalStatus === "approved");
+}
+
+/** Admit only an approved broker OR investor (D-S6-6). The gate for the quote-submit endpoint — the
+ * spec-auditor invariant: a quote can NEVER be authored by an unvetted user. The one other predicate
+ * (two role checks total — admit-by-kind vs admit-by-either-vetted-kind). */
+async function requireVetted(deps: ApiDeps, userId: string): Promise<boolean> {
+  const roles = await deps.repo.getUserRoles(userId);
+  return roles.some(
+    (r) => (r.kind === "broker" || r.kind === "investor") && r.approvalStatus === "approved",
+  );
+}
+
+/** The claimant-or-admin read gate (D-S6-3 interest flags + D10 quotes): a non-existent listing or a
+ * caller who is neither the claimant nor an admin gets null → the handler maps it to 404 (so ids stay
+ * non-enumerable and a plain group member can't see who else is interested / what's been offered).
+ * Extracted because this exact gate is a security invariant shared by two read handlers — it must not
+ * drift between them. */
+async function claimantOrAdmin(
+  deps: ApiDeps,
+  id: string,
+  userId: string,
+): Promise<PortalListingDetail | null> {
+  const detail = await deps.repo.getPortalListingDetail(id, userId);
+  if (!detail) return null;
+  if (detail.listing.claimedByUserId === userId) return detail;
+  return (await requireRole(deps, userId, "admin")) ? detail : null;
 }
 
 // --- endpoint handlers ------------------------------------------------------
@@ -423,6 +513,248 @@ async function handleAddNote(
   return json(201, { id: note.id, body: note.body, createdAt: note.createdAt });
 }
 
+// --- Stage 6: interest flags ------------------------------------------------
+
+/** A group member flags interest on a listing (D-S6-3). Membership-gated like notes/viewings (a flag
+ * is a member signal, not a claim) so ids stay non-enumerable. Idempotent (one flag per member). */
+async function handleFlagInterest(
+  deps: ApiDeps,
+  userId: string,
+  id: string,
+): Promise<HttpResponse> {
+  const detail = await authorizedListing(deps, id, userId, false);
+  if (!detail) return json(404, { error: "not_found" });
+  await deps.repo.createInterestFlag(id, userId);
+  return json(201, { status: "flagged" });
+}
+
+/** List a listing's interest flags — visible to the CLAIMANT or an admin only (D-S6-3). A plain group
+ * member who isn't the claimant cannot see who else is interested. */
+async function handleListInterest(
+  deps: ApiDeps,
+  userId: string,
+  id: string,
+): Promise<HttpResponse> {
+  const detail = await claimantOrAdmin(deps, id, userId);
+  if (!detail) return json(404, { error: "not_found" });
+  const flags = await deps.repo.listInterestFlags(id);
+  return json(
+    200,
+    flags.map((f) => ({ userId: f.userId, displayName: f.displayName, createdAt: f.createdAt })),
+  );
+}
+
+// --- Stage 6: role application (broker/investor vetting request) -------------
+
+/** Read a string[] body field, keeping only string entries (drops a non-array / non-string item). */
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+/** A user applies for a broker/investor role (D9, D-S6-6). Atomically creates a PENDING role and
+ * stores the quick-quote matching preferences captured in the same form (one transaction — fix E).
+ * Self-service — any authed user may apply; the admin gate is on the approval step, not here.
+ * Re-application guard (fix D): if the user already has a live (pending/approved) role of that kind,
+ * no duplicate row is created — the existing status is returned (200), not a second pending row. */
+async function handleRoleApplication(
+  deps: ApiDeps,
+  userId: string,
+  rawBody: string,
+): Promise<HttpResponse> {
+  const body = parseJsonBody(rawBody);
+  if (body === null) return json(400, { error: "invalid_body" });
+  const kind = body.kind;
+  if (kind !== "broker" && kind !== "investor") return json(400, { error: "invalid_kind" });
+
+  const result = await deps.repo.applyForRole(userId, kind, {
+    provinces: stringArray(body.provinces),
+    propertyTypes: stringArray(body.propertyTypes),
+    priceBandIds: stringArray(body.priceBandIds),
+  });
+  // A fresh application → 201; an existing live role short-circuited the insert → 200 with its status.
+  return json(result.created ? 201 : 200, { status: result.status });
+}
+
+/** The caller's current broker/investor application + status (D-S6-6, optional read). */
+async function handleMyRoleApplication(deps: ApiDeps, userId: string): Promise<HttpResponse> {
+  const role = await deps.repo.getLatestRoleApplication(userId);
+  if (!role) return json(200, { kind: null, status: "none" });
+  return json(200, { kind: role.kind, status: role.approvalStatus });
+}
+
+// --- Stage 6: admin vetting (admin-gated) -----------------------------------
+
+async function handleAdminRoleApplications(
+  deps: ApiDeps,
+  adminUserId: string,
+): Promise<HttpResponse> {
+  if (!(await requireRole(deps, adminUserId, "admin"))) return json(404, { error: "not_found" });
+  const apps = await deps.repo.listRoleApplications("pending");
+  return json(
+    200,
+    apps.map((a) => ({
+      roleId: a.roleId,
+      userId: a.userId,
+      displayName: a.displayName,
+      kind: a.kind,
+    })),
+  );
+}
+
+async function handleAdminVetRole(
+  deps: ApiDeps,
+  adminUserId: string,
+  roleId: string,
+  rawBody: string,
+): Promise<HttpResponse> {
+  if (!(await requireRole(deps, adminUserId, "admin"))) return json(404, { error: "not_found" });
+  const body = parseJsonBody(rawBody);
+  const decision = body?.decision;
+  if (decision !== "approved" && decision !== "rejected")
+    return json(400, { error: "invalid_body" });
+  const result = await deps.repo.setRoleApproval(roleId, decision, adminUserId);
+  // Terminal-state guard (fix B): a stale/double admin request that finds the role already decided →
+  // 409 (the prior decision STANDS — it is never silently flipped), reporting the current status.
+  if (result.outcome === "not_found") return json(404, { error: "not_found" });
+  if (result.outcome === "already_decided") {
+    return json(409, { error: "already_decided", status: result.row.approvalStatus });
+  }
+  return json(200, { status: decision });
+}
+
+// --- Stage 6: admin moderation queue (admin-gated) --------------------------
+
+async function handleAdminModeration(deps: ApiDeps, adminUserId: string): Promise<HttpResponse> {
+  if (!(await requireRole(deps, adminUserId, "admin"))) return json(404, { error: "not_found" });
+  const items = await deps.repo.listPendingModeration();
+  return json(
+    200,
+    items.map((m) => ({
+      id: m.id,
+      listingId: m.targetId,
+      headline: m.headline,
+      reason: m.reason,
+      createdAt: m.createdAt,
+    })),
+  );
+}
+
+async function handleAdminResolveModeration(
+  deps: ApiDeps,
+  adminUserId: string,
+  itemId: string,
+  rawBody: string,
+): Promise<HttpResponse> {
+  if (!(await requireRole(deps, adminUserId, "admin"))) return json(404, { error: "not_found" });
+  const body = parseJsonBody(rawBody);
+  const decision = body?.decision;
+  if (decision !== "approved" && decision !== "rejected")
+    return json(400, { error: "invalid_body" });
+  // v1 (fix I): this is admin REVIEW — it records the decision on the moderation_item. It does NOT
+  // itself make a listing publicly visible: nothing in the claim/publish/public-query path reads
+  // moderation_item.status yet (that listing-lifecycle wiring is cross-cutting and QUEUED). Public
+  // visibility still requires the poster's own publish-consent grant (LEGAL-02) regardless.
+  const result = await deps.repo.resolveModerationItem(itemId, decision);
+  // Terminal-state guard (fix B): an already-decided item is not re-flipped → 409.
+  if (result.outcome === "not_found") return json(404, { error: "not_found" });
+  if (result.outcome === "already_decided") {
+    return json(409, { error: "already_decided", status: result.row.status });
+  }
+  return json(200, { status: decision });
+}
+
+// --- Stage 6: quick-sale flag (claimant-only) -------------------------------
+
+async function handleQuickSale(deps: ApiDeps, userId: string, id: string): Promise<HttpResponse> {
+  const detail = await authorizedListing(deps, id, userId, true);
+  if (!detail) return json(404, { error: "not_found" });
+  // Quick-sale is SALE-oriented (fix F): it feeds the broker quote flow, which prices a purchase. A
+  // rental must not enter it — reject a non-sale listing rather than flag it.
+  if (detail.listing.dealType !== "sale") {
+    return json(409, { error: "not_a_sale_listing" });
+  }
+  await deps.repo.setListingUrgency(id, "quick_sale");
+  // The matched Flex PUSH to vetted users is INC-B4's bot sweep — this only persists the flag.
+  return json(200, { status: "quick_sale" });
+}
+
+// --- Stage 6: quotes (vetted-gated submit; claimant/admin read) -------------
+
+/** A sane upper bound on a quote amount (10 billion THB). A quote that high is garbage/overflow, not a
+ * real offer — and this column feeds the Stage-7 AVM, so we reject rather than ingest noise (fix G). */
+const MAX_QUOTE_THB = 10_000_000_000;
+
+/** A vetted broker/investor submits a structured quote (D10). VETTED-GATED — the spec-auditor
+ * invariant: a quote can never be authored by an unvetted user. The listing must EXIST and be flagged
+ * `quick_sale` (fix A): a quote targets a quick-sale listing the broker was pushed, and a bad id must
+ * 404 here rather than hit the `quote.listing_id` FK and 500. (Per-recipient push-invitation tracking
+ * — proving THIS broker was actually pushed THIS listing — is deferred/queued; quick_sale + existence
+ * is the v1 narrowing over the prior vetted-only gate.) */
+async function handleSubmitQuote(
+  deps: ApiDeps,
+  userId: string,
+  id: string,
+  rawBody: string,
+): Promise<HttpResponse> {
+  if (!(await requireVetted(deps, userId))) return json(403, { error: "not_vetted" });
+  // The listing must exist (→ 404, never a 500 on the FK) and be a live quick-sale target.
+  const detail = await deps.repo.getPortalListingDetail(id, userId);
+  if (!detail) return json(404, { error: "not_found" });
+  if (detail.listing.urgency !== "quick_sale") {
+    return json(409, { error: "not_quick_sale" });
+  }
+
+  const body = parseJsonBody(rawBody);
+  if (body === null) return json(400, { error: "invalid_body" });
+  // amountThb: a positive, finite number within a sane cap (feeds the AVM — no garbage).
+  const amountThb = body.amountThb;
+  if (
+    typeof amountThb !== "number" ||
+    !Number.isFinite(amountThb) ||
+    amountThb <= 0 ||
+    amountThb > MAX_QUOTE_THB
+  ) {
+    return json(400, { error: "invalid_amount" });
+  }
+  // discountVsMarket (optional): if given, a finite percentage in [0, 100].
+  let discountVsMarket: number | undefined;
+  if (body.discountVsMarket !== undefined) {
+    const d = body.discountVsMarket;
+    if (typeof d !== "number" || !Number.isFinite(d) || d < 0 || d > 100) {
+      return json(400, { error: "invalid_discount" });
+    }
+    discountVsMarket = d;
+  }
+  const termsNote = typeof body.termsNote === "string" ? body.termsNote.trim() : undefined;
+  const quote = await deps.repo.createQuote({
+    listingId: id,
+    brokerUserId: userId,
+    amountThb: Math.trunc(amountThb),
+    discountVsMarket,
+    termsNote: termsNote === "" ? undefined : termsNote,
+  });
+  return json(201, { quoteId: quote.id });
+}
+
+/** List a listing's quotes — visible to the CLAIMANT or an admin only (the poster reviews offers). */
+async function handleListQuotes(deps: ApiDeps, userId: string, id: string): Promise<HttpResponse> {
+  const detail = await claimantOrAdmin(deps, id, userId);
+  if (!detail) return json(404, { error: "not_found" });
+  const quotes = await deps.repo.listQuotesForListing(id);
+  return json(
+    200,
+    quotes.map((q) => ({
+      quoteId: q.id,
+      brokerUserId: q.brokerUserId,
+      amountThb: q.amountThb,
+      discountVsMarket: q.discountVsMarket,
+      termsNote: q.termsNote,
+      status: q.status,
+      createdAt: q.createdAt,
+    })),
+  );
+}
+
 // --- routing ----------------------------------------------------------------
 
 /** Decode a single path segment, falling back to the raw segment if it isn't valid %-encoding. */
@@ -459,9 +791,36 @@ const PROPERTY_ROUTES: ReadonlyArray<[string, string, PropertyRoute]> = [
   ["GET", "/notes", handleNotesList],
   ["POST", "/notes", handleAddNote],
   ["POST", "/viewings", handleCreateViewing],
+  // Stage 6 (groups & dealflow)
+  ["POST", "/interest", handleFlagInterest],
+  ["GET", "/interest", handleListInterest],
+  ["POST", "/quick-sale", handleQuickSale],
+  ["POST", "/quotes", handleSubmitQuote],
+  ["GET", "/quotes", handleListQuotes],
   ["PATCH", "", handleEdit],
   ["GET", "", handleDetail],
 ];
+
+// `/admin/{collection}/{id}` resolve-routes as a `[method, collection] → handler` table — the admin
+// vetting/moderation decisions. The id is the second path segment. All are admin-gated INSIDE the
+// handler (D-S6-5) — the route table only dispatches; it never implies authorization.
+type AdminItemRoute = (
+  deps: ApiDeps,
+  adminUserId: string,
+  id: string,
+  rawBody: string,
+) => Promise<HttpResponse>;
+
+const ADMIN_ITEM_ROUTES: ReadonlyArray<[string, string, AdminItemRoute]> = [
+  ["POST", "role-applications", handleAdminVetRole],
+  ["POST", "moderation", handleAdminResolveModeration],
+];
+
+/** Match `/admin/{collection}/{id}` and return the decoded `{id}` (or null). */
+function adminItemId(path: string, collection: string): string | null {
+  const match = new RegExp(`^/admin/${collection}/([^/]+)$`).exec(path);
+  return match?.[1] === undefined ? null : decodeSegment(match[1]);
+}
 
 /** Route a verified request (the user is already resolved). Returns 404 for any unmatched route. */
 async function route(deps: ApiDeps, request: HttpRequest, userId: string): Promise<HttpResponse> {
@@ -471,6 +830,21 @@ async function route(deps: ApiDeps, request: HttpRequest, userId: string): Promi
   if (method === "GET" && path === "/me/listings") return handleMyListings(deps, userId);
   if (method === "GET" && path === "/me/saved") return handleSaved(deps, userId);
   if (method === "GET" && path === "/me/viewings") return handleViewingsList(deps, userId);
+  // Stage 6: role application (self-service create + the caller's own status).
+  if (method === "POST" && path === "/me/role-application")
+    return handleRoleApplication(deps, userId, request.rawBody);
+  if (method === "GET" && path === "/me/role-application")
+    return handleMyRoleApplication(deps, userId);
+  // Stage 6: admin queues (admin-gated inside each handler).
+  if (method === "GET" && path === "/admin/role-applications")
+    return handleAdminRoleApplications(deps, userId);
+  if (method === "GET" && path === "/admin/moderation") return handleAdminModeration(deps, userId);
+
+  for (const [routeMethod, collection, handle] of ADMIN_ITEM_ROUTES) {
+    if (method !== routeMethod) continue;
+    const id = adminItemId(path, collection);
+    if (id !== null) return handle(deps, userId, id, request.rawBody);
+  }
 
   for (const [routeMethod, suffix, handle] of PROPERTY_ROUTES) {
     if (method !== routeMethod) continue;

@@ -8,6 +8,7 @@ import type {
   MediaKind,
   PropertyType,
   SaleCondition,
+  Urgency,
 } from "@line-robot/domain";
 import { and, desc, eq, sql } from "drizzle-orm";
 import type { Db } from "../pool.ts";
@@ -581,6 +582,13 @@ export async function updateRentalMonthlyRent(
   monthlyRent: number,
 ): Promise<void> {
   await db.update(listingRental).set({ monthlyRent }).where(eq(listingRental.listingId, id));
+}
+
+/** Stage 6 (D10/D-S6-6): set a listing's urgency flag (the claimant marks a quick-sale). The matched
+ * Flex push to vetted users is the bot sweep's job (INC-B4) — this only persists the flag. Typed to
+ * the `urgency` enum so a bad value can't be written; bumps `updated_at` like the other field writes. */
+export async function setListingUrgency(db: Db, id: string, urgency: Urgency): Promise<void> {
+  await db.update(listings).set({ urgency, updatedAt: sql`now()` }).where(eq(listings.id, id));
 }
 
 /** Delete a listing and every satellite that has a no-cascade FK to it, in one transaction. Scope =

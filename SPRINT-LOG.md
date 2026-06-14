@@ -662,3 +662,18 @@ both broker+investor returned 2 rows → now 1; JS dedup by userId; new biting i
 carried to INC-B2/B4 briefs (guard null/negative price before matchVettedUsers; ensure an exclusivity row exists
 before extend/release). Gates GREEN: typecheck 0, lint, domain unit 45, **db integration 57**. LEGAL-02 model:
 admin moderation-approve UNBLOCKS the listing (resolves the moderation_item) but is NOT a publish-consent grant.
+
+**INC-B2 — api endpoints + server-side role/vetted gates (DONE, committed).** `packages/api`: `requireRole('admin')`
++ `requireVetted` (read server-side from the verified-id-token→resolveUser→getUserRoles path — the client can't
+assert its own role). Endpoints: interest create/list (list=claimant-or-admin per D-S6-3), role-application
+submit+status, admin vetting list+approve/reject, admin moderation list+resolve, quick-sale flag, quote submit
+(vetted)+list. Review: **the spec-auditor INVARIANT PASSED** (admin + vetted gates server-side + biting — the
+repo fn is never reached for a non-admin/unvetted caller); correctness surfaced 8 real findings → all FIXED:
+quote needs listing-exists(404)+quick_sale(409) not 500; **terminal-state guard** on admin decisions
+(`WHERE status='pending'` → 409 on already-decided, no silent approval-reversal); atomic `applyForRole`
+transaction + re-apply guard; quick-sale sale-only; deterministic role ordering; quote numeric bounds; type
+tightening. Cleanups: extracted `claimantOrAdmin`, collapsed `requireRole`. Gates GREEN: typecheck, lint, **api
+90/90**, **db integration 65/65**. DESIGN CALL (committed `4e599d0`): quick-quote MATCH+Flex-push is **INC-B4**
+(bot), not the api (LINE-out-of-api + no push-intent table); moderation v1 = REVIEW-only, the approve→visible
+BLOCK deferred+queued S6-11 (nothing reads moderation_item.status in claim/publish today). Robustness notes for
+INC-B4: guard null/negative price before matchVettedUsers; ensure an exclusivity row exists before extend/release.

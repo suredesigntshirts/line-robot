@@ -42,31 +42,40 @@ export async function listPendingModeration(db: Db): Promise<PendingModerationRo
     .then((rows) => rows.map((r) => ({ ...r, headline: r.headline ?? "" })));
 }
 
+/** The outcome of an admin moderation decision: a real transition, an already-decided no-op (so the
+ * caller can 409 a stale/double request), or no such item (404). */
+export type ModerationResolveResult =
+  | { outcome: "updated"; row: ModerationItemRow }
+  | { outcome: "already_decided"; row: ModerationItemRow }
+  | { outcome: "not_found" };
+
 /**
- * Resolve a moderation item to `approved` or `rejected`. Returns the resolved row, or undefined when
- * no such item exists.
+ * Resolve a moderation item to `approved` or `rejected`. This is the admin REVIEW action: it lists the
+ * gate-fail set (`listPendingModeration`) and marks each item approved/rejected — a record of the
+ * admin's decision on the `moderation_item` row.
  *
- * On `approved`: the listing is "set active" by CLEARING the review block — there is no separate
- * `active` status column in this schema. A listing's row exists from the moment the pipeline extracts
- * it (gate pass OR fail); the ONLY thing the gate-fail did was additionally write this pending
- * moderation_item, which holds the listing back from the normal claim→publish flow. Resolving it to
- * `approved` removes that block, so the listing re-enters the standard lifecycle (claim, then
- * poster-consent publish gates public visibility per LEGAL-02 — an admin approval is NOT itself a
- * publish-consent grant, which would breach LEGAL-02). On `rejected` the listing stays blocked.
+ * IMPORTANT (v1 scope — D-S6-7): resolving an item does NOT itself change a listing's visibility.
+ * Nothing in the claim / publish / public-query path reads `moderation_item.status` yet, so an
+ * `approved` decision records the review outcome but does not unblock or publish the listing. Wiring
+ * the moderation outcome INTO the listing lifecycle (so approve actually gates/ungates the listing) is
+ * a cross-cutting change that is QUEUED, not built here. (Public visibility still requires the
+ * poster's own publish-consent grant per LEGAL-02 regardless — an admin approval is never that.)
  *
- * TODO (queued): if a richer model later needs an explicit listing-level "moderation passed" flag
- * (e.g. so the bot can re-invite a claim after approval), add a column then — not invented here on a
- * guess (D-S6-7 keeps the queue minimal).
+ * Terminal-state guard: the UPDATE is `WHERE status = 'pending'`, so a stale or double admin request
+ * can never silently flip an already-decided item (approved → rejected). When it touches no row we read
+ * the item back to distinguish "already decided" (exists, not pending → 409) from "no such item" (404).
  */
 export async function resolveModerationItem(
   db: Db,
   id: string,
   status: "approved" | "rejected",
-): Promise<ModerationItemRow | undefined> {
+): Promise<ModerationResolveResult> {
   const [updated] = await db
     .update(moderationItems)
     .set({ status })
-    .where(eq(moderationItems.id, id))
+    .where(and(eq(moderationItems.id, id), eq(moderationItems.status, "pending")))
     .returning();
-  return updated;
+  if (updated) return { outcome: "updated", row: updated };
+  const [existing] = await db.select().from(moderationItems).where(eq(moderationItems.id, id));
+  return existing ? { outcome: "already_decided", row: existing } : { outcome: "not_found" };
 }
