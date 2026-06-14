@@ -444,3 +444,17 @@ find-or-create-user extracted to db `findOrCreateUserByIdentity`, dead guards/pa
 e2e 18, db integ 41). FOUNDER-QUEUE S5-6/7/8 (เลย particle; deed-type / verify-link on the claim screen;
 group name in the DM). Per-segment poster→sender mapping deferred (the membership gate is the real control).
 Consolidated perceptual `/frontend-review` deferred to the stage gate (all Stage-5 screens vs mocks at once).
+
+**Build D — per-user CRM (`549209a` + review fixes).** Saved tab, viewings tab + book-a-viewing (native
+`datetime-local`), per-listing notes, owner edit surface (`/edit/{id}`, minimal PATCH, claimant-only) —
+miniapp + ui-i18n only, consuming Build A's endpoints. Review: spec PASS; correctness 1 MAJOR (SaveToggle
+showed a saved listing as UNSAVED on every revisit — fixed end-to-end by adding per-caller `isSaved` to the
+detail DTO via an `EXISTS` subquery over `saved_listing`); simplicity 2 MAJOR (de-duped the `apiStatus`
+error-guard ×6; shared `Outcome` component across Claim + Edit); alignment found a real **register LEGAL-06**
+gap ("poster-provided, verify independently" is required "visible on cards" per §4 line 70 — verified, added
+to `MyListingCard`) + B3/TH-03 founder-queue items; + negative-number guard + BookViewing copy. Gate GREEN
+(miniapp unit 94 / e2e 42, api 46, db integ 42; bot 267 / pipeline 89 / ui 26 / website 36 unchanged).
+FOUNDER-QUEUE grew to S5-9/10/11 (saved-card trust signal; "นัดดูทรัพย์" vs canonical "นัดชม"; website-card
+LEGAL-06 parity). Also fixed 2 stale "edit-by-reply" lines in the spec. **Builds A–D complete; remaining =
+Build E (retire Preact + route-compat + the Stage-5 stage gate incl. the consolidated perceptual review) +
+deploy/verify on staging.**
