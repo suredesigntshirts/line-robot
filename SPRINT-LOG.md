@@ -621,3 +621,29 @@ code-complete + locally-verified + stage-gate-PASS + a clean pushed checkpoint (
 DoD bullet (staging deploy) is a permission-gated founder-manual step, not incomplete work — per the goal's
 "never block the run" + the founder's explicit Stage-6 build authorization, PROCEEDING to Part B with the
 deploy queued.
+
+## PART B — Stage 6 (Groups & Dealflow) — started 2026-06-15
+
+**Spec FLESHED → BUILD STARTED (committed `34d4cd8`).** Approval gate waived by the founder for this run.
+Verified the Stage-1 foundation: most tables EXIST (`listing_exclusivity`, `interest_flag`, `quote`,
+`moderation_item` [gate-fail write path LIVE], `role`, `publish_consent`, `listing.urgency` quick-sale) → Stage 6
+is repo-fns + ONE small roles migration (0009), not new tables. Resolved all 8 open questions with smallest-
+defensible defaults (D-S6-1…9), queued S6-1…10 in FOUNDER-QUEUE. Increment plan: B1 data+domain → B2 api+role-
+gates → B3 mini-app UI → B4 bot DM+Flex-push → B5 delete-v1-read-api → gate. Key calls: exclusivity STATE
+DERIVED in the domain engine (no release_state migration); admin INSIDE the mini-app, server-side role-gated
+(sidesteps D19/4.4); matchVettedUsers seam (province+type+price-band over prefs collected in the role-app);
+moderation = minimal approve/reject; ignored release → stays private (no silent auto-release).
+
+**INC-B1 (data+domain foundation) — dispatched** (agent, background): migration 0009 (roleKind+admin,
+approvalStatus+rejected, role reviewer cols, `broker_preference` array-cols), the pure exclusivity-window engine
+(deterministic clock), `matchVettedUsers` + price-band helper, and the repo fns (exclusivity/interest/quote/
+moderation-read+resolve/role-approval+getUserRoles+listVetted/broker_preference) with Docker-PG integration tests.
+
+**INC-B5 (delete v1 read-api) — VERIFIED inconclusive → DEFERRED + QUEUED.** Read-only check: the
+`line-robot-deploy` identity is DENIED `cloudwatch:GetMetricStatistics` (has Logs read only), so used log streams:
+`/aws/lambda/linerobot-staging-read-api` last activity **2026-06-14** (the old Preact SPA, PRE-React-cutover);
+**no streams on/after the 2026-06-15 cutover** (post-cutover invocations = 0). BUT the clean post-cutover window
+is only ~1 day — too short for a confident "flat at 0 across the parallel-run window," and the metric API is
+denied + the deletion `pulumi up` is founder-gated. **DECISION: do NOT delete now** (honour the goal's caution);
+keep the read-api as the one-`pulumi up` rollback path; delete after a **7–14 day clean post-cutover window** the
+founder confirms (via console metrics) + runs the gated `pulumi up`. Queued for the founder.
