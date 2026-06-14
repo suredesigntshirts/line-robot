@@ -10,8 +10,11 @@ import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
 import { BookViewing } from "../components/BookViewing.tsx";
 import { Gallery } from "../components/Gallery.tsx";
+import { InterestSection } from "../components/InterestSection.tsx";
 import { LifecycleBadge } from "../components/LifecycleBadge.tsx";
 import { NotesSection } from "../components/NotesSection.tsx";
+import { QuickSaleToggle } from "../components/QuickSaleToggle.tsx";
+import { QuotesSection } from "../components/QuotesSection.tsx";
 import { SaveToggle } from "../components/SaveToggle.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
 import { apiStatus } from "../lib/api.ts";
@@ -172,6 +175,19 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
       <section className="grid gap-1.5">
         <BookViewing id={dto.id} api={api} t={t} />
       </section>
+
+      {/* Stage 6 dealflow. A non-owner group MEMBER flags non-binding interest (D-S6-3); the OWNER sees
+          the interested-members list, a quick-sale toggle (SALE listings only, D10), and the offers
+          (quotes) brokers submitted (D10). */}
+      {dto.isClaimedByMe ? (
+        <>
+          {dto.dealType === "sale" && <QuickSaleToggle id={dto.id} api={api} t={t} />}
+          <InterestSection id={dto.id} isOwner api={api} t={t} locale={locale} />
+          <QuotesSection id={dto.id} api={api} t={t} locale={locale} />
+        </>
+      ) : (
+        <InterestSection id={dto.id} isOwner={false} api={api} t={t} locale={locale} />
+      )}
 
       {/* Follow-up notes (D13) — the caller's own notes on this listing. */}
       <NotesSection id={dto.id} api={api} t={t} locale={locale} />

@@ -16,12 +16,20 @@ const SERVER_BASE = `http://localhost:${SERVER_PORT}`;
 export interface SeedIds {
   userId: string;
   otherUserId: string;
+  /** Stage 6 multi-identity users (the non-claimant member / vetted broker). The admin identity is
+   * added in INC-B3b with its admin-screen specs. */
+  memberUserId: string;
+  brokerUserId: string;
   groupId: string;
   listings: {
     claimable: string;
     mine: string;
     claimedByOther: string;
     published: string;
+    /** Stage 6: a SALE listing pre-flagged `quick_sale` (the quote round-trip's target). */
+    quickSale: string;
+    /** Stage 6: a SALE listing NOT yet quick-sale (the quick-sale-toggle round-trip's target). */
+    toToggle: string;
   };
 }
 
@@ -30,6 +38,50 @@ export async function seedIds(page: Page): Promise<SeedIds> {
   const res = await page.request.get(`${SERVER_BASE}/__ids`);
   expect(res.ok(), "the harness /__ids endpoint must respond").toBeTruthy();
   return (await res.json()) as SeedIds;
+}
+
+/** A seeded role a spec can authenticate as (Stage 6 multi-identity). `owner` is the DEFAULT — every
+ * pre-Stage-6 spec runs as it WITHOUT calling `loginAs` (so they're unaffected). The `admin` role is
+ * added in INC-B3b (the admin screens), where a spec seeds + drives it. */
+export type Role = "owner" | "member" | "broker" | "other";
+
+/** The fixture id-token each role's LIFF mock emits — mirrored in e2e/mocks/liff.ts (which reads the
+ * active token from localStorage) + server.mjs (the stub verifier maps it → the seeded LINE subject). */
+const ROLE_TOKEN: Record<Role, string> = {
+  owner: "e2e.fixture.id-token",
+  member: "e2e.token.member",
+  broker: "e2e.token.broker",
+  other: "e2e.token.other",
+};
+
+/** localStorage key the LIFF mock reads to choose which token `getIDToken()` returns (see liff.ts). */
+const ACTIVE_TOKEN_KEY = "e2e-active-token";
+
+/**
+ * Set the ACTIVE identity for the SPA's LIFF mock BEFORE navigation (Stage 6 multi-identity). Installs
+ * an init-script that writes the role's fixture token into `localStorage` — it runs on EVERY document
+ * (so a subsequent `page.goto` already has it on first paint). `addInitScript` ACCUMULATES (each call
+ * adds another script, it does NOT replace the prior one) — but every `loginAs` writes the SAME
+ * localStorage key, so on a re-navigation the scripts run in order and the LAST write wins; that's why a
+ * later `loginAs(page, 'owner')` cleanly switches identity. The LIFF mock reads the key and returns the
+ * matching token from `getIDToken()`; the server's stub verifier maps token → seeded subject. NOT
+ * calling `loginAs` leaves the default (`e2e-user`) — backward-compatible.
+ *
+ * Call BEFORE the `page.goto` for the identity you want; to switch identity mid-test, call it again then
+ * re-navigate (the existing in-page SPA cached the old token, so a fresh `goto` is required to re-read).
+ */
+export async function loginAs(page: Page, role: Role): Promise<void> {
+  const token = ROLE_TOKEN[role];
+  await page.addInitScript(
+    ([key, value]) => {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {
+        // localStorage unavailable — the mock falls back to the default token (still a valid identity).
+      }
+    },
+    [ACTIVE_TOKEN_KEY, token] as const,
+  );
 }
 
 /** Install the api FORWARDER on a page: every `https://e2e.api.local/...` request is re-issued against
@@ -45,17 +97,28 @@ export async function forwardApi(page: Page): Promise<{ tokensSeen: string[] }> 
     if (auth.startsWith("Bearer ")) tokensSeen.push(auth.slice(7));
 
     const target = `${SERVER_BASE}/__api${url.pathname}${url.search}`;
-    // Use the test runner's request context to reach localhost (the page's network is what we're
-    // intercepting; APIRequestContext is the side channel that actually hits the server).
-    const upstream = await page.request.fetch(target, {
-      method: req.method(),
-      headers: req.headers(),
-      data: req.postData() ?? undefined,
-      // The real handler classifies HTTP outcomes (401/404/409/400) as normal responses, not errors —
-      // never throw on a non-2xx; forward it through so the SPA sees the real status.
-      failOnStatusCode: false,
-    });
-    await route.fulfill({ response: upstream });
+    try {
+      // Use the test runner's request context to reach localhost (the page's network is what we're
+      // intercepting; APIRequestContext is the side channel that actually hits the server).
+      const upstream = await page.request.fetch(target, {
+        method: req.method(),
+        headers: req.headers(),
+        data: req.postData() ?? undefined,
+        // The real handler classifies HTTP outcomes (401/404/409/400) as normal responses, not errors —
+        // never throw on a non-2xx; forward it through so the SPA sees the real status.
+        failOnStatusCode: false,
+      });
+      await route.fulfill({ response: upstream });
+    } catch (error) {
+      // ONLY swallow the known TEARDOWN race: a detail screen fires several background GETs
+      // (interest/quotes/notes); one still in flight when the test ends + the page closes makes the
+      // route callback throw "Target page/context/browser has been closed". That's not a test failure —
+      // the live assertions already ran. ANYTHING else (a real upstream fulfill failure, a server 500
+      // surfaced as a thrown error) is RE-THROWN so it isn't masked from watchForErrors / the spec.
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/(Target page|context|browser).*has been closed/i.test(message)) throw error;
+      await route.abort().catch(() => {});
+    }
   });
   return { tokensSeen };
 }

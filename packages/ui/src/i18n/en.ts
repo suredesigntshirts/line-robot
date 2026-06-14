@@ -333,4 +333,55 @@ export const en: Record<keyof typeof th, string> = {
   "claim.doneCta": "Go to My Listings",
   "claim.publishConsentNote":
     "Publishing means you consent to your information appearing in the system. You can withdraw at any time.",
+
+  // Stage 6 — DEALFLOW (groups): interest flags (D-S6-3), quick-sale (D10), quote response (D10).
+  "interest.flagCta": "I'm interested",
+  "interest.flagging": "Saving…",
+  "interest.flagged": "Interest noted",
+  "interest.flaggedNote": "The owner can see you're interested. Non-binding — cancel any time.",
+  "interest.ownerHead": "Interested ({count})",
+  "interest.loading": "Loading interested members…",
+  "interest.empty": "No one has flagged interest yet",
+  "interest.flaggedAt": "Interested {date}",
+
+  "quickSale.head": "Quick sale",
+  "quickSale.toggleCta": "Mark as quick sale",
+  "quickSale.toggling": "Saving…",
+  "quickSale.activeBadge": "Quick sale",
+  "quickSale.activeNote":
+    "This listing is marked quick-sale. Vetted brokers are notified to submit offers.",
+  "quickSale.note":
+    "Mark quick-sale to invite vetted brokers to compete with offers (sale listings only).",
+  "quickSale.errorNotSale": "Only sale listings can be marked quick-sale.",
+  "quickSale.error": "A temporary error occurred. Please try again.",
+
+  "quotes.ownerHead": "Offers ({count})",
+  "quotes.loading": "Loading offers…",
+  "quotes.empty": "No offers on this listing yet",
+  "quotes.amount": "Offered {amount}",
+  "quotes.discount": "{pct}% below market",
+  "quotes.submittedAt": "Offered {date}",
+
+  "quote.title": "Submit an offer",
+  "quote.loading": "Loading listing…",
+  "quote.intro":
+    "This quick-sale listing was sent to you as a vetted broker. Please submit a structured offer.",
+  "quote.fieldAmount": "Offer amount (THB)",
+  "quote.fieldAmountPlaceholder": "e.g. 3500000",
+  "quote.fieldDiscount": "Discount vs market (%)",
+  "quote.fieldDiscountPlaceholder": "0–100 (optional)",
+  "quote.fieldTerms": "Additional terms",
+  "quote.fieldTermsPlaceholder": "e.g. cash payment, close within 30 days (optional)",
+  "quote.submit": "Submit offer",
+  "quote.submitting": "Submitting…",
+  "quote.errorAmount": "Please enter an offer amount greater than zero",
+  "quote.errorDiscount": "Discount must be between 0 and 100",
+  "quote.errorNotVetted": "Only vetted brokers can submit an offer",
+  "quote.errorNotQuickSale": "This listing is no longer accepting quick-sale offers",
+  "quote.errorNotFound": "That listing wasn't found",
+  "quote.error": "Couldn't submit your offer. Please try again.",
+  "quote.submittedTitle": "Offer submitted",
+  "quote.submittedBody":
+    "Your offer was sent to the listing owner. They'll be in touch if interested.",
+  "quote.doneCta": "Done",
 };

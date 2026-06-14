@@ -10,10 +10,13 @@
  * helpers when those builds land, never a speculative interface now.
  */
 import type {
+  InterestFlagDto,
   ListingCardDto,
   ListingDetailDto,
   ListingPatch,
   NoteDto,
+  QuoteDto,
+  QuoteInput,
   ViewingsDto,
 } from "./types.ts";
 
@@ -119,6 +122,35 @@ export function createApiClient(base: string, getToken: TokenSource) {
         method: "PATCH",
         body: JSON.stringify(patch),
       }),
+
+    // --- Stage 6 dealflow (D-S6-3 interest / D10 quick-sale + quotes) ------------
+
+    /** `POST /properties/{id}/interest` — a group member flags non-binding interest (D-S6-3). Idempotent
+     * server-side → `201 {status:"flagged"}`; a non-member is `404 not_found` (ids stay non-enumerable). */
+    flagInterest: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/interest`, { method: "POST" }),
+    /** `GET /properties/{id}/interest` — the CLAIMANT/admin lists who flagged interest (newest-first). A
+     * plain member is `404` (only the poster/admin may see the interested set). */
+    interest: (id: string): Promise<InterestFlagDto[]> =>
+      request<InterestFlagDto[]>(`${propertyPath(id)}/interest`),
+
+    /** `POST /properties/{id}/quick-sale` — the CLAIMANT marks a SALE listing quick-sale (D10), setting
+     * `urgency='quick_sale'`. `200 {status:"quick_sale"}`; a rental is `409 not_a_sale_listing`, a
+     * non-claimant `404 not_found`. Idempotent (re-toggling persists the same state). */
+    quickSale: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/quick-sale`, { method: "POST" }),
+
+    /** `POST /properties/{id}/quotes` — a VETTED broker/investor submits a structured quote (D10). `201
+     * {quoteId}`; an unvetted caller is `403 not_vetted`, a missing listing `404 not_found`, a
+     * non-quick-sale listing `409 not_quick_sale`, a bad amount/discount `400`. */
+    submitQuote: (id: string, input: QuoteInput): Promise<{ quoteId: string }> =>
+      request<{ quoteId: string }>(`${propertyPath(id)}/quotes`, {
+        method: "POST",
+        body: JSON.stringify(input),
+      }),
+    /** `GET /properties/{id}/quotes` — the CLAIMANT/admin lists submitted offers (newest-first). A plain
+     * member is `404` (only the poster/admin reviews offers). */
+    quotes: (id: string): Promise<QuoteDto[]> => request<QuoteDto[]>(`${propertyPath(id)}/quotes`),
   };
 }
 

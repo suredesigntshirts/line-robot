@@ -5,6 +5,7 @@ import {
   editPath,
   normalizePath,
   parseRoute,
+  quotePath,
   resolveInitialPath,
 } from "../src/lib/deeplink.ts";
 
@@ -78,6 +79,32 @@ describe("edit route (additive)", () => {
   it("the frozen detail + additive claim shapes are NOT shadowed by adding the edit route", () => {
     expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
     expect(parseRoute("/claim/abc-123")).toEqual({ name: "claim", id: "abc-123" });
+  });
+});
+
+// The ADDITIVE quote route (Stage 6, INC-B3) — `/quote/{id}` (the vetted-broker quick-quote response,
+// reached from the bot's Flex push). The frozen plan-17 shapes + claim/edit routes are untouched.
+describe("quote route (additive)", () => {
+  it("`/quote/{id}` resolves to quote with the decoded id", () => {
+    expect(parseRoute("/quote/L-1")).toEqual({ name: "quote", id: "L-1" });
+    expect(parseRoute("/quote/L-1/")).toEqual({ name: "quote", id: "L-1" }); // trailing slash
+    expect(parseRoute("/quote/a%20b")).toEqual({ name: "quote", id: "a b" }); // url-decoded
+  });
+
+  it("quotePath round-trips through parseRoute", () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    expect(parseRoute(quotePath(id))).toEqual({ name: "quote", id });
+  });
+
+  it("a malformed quote path falls back to the list (never throws)", () => {
+    expect(parseRoute("/quote")).toEqual({ name: "list" });
+    expect(parseRoute("/quote/a/b")).toEqual({ name: "list" });
+  });
+
+  it("the frozen detail + additive claim/edit shapes are NOT shadowed by adding the quote route", () => {
+    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
+    expect(parseRoute("/claim/abc-123")).toEqual({ name: "claim", id: "abc-123" });
+    expect(parseRoute("/edit/abc-123")).toEqual({ name: "edit", id: "abc-123" });
   });
 });
 

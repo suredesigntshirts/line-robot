@@ -25,7 +25,13 @@ import { migrateDb, startPostgresLocal, stopPostgresLocal } from "@line-robot/db
 import pg from "pg";
 import sirv from "sirv";
 import { handleApi } from "../../api/src/handler.ts";
-import { SEED_LINE_SUBJECT, seed } from "./seed.mjs";
+import {
+  BROKER_LINE_SUBJECT,
+  MEMBER_LINE_SUBJECT,
+  OTHER_LINE_SUBJECT,
+  SEED_LINE_SUBJECT,
+  seed,
+} from "./seed.mjs";
 
 const CONTAINER = "linerobot-miniapp-e2e";
 const PORT = Number(process.env.E2E_API_PORT || 4331);
@@ -51,14 +57,23 @@ const PNG_1X1 = Buffer.from(
   "base64",
 );
 
-/** The fixture id-token the LIFF mock emits; the stub verifier maps ONLY this to the seeded subject. */
-const FIXTURE_TOKEN = "e2e.fixture.id-token";
+// STUB LineTokenVerifier (the injectable port) — MULTI-IDENTITY (Stage 6, INC-B3). Each fixture token
+// maps to ONE seeded LINE subject; `loginAs(page, role)` (support.ts) sets the active token via the LIFF
+// mock, so the SPA's Bearer header carries the role's token and the api resolves to the right user. An
+// UNKNOWN token → null, so the api's real 401 path stays exercised (auth.spec relies on it). The DEFAULT
+// `e2e.fixture.id-token` still maps to `e2e-user` — every pre-Stage-6 spec is unchanged. No network.
+const TOKEN_TO_SUBJECT = {
+  "e2e.fixture.id-token": SEED_LINE_SUBJECT,
+  "e2e.token.member": MEMBER_LINE_SUBJECT,
+  "e2e.token.broker": BROKER_LINE_SUBJECT,
+  "e2e.token.other": OTHER_LINE_SUBJECT,
+  // The `admin` identity (e2e.token.admin) is deferred to INC-B3b with its admin-screen specs + seed.
+};
 
-// STUB LineTokenVerifier (the injectable port): the fixture token → the seeded user's LINE subject;
-// anything else → null (so the api's real 401 path is exercised, not bypassed). No network.
 const verifier = {
   async verifyIdToken(idToken) {
-    return idToken === FIXTURE_TOKEN ? { userId: SEED_LINE_SUBJECT } : null;
+    const subject = TOKEN_TO_SUBJECT[idToken];
+    return subject ? { userId: subject } : null;
   },
 };
 
@@ -97,6 +112,16 @@ const {
   createViewing,
   listNotesForUserListing,
   addListingNote,
+  // Stage 6 (INC-B3) — ONLY the dealflow fns the listing-facing endpoints this increment exercises bind:
+  // `getUserRoles` (the vetted/admin server-side gate behind interest/quote reads), interest flags,
+  // quick-sale flag, quotes. The role-application / admin-vetting / moderation repo fns are INC-B3b's
+  // (the admin screens) — bound there, where a spec drives them, NOT speculatively here.
+  getUserRoles,
+  createInterestFlag,
+  listInterestFlags,
+  setListingUrgency,
+  createQuote,
+  listQuotesForListing,
 } = await import("@line-robot/db");
 
 const repo = {
@@ -124,6 +149,13 @@ const repo = {
     createViewing(db, listingId, userId, scheduledAt),
   listNotesForUserListing: (listingId, userId) => listNotesForUserListing(db, listingId, userId),
   addListingNote: (listingId, userId, body) => addListingNote(db, listingId, userId, body),
+  // --- Stage 6 (INC-B3 dealflow) — interest flags, quick-sale, quotes + the vetted/admin gate read ---
+  getUserRoles: (userId) => getUserRoles(db, userId),
+  createInterestFlag: (listingId, userId) => createInterestFlag(db, listingId, userId),
+  listInterestFlags: (listingId) => listInterestFlags(db, listingId),
+  setListingUrgency: (id, urgency) => setListingUrgency(db, id, urgency),
+  createQuote: (input) => createQuote(db, input),
+  listQuotesForListing: (listingId) => listQuotesForListing(db, listingId),
 };
 
 const deps = { repo, verifier, presign, logger, now: () => FIXED_NOW };

@@ -77,6 +77,35 @@ export interface ListingPatch {
   readonly monthlyRent?: number;
 }
 
+/** One interest flag on a listing (`GET /properties/{id}/interest` — the claimant/admin view, D-S6-3).
+ * A non-binding "I'm interested" signal a group member raised; newest-first, no priority/queue. */
+export interface InterestFlagDto {
+  readonly userId: string;
+  readonly displayName: string;
+  /** ISO-8601 timestamp the flag was raised (the api serializes the DB `Date`). */
+  readonly createdAt: string;
+}
+
+/** The structured quote a vetted broker submits (`POST /properties/{id}/quotes`, D10). `amountThb` is
+ * required + positive; `discountVsMarket` (0–100) + `termsNote` are optional. The server re-validates. */
+export interface QuoteInput {
+  readonly amountThb: number;
+  readonly discountVsMarket?: number;
+  readonly termsNote?: string;
+}
+
+/** One submitted quote (`GET /properties/{id}/quotes` — the claimant/admin offers view, D10). */
+export interface QuoteDto {
+  readonly quoteId: string;
+  readonly brokerUserId: string;
+  readonly amountThb: number;
+  readonly discountVsMarket: number | null;
+  readonly termsNote: string | null;
+  readonly status: string;
+  /** ISO-8601 timestamp the quote was submitted. */
+  readonly createdAt: string;
+}
+
 /** One presigned photo in a detail response. `kind` is the media kind (photo/chanote/…). */
 export interface PhotoDto {
   readonly url: string;

@@ -201,4 +201,79 @@ describe("createApiClient", () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(404);
   });
+
+  // Stage 6 — dealflow (interest / quick-sale / quotes).
+  it("POST /interest flags interest; GET /interest lists flags", async () => {
+    const fetchSpy = stubFetch(201, { status: "flagged" });
+    vi.stubGlobal("fetch", fetchSpy);
+    let api = createApiClient(BASE, () => "tok");
+    expect(await api.flagInterest("L-1")).toEqual({ status: "flagged" });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/interest",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    const flags = [{ userId: "u-1", displayName: "ผู้สนใจ", createdAt: "2026-06-15T00:00:00.000Z" }];
+    vi.stubGlobal("fetch", stubFetch(200, flags));
+    api = createApiClient(BASE, () => "tok");
+    expect(await api.interest("L-1")).toEqual(flags);
+  });
+
+  it("POST /quick-sale marks the listing quick-sale", async () => {
+    const fetchSpy = stubFetch(200, { status: "quick_sale" });
+    vi.stubGlobal("fetch", fetchSpy);
+    const api = createApiClient(BASE, () => "tok");
+    expect(await api.quickSale("L-1")).toEqual({ status: "quick_sale" });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/quick-sale",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
+  it("a 409 (not_a_sale_listing) from quick-sale surfaces as ApiError(409)", async () => {
+    vi.stubGlobal("fetch", stubFetch(409, { error: "not_a_sale_listing" }));
+    const api = createApiClient(BASE, () => "tok");
+    const err = await api.quickSale("L-1").catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(409);
+  });
+
+  it("POST /quotes sends the structured offer body; GET /quotes lists quotes", async () => {
+    const fetchSpy = stubFetch(201, { quoteId: "q-1" });
+    vi.stubGlobal("fetch", fetchSpy);
+    let api = createApiClient(BASE, () => "tok");
+    expect(await api.submitQuote("L-1", { amountThb: 3_500_000, discountVsMarket: 5 })).toEqual({
+      quoteId: "q-1",
+    });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/quotes",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ amountThb: 3_500_000, discountVsMarket: 5 }),
+      }),
+    );
+
+    const quotes = [
+      {
+        quoteId: "q-1",
+        brokerUserId: "b-1",
+        amountThb: 3_500_000,
+        discountVsMarket: 5,
+        termsNote: null,
+        status: "submitted",
+        createdAt: "2026-06-15T00:00:00.000Z",
+      },
+    ];
+    vi.stubGlobal("fetch", stubFetch(200, quotes));
+    api = createApiClient(BASE, () => "tok");
+    expect(await api.quotes("L-1")).toEqual(quotes);
+  });
+
+  it("a 403 (not_vetted) from quote submit surfaces as ApiError(403)", async () => {
+    vi.stubGlobal("fetch", stubFetch(403, { error: "not_vetted" }));
+    const api = createApiClient(BASE, () => "tok");
+    const err = await api.submitQuote("L-1", { amountThb: 1 }).catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(403);
+  });
 });

@@ -18,7 +18,8 @@ export type Route =
   | { readonly name: "list" }
   | { readonly name: "detail"; readonly id: string }
   | { readonly name: "claim"; readonly id: string }
-  | { readonly name: "edit"; readonly id: string };
+  | { readonly name: "edit"; readonly id: string }
+  | { readonly name: "quote"; readonly id: string };
 
 /** Strip a trailing slash (but keep "/"). */
 export function normalizePath(path: string): string {
@@ -77,6 +78,10 @@ export function parseRoute(path: string): Route {
   if (edit?.[1] !== undefined) {
     return { name: "edit", id: decodeId(edit[1]) };
   }
+  const quote = /^\/quote\/([^/]+)$/.exec(normalized);
+  if (quote?.[1] !== undefined) {
+    return { name: "quote", id: decodeId(quote[1]) };
+  }
   return { name: "list" };
 }
 
@@ -96,4 +101,11 @@ export function claimPath(listingId: string): string {
  * mini-app edit surface that replaced edit-by-reply (A3a). */
 export function editPath(listingId: string): string {
   return `/edit/${encodeURIComponent(listingId)}`;
+}
+
+/** The path for a vetted broker's QUOTE-RESPONSE screen (`/quote/{id}`, Stage 6 / D10). The bot's
+ * quick-quote Flex push (INC-B4) deep-links a matched vetted broker here to submit a structured offer.
+ * ADDITIVE — the frozen plan-17 shapes (`/`, `/p/{id}`, `/claim/{id}`, `/edit/{id}`) are untouched. */
+export function quotePath(listingId: string): string {
+  return `/quote/${encodeURIComponent(listingId)}`;
 }

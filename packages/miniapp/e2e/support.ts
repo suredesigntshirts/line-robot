@@ -4,7 +4,16 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 // ONE fixture source (review finding #4): the e2e harness renders the SAME fixtures the unit tests
 // assert against (the full 5-listing spread incl. the rent + sold cards), so the e2e card-count + the
 // rent-price case stay honest. Image URLs already point at API_ORIGIN (intercepted below).
-import { API_ORIGIN, DETAIL, MY_LISTINGS, NOTES, SAVED, VIEWINGS } from "../test/fixtures.ts";
+import {
+  API_ORIGIN,
+  DETAIL,
+  INTEREST_FLAGS,
+  MY_LISTINGS,
+  NOTES,
+  QUOTES,
+  SAVED,
+  VIEWINGS,
+} from "../test/fixtures.ts";
 
 // Shared helpers for the LIFF-SPA frontend gate (plan-20 net, ported from packages/website/e2e). The
 // SPA renders the REAL built artifact with a MOCKED LIFF context (the @line/liff alias in the e2e
@@ -15,7 +24,7 @@ import { API_ORIGIN, DETAIL, MY_LISTINGS, NOTES, SAVED, VIEWINGS } from "../test
 /** Ephemeral review gallery (gitignored). Filenames self-describing ({project}-{screen}.png). */
 export const GALLERY_DIR = "test-results/gallery";
 
-export { API_ORIGIN, DETAIL, MY_LISTINGS, NOTES, SAVED, VIEWINGS };
+export { API_ORIGIN, DETAIL, INTEREST_FLAGS, MY_LISTINGS, NOTES, QUOTES, SAVED, VIEWINGS };
 
 // A 1x1 transparent PNG — a real, decodable image so assertNoBrokenImages passes (naturalWidth > 0).
 const PNG_1X1 = Buffer.from(
@@ -39,12 +48,17 @@ export interface MockApiOptions {
   editStatus?: number;
   /** The status `POST /properties/{id}/viewings` returns (201 created / 400 invalid_time). */
   createViewingStatus?: number;
+  /** Stage 6: override `GET /properties/{id}/interest` (the owner's flagger list; `[]` = the empty state). */
+  interest?: typeof INTEREST_FLAGS;
+  /** Stage 6: override `GET /properties/{id}/quotes` (the owner's offers list; `[]` = the empty state). */
+  quotes?: typeof QUOTES;
 }
 
 /** Install the api + image fixtures on a page. Asserts the request carried the Bearer id-token (the
  * mocked LIFF token), so the auth contract is exercised, not bypassed. Handles the GET reads (listings,
- * detail, saved, viewings, notes) AND the Stage-5 writes (claim/publish/keep-private, save/unsave,
- * create-viewing, add-note, edit). Returns the seen tokens + a record of the write requests observed. */
+ * detail, saved, viewings, notes, AND the Stage-6 interest/quotes lists) AND the writes (claim/publish/
+ * keep-private, save/unsave, create-viewing, add-note, edit, AND the Stage-6 flag-interest/quick-sale/
+ * submit-quote). Returns the seen tokens + a record of the write requests observed. */
 export async function mockApi(
   page: Page,
   opts: MockApiOptions = {},
@@ -158,6 +172,47 @@ export async function mockApi(
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ status }),
+      });
+    }
+    // --- Stage 6 dealflow (interest flags / quick-sale / quotes) -------------
+    // These MUST precede the `/properties/{id}` detail catch-all below, or a `GET …/interest` would
+    // fall through to it and return the detail OBJECT where the SPA expects an ARRAY.
+    if (req.method() === "GET" && /\/properties\/[^/]+\/interest$/.test(url.pathname)) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(opts.interest ?? INTEREST_FLAGS),
+      });
+    }
+    if (req.method() === "POST" && /\/properties\/[^/]+\/interest$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "flagged" }),
+      });
+    }
+    if (req.method() === "POST" && /\/properties\/[^/]+\/quick-sale$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "quick_sale" }),
+      });
+    }
+    if (req.method() === "GET" && /\/properties\/[^/]+\/quotes$/.test(url.pathname)) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(opts.quotes ?? QUOTES),
+      });
+    }
+    if (req.method() === "POST" && /\/properties\/[^/]+\/quotes$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ quoteId: "q-new" }),
       });
     }
     if (url.pathname.startsWith("/properties/")) {

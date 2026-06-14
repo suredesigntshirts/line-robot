@@ -677,3 +677,20 @@ tightening. Cleanups: extracted `claimantOrAdmin`, collapsed `requireRole`. Gate
 (bot), not the api (LINE-out-of-api + no push-intent table); moderation v1 = REVIEW-only, the approve→visible
 BLOCK deferred+queued S6-11 (nothing reads moderation_item.status in claim/publish today). Robustness notes for
 INC-B4: guard null/negative price before matchVettedUsers; ensure an exclusivity row exists before extend/release.
+
+**INC-B3 — listing-facing dealflow UI + multi-identity e2e harness (DONE, committed).** Mini-app: interest-flag
+action (member) + flags-list (owner), quick-sale toggle (owner, sale-only), quote-response screen (`/quote/{id}`,
+vetted broker) + owner quotes-view — all consuming the INC-B2 api HTTP-only; routes additive (frozen plan-17
+shapes intact). **Multi-identity harness**: 5 token→subject mappings + `loginAs(page,role)` + seed roles
+(owner/member/broker/admin), backward-compatible (default = e2e-user; static gate + existing realapi specs
+unaffected). 3 biting real-backend round-trips (interest member→owner-sees; quick-sale toggle→persisted via the
+broker-quote gate flip; quote broker→owner-sees). Full review cadence: spec PASS, correctness no-blockers
+(round-trips bite, harness race-free), simplicity (cleanups applied), **alignment VIOLATIONS** (DIST-11 boolean-
+vs-3-tier urgency; DIST-04 no discount-to-close expectation) → both QUEUED as register-TBD/schema-bound
+deferrals (S6-12/13 — anti-hype copy floor IS met), frontend on-direction. Fixes applied: **the key one — added
+static-suite computed-style coverage for the new surfaces** (the deterministic net never measured them; it bit
+immediately on a real **TH-07 regression** — the quotes amount line at line-height 1.25<1.6 → fixed to
+`font-body-th leading-relaxed`); shared `primaryButtonClass` (TECH-06 contrast); dropped impossible guards;
+narrowed the forwardApi catch; trimmed B3b-only harness bindings. Gates GREEN: typecheck, lint, miniapp unit
+127, **e2e static 72 + realapi 13**. Queued S6-12…15 (DIST-11, DIST-04, detail-DTO `urgency` badge, broker
+quote-screen summary). Admin screens + role-app form = INC-B3b (next).

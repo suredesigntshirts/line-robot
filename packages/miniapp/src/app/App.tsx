@@ -5,10 +5,11 @@
  * framework would violate the anti-over-engineering rules.
  *
  * ROUTE-SHAPE FREEZE: `/` = the CRM shell (listings/saved/viewings TABS), `/p/{id}` = detail (plan-17
- * Flex deep links + rich-menu tabs resolve here). The additive routes are `/claim/{id}` (Build C) and
- * `/edit/{id}` (Build D, the owner edit surface) — each extends `parseRoute`'s union + adds a branch
- * to the switch below WITHOUT changing the two frozen shapes. Saved/viewings are tabs within `/`, not
- * routes (the deep links never target them).
+ * Flex deep links + rich-menu tabs resolve here). The additive routes are `/claim/{id}` (Build C),
+ * `/edit/{id}` (Build D, the owner edit surface), and `/quote/{id}` (Stage 6, the vetted-broker
+ * quick-quote response) — each extends `parseRoute`'s union + adds a branch to the switch below
+ * WITHOUT changing the frozen shapes. Saved/viewings are tabs within `/`, not routes (the deep links
+ * never target them).
  */
 
 import { createTranslator, type UiLocale } from "@line-robot/ui";
@@ -20,6 +21,7 @@ import { ClaimScreen } from "../screens/ClaimScreen.tsx";
 import { DetailScreen } from "../screens/DetailScreen.tsx";
 import { EditScreen } from "../screens/EditScreen.tsx";
 import { MyListingsScreen } from "../screens/MyListingsScreen.tsx";
+import { QuoteScreen } from "../screens/QuoteScreen.tsx";
 import { AppContextProvider } from "./context.ts";
 
 export interface AppProps {
@@ -69,6 +71,8 @@ export function App({ api, locale, profile }: AppProps) {
         <ClaimScreen id={route.id} />
       ) : route.name === "edit" ? (
         <EditScreen id={route.id} />
+      ) : route.name === "quote" ? (
+        <QuoteScreen id={route.id} />
       ) : (
         <MyListingsScreen />
       )}

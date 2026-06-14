@@ -9,9 +9,11 @@
  */
 import type { ApiClient } from "../src/lib/api.ts";
 import type {
+  InterestFlagDto,
   ListingCardDto,
   ListingDetailDto,
   NoteDto,
+  QuoteDto,
   ViewingDto,
   ViewingsDto,
 } from "../src/lib/types.ts";
@@ -175,6 +177,39 @@ export const NOTES: NoteDto[] = [
   { id: "n-2", body: "ทำเลดี ใกล้ตลาด เดินทางสะดวก", createdAt: "2026-06-09T08:30:00.000Z" },
 ];
 
+// --- Stage 6 dealflow fixtures (interest flags / quotes — the OWNER's detail sections) --------------
+
+/** Interest flags on a listing (`GET /properties/{id}/interest`, the owner's "ผู้สนใจ" list, newest
+ * first). Two flaggers so the static style spec renders a populated list (the Thai display names are
+ * measured for TH-07). */
+export const INTEREST_FLAGS: InterestFlagDto[] = [
+  { userId: "u-flag-1", displayName: "สมาชิกกลุ่ม สนใจซื้อ", createdAt: "2026-06-13T05:00:00.000Z" },
+  { userId: "u-flag-2", displayName: "ผู้สนใจรายที่สอง", createdAt: "2026-06-12T03:30:00.000Z" },
+];
+
+/** Submitted quotes on a listing (`GET /properties/{id}/quotes`, the owner's "ข้อเสนอ" list, newest
+ * first). One with a discount + terms note, one bare — so both render paths are exercised + measured. */
+export const QUOTES: QuoteDto[] = [
+  {
+    quoteId: "q-1",
+    brokerUserId: "b-1",
+    amountThb: 4_500_000,
+    discountVsMarket: 6,
+    termsNote: "ชำระเงินสด ปิดการขายภายใน 30 วัน",
+    status: "submitted",
+    createdAt: "2026-06-14T06:00:00.000Z",
+  },
+  {
+    quoteId: "q-2",
+    brokerUserId: "b-2",
+    amountThb: 4_300_000,
+    discountVsMarket: null,
+    termsNote: null,
+    status: "submitted",
+    createdAt: "2026-06-13T09:00:00.000Z",
+  },
+];
+
 /** A complete fixture {@link ApiClient} (the injection seam — no LIFF, no network). Every method has a
  * sensible default returning the fixtures above; pass `over` to spy on / override any of them. Shared by
  * the router, claim, and CRM component tests so they don't each re-stub the whole client. */
@@ -197,6 +232,12 @@ export function makeFixtureApi(over: Partial<ApiClient> = {}): ApiClient {
     notes: async () => structuredClone(NOTES),
     addNote: async (_id, body) => ({ id: "n-new", body, createdAt: "2026-06-14T10:00:00.000Z" }),
     editListing: async () => ({ status: "updated" }),
+    // Stage 6 dealflow (interest / quick-sale / quotes) — empty/idempotent defaults; specs override.
+    flagInterest: async () => ({ status: "flagged" }),
+    interest: async () => [],
+    quickSale: async () => ({ status: "quick_sale" }),
+    submitQuote: async () => ({ quoteId: "q-new" }),
+    quotes: async () => [],
     ...over,
   };
 }

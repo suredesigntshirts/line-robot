@@ -402,6 +402,61 @@ export const th = {
   "claim.privatedBody": "ประกาศนี้เห็นได้เฉพาะสมาชิกกลุ่มเดิม คุณเปลี่ยนเป็นสาธารณะได้ภายหลังจากหน้าประกาศของฉัน",
   "claim.doneCta": "ไปที่ประกาศของฉัน",
   "claim.publishConsentNote": "การเผยแพร่ถือว่าคุณยินยอมให้ข้อมูลปรากฏในระบบ คุณถอนการเผยแพร่ได้ตลอดเวลา",
+
+  // ============================================================
+  // Stage 6 — DEALFLOW (groups). Interest flags (D-S6-3), quick-sale (D10), quote response (D10).
+  // Listing-facing surfaces on the detail screen + the vetted-broker quote-response screen.
+  // ============================================================
+  // Interest flag — the MEMBER action on a non-owned listing (D-S6-3, non-binding).
+  "interest.flagCta": "สนใจประกาศนี้",
+  "interest.flagging": "กำลังบันทึก…",
+  "interest.flagged": "บันทึกความสนใจแล้ว",
+  "interest.flaggedNote": "เจ้าของจะเห็นว่าคุณสนใจ ไม่ผูกมัด ยกเลิกได้ทุกเมื่อ",
+  // Interest list — the OWNER's "who's interested" section on their own listing.
+  "interest.ownerHead": "ผู้สนใจ ({count})",
+  "interest.loading": "กำลังโหลดรายชื่อผู้สนใจ…",
+  "interest.empty": "ยังไม่มีผู้สนใจประกาศนี้",
+  "interest.flaggedAt": "สนใจเมื่อ {date}",
+
+  // Quick-sale toggle — the OWNER marks a SALE listing as urgent/discounted (D10).
+  "quickSale.head": "ขายด่วน",
+  "quickSale.toggleCta": "ทำเป็นขายด่วน",
+  "quickSale.toggling": "กำลังบันทึก…",
+  "quickSale.activeBadge": "ขายด่วน",
+  "quickSale.activeNote": "ประกาศนี้ทำเครื่องหมายขายด่วน นายหน้าที่ผ่านการตรวจสอบจะได้รับแจ้งให้เสนอราคา",
+  "quickSale.note": "ทำเป็นขายด่วนเพื่อส่งให้นายหน้าที่ผ่านการตรวจสอบเสนอราคาแข่งกัน (เฉพาะประกาศขาย)",
+  "quickSale.errorNotSale": "ทำเป็นขายด่วนได้เฉพาะประกาศขายเท่านั้น",
+  "quickSale.error": "เกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่",
+
+  // Quotes — the OWNER's "offers received" section on their own listing.
+  "quotes.ownerHead": "ข้อเสนอ ({count})",
+  "quotes.loading": "กำลังโหลดข้อเสนอ…",
+  "quotes.empty": "ยังไม่มีข้อเสนอสำหรับประกาศนี้",
+  "quotes.amount": "เสนอ {amount}",
+  "quotes.discount": "ส่วนลด {pct}% จากราคาตลาด",
+  "quotes.submittedAt": "เสนอเมื่อ {date}",
+
+  // Quote-response SCREEN (`/quote/{id}`) — a vetted broker submits a structured offer.
+  "quote.title": "เสนอราคา",
+  "quote.loading": "กำลังโหลดประกาศ…",
+  "quote.intro": "ประกาศขายด่วนนี้ส่งถึงคุณในฐานะนายหน้าที่ผ่านการตรวจสอบ กรุณาเสนอราคาที่มีโครงสร้าง",
+  "quote.fieldAmount": "ราคาที่เสนอ (บาท)",
+  "quote.fieldAmountPlaceholder": "เช่น 3500000",
+  "quote.fieldDiscount": "ส่วนลดจากราคาตลาด (%)",
+  "quote.fieldDiscountPlaceholder": "0–100 (ไม่บังคับ)",
+  "quote.fieldTerms": "เงื่อนไขเพิ่มเติม",
+  "quote.fieldTermsPlaceholder": "เงื่อนไข เช่น ชำระเงินสด ปิดการขายภายใน 30 วัน (ไม่บังคับ)",
+  "quote.submit": "ส่งข้อเสนอ",
+  "quote.submitting": "กำลังส่ง…",
+  "quote.errorAmount": "กรุณากรอกราคาที่เสนอเป็นจำนวนเงินที่มากกว่าศูนย์",
+  "quote.errorDiscount": "ส่วนลดต้องอยู่ระหว่าง 0 ถึง 100",
+  "quote.errorNotVetted": "เฉพาะนายหน้าที่ผ่านการตรวจสอบเท่านั้นที่เสนอราคาได้",
+  "quote.errorNotQuickSale": "ประกาศนี้ไม่ได้เปิดรับข้อเสนอขายด่วนแล้ว",
+  "quote.errorNotFound": "ไม่พบประกาศนี้",
+  "quote.error": "ส่งข้อเสนอไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
+  "quote.submittedTitle": "ส่งข้อเสนอแล้ว",
+  "quote.submittedBody": "ข้อเสนอของคุณถูกส่งถึงเจ้าของประกาศแล้ว เจ้าของจะติดต่อกลับหากสนใจ",
+  "quote.doneCta": "เสร็จสิ้น",
 } as const;
 
 export type MessageKey = keyof typeof th;

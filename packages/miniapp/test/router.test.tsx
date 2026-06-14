@@ -53,6 +53,16 @@ describe("router (frozen route shapes)", () => {
     });
   });
 
+  it("`/quote/{id}` resolves to the quote-response screen (additive route, Stage 6)", async () => {
+    setPath(`/quote/${DETAIL.id}`);
+    render(<App api={fixtureApi} locale="th" />);
+    await waitFor(() => {
+      // The quote screen title + the structured-offer submit CTA (a distinct surface from list/detail).
+      expect(screen.getByText("เสนอราคา")).toBeTruthy();
+      expect(screen.getByText("ส่งข้อเสนอ")).toBeTruthy();
+    });
+  });
+
   it("an unknown path falls back to the list (deep-link safety)", async () => {
     setPath("/totally-unknown");
     render(<App api={fixtureApi} locale="th" />);
