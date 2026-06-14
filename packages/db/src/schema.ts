@@ -165,6 +165,27 @@ export const roles = pgTable("role", {
     .references(() => users.id),
   kind: roleKindPg("kind").notNull(),
   approvalStatus: approvalStatusPg("approval_status").notNull().default("none"),
+  // D-S6-8: who vetted this role application and when (NULL until an admin approves/rejects it).
+  reviewedBy: uuid("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+});
+
+/**
+ * D-S6-6: the quick-quote matching inputs for an approved broker/investor. One row per user
+ * (PK = userId). Each `*` array is the user's stated preference; an EMPTY array means "any" (no
+ * constraint on that axis). Stored as Postgres `text[]` — the smallest queryable shape (matching
+ * runs in the pure `matchVettedUsers` domain seam over these arrays, not in SQL), avoiding a 3-table
+ * normalisation a broker would only ever fill with a handful of values. `propertyTypes` holds
+ * `propertyType` enum values; `priceBandIds` holds `priceBandId` strings (`s0..s5`/`r0..r3`).
+ */
+export const brokerPreferences = pgTable("broker_preference", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id),
+  provinces: text("provinces").array().notNull().default([]),
+  propertyTypes: text("property_types").array().notNull().default([]),
+  priceBandIds: text("price_band_ids").array().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 // --- groups ------------------------------------------------------------------

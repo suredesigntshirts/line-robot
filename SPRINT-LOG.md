@@ -647,3 +647,18 @@ is only ~1 day — too short for a confident "flat at 0 across the parallel-run 
 denied + the deletion `pulumi up` is founder-gated. **DECISION: do NOT delete now** (honour the goal's caution);
 keep the read-api as the one-`pulumi up` rollback path; delete after a **7–14 day clean post-cutover window** the
 founder confirms (via console metrics) + runs the gated `pulumi up`. Queued for the founder.
+
+**INC-B1 — data + domain foundation (DONE, committed).** Migration **0009** (`roleKind`+admin, `approvalStatus`+
+rejected, `role.reviewed_by/at`, new `broker_preference` text[]-cols) — clean, applies to Docker-PG (founder-gated
+for staging RDS). Pure **exclusivity engine** (`domain/exclusivity.ts`): derives open/interest_flagged/lapsed/
+released from (releaseState, expiresAt, hasInterestFlags, now) — deterministic clock, extend-as-operation (no 5th
+state, no enum migration — D-S6-2); 10 transition tests proven to bite. **matchVettedUsers** + `priceBandId`
+(domain canonical North-Thai bands; website to converge). Repo fns (exclusivity/interest/quote/moderation-read+
+resolve/role-approval+getUserRoles+listApprovedVettedUsers/brokerPreference), each Docker-PG integration-tested.
+Review cadence (data+domain → no alignment/frontend): spec PASS, correctness no-blockers (engine bites ✓, 0009
+safe ✓ — the "ADD VALUE in txn" worry empirically refuted on PG12+, vetted filter server-side ✓), simplicity
+PASS. Fixed the one LOW finding: **dedup multi-role recipients** in `listApprovedVettedUsers` (a user approved as
+both broker+investor returned 2 rows → now 1; JS dedup by userId; new biting integration test). Robustness notes
+carried to INC-B2/B4 briefs (guard null/negative price before matchVettedUsers; ensure an exclusivity row exists
+before extend/release). Gates GREEN: typecheck 0, lint, domain unit 45, **db integration 57**. LEGAL-02 model:
+admin moderation-approve UNBLOCKS the listing (resolves the moderation_item) but is NOT a publish-consent grant.

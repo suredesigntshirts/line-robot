@@ -81,11 +81,13 @@ export type ListingType = z.infer<typeof listingType>;
 export const saleCondition = z.enum(["new", "resale", "unknown"]);
 export type SaleCondition = z.infer<typeof saleCondition>;
 
-export const roleKind = z.enum(["broker", "investor", "owner", "visitor"]);
+/** Stage 6 (D-S6-5): `admin` is the platform moderator/vetter role, server-enforced. */
+export const roleKind = z.enum(["broker", "investor", "owner", "visitor", "admin"]);
 export type RoleKind = z.infer<typeof roleKind>;
 
-/** D9: broker/investor roles are admin-approved. */
-export const approvalStatus = z.enum(["none", "pending", "approved"]);
+/** D9: broker/investor roles are admin-approved. Stage 6 (D-S6-8) adds `rejected` so vetting can
+ * RECORD a denial (with the reviewer + timestamp on the `role` row), not just silently drop it. */
+export const approvalStatus = z.enum(["none", "pending", "approved", "rejected"]);
 export type ApprovalStatus = z.infer<typeof approvalStatus>;
 
 export const identityProvider = z.enum(["line", "email", "google"]);

@@ -64,6 +64,13 @@
       "when": 1781441333179,
       "tag": "0008_normal_frightful_four",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1781471428577,
+      "tag": "0009_typical_whirlwind",
+      "breakpoints": true
     }
   ]
 }
