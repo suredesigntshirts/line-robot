@@ -7,7 +7,7 @@ import {
   markQuickSalePushed,
   markReleasePromptSent,
 } from "@line-robot/db";
-import { deriveExclusivityState, isReleasable, matchVettedUsers } from "@line-robot/domain";
+import { matchVettedUsers } from "@line-robot/domain";
 import { quickQuoteCard, quoteDeepLink, releasePromptCard } from "../core/handlers/views.js";
 import type { LineGateway } from "../core/ports/lineGateway.js";
 import type { Clock, Logger } from "../core/ports/runtime.js";
@@ -75,11 +75,13 @@ export class DealflowSweep {
   }
 
   /**
-   * The exclusivity-lapse release prompt. For each lapsed window (the join already filters to a
-   * claimant with a LINE identity + a source group), confirm the logical state is `lapsed` via the
-   * pure engine, win the `held → releasable` once-guard, then DM the poster the release-prompt card. A
-   * lost guard means a prior sweep already prompted — never re-DM. A failed push is logged and does not
-   * fail the sweep (the guard already advanced; the poster can still act on the listing in the app).
+   * The exclusivity-lapse release prompt. For each lapsed window (`listLapsedExclusivity` already
+   * filters `release_state='held' AND expires_at < now`, joined to a claimant LINE id + source group),
+   * win the `held → releasable` once-guard, then DM the poster the release-prompt card. The guard IS the
+   * lapse control — it's the single transition that both selects "lapsed, not yet prompted" and ensures
+   * exactly one DM across re-runs. A lost guard means a prior sweep already prompted — never re-DM. A
+   * failed push is logged and does not fail the sweep (the guard already advanced; the poster can still
+   * act on the listing in the app).
    */
   private async runLapsePrompts(): Promise<Pick<DealflowResult, "lapsed" | "promptsSent">> {
     const now = new Date(this.deps.clock.now());
@@ -89,16 +91,6 @@ export class DealflowSweep {
     }
     let promptsSent = 0;
     for (const row of lapsed) {
-      // Defence-in-depth: the SQL already selects held + expired, but confirm via the pure engine
-      // (the single source of truth for the logical state) before we DM — never prompt a non-lapsed row.
-      const state = deriveExclusivityState({
-        releaseState: "held",
-        expiresAt: row.expiresAt,
-        hasInterestFlags: false,
-        now,
-      });
-      if (!isReleasable(state)) continue;
-
       const firstSent = await markReleasePromptSent(this.deps.db, row.listingId);
       if (!firstSent) continue; // already prompted on a prior sweep — never re-DM.
 

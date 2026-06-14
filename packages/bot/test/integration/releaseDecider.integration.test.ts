@@ -116,6 +116,20 @@ describe("ReleaseDecider.releasePublicly", () => {
     expect(reply[0]).toMatchObject({ type: "text" });
     expect((reply[0] as { text: string }).text).toContain("เผยแพร่สู่สาธารณะ");
   });
+
+  it("is IDEMPOTENT: a double-tap on an already-released window grants NO second consent row", async () => {
+    const id = await lapsedListing();
+    await decider.releasePublicly(posterLineId, id); // first release → 1 consent row
+    // A second poster tap on the already-released window: must short-circuit, NOT re-grant consent
+    // (grantPublishConsent is a bare INSERT — without the released-guard this would write a 2nd row).
+    const second = await decider.releasePublicly(posterLineId, id);
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM publish_consent WHERE listing_id = $1",
+      [id],
+    );
+    expect(rows[0].n).toBe(1); // STILL exactly one — the double-tap was a no-op
+    expect((second[0] as { text: string }).text).toContain("เผยแพร่ไปแล้ว"); // already-released msg
+  });
 });
 
 describe("ReleaseDecider.releaseToOtherGroups", () => {
@@ -133,6 +147,17 @@ describe("ReleaseDecider.releaseToOtherGroups", () => {
     );
     expect(consent[0].n).toBe(0);
     expect((reply[0] as { text: string }).text).toContain("เปิดให้กลุ่มอื่น");
+  });
+
+  it("is IDEMPOTENT: a re-tap on an already-released window is a no-op (already-released message)", async () => {
+    const id = await lapsedListing();
+    await decider.releaseToOtherGroups(posterLineId, id); // released, mandate='open'
+    const second = await decider.releaseToOtherGroups(posterLineId, id);
+    // Still released + open; the second tap short-circuits with the already-released message.
+    expect((await getExclusivity(db, id))?.releaseState).toBe("released");
+    const { rows } = await pool.query("SELECT listing_mandate FROM listing WHERE id = $1", [id]);
+    expect(rows[0].listing_mandate).toBe("open");
+    expect((second[0] as { text: string }).text).toContain("เผยแพร่ไปแล้ว");
   });
 });
 

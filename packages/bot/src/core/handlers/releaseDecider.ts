@@ -42,11 +42,16 @@ export class ReleaseDecider {
   constructor(private readonly deps: ReleaseDeciderDeps) {}
 
   /** Release publicly: grant publish consent (the listing appears on the public website) + release the
-   * exclusivity window. No-op-with-message when no window row exists. */
+   * exclusivity window. IDEMPOTENT: a missing window or an ALREADY-released one short-circuits with a
+   * message — a re-tap must NOT insert a second publish_consent row (`grantPublishConsent` is a bare
+   * INSERT with no unique constraint, so a double-tap after release would duplicate it). */
   async releasePublicly(lineUserId: string, listingId: string): Promise<OutboundMessage[]> {
     const exclusivity = await getExclusivity(this.deps.db, listingId);
     if (exclusivity === undefined) {
       return [{ type: "text", text: "ไม่พบช่วงเวลาเฉพาะกลุ่มของประกาศนี้" }];
+    }
+    if (!canExtend(exclusivity.releaseState)) {
+      return [{ type: "text", text: "ประกาศนี้เผยแพร่ไปแล้ว" }];
     }
     const userId = await this.resolveUser(lineUserId);
     await grantPublishConsent(this.deps.db, listingId, userId, PUBLISH_CONSENT_VERSION);
@@ -55,11 +60,15 @@ export class ReleaseDecider {
   }
 
   /** Release to other groups: drop the group-exclusive mandate (→ 'open') + release the window. No
-   * per-target plumbing v1 — the membership gate still controls visibility (D-S6-4). */
+   * per-target plumbing v1 — the membership gate still controls visibility (D-S6-4). IDEMPOTENT: a
+   * missing or already-released window short-circuits (so a re-tap doesn't re-set the mandate / re-release). */
   async releaseToOtherGroups(_lineUserId: string, listingId: string): Promise<OutboundMessage[]> {
     const exclusivity = await getExclusivity(this.deps.db, listingId);
     if (exclusivity === undefined) {
       return [{ type: "text", text: "ไม่พบช่วงเวลาเฉพาะกลุ่มของประกาศนี้" }];
+    }
+    if (!canExtend(exclusivity.releaseState)) {
+      return [{ type: "text", text: "ประกาศนี้เผยแพร่ไปแล้ว" }];
     }
     await setListingMandate(this.deps.db, listingId, "open");
     await releaseExclusivity(this.deps.db, listingId);
