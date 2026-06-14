@@ -577,3 +577,47 @@ review→0 / claiming→1 / decide→2 so step 2 shows active in-flight) + 2 tes
 exact-match the private subtitle). Gates GREEN: typecheck/lint, miniapp unit **117**, e2e **60 + 10**. TH-06
 per-surface Thai-face assertion folded into the BACKLOG net-hardening item (low risk). **Part A build work
 COMPLETE — next: Stage-5 stage gate + staging deploy + verify, then the A→B gate.**
+
+**Stage-5 iteration STAGE GATE — PASS-WITH-CONDITIONS.** High-effort full-diff review (`a95fe9f..HEAD`, 6
+commits / 39 files): **architecture conformance CLEAN** (hexagonal — no `@line/liff` in api, SPA HTTP-only
+no api/db imports, LIFF isolated to `src/lib/liff.ts`, e2e-api DB coupling confined to test-only `e2e-api/`,
+zero inline-style objects, no god-file); **integration coherent** across all four increments' shared seams
+(MyListingCard, shared FieldList, i18n no-dupes, the widened TH-07 net safe for all card specs, the two
+harnesses cleanly split); **DoD HOLDS** — every interactive feature mapped to a biting test (gallery
+nav/count/lightbox, tabs fwd+back, filter chips, search, claim→publish/keep-private/409, save/viewing/note/
+edit real-persistence round-trips, S5-7 verify nav) with no gap. Eval (oracle) **1.00 across all stages,
+baseline delta ~0** (translate +0.02) — unregressed (advisory; iteration is pure frontend). Local gates: unit
+**117**, typecheck/lint clean, e2e **static 60 + real-api 10** (run by orchestrator). Conditions → BACKLOG
+(non-blocking): swipe test is a programmatic-scroll proxy; lifecycle-derivation contract duplicated across the
+two suites; TH-06 per-surface Thai-face assertion. Next: staging deploy (SPA-only rebuild + pulumi up) + verify.
+
+**Staging deploy — PREPARED + previewed-clean + ⛔ FOUNDER-GATED.** `npm run build` done (new SPA
+`index-C38eMOwZ.js` with the live api URL baked ✓). `pulumi preview` CLEAN + non-destructive: **+8 create /
+~3 update / -8 delete, 122 unchanged** — the new miniapp SPA assets + an INCIDENTAL website rebuild (my
+`@line-robot/ui` i18n additions ripple into the website bundle → new `_astro/*` hashes + website-ssr Lambda
+code; purely additive strings the website doesn't render — behavior unchanged, typecheck green). NO IAM/
+bucket-policy/SG/destructive change. **`pulumi up --yes` was DENIED by the auto-approver** (blind `--yes`
+apply to shared staging = a shipping boundary needing human confirm — same gate as the prior Stage-5 deploy);
+interactive apply can't run in this non-interactive shell. So the deploy is the founder's one-command step:
+`cd infra && export PATH="$HOME/.pulumi/bin:$PATH" AWS_PROFILE=line-robot PULUMI_CONFIG_PASSPHRASE="$(cat ~/.line-robot-pulumi-passphrase)" && pulumi up` (review the diff → yes). Live-infra health verified read-only:
+miniapp CloudFront 200 (current SPA), api 401/CORS-200 (api UNCHANGED by this iteration), website 200.
+
+### PART A — Definition of Done + retro
+**DoD status:** ✅ every interactive feature WORKS with a biting interaction-driven e2e test (gallery
+nav/count/lightbox; tabs fwd+back; filter chips; search; claim→publish/keep-private/409; save/viewing/note/
+edit REAL-persistence round-trips; S5-7 verify nav) — stage-gate-mapped, no gap. ✅ screens match the Stage-5
+mocks (gallery, my-listings photo-forward, claim review) or are confirmed on-direction (viewings/saved/edit
+via the scoping pass); divergences closed or founder-queued (S5-12 photo count, S5-13 owner-card price-framing,
+S5-14 card-form). ✅ all gates green (typecheck/lint/unit 117/coverage; upgraded `test:e2e` = functional +
+computed-style, static 60 + real-api 10; full review cadence per increment + stage gate). ⛔ "deployed +
+verified on staging" — the ONLY unmet bullet, FOUNDER-GATED (prepared + previewed-clean; founder runs
+`pulumi up`). ✅ CLAUDE.md/BACKLOG/SPRINT-LOG/deploy-status updated; FOUNDER-QUEUE reflects resolved (S5-7) +
+remaining design calls. **Retro:** the real-backend harness (INC-2) front-loaded the claim/CRM round-trip
+functional tests, which (a) made INC-4/5/6 collapse to a single fidelity increment and (b) caught a real
+cross-increment merge bug (the avatar 401) that per-increment review couldn't. The TH-07 net hole (card-as-
+button exempting the LEGAL-06 disclaimer) was the highest-value find — a deterministic-net blind spot now
+closed + biting. The scoping pass prevented rebuilding 4 already-on-direction screens. **A→B GATE:** Part A is
+code-complete + locally-verified + stage-gate-PASS + a clean pushed checkpoint (`5169689`); the single unmet
+DoD bullet (staging deploy) is a permission-gated founder-manual step, not incomplete work — per the goal's
+"never block the run" + the founder's explicit Stage-6 build authorization, PROCEEDING to Part B with the
+deploy queued.

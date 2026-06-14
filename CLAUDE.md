@@ -115,9 +115,18 @@ oklch/old-Android fallback — TECH-06 matters MORE here: LIFF renders in LINE's
 retired Preact SPA. Routes (shape-frozen for plan-17 deep links + rich-menu): `/` my-listings home, `/p/{id}`
 detail; additive `/claim/{id}`, `/edit/{id}`. The LIFF SDK is isolated to `src/lib/liff.ts`; the SPA talks to
 the backend **HTTP-only** (no api/db internal imports). i18n strings live in `@line-robot/ui/src/i18n/{th,en}.ts`.
-**Frontend gate:** `npm run test:e2e -w @line-robot/miniapp` (the plan-20 net ported — real built SPA, mocked
-LIFF, computed-style invariants `assertThemeApplies`/`assertThaiBodyLineHeight`/`assertCtaContrast`/`assertColorScheme`).
-Never inline-style objects / bespoke CSS.
+**Frontend gate:** `npm run test:e2e -w @line-robot/miniapp` runs **TWO suites**: (1) the static gate
+(`e2e/`, plan-20 net ported — real built SPA, mocked LIFF + `page.route` api, computed-style invariants
+`assertThemeApplies`/`assertThaiBodyLineHeight`/`assertCtaContrast`/`assertColorScheme` + **interaction-driven
+functional tests** that DRIVE clicks/swipes/typing and assert the outcome — gallery nav/count/lightbox, tabs,
+filter/search, claim flow); (2) the **real-backend round-trip suite** (`e2e-api/`, `playwright.realapi.config.ts`,
+port 4331) — boots Docker-PG + the real `packages/api` `handleApi` + a stub LIFF verifier + fake-S3, seeds
+groups/membership/listings, and proves claim→publish/keep-private/409 + save/viewing/note/edit PERSIST via
+re-fetch (not optimistic UI). `npm run test:e2e:api` runs just the real-backend suite (needs Docker). The
+discipline: **a feature isn't "done" because it renders — a biting interaction-driven test must prove it WORKS
+(break the feature → the test goes red).** `assertThaiBodyLineHeight` measures the card-as-button body text
+(incl. the LEGAL-06 disclaimer) — don't blanket-exempt a `[data-listing-card]` button. Never inline-style
+objects / bespoke CSS.
 
 `packages/api` — the mini-app's **HTTP backend** (Lambda behind a Function URL, `infra/src/api.ts`, parallel
 to the v1 read-api). LIFF id-token auth (ported v1 verifier; `aud` = the MINI App channel). Endpoints:

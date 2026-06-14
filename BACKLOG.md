@@ -184,6 +184,14 @@ Playwright container for CI parity + broaden behaviour/browser coverage (plan 20
   trust-blue/green family) — today nothing checks the primary/wordmark hue deterministically. (The TH-07
   card-body/disclaimer hole was already FIXED in INC-3: `assertThaiBodyLineHeight` now measures the
   card-as-button body text + bites.)
+- **Gallery swipe test is a programmatic-scroll proxy** (`e2e/gallery.spec.ts` sets `scrollLeft` + dispatches a
+  synthetic `scroll` event) — it exercises the real `onHeroScroll` handler but doesn't prove native touch
+  scroll-snap fires the event in a real LINE WebView. Add a Playwright touch-drag variant, or accept + document
+  (real-WebView swipe = founder-manual smoke). Stage-5 gate condition (non-blocking).
+- **Lifecycle-derivation contract is duplicated across the two e2e suites' data sources** (static `MY_LISTINGS`
+  fixture vs the real `publish_consent` in the Docker-PG seed), both flowing through `lifecycleKind(isPublished)`.
+  A single pinned `isPublished→lifecycle` assertion would prevent silent divergence if the consent model changes.
+  Stage-5 gate condition (non-blocking).
 
 ## By design / later (NOT Stages 0–4 — for completeness)
 
