@@ -127,9 +127,15 @@ export const DETAIL: ListingDetailDto = {
   claimedByUserId: "user-1",
   isClaimedByMe: true,
   isSaved: false,
+  // ≥5 distinct photos (distinct `url`s) so the gallery's count chip + thumbnail navigation are
+  // meaningfully exercised (each thumb resolves a different hero src).
   photos: [
     { url: img("a"), kind: "photo", isThumb: true },
     { url: img("a2"), kind: "photo", isThumb: true },
+    { url: img("a3"), kind: "photo", isThumb: true },
+    { url: img("a4"), kind: "photo", isThumb: true },
+    { url: img("a5"), kind: "photo", isThumb: true },
+    { url: img("a6"), kind: "photo", isThumb: true },
   ],
 };
 

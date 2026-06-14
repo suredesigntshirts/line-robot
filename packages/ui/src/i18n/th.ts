@@ -22,6 +22,11 @@ export const th = {
   "listing.floorArea": "พื้นที่ใช้สอย",
   "listing.bedrooms": "{count} นอน",
   "listing.bathrooms": "{count} น้ำ",
+  // Detail gallery position/count chip (Stage 5). `{index}` = the active photo's 1-based position,
+  // `{count}` = total photos — matches the mylistings mock pill "รูปภาพ x/N รูป".
+  "gallery.count": "รูปภาพ {index}/{count} รูป",
+  // Full-screen photo viewer close button (aria-label).
+  "gallery.close": "ปิดรูปภาพ",
 
   // Badges (COPY-04/05/10, DIST-01, TH-04)
   "badge.available": "พร้อมขาย",

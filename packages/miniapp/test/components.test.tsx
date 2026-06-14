@@ -1,6 +1,7 @@
 import { createTranslator } from "@line-robot/ui";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { Gallery } from "../src/components/Gallery.tsx";
 import { MyListingCard } from "../src/components/MyListingCard.tsx";
 import { computeStats } from "../src/components/StatsStrip.tsx";
 import { DETAIL, LISTING_ACTIVE, LISTING_OFFER, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
@@ -44,6 +45,43 @@ describe("MyListingCard", () => {
     render(<MyListingCard listing={LISTING_ACTIVE} t={t} onOpen={() => {}} />); // no heroUrl
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("svg")).toBeTruthy(); // placeholder glyph
+  });
+});
+
+describe("Gallery", () => {
+  it("renders a hero + the photo-count chip + a thumbnail per photo", () => {
+    render(<Gallery photos={DETAIL.photos} alt="x" t={t} />);
+    // count chip carries the total + position 1/N
+    expect(document.querySelector("[data-photo-count]")?.getAttribute("data-photo-count")).toBe(
+      String(DETAIL.photos.length),
+    );
+    expect(screen.getByText(`รูปภาพ 1/${DETAIL.photos.length} รูป`)).toBeTruthy();
+    // a thumbnail per photo; the active one is photo 0
+    expect(document.querySelectorAll("[data-gallery-thumb]").length).toBe(DETAIL.photos.length);
+    const hero = document.querySelector("[data-gallery-hero]") as HTMLImageElement;
+    expect(hero.getAttribute("src")).toBe(DETAIL.photos[0]?.url);
+    expect(document.querySelector("[data-gallery-thumb='0']")?.hasAttribute("data-active")).toBe(
+      true,
+    );
+  });
+
+  it("tapping a thumbnail makes that photo the active hero (the bug class this rebuild fixes)", () => {
+    render(<Gallery photos={DETAIL.photos} alt="x" t={t} />);
+    fireEvent.click(document.querySelector("[data-gallery-thumb='2']") as HTMLButtonElement);
+    expect(
+      (document.querySelector("[data-gallery-hero]") as HTMLImageElement).getAttribute("src"),
+    ).toBe(DETAIL.photos[2]?.url);
+    expect(document.querySelector("[data-gallery-thumb='2']")?.hasAttribute("data-active")).toBe(
+      true,
+    );
+    expect(document.querySelector("[data-gallery-thumb='0']")?.hasAttribute("data-active")).toBe(
+      false,
+    );
+  });
+
+  it("renders nothing for an empty photo set", () => {
+    const { container } = render(<Gallery photos={[]} alt="x" t={t} />);
+    expect(container.firstChild).toBeNull();
   });
 });
 

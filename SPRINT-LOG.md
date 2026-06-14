@@ -491,3 +491,37 @@ activator) redeployed + booted clean, all cron runs `status:success`; the public
 link. **REMAINING = the founder's manual authenticated spot-check** (open the LIFF app → my-listings → claim →
 publish → appears on the public site) — needs a real LINE login, which can't be automated. v1 read-api still
 parallel-runs (rollback path; deletion = Stage-6 deliverable #12).
+
+---
+
+## Stage-5 design+functional iteration + Stage-6 (combined `/goal`) — started 2026-06-15
+
+**Goal:** `plans/19-v2-marketplace-rebuild/stage-5-and-6-goal-prompt.md`. Part A = make Stage-5 mini-app
+features actually WORK (biting interaction-driven e2e) + match the Stage-5 mocks; Part B = Stage 6 Groups &
+Dealflow. Thin-orchestrator run; Opus sub-agents per PR-sized increment. Usage at start: 5h 0% / 7d 7%.
+
+**Phase 1 AUDIT (done).** Three agents (code-map + harness/contract map + empirical SPA driver). Matrix +
+increment plan in `docs/design/skill-hardening/STAGE5-FUNCTIONAL-AUDIT.md`. Headline: the gallery is NOT a
+JS break — it's a bare CSS scroll-snap strip with **no thumbnail row, no index indicator, no photo-count
+chip, no hero** (mock wants hero + "PHOTOS (N)" overlay + thumbnails + "N รูป" chip). Root systemic gap: the
+e2e api mock is **static** `page.route` (not stateful), so "round-trips" assert only optimistic UI; the edit
+PATCH allowlist, isSaved round-trip, group-membership authz are untouched by e2e. Plan: INC-1 gallery
+(client-only), INC-2 real-backend e2e harness (Docker-PG + in-process handleApi + stub verifier + fake-S3,
+mirror website plan-20), INC-3 my-listings fidelity, INC-4 claim/publish, INC-5 viewings, INC-6 saved/notes/
+edit round-trips, then stage gate + deploy + DoD. Decision: commit+push per increment; ONE meaningful
+staging deploy at the stage gate (site already live; 6× redeploy wasteful).
+
+**INC-1 — detail gallery rebuild (DONE, committed).** The reported "broken gallery" was a missing-affordance
+defect, not a JS crash: rebuilt `Gallery.tsx` as a hero photo + position/count chip ("รูปภาพ x/N รูป",
+`gallery.count` i18n) + a thumbnail row (tap → active hero changes, ring-marked) + swipe/scroll-snap, Tailwind/
+tokens only. New biting e2e `e2e/gallery.spec.ts` drives thumbnail-tap + swipe + lightbox open/close and asserts
+the active hero `src`/index changes + count (proven to bite: no-op handler → red). Review panel: spec PASS,
+simplicity PASS (minor), alignment ALIGNED, frontend on-direction. One HIGH correctness finding (gallery renders
+all media kinds → a fixture `kind:"chanote"` showed as a gallery photo) VERIFIED-DOWNGRADED: the detail query
+`db/repositories/portal.ts:109` already filters `kind='photo'`, so NO prod leak — fixed the unrealistic fixture
++ queued a defensive api-side filter to BACKLOG. Applied 7 review fixes (chanote fixture, tap-flicker→instant
+scroll, swipe→active-thumb scrollIntoView, lightbox close i18n + role=dialog/aria-modal/Esc/focus, dead-code
+removal, lightbox test). Gates GREEN: typecheck, lint, test (miniapp 104 / ui 26), e2e **48 passed** (independently
+re-confirmed). FOUNDER-QUEUE: count-chip treatment (mock centered "PHOTOS(N)" vs SPA live bottom-left pill — SPA
+arguably better), thumbnail white-band divider. BACKLOG: defensive `kind='photo'` filter in `presignGallery`;
+retire the inline-style shared `@line-robot/ui` Gallery (dev-preview-only consumer) — two Gallery components now diverge.

@@ -121,7 +121,7 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
         </div>
       </header>
 
-      {dto.photos.length > 0 && <Gallery photos={dto.photos} alt={headline} />}
+      {dto.photos.length > 0 && <Gallery photos={dto.photos} alt={headline} t={t} />}
 
       {/* Description (poster/LLM content) — Thai body text, ≥1.6 leading. */}
       {dto.description && dto.description.trim() !== "" && (

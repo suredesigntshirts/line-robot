@@ -17,6 +17,8 @@ export const en: Record<keyof typeof th, string> = {
   "listing.floorArea": "Floor area",
   "listing.bedrooms": "{count} bed",
   "listing.bathrooms": "{count} bath",
+  "gallery.count": "Photo {index}/{count}",
+  "gallery.close": "Close photo",
 
   "badge.available": "Available",
   "badge.reserved": "Reserved",
