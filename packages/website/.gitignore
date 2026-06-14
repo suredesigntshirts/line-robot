@@ -1,3 +1,8 @@
-dist
-dist-lambda
-.astro
+# Playwright (plan 20) — ephemeral run artifacts. No committed screenshot baselines (the review
+# gallery is regenerated each run; pixel regression is deferred to design lock-in).
+/test-results/
+/playwright-report/
+/blob-report/
+/.last-run.json
+# Ad-hoc scratch specs (keep the dir + README; ignore the throwaway specs themselves).
+/e2e/adhoc/*.spec.ts

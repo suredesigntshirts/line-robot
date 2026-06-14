@@ -13,6 +13,8 @@
       "!spikes",
       "!**/dist",
       "!**/coverage",
+      "!**/test-results",
+      "!**/playwright-report",
       "!.claude",
       "!packages/ui/theme.css",
       "!packages/ui/fallbacks.css",

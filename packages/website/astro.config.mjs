@@ -16,6 +16,9 @@ export default defineConfig({
   output: "server",
   adapter: node({ mode: "middleware" }),
   integrations: [react()],
+  // No dev toolbar — it must never pollute e2e / visual screenshots or hydration tests. It is
+  // dev-only (absent from the built `dist/` we actually test), so this is belt-and-suspenders (plan 20).
+  devToolbar: { enabled: false },
   site: process.env.SITE_URL || STAGING_SITE_URL,
   i18n: {
     locales: ["th", "en"],

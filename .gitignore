@@ -34,6 +34,12 @@ Pulumi.*.yaml.bak
 # Playwright CLI scratch (profiles/screenshots from the skill)
 .playwright-cli/
 
+# Playwright e2e artifacts (plan 20) — defensive root rule in case a run is launched from the repo
+# root instead of packages/website (the real output lives under packages/website/, gitignored there).
+test-results/
+playwright-report/
+.last-run.json
+
 # Astro generated types + bundled lambda output (rebuildable)
 .astro/
 dist-lambda/

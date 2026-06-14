@@ -9,13 +9,18 @@
     "typecheck": "astro check",
     "test": "vitest run",
     "test:ssr": "npm run build && node test/ssr.smoke.mjs",
-    "test:browse": "npm run build && node test/browse.smoke.mjs"
+    "test:browse": "npm run build && node test/browse.smoke.mjs",
+    "test:e2e": "npm run build && playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/journeys e2e/capture.spec.ts",
+    "test:e2e:deployed": "playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/journeys e2e/capture.spec.ts",
+    "test:e2e:server": "node test/e2e-server.mjs"
   },
   "dependencies": {
     "@astrojs/node": "10.1.4",
     "@astrojs/react": "^5.0.7",
     "@aws-sdk/client-s3": "^3.1063.0",
     "@aws-sdk/s3-request-presigner": "^3.1063.0",
+    "@fontsource/noto-sans-thai": "^5.2.8",
+    "@fontsource/sarabun": "^5.2.8",
     "@line-robot/db": "*",
     "@line-robot/domain": "*",
     "@line-robot/ui": "*",
@@ -26,10 +31,12 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.0",
+    "@playwright/test": "^1.60.0",
     "@types/leaflet": "^1.9.21",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "esbuild": "^0.28.0",
+    "sirv": "^3.0.2",
     "typescript": "^6.0.3"
   }
 }

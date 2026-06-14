@@ -303,7 +303,10 @@ const jsonLd = safeJsonLdScript(
     {detail.posterName !== "" && (
       <p style="color: var(--color-text-2); font-size: var(--text-sm); margin: 0;">
         {t("listing.postedBy", { name: detail.posterName })} ·{" "}
-        {t("listing.updated", { date: listing.updatedAt.toISOString().slice(0, 10) })}
+        {/* data-testid lets the visual-regression suite mask this per-run date (plan 20). */}
+        <span data-testid="listing-updated">
+          {t("listing.updated", { date: listing.updatedAt.toISOString().slice(0, 10) })}
+        </span>
       </p>
     )}
     <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">

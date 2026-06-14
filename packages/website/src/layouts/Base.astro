@@ -1,4 +1,16 @@
 ---
+// Self-hosted brand fonts (plan 20 — closes the "fonts named but never delivered" gap). @fontsource
+// ships @font-face + woff2 for the Thai + Latin subsets (lazy by unicode-range); the family names
+// match the --font-*-th stacks in theme.css. Served from /_astro/* (S3+CloudFront in prod, sirv in
+// the e2e harness) — no external CDN. Weights match usage: body 400/700, headings 600/700.
+import "@fontsource/sarabun/thai-400.css";
+import "@fontsource/sarabun/thai-700.css";
+import "@fontsource/sarabun/latin-400.css";
+import "@fontsource/sarabun/latin-700.css";
+import "@fontsource/noto-sans-thai/thai-600.css";
+import "@fontsource/noto-sans-thai/thai-700.css";
+import "@fontsource/noto-sans-thai/latin-600.css";
+import "@fontsource/noto-sans-thai/latin-700.css";
 import "@line-robot/ui/theme.css";
 // theme.css declares tokens inside Tailwind v4 `@theme {}`; the website doesn't run
 // Tailwind, so a browser discards that block and every var(--token) would be empty
