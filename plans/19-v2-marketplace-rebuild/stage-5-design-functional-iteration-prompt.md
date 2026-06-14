@@ -39,6 +39,34 @@ short**, and re-ship it:
 > how the gallery shipped broken. When you verify a builder's "done", you (the orchestrator) re-run the test, read
 > it, and confirm it actually exercises the interaction and would go red if the behavior regressed (not a tautology).
 
+## Orchestrator operating contract — how to run this without drowning in context
+You are a **thin orchestrator**: you do not write feature code yourself — you dispatch Opus-xhigh sub-agents, each
+owning a PR-sized slice end-to-end (build → test → self-review). This is what makes a long autonomous run survivable
+(the heavy per-increment context lives and dies inside each sub-agent; you keep only the distilled result) — but its
+benefits are real ONLY if these five disciplines hold. Treat them as load-bearing, not optional:
+1. **Delegate substantial slices; do trivia inline.** One agent per slice (or per reviewer seat). Don't dispatch an
+   agent for a typo or a one-line doc edit — do it yourself; don't try to build a slice inside the orchestrator —
+   delegate it. Match the unit of work to the boundary.
+2. **Brief precisely — the sub-agent has ZERO shared context.** It knows only what you tell it: the exact
+   files/paths, the frozen contract/interfaces it must consume, the constraints, the docs-first rule, and the
+   explicit "take this to completion WITH ITS OWN TESTS — do not hand back red." A wrong build from a vague brief
+   costs far more than a long brief; vague briefs are the #1 failure mode.
+3. **Verify load-bearing claims cheaply — never blind-trust "all green".** A sub-agent's report is a claim, not a
+   fact. Re-run the gate, grep the one invariant, confirm the key test actually BITES (break it → it goes red, not a
+   tautology), re-read the critical diff hunk. But do NOT re-do the agent's work — cheap, decisive checks, not full
+   re-reads. (Blind trust compounds errors; full re-verification burns the context you delegated to save.)
+4. **Externalize state every increment — a sub-agent's reasoning is DISCARDED on return.** Only its final summary
+   survives; the dead-ends, subtle decisions, and gotchas it learned are gone unless written to a durable artifact.
+   After each increment, persist what matters to `SPRINT-LOG.md`, the spec's iteration log, the `deploy-status`
+   memory, and code comments — so the NEXT sub-agent's brief is accurate AND a fresh orchestrator can reconstruct
+   the whole thread from files alone.
+5. **Stay thin + assume you'll be cleared.** Keep your own context lean — distilled results, not raw agent
+   transcripts or whole-file dumps (read excerpts, not entire files; let the agents hold the bulk). Over a long run
+   the orchestrator itself gets summarized/cleared, so **the durable artifacts — not your memory — are the source of
+   truth.** That is exactly what makes clearing context between stages safe: a fresh orchestrator re-reads the goal
+   prompt + the plan/spec + `SPRINT-LOG.md` + the `deploy-status` memory and resumes. If a single agent loops or
+   thrashes, don't let it grind — change the approach or the agent.
+
 ## Phase 0 — Orient (no upstream gate; Stage 5 is already built + live)
 Read, in this order, before doing anything else — these are the real state:
 - `plans/19-v2-marketplace-rebuild/stage-5-miniapp-rebuild.md` (the Stage-5 spec + its iteration log) and the master
