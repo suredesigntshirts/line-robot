@@ -10,6 +10,7 @@ import {
   dbFromPool,
   ewktPoint,
   findListingsNear,
+  findOrCreateUserByIdentity,
   findUserByIdentity,
   getContent,
   getListing,
@@ -100,6 +101,26 @@ describe("repositories", () => {
     const found = await findUserByIdentity(db, "line", "U1234");
     expect(found?.id).toBe(ownerId);
     expect(await findUserByIdentity(db, "email", "U1234")).toBeUndefined();
+  });
+
+  it("findOrCreateUserByIdentity returns the existing user on a hit, creates one on a miss (idempotent)", async () => {
+    // Hit: the U1234 identity already exists → the SAME user, no new row.
+    const existing = await findOrCreateUserByIdentity(db, "line", "U1234", "ignored");
+    expect(existing.id).toBe(ownerId);
+
+    // Miss: a brand-new subject creates the canonical user + identity.
+    const created = await findOrCreateUserByIdentity(db, "line", "U-foc-new", "New Poster");
+    expect(created.displayName).toBe("New Poster");
+    expect((await findUserByIdentity(db, "line", "U-foc-new"))?.id).toBe(created.id);
+
+    // Idempotent: a second call for the same subject returns the same row (no duplicate identity).
+    const again = await findOrCreateUserByIdentity(db, "line", "U-foc-new", "ignored");
+    expect(again.id).toBe(created.id);
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM user_identity WHERE provider = 'line' AND provider_subject = $1",
+      ["U-foc-new"],
+    );
+    expect(rows[0].n).toBe(1);
   });
 
   it("creates a group and membership", async () => {

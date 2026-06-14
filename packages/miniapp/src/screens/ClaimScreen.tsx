@@ -34,6 +34,18 @@ import {
 } from "../lib/display.ts";
 import type { ListingDetailDto } from "../lib/types.ts";
 
+// CTA class strings, named once (a reader shouldn't diff three 14-token strings). All three solid
+// variants are `bg-primary-500` + `text-surface` (the both-mode-safe pairing the contrast net verifies)
+// with `leading-relaxed` (≥1.6, TH-07). `solidBtnFull` = the full-width, disable-able primary used for
+// the step actions (claim / publish); `solidBtnNarrow` = the outcome panel's single CTA; `outlineBtn` =
+// the group-private secondary. Each FILLED button also carries `data-cta-solid` at its call site.
+const SOLID_BTN_BASE =
+  "inline-flex items-center justify-center gap-2 rounded-md border-0 bg-primary-500 font-body-th text-base text-surface leading-relaxed transition-opacity hover:opacity-90";
+const solidBtnFull = `${SOLID_BTN_BASE} w-full px-4 py-3 font-bold disabled:opacity-60`;
+const solidBtnNarrow = `${SOLID_BTN_BASE} px-5 py-2.5 font-semibold`;
+const outlineBtn =
+  "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border-2 bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60";
+
 /** The flow phase. `review` (pre-claim) → `decide` (claimed, choosing visibility) → a terminal
  * outcome (`published`/`privated`/`alreadyClaimed`/`failed`). In-flight phases drive the spinners. */
 type Phase =
@@ -126,7 +138,7 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
         glyph="⚠️"
         title={t("claim.failedTitle")}
         body={t("claim.failedBody")}
-        ctaLabel={t("claim.alreadyClaimedNext")}
+        ctaLabel={t("claim.doneCta")}
         onCta={toMyListings}
       />
     );
@@ -206,7 +218,7 @@ function ReviewStep({
         data-cta-solid
         disabled={busy}
         onClick={onClaim}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-md border-0 bg-primary-500 px-4 py-3 font-body-th font-bold text-base text-surface leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
+        className={solidBtnFull}
       >
         {busy ? t("claim.claiming") : `${t("claim.claimCta")} →`}
       </button>
@@ -285,16 +297,11 @@ function DecideStep({
           data-cta-solid
           disabled={busy}
           onClick={onPublish}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md border-0 bg-primary-500 px-4 py-3 font-body-th font-bold text-base text-surface leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
+          className={solidBtnFull}
         >
           🌐 {phase === "publishing" ? t("claim.publishing") : t("claim.publishCta")}
         </button>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={onKeepPrivate}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border-2 bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
-        >
+        <button type="button" disabled={busy} onClick={onKeepPrivate} className={outlineBtn}>
           🔒 {phase === "keeping" ? t("claim.keepingPrivate") : t("claim.keepPrivateCta")}
         </button>
       </div>
@@ -422,12 +429,7 @@ function OutcomePanel({
       </span>
       <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">{title}</h1>
       <p className="m-0 max-w-[20rem] font-body-th text-base text-text-2 leading-relaxed">{body}</p>
-      <button
-        type="button"
-        data-cta-solid
-        onClick={onCta}
-        className="inline-flex items-center justify-center rounded-md border-0 bg-primary-500 px-5 py-2.5 font-body-th font-semibold text-base text-surface leading-relaxed transition-opacity hover:opacity-90"
-      >
+      <button type="button" data-cta-solid onClick={onCta} className={solidBtnNarrow}>
         {ctaLabel}
       </button>
     </article>

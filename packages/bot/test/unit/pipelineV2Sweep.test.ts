@@ -12,16 +12,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   runPipeline,
   buildDerivatives,
-  findUserByIdentity,
-  createUserWithIdentity,
+  findOrCreateUserByIdentity,
   findOrCreateGroupByLineGroupId,
   upsertMembership,
   markClaimInvited,
 } = vi.hoisted(() => ({
   runPipeline: vi.fn(),
   buildDerivatives: vi.fn(),
-  findUserByIdentity: vi.fn(),
-  createUserWithIdentity: vi.fn(),
+  findOrCreateUserByIdentity: vi.fn(),
   findOrCreateGroupByLineGroupId: vi.fn(),
   upsertMembership: vi.fn(),
   markClaimInvited: vi.fn(),
@@ -42,8 +40,7 @@ vi.mock("@line-robot/pipeline", () => ({
 }));
 
 vi.mock("@line-robot/db", () => ({
-  findUserByIdentity,
-  createUserWithIdentity,
+  findOrCreateUserByIdentity,
   findOrCreateGroupByLineGroupId,
   upsertMembership,
   markClaimInvited,
@@ -224,9 +221,8 @@ const deps = (over: { gateway?: LineGateway; miniappUrl?: string } = {}) => ({
 describe("createPipelineV2Port.run", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default owner lookup: a user already exists, so no create.
-    findUserByIdentity.mockResolvedValue({ id: "owner-1" });
-    createUserWithIdentity.mockResolvedValue({ id: "owner-new" });
+    // Default owner/user resolution: the shared race-safe find-or-create returns a stable pg user.
+    findOrCreateUserByIdentity.mockResolvedValue({ id: "owner-1" });
     // Build C population defaults: group upsert returns a stable id; membership + guard succeed.
     findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
     upsertMembership.mockResolvedValue(undefined);
@@ -239,7 +235,7 @@ describe("createPipelineV2Port.run", () => {
     expect(out).toEqual([]);
     expect(runPipeline).not.toHaveBeenCalled();
     // Empty transcript → the "nothing to extract" branch, owner never resolved.
-    expect(findUserByIdentity).not.toHaveBeenCalled();
+    expect(findOrCreateUserByIdentity).not.toHaveBeenCalled();
   });
 
   it("maps pipeline listings to AppliedProperty (isNew from the dedup decision)", async () => {
@@ -261,15 +257,22 @@ describe("createPipelineV2Port.run", () => {
     ]);
   });
 
-  it("creates the owner user when none exists for the conversation key", async () => {
-    findUserByIdentity.mockResolvedValue(null);
+  it("threads the owner id from find-or-create-user into the pipeline input", async () => {
+    // The conversation pseudo-owner is resolved via the shared race-safe find-or-create (the create
+    // path itself is covered by the db integration test); the port just threads the returned id.
+    findOrCreateUserByIdentity.mockResolvedValue({ id: "owner-fresh" });
     runPipeline.mockResolvedValue({ listings: [], droppedSegments: [] });
     const d = deps();
     await createPipelineV2Port(d).run("conv#fresh", [textMsg(1000, "land plot")]);
 
-    expect(createUserWithIdentity).toHaveBeenCalledTimes(1);
-    // The pipeline is invoked with the newly-created owner id.
-    expect(runPipeline.mock.calls[0]?.[2]).toMatchObject({ ownerUserId: "owner-new" });
+    // The owner is resolved as a `line` identity keyed on the conversation key.
+    expect(findOrCreateUserByIdentity).toHaveBeenCalledWith(
+      d.db,
+      "line",
+      "conv#fresh",
+      "conv#fresh",
+    );
+    expect(runPipeline.mock.calls[0]?.[2]).toMatchObject({ ownerUserId: "owner-fresh" });
   });
 
   it("degrades a photo to an unclassified row when its derivative build fails (no throw)", async () => {
@@ -326,8 +329,10 @@ function listing(listingId: string, gate: { pass: boolean }, title = "A listing"
 describe("createPipelineV2Port.run — group/membership population (the launch blocker)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findUserByIdentity.mockResolvedValue({ id: "owner-1" });
-    createUserWithIdentity.mockResolvedValue({ id: "user-new" });
+    // Distinct pg user ids per subject so the membership writes can be told apart by user.
+    findOrCreateUserByIdentity.mockImplementation(
+      async (_db: unknown, _provider: unknown, subject: string) => ({ id: `pg-${subject}` }),
+    );
     findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
     upsertMembership.mockResolvedValue(undefined);
     markClaimInvited.mockResolvedValue(true);
@@ -352,13 +357,19 @@ describe("createPipelineV2Port.run — group/membership population (the launch b
       groupTextMsg(3000, "alice again", "Ualice"), // duplicate sender → one membership
     ]);
 
-    // Two DISTINCT senders → two membership upserts (deduped), each scoped to the pg group id.
+    // Two DISTINCT senders → two membership upserts (deduped), each scoped to the pg group id +
+    // the sender's resolved pg user id.
     expect(upsertMembership).toHaveBeenCalledTimes(2);
-    const groupsWritten = upsertMembership.mock.calls.map((c) => c[1].groupId);
-    expect(new Set(groupsWritten)).toEqual(new Set(["grp-pg-1"]));
+    const written = upsertMembership.mock.calls.map((c) => c[1]);
+    expect(written).toEqual(
+      expect.arrayContaining([
+        { groupId: "grp-pg-1", userId: "pg-Ualice" },
+        { groupId: "grp-pg-1", userId: "pg-Ubob" },
+      ]),
+    );
     // The real senders were resolved as `line` identities (the same lookup the LIFF token resolves to).
-    expect(findUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ualice");
-    expect(findUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ubob");
+    expect(findOrCreateUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ualice", "LINE user");
+    expect(findOrCreateUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ubob", "LINE user");
   });
 
   it("does NOT touch groups/memberships for a 1:1 (user#) conversation — no source group", async () => {
@@ -375,8 +386,7 @@ describe("createPipelineV2Port.run — group/membership population (the launch b
 describe("createPipelineV2Port.run — gate-pass claim DM (once, prospective)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    findUserByIdentity.mockResolvedValue({ id: "owner-1" });
-    createUserWithIdentity.mockResolvedValue({ id: "user-new" });
+    findOrCreateUserByIdentity.mockResolvedValue({ id: "owner-1" });
     findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
     upsertMembership.mockResolvedValue(undefined);
   });
@@ -481,6 +491,24 @@ describe("createPipelineV2Port.run — gate-pass claim DM (once, prospective)", 
 
     expect(gw.pushes).toHaveLength(0);
     // Crucially the guard is NOT consulted — once the URL is set later, the listing still gets its DM.
+    expect(markClaimInvited).not.toHaveBeenCalled();
+  });
+
+  it("skips the DM (no stamp) for a 1:1-sourced listing — no source group → the claim screen would 404", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate)],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    // A 1:1 (`user#…`) conversation: the listing has no source group, so the claim gate can't admit
+    // anyone — DMing a deep link that dead-ends in 404 would just confuse. Skip it (and don't stamp).
+    await createPipelineV2Port(d).run("user#Upeer", [textMsg(1000, "house for sale")]);
+
+    expect(runPipeline.mock.calls[0]?.[2]?.sourceGroupId).toBeUndefined();
+    expect(gw.pushes).toHaveLength(0);
     expect(markClaimInvited).not.toHaveBeenCalled();
   });
 

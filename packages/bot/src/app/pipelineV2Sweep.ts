@@ -1,8 +1,7 @@
 import {
-  createUserWithIdentity,
   type Db,
   findOrCreateGroupByLineGroupId,
-  findUserByIdentity,
+  findOrCreateUserByIdentity,
   markClaimInvited,
   upsertMembership,
 } from "@line-robot/db";
@@ -10,12 +9,13 @@ import {
   buildDerivatives,
   CostLog,
   type MediaStore,
+  type PipelineListingOutcome,
   runPipeline,
   type StepContext,
   type StepLlm,
 } from "@line-robot/pipeline";
 import type { Chanote, PropertyPhoto } from "../core/domain/catalog.js";
-import { senderUserId } from "../core/domain/conversation.js";
+import { pushTargetFromKey, senderUserId } from "../core/domain/conversation.js";
 import { formatShortDateTime } from "../core/domain/datetime.js";
 import { parseGeoLinks, parseMapUrls } from "../core/domain/geo.js";
 import type { StoredMessage } from "../core/domain/message.js";
@@ -121,47 +121,13 @@ interface PipelineV2Deps {
   miniappUrl?: string;
 }
 
-/** Find-or-create the Postgres user this conversation's listings belong to (the listing's
- * `owner_user_id` — a CONVERSATION-scoped pseudo-user, NOT the real sender; the real claimant is the
- * mini-app user who later claims it). */
-async function ensureOwner(db: Db, conversationKey: string): Promise<string> {
-  const existing = await findUserByIdentity(db, "line", conversationKey);
-  if (existing) return existing.id;
-  const created = await createUserWithIdentity(
-    db,
-    { displayName: conversationKey },
-    { provider: "line", providerSubject: conversationKey, verifiedAt: new Date() },
-  );
-  return created.id;
-}
-
-/** Find-or-create the Postgres user for a REAL LINE sender id (provider line, subject = the LINE
- * userId), returning its Postgres user id. This is the identity the mini-app's LIFF id-token also
- * resolves to (`findUserByIdentity("line", lineUserId)`), so a membership written here is the same
- * user the claim gate checks. Race-safe like the api's resolveUser: a lost create race re-reads. */
-async function ensureSenderUser(db: Db, lineUserId: string): Promise<string> {
-  const existing = await findUserByIdentity(db, "line", lineUserId);
-  if (existing) return existing.id;
-  try {
-    const created = await createUserWithIdentity(
-      db,
-      { displayName: "LINE user" },
-      { provider: "line", providerSubject: lineUserId, verifiedAt: new Date() },
-    );
-    return created.id;
-  } catch (error) {
-    const winner = await findUserByIdentity(db, "line", lineUserId);
-    if (winner) return winner.id;
-    throw error;
-  }
-}
-
-/** Parse the LINE group id out of a conversation key (`group#<lineGroupId>` / `room#<id>`). Ids never
- * contain `#`, so the id is everything after the first one. Returns undefined for a 1:1 (`user#…`) key
- * — a DM has no source group, so its listings stay group-less (NULL `source_group_id`). */
+/** Parse the LINE group id out of a conversation key, for a group/room conversation only. The id is
+ * everything after the first `#` (delegated to {@link pushTargetFromKey}); a 1:1 (`user#…`) key returns
+ * undefined — a DM has no source group, so its listings stay group-less (NULL `source_group_id`). */
 function lineGroupIdFromKey(conversationKey: string): string | undefined {
-  if (conversationKey.startsWith("group#")) return conversationKey.slice("group#".length);
-  if (conversationKey.startsWith("room#")) return conversationKey.slice("room#".length);
+  if (conversationKey.startsWith("group#") || conversationKey.startsWith("room#")) {
+    return pushTargetFromKey(conversationKey);
+  }
   return undefined;
 }
 
@@ -186,8 +152,10 @@ async function populateGroupMembership(
     batch.map((m) => senderUserId(m.ref)).filter((id): id is string => id !== undefined),
   );
   for (const lineUserId of senders) {
-    const userId = await ensureSenderUser(db, lineUserId);
-    await upsertMembership(db, { groupId: group.id, userId });
+    // Resolve the REAL sender to a pg user — the SAME identity the mini-app's LIFF id-token resolves
+    // to, so the membership written here is the user the claim gate checks.
+    const user = await findOrCreateUserByIdentity(db, "line", lineUserId, "LINE user");
+    await upsertMembership(db, { groupId: group.id, userId: user.id });
   }
   logger.info("pipeline v2: source group + memberships populated", {
     conversationKey,
@@ -254,7 +222,14 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
         .join("\n");
 
       const ctx: StepContext = { llm: deps.llm, costLog: new CostLog(), mode: "sync" };
-      const ownerUserId = await ensureOwner(deps.db, conversationKey);
+      // The listing's `owner_user_id` — a CONVERSATION-scoped pseudo-user (subject = the conversation
+      // key), NOT the real sender; the real claimant is the mini-app user who later claims it.
+      const owner = await findOrCreateUserByIdentity(
+        deps.db,
+        "line",
+        conversationKey,
+        conversationKey,
+      );
       // Materialise the source group + memberships BEFORE the pipeline so the listings it writes carry
       // a non-NULL source_group_id (the mini-app claim gate needs it) and the real posters are members
       // (the gate admits them). A 1:1 conversation yields undefined — its listings stay group-less.
@@ -266,7 +241,7 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
       );
       const outcome = await runPipeline(ctx, deps.db, {
         transcript,
-        ownerUserId,
+        ownerUserId: owner.id,
         sourceGroupId,
         photos,
         geoHints: parseGeoLinks(chatText).map((g) => `${g.lat},${g.long}`),
@@ -283,7 +258,9 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
 
       // Claim DM (best-effort): for each listing that PASSED the gate, stamp claim_invited_at ONCE
       // (the guard), and on the first stamp DM the batch's primary sender a deep-linked claim card.
-      await sendClaimInvites(deps, conversationKey, batch, outcome.listings);
+      // Only for a group-sourced batch — a 1:1 listing has no source group, so its claim screen would
+      // dead-end in the gate's 404 (passing sourceGroupId lets sendClaimInvites skip it).
+      await sendClaimInvites(deps, conversationKey, batch, outcome.listings, sourceGroupId);
 
       return outcome.listings.map((l) => ({
         propertyId: l.listingId,
@@ -303,20 +280,27 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
  * (`batch[0].ref.senderUserId`) — a best-effort nudge; the membership gate is the real control, so an
  * imperfect per-listing→sender mapping is acceptable (the precise mapping is queued — see the header).
  *
- * Requires the gateway + a configured `miniappUrl` (the claim deep link must resolve). When either is
- * absent the DM is skipped, but `markClaimInvited` is NOT called — so once the MINI App URL is set, the
- * first sweep that sees a still-unstamped gate-passed listing sends its DM (no listing is silently
- * burned). Every push is wrapped: a failed DM never fails the sweep (the watermark already advanced).
+ * Skipped entirely (no stamp, no DM) when:
+ *  - there's no `sourceGroupId` (a 1:1-sourced listing — its claim screen would dead-end in the claim
+ *    gate's 404, since a NULL source group can't be group-claimed), OR
+ *  - the gateway / `miniappUrl` is absent (the deep link can't resolve). Because `markClaimInvited` is
+ *    NOT called in these skips, once the MINI App URL is set the first sweep that re-sees a still-
+ *    unstamped gate-passed listing sends its DM (no listing is silently burned).
+ *
+ * Every push is wrapped: a failed DM never fails the sweep (the watermark already advanced).
  */
 async function sendClaimInvites(
   deps: PipelineV2Deps,
   conversationKey: string,
   batch: readonly StoredMessage[],
-  listings: Array<{ listingId: string; title: string; gate: { pass: boolean } }>,
+  listings: readonly PipelineListingOutcome[],
+  sourceGroupId: string | undefined,
 ): Promise<void> {
   const gateway = deps.gateway;
   const miniappUrl = deps.miniappUrl;
-  if (gateway === undefined || miniappUrl === undefined || miniappUrl === "") return;
+  // No source group → the claim gate can't admit anyone for these listings; no gateway/URL → the deep
+  // link can't resolve. Either way there's nothing to send (and no stamp to burn).
+  if (sourceGroupId === undefined || gateway === undefined || miniappUrl === undefined) return;
 
   const target = senderUserId(batch[0]?.ref ?? { kind: "user", userId: "" });
   if (target === undefined || target === "") {

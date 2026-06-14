@@ -261,8 +261,6 @@ export const th = {
   // Review banner (LEGAL-06: the listing is auto-extracted — verify before publishing).
   "claim.reviewBannerTitle": "บอทดึงข้อมูลอัตโนมัติ",
   "claim.reviewBannerBody": "กรุณาตรวจสอบความถูกต้องของข้อมูลก่อนอ้างสิทธิ์และเผยแพร่",
-  "claim.sectionCore": "ข้อมูลหลัก",
-  "claim.sectionDescription": "รายละเอียด",
   // The claim CTA + states.
   "claim.claimCta": "อ้างสิทธิ์ประกาศนี้",
   "claim.claiming": "กำลังอ้างสิทธิ์…",

@@ -200,19 +200,11 @@ export function claimDeepLink(baseUrl: string | undefined, listingId: string): s
  * card is only built when a `miniappUrl` is configured (the sweep guards on it), so the CTA always
  * resolves. Provider-agnostic: the LINE Flex JSON is built later in the gateway.
  */
-export function claimInviteCard(
-  listingTitle: string,
-  claimUrl: string,
-  area?: string,
-  price?: string,
-): OutboundMessage {
-  const rows: PropertyCardRow[] = [];
-  pushRow(rows, "ทำเล", area);
-  pushRow(rows, "ราคา", price);
+export function claimInviteCard(listingTitle: string, claimUrl: string): OutboundMessage {
   const card: PropertyCard = {
     title: "📋 ตรวจสอบประกาศของคุณ",
     headline: listingTitle,
-    rows,
+    rows: [],
     notes: ["บอทดึงข้อมูลอัตโนมัติ · กรุณายืนยันความถูกต้อง แล้วเลือกการเผยแพร่"],
     actions: [{ label: "อ้างสิทธิ์ประกาศนี้", data: "", mode: "uri", uri: claimUrl }],
   };

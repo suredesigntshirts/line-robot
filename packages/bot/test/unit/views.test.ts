@@ -252,19 +252,8 @@ describe("claimInviteCard (Stage 5, Build C)", () => {
     expect(card?.actions[0]?.mode).toBe("uri");
     expect(card?.actions[0]?.uri).toBe("https://miniapp.line.me/x/claim/L1");
     expect(card?.actions[0]?.label).toBe("อ้างสิทธิ์ประกาศนี้");
-  });
-
-  it("includes area/price rows only when supplied (nulls omitted)", () => {
-    const bare = claimInviteCard("t", "https://x/claim/L1");
-    if (bare.type !== "flex") throw new Error("expected flex");
-    expect(bare.cards[0]?.rows).toHaveLength(0);
-
-    const full = claimInviteCard("t", "https://x/claim/L1", "สันกำแพง · เชียงใหม่", "฿4,800,000");
-    if (full.type !== "flex") throw new Error("expected flex");
-    expect(full.cards[0]?.rows).toEqual([
-      { label: "ทำเล", value: "สันกำแพง · เชียงใหม่" },
-      { label: "ราคา", value: "฿4,800,000" },
-    ]);
+    // The card carries no field rows — the title + the verify note + the CTA are all the DM needs.
+    expect(card?.rows).toHaveLength(0);
   });
 });
 

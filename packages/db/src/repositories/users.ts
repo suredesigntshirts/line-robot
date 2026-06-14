@@ -42,3 +42,34 @@ export async function findUserByIdentity(
     );
   return rows.find(() => true)?.user;
 }
+
+/**
+ * Find-or-create the canonical user for a `(provider, subject)` identity, race-safely. The shared
+ * lookup-then-create the API handler (LIFF id-token → user) and the ingest sweep (conversation
+ * pseudo-owner + real senders) all need: a hit returns the existing user; a miss creates one. Two
+ * concurrent first requests for the same subject both miss and both try to create — the
+ * `user_identity_provider_subject` unique index lets at most one win; the loser's insert throws, so we
+ * re-read and return the winner instead of surfacing the error. (A lost race may leave an orphaned
+ * `user` row with no identity — harmless: it's unreachable by any identity lookup; an orphan sweep is a
+ * later cleanup, not a correctness issue.) A genuine failure (not a lost-create race) re-throws.
+ */
+export async function findOrCreateUserByIdentity(
+  db: Db,
+  provider: NewUserIdentity["provider"],
+  providerSubject: string,
+  displayName: string,
+): Promise<UserRow> {
+  const existing = await findUserByIdentity(db, provider, providerSubject);
+  if (existing) return existing;
+  try {
+    return await createUserWithIdentity(
+      db,
+      { displayName },
+      { provider, providerSubject, verifiedAt: new Date() },
+    );
+  } catch (error) {
+    const winner = await findUserByIdentity(db, provider, providerSubject);
+    if (winner) return winner;
+    throw error;
+  }
+}

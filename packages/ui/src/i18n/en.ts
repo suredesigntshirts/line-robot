@@ -219,8 +219,6 @@ export const en: Record<keyof typeof th, string> = {
   "claim.loading": "Loading listing…",
   "claim.reviewBannerTitle": "Auto-extracted by the bot",
   "claim.reviewBannerBody": "Please check the details are correct before you claim and publish.",
-  "claim.sectionCore": "Key details",
-  "claim.sectionDescription": "Description",
   "claim.claimCta": "Claim this listing",
   "claim.claiming": "Claiming…",
   "claim.legalNote":

@@ -136,6 +136,11 @@ function toCardDto(
  * display name is unknown at this seam (we only have the id-token subject), so a placeholder is used;
  * the bot/profile flow can backfill it later.
  *
+ * This is the PORT-layer expression of the same find-or-create the db's `findOrCreateUserByIdentity`
+ * does at the adapter layer (the bot sweep uses that directly). The handler stays db-import-free (all
+ * DB access through the injectable `Repo` seam), so the race logic lives here in terms of two port
+ * calls rather than the single db fn — its explicit race-path is unit-tested below.
+ *
  * Race-safe: two concurrent first requests from the same subject both miss the lookup and both try to
  * create. The `user_identity_provider_subject` unique index lets at most one win; the loser's insert
  * throws, so we re-read and use the winner's row instead of 500ing. (The losing transaction may leave
