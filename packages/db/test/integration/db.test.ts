@@ -412,6 +412,125 @@ describe("public search (LEGAL-02 consent gate)", () => {
     expect(ordinary?.listing.saleCondition).toBe("unknown");
   });
 
+  it("4.3: filters the asking price by a SALE bracket and excludes null-priced listings", async () => {
+    // Dedicated, known-price sale fixtures spanning the real North-Thai bands.
+    const cheap = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 900_000 }, // < ฿1M
+      content: [{ lang: "th", headline: "บ้านราคาประหยัด", description: "x", generatedBy: "human" }],
+    });
+    const sweet = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 4_200_000 }, // ฿3–5M (sweet spot)
+      content: [{ lang: "th", headline: "บ้านช่วงราคาดี", description: "x", generatedBy: "human" }],
+    });
+    await grantPublishConsent(db, cheap.id, ownerId, "v1");
+    await grantPublishConsent(db, sweet.id, ownerId, "v1");
+
+    // ฿3–5M bracket catches the 4.2M house; the 0.9M and the boundary listings fall outside.
+    const band3to5 = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      priceBand: { min: 3_000_000, max: 5_000_000 },
+    });
+    const ids3to5 = band3to5.rows.map((r) => r.listing.id);
+    expect(ids3to5).toContain(sweet.id);
+    expect(ids3to5).not.toContain(cheap.id);
+    // The rent fixture has price_thb=null → never caught by a sale price bracket.
+    expect(ids3to5).not.toContain(rentId);
+    expect(band3to5.rows.every((r) => (r.listing.priceThb ?? 0) >= 3_000_000)).toBe(true);
+    expect(band3to5.rows.every((r) => (r.listing.priceThb ?? 0) < 5_000_000)).toBe(true);
+
+    // < ฿1M (open lower bound) catches the 0.9M house, not the 4.2M one.
+    const under1m = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      priceBand: { min: 0, max: 1_000_000 },
+    });
+    expect(under1m.rows.map((r) => r.listing.id)).toContain(cheap.id);
+    expect(under1m.rows.map((r) => r.listing.id)).not.toContain(sweet.id);
+  });
+
+  it("4.3: a bracket boundary is inclusive at the floor, exclusive at the ceiling", async () => {
+    // An exact ฿3,000,000 listing belongs to ฿3–5M (floor inclusive), NOT ฿1–3M (ceiling exclusive).
+    const onBoundary = await createListing(db, {
+      listing: { ...baseListing, ownerUserId: ownerId, priceThb: 3_000_000 },
+      content: [{ lang: "th", headline: "บ้านพอดีขอบ", description: "x", generatedBy: "human" }],
+    });
+    await grantPublishConsent(db, onBoundary.id, ownerId, "v1");
+
+    const into3to5 = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      priceBand: { min: 3_000_000, max: 5_000_000 },
+    });
+    expect(into3to5.rows.map((r) => r.listing.id)).toContain(onBoundary.id);
+
+    const into1to3 = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      priceBand: { min: 1_000_000, max: 3_000_000 },
+    });
+    expect(into1to3.rows.map((r) => r.listing.id)).not.toContain(onBoundary.id);
+  });
+
+  it("4.3: a RENT bracket filters monthly_rent (the satellite), not the asking price", async () => {
+    const studio = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        dealType: "rent",
+        saleStage: null,
+        rentalStatus: "available",
+        propertyType: "condo",
+        priceThb: null,
+      },
+      content: [{ lang: "th", headline: "สตูดิโอให้เช่า", description: "x", generatedBy: "human" }],
+      rental: { monthlyRent: 8_500, utilityRateType: "unknown" }, // < ฿10k/mo (studio tier)
+    });
+    await grantPublishConsent(db, studio.id, ownerId, "v1");
+
+    // ฿10–18k/mo catches the shared rent fixture (12,000); the 8,500 studio falls below it.
+    const band10to18 = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "rent",
+      priceBand: { min: 10_000, max: 18_000 },
+    });
+    const ids = band10to18.rows.map((r) => r.listing.id);
+    expect(ids).toContain(rentId); // monthlyRent 12,000
+    expect(ids).not.toContain(studio.id); // monthlyRent 8,500
+    // The bracket reads the satellite — every match has a monthly rent in band, no SALE listing leaks
+    // in despite many sale listings having a price_thb in the 10k-18k numeric range.
+    expect(band10to18.rows.every((r) => r.monthlyRent !== null)).toBe(true);
+    expect(band10to18.rows.every((r) => (r.monthlyRent ?? 0) >= 10_000)).toBe(true);
+
+    // < ฿10k/mo catches the studio, not the 12,000 fixture.
+    const under10k = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "rent",
+      priceBand: { min: 0, max: 10_000 },
+    });
+    expect(under10k.rows.map((r) => r.listing.id)).toContain(studio.id);
+    expect(under10k.rows.map((r) => r.listing.id)).not.toContain(rentId);
+  });
+
+  it("4.3: the price bracket composes (AND) with the other facets", async () => {
+    // A resale house at 2.6M (the shared resale fixture) under ฿1–3M + resale = caught; bump the
+    // band to ฿3–5M and the same resale listing drops out (price out of band, condition still matches).
+    const resaleIn = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      saleCondition: "resale",
+      priceBand: { min: 1_000_000, max: 3_000_000 },
+    });
+    expect(resaleIn.rows.map((r) => r.listing.id)).toContain(resaleId); // 2.6M resale
+    const resaleOut = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      saleCondition: "resale",
+      priceBand: { min: 3_000_000, max: 5_000_000 },
+    });
+    expect(resaleOut.rows.map((r) => r.listing.id)).not.toContain(resaleId);
+  });
+
   it("finds by free text over landmark/headline with ILIKE metachars escaped", async () => {
     const byHeadline = await searchPublicListings(db, { lang: "th", text: "ยินยอม" });
     expect(byHeadline.rows.map((r) => r.listing.id)).toEqual([consentedId]);

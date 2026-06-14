@@ -192,6 +192,15 @@ export interface GeoNear {
   radiusM: number;
 }
 
+/** 4.3 contextual price bracket: THB bounds (`min` inclusive, `max` exclusive; `max` null =
+ * open-ended). The bracket applies to the asking price (`listing.price_thb`) on a sale / no-deal
+ * search and to the monthly rent (`listing_rental.monthly_rent`) on a rent search — `dealType`
+ * selects the column. A null price never matches a bracket (SQL `>=` against null is not true). */
+export interface PriceBandFilter {
+  min: number;
+  max: number | null;
+}
+
 export interface PublicSearch {
   lang: "th" | "en";
   dealType?: DealType;
@@ -203,6 +212,8 @@ export interface PublicSearch {
   saleCondition?: SaleCondition;
   /** Free-text query over landmark + content (trigram-indexed ILIKE). */
   text?: string;
+  /** 4.3 price bracket — applied to `price_thb` (sale / no deal) or `monthly_rent` (rent). */
+  priceBand?: PriceBandFilter;
   /** CONV-08 radius search: restrict to listings within `radiusM` of (lon, lat), nearest first. */
   near?: GeoNear;
   /** 1-based. */
@@ -262,6 +273,15 @@ const heroThumbKeySql = sql<string | null>`(
 const latSql = sql<number | null>`ST_Y(${listings.geom}::geometry)`;
 const lonSql = sql<number | null>`ST_X(${listings.geom}::geometry)`;
 
+// 4.3: the price-bracket predicate over a price expression (asking price or monthly rent). `min`
+// inclusive, `max` exclusive; an open-ended bracket (`max` null) drops the upper bound. A NULL
+// price column never satisfies `>= min` (SQL three-valued logic), so unpriced listings are
+// excluded from every bracket — correct: a listing with no stated price isn't "under ฿1M".
+const priceBandPredicate = (priceExpr: ReturnType<typeof sql>, band: PriceBandFilter) =>
+  band.max === null
+    ? sql`${priceExpr} >= ${band.min}`
+    : sql`${priceExpr} >= ${band.min} and ${priceExpr} < ${band.max}`;
+
 /** Browse/search for the public website: consented listings only (LEGAL-02). Newest first, unless a
  * radius (`near`) is given — then nearest first (CONV-08). All filters AND-compose with the radius. */
 export async function searchPublicListings(
@@ -281,6 +301,15 @@ export async function searchPublicListings(
       or ${listings.projectName} ilike ${pattern}
       or exists (select 1 from ${listingContent} c where c.listing_id = ${listings.id}
         and (c.headline ilike ${pattern} or c.description ilike ${pattern})))`);
+  }
+  // 4.3: the contextual price bracket — rent filters the monthly rent (the satellite, via the same
+  // `monthlyRentSql` subquery the projection uses; its `::int` cast is harmless for a `>=`/`<`
+  // comparison), sale and the "no deal type chosen" case filter the asking price column. The caller
+  // (the website) only ever builds a rent bracket alongside `dealType: "rent"`, so the column always
+  // matches the bracket.
+  if (q.priceBand) {
+    const priceExpr = q.dealType === "rent" ? monthlyRentSql : sql`${listings.priceThb}`;
+    conditions.push(priceBandPredicate(priceExpr, q.priceBand));
   }
   // CONV-08: radius constraint (the shared `withinRadius` predicate) + the distance expression
   // (metres) reused by the projection + ORDER BY. The spatial GiST index gates the result set,

@@ -47,6 +47,9 @@ try {
     saleCondition: query.saleCondition,
     province: query.province,
     text: query.text,
+    // 4.3: the contextual price bracket — the repo applies it to price_thb (sale/no deal) or
+    // monthly_rent (rent) per query.dealType. Pass only the THB bounds the SQL needs.
+    priceBand: query.priceBand && { min: query.priceBand.min, max: query.priceBand.max },
     // CONV-08: a radius search (?lat&lng&radius) restricts to listings near the point, nearest first.
     near: query.near && {
       lat: query.near.lat,

@@ -47,7 +47,24 @@ export const th = {
   "filter.petFriendly": "เลี้ยงสัตว์ได้",
   "filter.deedType": "ประเภทโฉนด",
   "filter.priceRange": "ช่วงราคา",
+  "filter.rentRange": "ค่าเช่า/เดือน",
   "filter.clear": "ล้างตัวกรอง",
+  // 4.3 contextual price brackets. SALE bands (asking price, listing.price_thb) from the real
+  // North-Thai tiers in a2-market-landscape-north.md (tick marks ฿1M/3M/5M/10M/20M, ฿2–9M corridor,
+  // ฿3–5M sweet spot). "ล้าน" = million; bare numbers read in the Thai million convention.
+  "price.saleUnder1m": "ต่ำกว่า 1 ล้าน",
+  "price.sale1to3m": "1–3 ล้าน",
+  "price.sale3to5m": "3–5 ล้าน",
+  "price.sale5to10m": "5–10 ล้าน",
+  "price.sale10to20m": "10–20 ล้าน",
+  "price.saleOver20m": "เกิน 20 ล้าน",
+  // RENT bands (monthly rent, listing_rental.monthly_rent) from a2 Finding 11 furnished-rent tiers
+  // (studio ฿7–12k, 1-bed ฿10–18k, 2-bed ฿16–35k, houses ฿20–45k/mo). Edges = published band
+  // bounds ฿10k (1-bed floor) / ฿18k (1-bed ceiling) / ฿35k (2-bed ceiling).
+  "price.rentUnder10k": "ต่ำกว่า 10,000",
+  "price.rent10to18k": "10,000–18,000",
+  "price.rent18to35k": "18,000–35,000",
+  "price.rentOver35k": "เกิน 35,000",
   // COMP-06 new-vs-resale chip labels + the subtle card/detail meta.
   "condition.new": "มือหนึ่ง",
   "condition.resale": "มือสอง",

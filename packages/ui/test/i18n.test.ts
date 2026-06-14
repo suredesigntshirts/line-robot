@@ -54,4 +54,29 @@ describe("createTranslator (D3.4)", () => {
       expect(th(`quota.${q}`)).not.toBe("");
     }
   });
+
+  it("4.3 every price-bracket label resolves (non-empty) in both locales", () => {
+    const th = createTranslator("th");
+    const en = createTranslator("en");
+    const keys = [
+      "price.saleUnder1m",
+      "price.sale1to3m",
+      "price.sale3to5m",
+      "price.sale5to10m",
+      "price.sale10to20m",
+      "price.saleOver20m",
+      "price.rentUnder10k",
+      "price.rent10to18k",
+      "price.rent18to35k",
+      "price.rentOver35k",
+      "filter.priceRange",
+      "filter.rentRange",
+    ] as const;
+    for (const k of keys) {
+      expect(th(k)).not.toBe("");
+      expect(en(k)).not.toBe("");
+    }
+    // COPY-12: no emoji in price labels; the rent-context label reads as monthly (MKT-03 honesty).
+    expect(th("filter.rentRange")).toBe("ค่าเช่า/เดือน");
+  });
 });

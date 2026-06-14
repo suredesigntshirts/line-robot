@@ -8,7 +8,7 @@ import {
 } from "@line-robot/ui";
 import { useState } from "react";
 import type { BrowseQuery } from "../lib/browse.ts";
-import { browseQueryString } from "../lib/browse.ts";
+import { browseQueryString, findPriceBand, priceBandsFor } from "../lib/browse.ts";
 
 interface FilterBarProps {
   query: BrowseQuery;
@@ -27,6 +27,12 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
   const t = createTranslator(locale);
   const [text, setText] = useState(query.text ?? "");
 
+  // 4.3 CONTEXTUAL price control: one bracket group whose chips switch with the selected deal —
+  // sale/no-deal shows the asking-price bands, rent shows the monthly-rent bands (priceBandsFor).
+  // The bands come from the real North-Thai market (a2-market-landscape-north.md), not round demo
+  // brackets. The rent group reads "/เดือน" so the relabel is honest — sale price vs monthly rent
+  // is never conflated (MKT-03). Single-select like every other group.
+  const priceBands = priceBandsFor(query.dealType);
   const groups: FilterGroup[] = [
     {
       id: "deal",
@@ -35,6 +41,11 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
         id: `deal:${v}`,
         label: t(v === "sale" ? "badge.forSale" : "badge.forRent"),
       })),
+    },
+    {
+      id: "price",
+      label: query.dealType === "rent" ? t("filter.rentRange") : t("filter.priceRange"),
+      chips: priceBands.map((b) => ({ id: `price:${b.id}`, label: t(b.labelKey) })),
     },
     {
       id: "type",
@@ -70,6 +81,7 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
 
   const value = [
     ...(query.dealType ? [`deal:${query.dealType}`] : []),
+    ...(query.priceBand ? [`price:${query.priceBand.id}`] : []),
     ...(query.propertyType ? [`type:${query.propertyType}`] : []),
     ...(query.saleCondition ? [`cond:${query.saleCondition}`] : []),
     ...(query.listingType ? [`ltype:${query.listingType}`] : []),
@@ -89,8 +101,14 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
     const cond = saleCondition.safeParse(pick("cond"));
     const ltype = listingType.safeParse(pick("ltype"));
     const province = pick("province");
+    const nextDeal = deal.success ? deal.data : undefined;
+    // 4.3: resolve the price bracket against the NEW deal context — switching Buy↔Rent drops a
+    // bracket that doesn't exist in the new band set (a sale id won't resolve under rent), so the
+    // single contextual control can never carry a sale bracket into a rent search or vice-versa.
+    const priceBand = findPriceBand(nextDeal, pick("price") ?? null);
     const target: BrowseQuery = {
-      ...(deal.success ? { dealType: deal.data } : {}),
+      ...(nextDeal ? { dealType: nextDeal } : {}),
+      ...(priceBand ? { priceBand } : {}),
       ...(ptype.success ? { propertyType: ptype.data } : {}),
       ...(cond.success && cond.data !== "unknown" ? { saleCondition: cond.data } : {}),
       ...(ltype.success && ltype.data !== "normal" ? { listingType: ltype.data } : {}),
