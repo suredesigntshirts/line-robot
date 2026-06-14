@@ -428,3 +428,19 @@ unregressed). The perceptual seat's lone "missing left-accent stripe" claim was 
 orchestrator code-verification (the durable lesson again). Minor design divergences (stripe thickness, stats
 icons, identity row) + the TH-03 trust-signal-on-owner-card judgment → FOUNDER-QUEUE S5. Push to `main`
 remains permission-gated (denied once) — all increments committed LOCALLY, awaiting founder push authz.
+
+**Build C — claim/publish flow (`37b3770` + review cleanups).** End-to-end: pipeline gate-pass → bot DMs
+the poster a claim deep link (`{MINIAPP_URL}/claim/{id}`, once, `claim_invited_at`-guarded, skipped for
+1:1/group-less listings) → LIFF `/claim/{id}` ClaimScreen (review → optimistic claim → publish |
+keep-group-private "เฉพาะสมาชิกกลุ่มเดิม") → public website shows it next request; the 409 loser gets a
+clear "already claimed" panel (never the publish choice). **LAUNCH BLOCKER closed:** the live sweep now
+`findOrCreateGroupByLineGroupId` + passes `sourceGroupId` to the pipeline (it was ALWAYS NULL before) +
+`upsertMembership` for every batch sender, so the claim gate admits real posters (chain: LIFF id-token →
+real LINE userId → `group_membership`). Hexagonal: zero LINE import in `packages/pipeline`; the claim DM
+lives in the bot app layer. Review: spec PASS, correctness[opus] PASS (no major bugs — membership/guard/
+state-machine verified), simplicity 2 MAJOR + 6 MINOR cleanups (button-class triplication, dead i18n keys,
+find-or-create-user extracted to db `findOrCreateUserByIdentity`, dead guards/params) + 1 coherence fix
+(no DM for a group-less listing) → all applied; alignment ALIGNED. Gate GREEN (bot 267, miniapp unit 52 /
+e2e 18, db integ 41). FOUNDER-QUEUE S5-6/7/8 (เลย particle; deed-type / verify-link on the claim screen;
+group name in the DM). Per-segment poster→sender mapping deferred (the membership gate is the real control).
+Consolidated perceptual `/frontend-review` deferred to the stage gate (all Stage-5 screens vs mocks at once).
