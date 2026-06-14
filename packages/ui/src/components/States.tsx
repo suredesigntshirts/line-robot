@@ -11,8 +11,12 @@ interface StateProps {
 
 /** The one primary-action button treatment (direction-a btn-primary, smaller). A class, not an inline
  * style object — shared by the website FilterBar + ErrorState. */
+// text-surface (NOT text-white): the filled bg (primary-500) flips LIGHTER in dark mode, so the text
+// must flip with it — surface is white in light (white-on-dark-blue) and dark in dark (dark-on-light-
+// blue), keeping WCAG-AA contrast in BOTH modes (white-on-light-blue fails AA — see assertCtaContrast).
+// hover dims via opacity (changing the bg shade would re-break the dark-mode pairing).
 export const primaryButtonClass =
-  "inline-flex cursor-pointer items-center justify-center rounded-md border-0 bg-primary-500 px-4 py-2 font-body-th text-base text-white transition-colors hover:bg-primary-600";
+  "inline-flex cursor-pointer items-center justify-center rounded-md border-0 bg-primary-500 px-4 py-2 font-body-th text-base text-surface transition-opacity hover:opacity-90";
 
 /** COPY-07: what happened + why + what to do next — never a bare "no results". Direction-a: a calm
  * centred state with a muted icon, not an error. */

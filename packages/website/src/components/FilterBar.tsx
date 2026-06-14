@@ -156,7 +156,7 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
             className="min-w-0 flex-1 border-0 bg-transparent py-2 font-body-th text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
           />
         </div>
-        <button type="submit" className={primaryButtonClass}>
+        <button type="submit" data-cta-solid className={primaryButtonClass}>
           {t("filter.search")}
         </button>
       </form>

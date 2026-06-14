@@ -331,3 +331,14 @@ the underline was absent on mobile — it's present; alignment audit invented he
 don't exist) — reinforcing: audit agents reason about PROCESS well but are unreliable on PIXELS/FACTS;
 orchestrator verifies every audit claim vs ground truth. FOUNDER-QUEUE #4 (brand wordmark), #5 (header
 search placement).
+
+**Phase 2 pass 3 — filter chips → direction-a + a11y contrast fix — DONE + committed.** `SearchFilters`
+chips restyled to filled-active (trust-blue) / outlined-inactive pills. The pass-3 audit — the one audit
+this run that found a REAL bug by COMPUTING (not perceiving) — caught a dark-mode WCAG-AA failure I'd
+introduced: `text-white` on `bg-primary-500` is fine in light but fails in dark (primary-500 flips to a
+light blue → white-on-light-blue ≈ 2.9:1). Fixed: filled CTAs use `text-surface` (flips with the bg; AA
+both modes). **F4:** `assertCtaContrast` deterministic invariant (resolves computed colours via a canvas,
+asserts WCAG ≥4.5 every project incl. dark; re-verified to bite — text-white fails dark at 2.63,
+text-surface passes 4/4). e2e 76/76. FOUNDER-QUEUE #6 (no explicit WCAG heuristic in the register;
+enforced via F4). A2 partially bit (alignment marked COPY-02 UNVERIFIED + cited assertion names),
+confirming deterministic nets — not prose — are the reliable backstop.

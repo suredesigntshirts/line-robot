@@ -108,6 +108,53 @@ export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
   ).toEqual([]);
 }
 
+/** WCAG-AA contrast on FILLED CTAs (`[data-cta-solid]` — the primary button + the active filter chip),
+ * as a DETERMINISTIC invariant. Catches the class where a filled background flips lighter in dark mode
+ * but the text colour does NOT (white-on-light-blue ≈ 2.9:1 — fails AA), which an LLM can't read off a
+ * PNG and source review can't see (the tokens "declare" fine). Runs in every project, so the dark-mode
+ * pairing is checked too. Uses a 1×1 canvas to resolve ANY computed colour (oklch/rgb/color()) to sRGB
+ * bytes, then the WCAG 2.1 ratio. Threshold 4.5:1 (normal text). */
+export async function assertCtaContrast(page: Page): Promise<void> {
+  const bad = await page.evaluate(() => {
+    const toRgb = (color: string): [number, number, number] => {
+      const c = document.createElement("canvas");
+      c.width = c.height = 1;
+      const ctx = c.getContext("2d");
+      if (!ctx) return [0, 0, 0];
+      ctx.fillStyle = "#000";
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 1, 1);
+      const d = ctx.getImageData(0, 0, 1, 1).data;
+      return [d[0], d[1], d[2]];
+    };
+    const lin = (v: number) => {
+      const s = v / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    const lum = ([r, g, b]: [number, number, number]) =>
+      0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    const ratio = (a: [number, number, number], b: [number, number, number]) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    const out: { text: string; ratio: number }[] = [];
+    for (const el of document.querySelectorAll("[data-cta-solid]")) {
+      const cs = getComputedStyle(el);
+      const r = ratio(toRgb(cs.color), toRgb(cs.backgroundColor));
+      if (r < 4.5)
+        out.push({
+          text: (el.textContent ?? "").trim().slice(0, 20),
+          ratio: Math.round(r * 100) / 100,
+        });
+    }
+    return out;
+  });
+  expect(
+    bad,
+    `filled-CTA text/background contrast below WCAG-AA 4.5:1: ${JSON.stringify(bad)}`,
+  ).toEqual([]);
+}
+
 /** Every rendered image actually loaded — catches the presign/IAM/CDN image bugs that only appear
  * against real infra (locally the fake-S3 serves them; on deploy this checks the real S3 path). */
 export async function assertNoBrokenImages(page: Page): Promise<void> {

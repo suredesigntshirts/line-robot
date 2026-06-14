@@ -138,6 +138,25 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
   was excellent) but are unreliable about specific PIXELS/FACTS — so the orchestrator verifies every audit
   claim against ground truth before acting, and measurable properties live in deterministic invariants.
 
+### 2026-06-14 · p2-pass3-chips · GAP F4 — deterministic WCAG-contrast invariant for filled CTAs
+- **Audit ref:** `audits/pass3-chips-1.md`. The pass-3 audit (the one audit in this run that found a
+  REAL bug, by COMPUTING contrast rather than perceiving pixels) caught: `text-white` on `bg-primary-500`
+  fails AA in DARK mode (primary-500 flips to light blue `#5b9de0` → white-on-light-blue ≈ 2.9:1). A real
+  regression the runner introduced (switched the old flipping `--color-surface` text to non-flipping
+  `text-white` in passes 1–3).
+- **Fix:** filled-primary CTAs (primary button + active chip) → `text-surface` (flips with the bg; AA in
+  both modes: light 6.37, dark 5.84). hover dims via opacity.
+- **F4: `assertCtaContrast` deterministic invariant** (`e2e/support.ts` + `theme.spec.ts`) — resolves the
+  computed text/bg colours of `[data-cta-solid]` via a 1×1 canvas to sRGB and asserts WCAG ≥4.5 in every
+  project (dark covered). **Re-verified to BITE:** `text-white` → desktop-dark fails at 2.63; `text-surface`
+  → 4/4 pass; full suite 76/76. The a11y net the audit recommended, made agent-independent (an LLM can't
+  read contrast off a PNG, and the alignment agent reached for hex when no assertion existed — A2's
+  "UNVERIFIED if no assertion" only partially bit there).
+- **A2 follow-through:** A2 DID partially bite on this pass (alignment-review marked COPY-02 UNVERIFIED +
+  cited assertion names for TH-06/07) — but slipped on contrast (computed from hex). F4 closes that hole
+  deterministically; the residual prose-slip is now low-stakes (the deterministic net catches the bug
+  regardless of the agent's discipline). Register has no explicit WCAG heuristic → FOUNDER-QUEUE #6.
+
 ---
 
 ## SUMMARY (written at run end)
