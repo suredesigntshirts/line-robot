@@ -145,6 +145,23 @@ smoke still runs at the gate).
 | 2026-06-14 | **4.10 — Stage 4 stage gate run (verdict below).** Three gate-found fixes (TECH-06 token theme un-applied; LEGAL-07 foreign-ownership disclaimer; LOW retry-link); TH-10 refuted as a founder-blessed tradeoff; og:image-expiry + poster-name-data logged. | Stage gate |
 | 2026-06-14 | **4.8 — dedicated detail-fields render shipped + deployed + verified.** The deferred facing/road/zone + condo + rental-subtable fields now render on the detail page (projection-only through `getPublicListingDetail`→`PublicListingDetail`; reused `FieldList`/`AccordionSection`; omit-when-absent; th+en compile-bound labels; MKT-03 monthly framing; collapsed "subtle meta" altitude per the founder direction). Condo floor/building/unit turned out to be a **4.7 schema gap** (no column) — logged, not built. increment-review + /alignment-review PASS (zero violations). | Resolves the S4-I3 deferral "facing/road/zone/condo/rental-subtable rows wait for a dedicated fields increment" (this increment) |
 
+## Stage-gate RE-GATE (2026-06-14 — plan 21 direction-a frontend rebuild)
+
+The frontend was rebuilt to canon + the `direction-a` design under `plans/21-frontend-architecture-
+conformance.md`: the website now RUNS Tailwind v4 + owned shadcn (closing the silent Finding-10/TECH-06/07
+deviation — the inline-style-object medium, now canon AP-9/TECH-14), and every page (home/browse, detail,
+empty, 404) reads as `direction-a`, responsive, content schema-driven, NPA calm-violet. Commits
+`c91854a → 676562d` (6) + docs `4469f27`. **Local gate: GREEN — `npm run test:e2e` 84/84** incl. the new
+deterministic computed-style invariants (`assertThaiBodyLineHeight` TH-06/07, `assertCtaContrast` WCAG-AA
+incl. the dark-mode token flip, the oklch/old-Android fallback assertion); typecheck/lint/`npm run test`
+green; both design skills (`/frontend-review` + `/alignment-review`) ALIGNED, traced + adversarially
+audited + skill-gaps fixed (`docs/design/skill-hardening/`).
+**Status: design rebuild COMPLETE + locally GATED; full PASS pending two human-gated steps —** (1) the
+staging **deploy** (`pulumi up`, built + `pulumi preview` clean = website-only diff; the auto-approver
+blocks an unattended apply), then (2) the **deployed-mode** verification (`E2E_BASE_URL=… test:e2e:deployed`
++ `/frontend-review` deployed) and the founder design-bless → pixel-baseline lock-in. Until then Stage 4
+stays **CONDITIONAL-PASS** (design verified locally; deployed-verify outstanding). See SPRINT-LOG session 3.
+
 ## Stage gate (run 2026-06-14 — CONDITIONAL-PASS; 3 gate-found fixes deployed + verified)
 
 The Stage 4 public website was built across **S4-I1…S4-I6** (sprint-01 extension, 2026-06-13),

@@ -5,6 +5,14 @@ below are resolved with defensible defaults under the founder's extension ruling
 cheap to reverse and flagged for morning review. No Stage 5 code was written tonight — the flesh
 exists so the founder can approve (or amend) the defaults and the build can start next session.
 
+> **Inherits the plan-21 frontend foundation (added 2026-06-14).** The shared `@line-robot/ui` is now
+> Tailwind v4 + owned shadcn + the `direction-a` token/component system (cards, badges, price, states,
+> spec table, accordion, CTA — all in Tailwind utilities, no inline-style objects per canon TECH-14/AP-9).
+> Stage 5 **consumes these directly** (re-style only where the mini-app's LIFF chrome genuinely differs).
+> Its visual gate is **`direction-a` + `/frontend-review`**, and the same deterministic computed-style
+> invariants apply (TH-06/07 line-height, WCAG-AA CTA contrast, theme/oklch fallback) — add a marker +
+> assertion for any new measurable rule. Author in Tailwind utilities/shadcn; never inline-style objects.
+
 ## Purpose
 
 Rebuilds the LINE MINI App (LIFF SPA) from Preact with bespoke CSS to React on `packages/ui`, retiring the v1 read-api and the v1 Preact SPA. Implements the claim/publish opt-in flow (the only path to public listing — D7), and the per-user CRM features (my listings, saved listings, viewings, follow-ups) defined in D13. Keeps edit-by-reply for users editing their own listings. Corresponds to master plan §2 points 1–2, D4, D5 (LIFF side), D7, D13.
