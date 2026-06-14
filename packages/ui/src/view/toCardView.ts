@@ -15,6 +15,8 @@ export interface CardView {
   locationLine: string;
   /** "3 นอน · 2 น้ำ · 180 ตร.ม." style spec line, pre-localized. */
   specLine: string;
+  /** CONV-08 distance from the search point on a radius search, pre-localized; "" otherwise. */
+  distanceLine: string;
   updatedAtIso: string;
 }
 
@@ -28,6 +30,9 @@ export interface CardViewInput {
   bathroomsLabel: string;
   /** COMP-06 new-vs-resale, pre-localized; "" when unstated (omitted from the spec line). */
   conditionLabel?: string;
+  /** CONV-08 distance-from-search-point, pre-localized (e.g. "2.1 กม."); shown on a radius search,
+   * undefined/"" otherwise. Search context, not a listing attribute — the caller supplies the text. */
+  distanceLabel?: string;
 }
 
 export function toCardView(input: CardViewInput): CardView {
@@ -61,6 +66,7 @@ export function toCardView(input: CardViewInput): CardView {
     photoCount: input.photoCount,
     locationLine,
     specLine: specs.join(" · "),
+    distanceLine: input.distanceLabel ?? "",
     updatedAtIso: listing.updatedAt.toISOString(),
   };
 }

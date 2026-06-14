@@ -9,6 +9,8 @@ import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
 import { createElement } from "react";
 import { BrowseResults, type CardRow } from "../components/BrowseResults.tsx";
 import { FilterBar } from "../components/FilterBar.tsx";
+import { NearMe } from "../components/NearMe.tsx";
+import { ResultsMap } from "../components/ResultsMap.tsx";
 import Base from "../layouts/Base.astro";
 import { parseBrowseQuery } from "../lib/browse.ts";
 import { presignThumbs } from "../lib/media.ts";
@@ -45,6 +47,12 @@ try {
     saleCondition: query.saleCondition,
     province: query.province,
     text: query.text,
+    // CONV-08: a radius search (?lat&lng&radius) restricts to listings near the point, nearest first.
+    near: query.near && {
+      lat: query.near.lat,
+      lon: query.near.lng,
+      radiusM: query.near.radiusM,
+    },
     page: query.page,
     pageSize: PAGE_SIZE,
   });
@@ -63,6 +71,21 @@ try {
   console.error("browse query failed:", error);
   dbError = true;
 }
+
+// CONV-08: on a radius search, a supplementary map of the result pins (only listings with coords).
+// TECH-01: it's a lazy island, so the static list keeps its zero-JS; the list stays primary.
+const showMap = query.near !== undefined && !dbError;
+const pins = showMap
+  ? cards
+      .filter((c) => c.lat !== null && c.lon !== null)
+      .map((c) => ({
+        id: c.listing.id,
+        lat: c.lat as number,
+        lng: c.lon as number,
+        title: c.headline,
+        href: `${basePath}/properties/${c.listing.id}`,
+      }))
+  : [];
 ---
 
 <Base
@@ -78,6 +101,7 @@ try {
       {t("home.title")}
     </h1>
     <FilterBar client:load query={query} locale={locale} basePath={basePath} provinces={provinces} />
+    <NearMe client:load query={query} locale={locale} basePath={basePath} />
     {
       dbError ? (
         <ErrorState t={t} action={retryLink} />
@@ -90,6 +114,11 @@ try {
           locale={locale}
           basePath={basePath}
         />
+      )
+    }
+    {
+      showMap && pins.length > 0 && (
+        <ResultsMap client:visible pins={pins} locale={locale} />
       )
     }
   </main>

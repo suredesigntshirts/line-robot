@@ -38,38 +38,56 @@ export function BrowseResults({
   const lastPage = Math.max(Math.ceil(total / pageSize), 1);
   const pageLink = (page: number) => `${basePath}/${browseQueryString({ ...query, page })}`;
 
+  // CONV-08: a card's distance from the search point on a radius search. Sub-km reads in metres
+  // (rounded to 50 m — false precision otherwise); ≥1 km in km to one decimal. Round to 50 m FIRST
+  // so 975-999 m crosses to "1.0 km" rather than rendering an odd "1000 m".
+  const distanceLabel = (distanceM: number | null): string => {
+    if (distanceM === null) return "";
+    const rounded50 = Math.round(distanceM / 50) * 50;
+    if (rounded50 < 1000) return t("listing.distanceM", { m: rounded50 });
+    return t("listing.distanceKm", { km: (distanceM / 1000).toFixed(1) });
+  };
+
   return (
     <div style={{ display: "grid", gap: "var(--spacing-4)" }}>
       <span style={{ color: "var(--color-text-2)", fontSize: "var(--text-sm)" }}>
         {t("pager.count", { total })}
       </span>
       <CardGrid>
-        {rows.map(({ listing, headline, photoCount, monthlyRent, posterName, heroUrl }) => (
-          <ListingCard
-            key={listing.id}
-            postedByName={posterName || undefined}
-            listing={listing}
-            view={toCardView({
-              listing,
-              headline,
-              heroUrl, // presigned 640px thumb (4.1); null → ListingCard's clean placeholder
-              photoCount,
-              bedroomsLabel:
-                listing.bedrooms === null ? "" : t("listing.bedrooms", { count: listing.bedrooms }),
-              bathroomsLabel:
-                listing.bathrooms === null
-                  ? ""
-                  : t("listing.bathrooms", { count: listing.bathrooms }),
-              // COMP-06 subtle card meta; "" when unstated → omitted from the spec line.
-              conditionLabel:
-                listing.saleCondition === "unknown" ? "" : t(`condition.${listing.saleCondition}`),
-            })}
-            monthlyRent={monthlyRent}
-            href={`${basePath}/properties/${listing.id}`}
-            lang={locale}
-            t={t}
-          />
-        ))}
+        {rows.map(
+          ({ listing, headline, photoCount, monthlyRent, posterName, heroUrl, distanceM }) => (
+            <ListingCard
+              key={listing.id}
+              postedByName={posterName || undefined}
+              listing={listing}
+              view={toCardView({
+                listing,
+                headline,
+                heroUrl, // presigned 640px thumb (4.1); null → ListingCard's clean placeholder
+                photoCount,
+                bedroomsLabel:
+                  listing.bedrooms === null
+                    ? ""
+                    : t("listing.bedrooms", { count: listing.bedrooms }),
+                bathroomsLabel:
+                  listing.bathrooms === null
+                    ? ""
+                    : t("listing.bathrooms", { count: listing.bathrooms }),
+                // COMP-06 subtle card meta; "" when unstated → omitted from the spec line.
+                conditionLabel:
+                  listing.saleCondition === "unknown"
+                    ? ""
+                    : t(`condition.${listing.saleCondition}`),
+                // CONV-08: distance from the search point (radius search only).
+                distanceLabel: distanceLabel(distanceM),
+              })}
+              monthlyRent={monthlyRent}
+              href={`${basePath}/properties/${listing.id}`}
+              lang={locale}
+              t={t}
+            />
+          ),
+        )}
       </CardGrid>
       <p style={{ color: "var(--color-text-2)", fontSize: "var(--text-xs)", margin: 0 }}>
         {t("legal.posterProvided")}

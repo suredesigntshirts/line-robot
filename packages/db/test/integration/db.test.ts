@@ -430,6 +430,80 @@ describe("public search (LEGAL-02 consent gate)", () => {
     expect(none.rows).toHaveLength(0);
   });
 
+  it("4.2: radius search filters by distance, orders nearest-first, projects distance + coords", async () => {
+    // Two consented listings with known coords ~13.6 km apart (Nimman vs Hang Dong).
+    const nimman = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        priceThb: 5_000_000,
+        geom: ewktPoint(NIMMAN.lon, NIMMAN.lat),
+      },
+      content: [{ lang: "th", headline: "ใกล้ Nimman", description: "x", generatedBy: "human" }],
+    });
+    await grantPublishConsent(db, nimman.id, ownerId, "v1");
+    const hangDong = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: ownerId,
+        priceThb: 5_000_000,
+        geom: ewktPoint(HANG_DONG.lon, HANG_DONG.lat),
+      },
+      content: [{ lang: "th", headline: "หางดง", description: "x", generatedBy: "human" }],
+    });
+    await grantPublishConsent(db, hangDong.id, ownerId, "v1");
+
+    // A 1 km radius around Nimman includes Nimman, excludes Hang Dong (and the geom-less fixtures).
+    const tight = await searchPublicListings(db, {
+      lang: "th",
+      near: { lat: NIMMAN.lat, lon: NIMMAN.lon, radiusM: 1_000 },
+    });
+    const tightIds = tight.rows.map((r) => r.listing.id);
+    expect(tightIds).toContain(nimman.id);
+    expect(tightIds).not.toContain(hangDong.id);
+    expect(tightIds).not.toContain(consentedId); // no geom → never in a radius result
+    expect(tight.total).toBe(tight.rows.length);
+
+    // Nimman's own distance is ~0 m; coordinates round-trip through the projection.
+    const self = tight.rows.find((r) => r.listing.id === nimman.id);
+    expect(self?.distanceM).toBeLessThan(5);
+    expect(self?.lat).toBeCloseTo(NIMMAN.lat, 4);
+    expect(self?.lon).toBeCloseTo(NIMMAN.lon, 4);
+
+    // A 6 km radius excludes Hang Dong (~13.6 km away) — the distance filter is real, not a no-op.
+    const mid = await searchPublicListings(db, {
+      lang: "th",
+      near: { lat: NIMMAN.lat, lon: NIMMAN.lon, radiusM: 6_000 },
+    });
+    expect(mid.rows.map((r) => r.listing.id)).not.toContain(hangDong.id);
+
+    // A 15 km radius includes both, NEAREST FIRST, each with a sensible distance.
+    const wide = await searchPublicListings(db, {
+      lang: "th",
+      near: { lat: NIMMAN.lat, lon: NIMMAN.lon, radiusM: 15_000 },
+    });
+    const order = wide.rows.map((r) => r.listing.id);
+    expect(order.indexOf(nimman.id)).toBeLessThan(order.indexOf(hangDong.id));
+    const far = wide.rows.find((r) => r.listing.id === hangDong.id);
+    expect(far?.distanceM).toBeGreaterThan(10_000);
+    expect(far?.distanceM).toBeLessThan(15_000);
+
+    // The radius composes with structured filters (AND) — a property type the points don't match
+    // yields an empty radius result even though the point is in range.
+    const composed = await searchPublicListings(db, {
+      lang: "th",
+      propertyType: "condo",
+      near: { lat: NIMMAN.lat, lon: NIMMAN.lon, radiusM: 15_000 },
+    });
+    expect(composed.rows.map((r) => r.listing.id)).not.toContain(nimman.id); // nimman is a house
+
+    // A non-radius search leaves distanceM null but still carries coords.
+    const plain = await searchPublicListings(db, { lang: "th" });
+    const plainNimman = plain.rows.find((r) => r.listing.id === nimman.id);
+    expect(plainNimman?.distanceM).toBeNull();
+    expect(plainNimman?.lat).toBeCloseTo(NIMMAN.lat, 4);
+  });
+
   it("hides a listing after a deletion request (LEGAL-10)", async () => {
     await pool.query(
       "UPDATE publish_consent SET deletion_requested_at = now() WHERE listing_id = $1",

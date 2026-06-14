@@ -88,7 +88,15 @@ export async function getContent(db: Db, listingId: string) {
   return db.select().from(listingContent).where(eq(listingContent.listingId, listingId));
 }
 
-/** PostGIS radius search: listings within `radiusM` metres of (lon, lat). */
+/** The one PostGIS "within `radiusM` metres of (lon, lat)" predicate — shared by `findListingsNear`
+ * and the public `searchPublicListings` radius branch so the spatial logic lives in one place.
+ * `geography` args make `radiusM` metres (SRID 4326); the spatial GiST index gates the scan. */
+const withinRadius = (lon: number, lat: number, radiusM: number) =>
+  sql`ST_DWithin(${listings.geom}, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, ${radiusM})`;
+
+/** PostGIS radius search: listings within `radiusM` metres of (lon, lat). Low-level primitive —
+ * it does NOT apply the LEGAL-02 publish-consent gate, so it must never back a public read. The
+ * public website uses `searchPublicListings({ near })`, which layers consent + projection + order. */
 export async function findListingsNear(
   db: Db,
   lon: number,
@@ -98,9 +106,7 @@ export async function findListingsNear(
   return db
     .select()
     .from(listings)
-    .where(
-      sql`ST_DWithin(${listings.geom}, ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography, ${radiusM})`,
-    );
+    .where(withinRadius(lon, lat, radiusM));
 }
 
 /** Dedup block pool row (stage-2 D2.6): coordinates unpacked from PostGIS. */
@@ -176,6 +182,16 @@ export async function grantPublishConsent(
   });
 }
 
+/** CONV-08: geographic radius search (the map/geolocation fast-follow over list-first browse).
+ * Listings within `radiusM` metres of (lon, lat); composes with the structured/text filters and
+ * orders the result set by ascending distance. PostGIS `ST_DWithin`/`ST_Distance` on the geography
+ * column (metres, SRID 4326) — the same primitive the dedup blocker uses. */
+export interface GeoNear {
+  lat: number;
+  lon: number;
+  radiusM: number;
+}
+
 export interface PublicSearch {
   lang: "th" | "en";
   dealType?: DealType;
@@ -187,6 +203,8 @@ export interface PublicSearch {
   saleCondition?: SaleCondition;
   /** Free-text query over landmark + content (trigram-indexed ILIKE). */
   text?: string;
+  /** CONV-08 radius search: restrict to listings within `radiusM` of (lon, lat), nearest first. */
+  near?: GeoNear;
   /** 1-based. */
   page?: number;
   pageSize?: number;
@@ -203,6 +221,13 @@ export interface PublicCardRow {
   /** S3 key of the hero photo's 640px thumb (CONV-02 hero order), or null when no photo has a
    * derivative yet — the website presigns this at render time. v2-lite rows predate the thumb. */
   heroThumbKey: string | null;
+  /** CONV-08: metres from the search point on a radius search, rounded; null on a non-radius search.
+   * The card formats this into a short distance line (e.g. "ห่าง 2.1 กม."). */
+  distanceM: number | null;
+  /** Latitude (SRID 4326), null when the listing has no geom — feeds the results map pins. */
+  lat: number | null;
+  /** Longitude (SRID 4326), null when the listing has no geom. */
+  lon: number | null;
 }
 
 const publiclyVisible = sql`exists (
@@ -234,7 +259,11 @@ const heroThumbKeySql = sql<string | null>`(
   where m.listing_id = "listing".id and m.kind = 'photo' and m.thumb_key is not null
   order by m.hero_index asc nulls last, m.id asc limit 1)`;
 
-/** Browse/search for the public website: consented listings only (LEGAL-02), newest first. */
+const latSql = sql<number | null>`ST_Y(${listings.geom}::geometry)`;
+const lonSql = sql<number | null>`ST_X(${listings.geom}::geometry)`;
+
+/** Browse/search for the public website: consented listings only (LEGAL-02). Newest first, unless a
+ * radius (`near`) is given — then nearest first (CONV-08). All filters AND-compose with the radius. */
 export async function searchPublicListings(
   db: Db,
   q: PublicSearch,
@@ -253,6 +282,17 @@ export async function searchPublicListings(
       or exists (select 1 from ${listingContent} c where c.listing_id = ${listings.id}
         and (c.headline ilike ${pattern} or c.description ilike ${pattern})))`);
   }
+  // CONV-08: radius constraint (the shared `withinRadius` predicate) + the distance expression
+  // (metres) reused by the projection + ORDER BY. The spatial GiST index gates the result set,
+  // then ST_Distance ranks it. Numbers are bound as parameters (never string-interpolated).
+  const searchPoint =
+    q.near && sql`ST_SetSRID(ST_MakePoint(${q.near.lon}, ${q.near.lat}), 4326)::geography`;
+  const distanceSql = searchPoint
+    ? sql<number | null>`round(ST_Distance(${listings.geom}, ${searchPoint})::numeric)::int`
+    : sql<number | null>`null`;
+  if (q.near) {
+    conditions.push(withinRadius(q.near.lon, q.near.lat, q.near.radiusM));
+  }
   const where = and(...conditions);
 
   const pageSize = q.pageSize ?? 24;
@@ -267,6 +307,11 @@ export async function searchPublicListings(
   const page = Math.min(Math.max(q.page ?? 1, 1), lastPage);
   const offset = (page - 1) * pageSize;
 
+  // Nearest-first on a radius search (the natural order for "near me"); newest-first otherwise.
+  const order = q.near
+    ? [sql`${distanceSql} asc`, desc(listings.id)]
+    : [desc(listings.createdAt), desc(listings.id)];
+
   const rows = await db
     .select({
       listing: listings,
@@ -275,10 +320,13 @@ export async function searchPublicListings(
       monthlyRent: monthlyRentSql,
       posterName: posterNameSql,
       heroThumbKey: heroThumbKeySql,
+      distanceM: distanceSql,
+      lat: latSql,
+      lon: lonSql,
     })
     .from(listings)
     .where(where)
-    .orderBy(desc(listings.createdAt), desc(listings.id))
+    .orderBy(...order)
     .limit(pageSize)
     .offset(offset);
 
@@ -341,8 +389,8 @@ export async function getPublicListingDetail(
       photoCount: photoCountSql,
       monthlyRent: monthlyRentSql,
       posterName: posterNameSql,
-      lat: sql<number | null>`ST_Y(${listings.geom}::geometry)`,
-      lon: sql<number | null>`ST_X(${listings.geom}::geometry)`,
+      lat: latSql,
+      lon: lonSql,
     })
     .from(listings)
     .where(and(eq(listings.id, id), publiclyVisible));

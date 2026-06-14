@@ -14,6 +14,9 @@ export const th = {
   "listing.photos": "{count} รูป",
   "listing.updated": "อัปเดต {date}",
   "listing.postedBy": "ลงประกาศโดย {name}",
+  // CONV-08 radius search: distance of a card from the search point.
+  "listing.distanceKm": "ห่าง {km} กม.",
+  "listing.distanceM": "ห่าง {m} ม.",
   "listing.deedSection": "เอกสารสิทธิ์",
   "listing.landArea": "เนื้อที่",
   "listing.floorArea": "พื้นที่ใช้สอย",
@@ -69,6 +72,23 @@ export const th = {
   "filter.search": "ค้นหา",
   "filter.searchPlaceholder": "ค้นหาทำเล โครงการ คำอธิบาย",
   "filter.propertyType": "ประเภททรัพย์",
+
+  // CONV-08 "search near me" geolocation control + radius options + the results map (Stage 4 / 4.2).
+  "near.button": "ค้นหาใกล้ฉัน",
+  "near.locating": "กำลังหาตำแหน่ง…",
+  "near.clear": "ล้างการค้นหาตามตำแหน่ง",
+  "near.radius": "รัศมี",
+  "near.radius1": "1 กม.",
+  "near.radius3": "3 กม.",
+  "near.radius5": "5 กม.",
+  "near.radius10": "10 กม.",
+  "near.active": "กำลังแสดงประกาศใกล้ตำแหน่งที่เลือก",
+  // Graceful failures (COPY-07: what + why + next). The page still works without location.
+  "near.denied": "ไม่ได้รับสิทธิ์เข้าถึงตำแหน่ง — เปิดสิทธิ์ตำแหน่งในเบราว์เซอร์ หรือใช้ตัวกรองด้านบนแทน",
+  "near.unavailable": "เบราว์เซอร์นี้ไม่รองรับการระบุตำแหน่ง — ใช้ตัวกรองด้านบนแทนได้",
+  "near.timeout": "หาตำแหน่งไม่สำเร็จ ลองอีกครั้ง หรือใช้ตัวกรองด้านบน",
+  "map.title": "แผนที่ประกาศ",
+  "map.view": "ดูประกาศ",
   "pager.prev": "ก่อนหน้า",
   "pager.next": "ถัดไป",
   "pager.count": "{total} ประกาศ",

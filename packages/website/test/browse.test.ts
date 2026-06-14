@@ -49,6 +49,49 @@ describe("parseBrowseQuery", () => {
     });
     expect(parse(`q=${"ก".repeat(150)}`).text).toHaveLength(100);
   });
+
+  describe("4.2 radius (near) search", () => {
+    it("parses lat/lng + a valid radius into `near`", () => {
+      expect(parse("lat=18.79&lng=98.99&radius=3000").near).toEqual({
+        lat: 18.79,
+        lng: 98.99,
+        radiusM: 3000,
+      });
+    });
+
+    it("defaults the radius to 3 km when absent", () => {
+      expect(parse("lat=18.79&lng=98.99").near?.radiusM).toBe(3000);
+    });
+
+    it("snaps an off-list or junk radius to the nearest allowed option", () => {
+      expect(parse("lat=18.79&lng=98.99&radius=2200").near?.radiusM).toBe(3000); // 2200→3000
+      expect(parse("lat=18.79&lng=98.99&radius=400").near?.radiusM).toBe(1000); // 400→1000
+      expect(parse("lat=18.79&lng=98.99&radius=99999").near?.radiusM).toBe(10000); // huge→10km cap
+      expect(parse("lat=18.79&lng=98.99&radius=DROP%20TABLE").near?.radiusM).toBe(3000); // junk→default
+    });
+
+    it("drops `near` unless BOTH lat and lng parse as finite numbers", () => {
+      expect(parse("lat=18.79").near).toBeUndefined();
+      expect(parse("lng=98.99").near).toBeUndefined();
+      expect(parse("lat=abc&lng=98.99").near).toBeUndefined();
+      expect(parse("lat=18.79&lng=Infinity").near).toBeUndefined();
+      expect(parse("lat=&lng=").near).toBeUndefined();
+    });
+
+    it("rejects out-of-range WGS84 coordinates (nonsense points)", () => {
+      expect(parse("lat=91&lng=98.99").near).toBeUndefined();
+      expect(parse("lat=18.79&lng=181").near).toBeUndefined();
+      expect(parse("lat=-95&lng=-200").near).toBeUndefined();
+    });
+
+    it("composes with the other filters", () => {
+      expect(parse("deal=rent&lat=18.79&lng=98.99&radius=5000")).toEqual({
+        dealType: "rent",
+        near: { lat: 18.79, lng: 98.99, radiusM: 5000 },
+        page: 1,
+      });
+    });
+  });
 });
 
 describe("browseQueryString", () => {
@@ -71,5 +114,13 @@ describe("browseQueryString", () => {
 
   it("omits page when 1", () => {
     expect(browseQueryString({ dealType: "rent", page: 1 })).toBe("?deal=rent");
+  });
+
+  it("4.2: serializes `near` (lat/lng trimmed to 5 dp + radius) and round-trips", () => {
+    const q: BrowseQuery = { near: { lat: 18.796123, lng: 98.987654, radiusM: 5000 }, page: 1 };
+    const s = browseQueryString(q);
+    expect(s).toBe("?lat=18.79612&lng=98.98765&radius=5000");
+    // Round-trips to the trimmed coordinates (5 dp ≈ 1 m — lossless for a search centre).
+    expect(parse(s.slice(1)).near).toEqual({ lat: 18.79612, lng: 98.98765, radiusM: 5000 });
   });
 });

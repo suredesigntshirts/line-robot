@@ -7,6 +7,7 @@ import {
   createListing,
   createUserWithIdentity,
   dbFromPool,
+  ewktPoint,
   grantPublishConsent,
 } from "@line-robot/db";
 import { migrateDb, startPostgresLocal, stopPostgresLocal } from "@line-robot/db/testing";
@@ -31,6 +32,8 @@ const base = {
   amphoe: "เมืองเชียงใหม่",
   tambon: "สุเทพ",
 };
+// ดอยสุเทพ / มช. back gate — the radius smoke (4.2) searches around this point.
+const SUTHEP = { lon: 98.9525, lat: 18.7953 };
 const visible = await createListing(db, {
   listing: {
     ...base,
@@ -40,6 +43,7 @@ const visible = await createListing(db, {
     priceThb: 4_500_000,
     bedrooms: 3,
     bathrooms: 2,
+    geom: ewktPoint(SUTHEP.lon, SUTHEP.lat),
   },
   content: [
     {
@@ -93,10 +97,26 @@ try {
   check("card carries the poster name (TH-03)", homeTh.body.includes("smoke-owner"));
   check("poster-provided notice on browse (LEGAL-06)", homeTh.body.includes("ข้อมูลจากผู้ลงประกาศ"));
 
-  const textHit = await handler(event("/", "q=" + encodeURIComponent("ดอยสุเทพ")));
+  const textHit = await handler(event("/", `q=${encodeURIComponent("ดอยสุเทพ")}`));
   check("text search finds the listing (S4-I4)", textHit.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
-  const textMiss = await handler(event("/", "q=" + encodeURIComponent("คอนโดลับ")));
+  const textMiss = await handler(event("/", `q=${encodeURIComponent("คอนโดลับ")}`));
   check("text search cannot see unconsented content", textMiss.body.includes('data-state="empty"'));
+
+  // --- radius search (4.2): SSR ?lat&lng&radius runs the PostGIS radius search ---
+  const nearHit = await handler(event("/", `lat=${SUTHEP.lat}&lng=${SUTHEP.lon}&radius=1000`));
+  check("radius search finds the in-radius listing", nearHit.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
+  check("radius search shows the distance line", /ห่าง\s+\d+\s+ม\./.test(nearHit.body));
+  check("radius search renders the results map section", nearHit.body.includes("แผนที่ประกาศ"));
+  // A point ~14 km away (Hang Dong) with a 1 km radius excludes the only listing.
+  const nearMiss = await handler(event("/", "lat=18.6864&lng=98.9192&radius=1000"));
+  check(
+    "radius search excludes out-of-radius listings",
+    nearMiss.body.includes('data-state="empty"'),
+  );
+  // Out-of-WGS84 lat → `near` dropped → plain browse (no map, listing still shown, no 500).
+  const badGeo = await handler(event("/", "lat=999&lng=98.99&radius=3000"));
+  check("invalid coords degrade to plain browse", badGeo.statusCode === 200);
+  check("invalid coords show no map", !badGeo.body.includes("แผนที่ประกาศ"));
 
   const rentOnly = await handler(event("/", "deal=rent"));
   check("rent filter excludes the sale card", !rentOnly.body.includes("บ้านสามนอน"));

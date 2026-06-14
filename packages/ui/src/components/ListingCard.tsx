@@ -100,6 +100,12 @@ export function ListingCard({
             {view.locationLine}
           </div>
         )}
+        {/* CONV-08: distance from the search point on a radius search — the reason this card is here. */}
+        {view.distanceLine && (
+          <div style={{ fontSize: "var(--text-sm)", color: "var(--color-primary-700)" }}>
+            {view.distanceLine}
+          </div>
+        )}
         {view.specLine && (
           <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>
             {view.specLine}

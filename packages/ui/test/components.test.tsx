@@ -188,6 +188,31 @@ describe("ListingCard (CONV-03/04/05/11)", () => {
     expect(screen.getByText(/อัปเดต 2026-06-12/)).toBeDefined();
     expect(screen.getByText("8 รูป")).toBeDefined();
   });
+
+  it("CONV-08: distanceLabel surfaces as a distance line; absent → no line", () => {
+    const withDistance = toCardView({
+      listing: LISTING,
+      headline: "x",
+      heroUrl: null,
+      photoCount: 0,
+      bedroomsLabel: "",
+      bathroomsLabel: "",
+      distanceLabel: t("listing.distanceKm", { km: "2.1" }),
+    });
+    expect(withDistance.distanceLine).toBe("ห่าง 2.1 กม.");
+    render(<ListingCard listing={LISTING} view={withDistance} href="/p/L1" t={t} />);
+    expect(screen.getByText("ห่าง 2.1 กม.")).toBeDefined();
+    // No distanceLabel → empty distanceLine (the card omits the line entirely).
+    const noDistance = toCardView({
+      listing: LISTING,
+      headline: "x",
+      heroUrl: null,
+      photoCount: 0,
+      bedroomsLabel: "",
+      bathroomsLabel: "",
+    });
+    expect(noDistance.distanceLine).toBe("");
+  });
 });
 
 describe("AccordionSection (CONV-05)", () => {
