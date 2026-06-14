@@ -235,3 +235,11 @@ Thin-orchestrator run: one Opus max-effort increment-owner per backlog item; the
 - **4.8 detail-fields render** (`5c2f5a7`) — facing/road/zone + collapsed condo group + rental sub-table on the detail page (projection-only, omit-when-absent, th+en). Verified live on condo + rental listings. Surfaced 4.7 gap: condo floor/building/unit (no `listing_condo` column).
 
 Buildable queue remaining: 4.9 (minor SEO/perf), 4.7 (schema gaps — founder direction given), 4.2 (radius search). Founder-gated/deferred: DF-6 ruling, 4.3 price ruling, 4.4 LINE Login + domain D19, 4.5/4.6, Stage 5+.
+
+**Continuation completed all 8 queued items + the founder-ruled 4.3 extension (9 increments):**
+- **4.9 SEO/perf** (`84c6ecc`+`36f335c`+`6de2d8c`) — GIN trigram index, Accept-Language soft redirect (302→/en/, loop+SEO-safe, live-verified through CloudFront), favicon. Deferred w/ reasoning: TH-10 slugs, og:image-1h-presign (→founder, STS-cred + PII tradeoff), TECH-11.
+- **4.7 schema gaps** (`349914c`+`1e289f4`+`da6996e`) — NPA/`listingType` + `saleCondition` new/resale (domain→db migration 0007), filters + detail surfacing; **NPA badge retoned to calm violet `oklch(.96 .03 295)`, not danger-red** (founder tone ruling), auction listings keep the 3 DIST-02 caveats. Condo floor/unit logged as a separate founder OK.
+- **4.2 radius search** (`8839596`) — SSR PostGIS radius via `searchPublicListings({near})` (consent-gated, NOT the ungated `findListingsNear`), geolocation "near me" island + lazy Leaflet/OSM pin map; verified curl (monotonic by radius, 1km boundary) + Playwright (mocked geolocation, denied-graceful, JS-off list still works).
+- **4.3 contextual price filter** (`91cd0d4`+`6b55fca`) — one range relabeling Buy↔Rent (`price_thb` vs `monthly_rent`), bands from `a2-market-landscape-north.md`; verified no cross-column leak (wrong-context band safely dropped).
+
+**Both never-run gates done: Stage 2 GATE-PASS (A8), Stage 4 CONDITIONAL-PASS (4.10). All Stages 0–4 gated.** Buildable queue EXHAUSTED → handoff in `MORNING.md`. Usage at wrap: 16% of the rolling 5h window (peaked ~24%); pacing never engaged. `origin/main` = `6b55fca`, tree clean. Founder queue: DF-6 descope, og:image-PII, condo floor/unit, domain D19 (→LINE Login 4.4), D7 consent, Stage 5 go, bless Stage 1–3 deviations.
