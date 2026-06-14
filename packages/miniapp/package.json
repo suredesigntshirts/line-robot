@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build:e2e": "vite build --mode e2e",
-    "test:e2e": "npm run build:e2e && playwright test"
+    "test:e2e": "npm run build:e2e && playwright test && playwright test --config playwright.realapi.config.ts",
+    "test:e2e:api": "npm run build:e2e && playwright test --config playwright.realapi.config.ts"
   },
   "dependencies": {
     "@fontsource/noto-sans-thai": "^5.2.8",
@@ -22,6 +23,7 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@line-robot/db": "*",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.3.1",
     "@testing-library/react": "^16.3.0",
