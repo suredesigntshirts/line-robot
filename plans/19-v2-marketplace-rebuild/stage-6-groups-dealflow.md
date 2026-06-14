@@ -140,9 +140,15 @@ FOUNDER-GATED** (like Stage-5's migrate) — write + test it against Docker-PG; 
   list-vetted-by-criteria, broker_preference write/read. No LINE, no HTTP — pure data+logic. Docker-PG integration tests.
 - **INC-B2 — `packages/api` endpoints + SERVER-SIDE role gates.** Add `requireRole('admin')`/`requireVetted` to the
   `Repo`/handler (mirror `requireClaimant`). Endpoints: interest-flag create/list; role-application submit (with
-  preferences); admin vetting list + approve/reject; admin moderation list + resolve; quick-sale flag toggle;
-  quick-quote trigger (→ `matchVettedUsers` → enqueue push); quote submit. The quick-quote recipient set is computed
-  server-side from approved-vetted only.
+  preferences); admin vetting list + approve/reject; admin moderation list + resolve; quick-sale flag toggle
+  (sets `urgency='quick_sale'`); quote submit (vetted-gated) + list. **DESIGN CALL (B2/B4 boundary, built
+  2026-06-15):** the quick-quote **MATCH + Flex push is INC-B4** (bot, at sweep time), NOT the api — keeps LINE
+  out of `packages/api` (hexagonal) + avoids a push-intent table. The server-side approved-vetted filter
+  (`listApprovedVettedUsers`) holds wherever `matchVettedUsers` is called → a push can NEVER reach an unvetted
+  user. **Moderation v1 = admin REVIEW only** (list pending + approve/reject the `moderation_item`); the
+  "approve → publicly-visible" BLOCK (a NOT-EXISTS-pending predicate on the public query / a publish guard —
+  cross-cutting into the website/publish path) is **DEFERRED + QUEUED** (the acceptance-criterion "approve sets
+  the listing to active" needs it; nothing reads `moderation_item.status` in claim/publish today).
 - **INC-B3 — mini-app UI** (additive screens/actions on the Stage-5 SPA; Part-A functional-test discipline —
   every interactive feature WORKS + a biting e2e drives it, against the `e2e-api/` real-backend harness): interest-
   flag action on the detail; role-application screen (with preference capture); admin screens (vetting queue +
