@@ -17,6 +17,7 @@ import {
   listingContent,
   listingEvents,
   listingMedia,
+  listingNotes,
   listingRental,
   listings,
   moderationItems,
@@ -578,12 +579,19 @@ export async function updateRentalMonthlyRent(
   await db.update(listingRental).set({ monthlyRent }).where(eq(listingRental.listingId, id));
 }
 
-/** Delete a listing and every satellite `createListing` can write, plus its follow-up events, in one
- * transaction (the FKs are no-cascade). Scope = bot-managed listings (pipeline-extracted, not yet
- * published / engaged); Stage 5/6 engagement tables aren't populated for these and aren't touched. */
+/** Delete a listing and every satellite that has a no-cascade FK to it, in one transaction. Scope =
+ * bot-managed listings (pipeline-extracted). `listing_note` (Stage 5 per-user CRM) is deleted here
+ * because a listing can accrue notes independently of being claimed, so the bot's delete must not
+ * FK-violate on it.
+ *
+ * NOTE: `saved_listing`, `viewing`, and `publish_consent` also FK to `listing` (no-cascade). They are
+ * NOT populated for the pipeline-extracted listings this path deletes, so they're intentionally
+ * omitted — but any future delete path that can run after a listing is saved/booked/published MUST add
+ * the matching deletes here (or the transaction will FK-violate). */
 export async function deleteListingCascade(db: Db, id: string): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.delete(listingEvents).where(eq(listingEvents.listingId, id));
+    await tx.delete(listingNotes).where(eq(listingNotes.listingId, id));
     await tx.delete(listingMedia).where(eq(listingMedia.listingId, id));
     await tx.delete(listingContent).where(eq(listingContent.listingId, id));
     await tx.delete(listingAmenities).where(eq(listingAmenities.listingId, id));

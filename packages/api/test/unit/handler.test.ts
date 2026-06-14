@@ -9,10 +9,9 @@ import type {
   ViewingRow,
 } from "@line-robot/db";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { type ApiDeps, handleApi, type Logger } from "../../src/handler.ts";
+import { type ApiDeps, handleApi, type Logger, type Repo } from "../../src/handler.ts";
 import type { HttpRequest } from "../../src/http.ts";
 import type { LineTokenVerifier } from "../../src/ports/lineTokenVerifier.ts";
-import type { Repo } from "../../src/repo.ts";
 
 // --- fakes ------------------------------------------------------------------
 
@@ -152,6 +151,36 @@ describe("auth gate", () => {
     expect(repo.createLineUser).toHaveBeenCalledWith("LINE user", LINE_USER);
   });
 
+  it("survives a concurrent first-contact create race (unique-violation → re-read the winner)", async () => {
+    // 1st lookup misses → create throws the unique-index violation (the other request won) → 2nd
+    // lookup finds the winner's row. The request succeeds instead of 500ing.
+    const winner: UserRow = { id: DB_USER_ID } as UserRow;
+    const find = vi
+      .fn<Repo["findUserByIdentity"]>()
+      .mockResolvedValueOnce(undefined) // first contact: miss
+      .mockResolvedValueOnce(winner); // after the failed create: the winner's row
+    const repo = makeRepo({
+      findUserByIdentity: find,
+      createLineUser: vi.fn(async () => {
+        throw new Error("duplicate key value violates unique constraint");
+      }),
+    });
+    const r = await handleApi(deps(repo), req("GET", "/me/listings"));
+    expect(r.statusCode).toBe(200);
+    expect(find).toHaveBeenCalledTimes(2);
+  });
+
+  it("a genuine create failure (no winner on re-read) still 500s", async () => {
+    const repo = makeRepo({
+      findUserByIdentity: vi.fn(async () => undefined), // miss, and miss again on re-read
+      createLineUser: vi.fn(async () => {
+        throw new Error("db down");
+      }),
+    });
+    const r = await handleApi(deps(repo), req("GET", "/me/listings"));
+    expect(r.statusCode).toBe(500);
+  });
+
   it("500s (no leak) when the repo throws", async () => {
     const repo = makeRepo({
       listMyListings: vi.fn(async () => {
@@ -262,36 +291,73 @@ describe("GET /properties/{id} (detail authz)", () => {
   });
 });
 
-// --- claim (optimistic lock) ------------------------------------------------
+// --- claim (source-group authz gate + optimistic lock) ----------------------
+
+/** A repo where the caller IS a source-group member (the authz precondition to claim). */
+function memberClaimRepo(over: Partial<Repo> = {}): Repo {
+  return makeRepo({ isGroupMember: vi.fn(async () => true), ...over });
+}
 
 describe("POST /properties/{id}/claim", () => {
-  it("200 on a fresh claim", async () => {
-    const repo = makeRepo({ claimListing: vi.fn(async () => "claimed" as ClaimResult) });
+  it("a source-group member can claim a fresh listing (200)", async () => {
+    const repo = memberClaimRepo({ claimListing: vi.fn(async () => "claimed" as ClaimResult) });
     const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
     expect(r.statusCode).toBe(200);
     expect(bodyOf(r)).toEqual({ status: "claimed" });
+    expect(repo.isGroupMember).toHaveBeenCalledWith(GROUP_ID, DB_USER_ID);
     expect(repo.claimListing).toHaveBeenCalledWith(LISTING_ID, DB_USER_ID);
   });
 
+  it("a NON-member is denied (404, listing existence not revealed) and never reaches the lock", async () => {
+    const repo = makeRepo({
+      isGroupMember: vi.fn(async () => false),
+      claimListing: vi.fn(async () => "claimed" as ClaimResult),
+    });
+    const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
+    expect(r.statusCode).toBe(404);
+    expect(bodyOf(r)).toEqual({ error: "not_found" });
+    expect(repo.claimListing).not.toHaveBeenCalled();
+  });
+
+  it("a listing with NO source group cannot be group-claimed (404)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () => portalDetail({ sourceGroupId: null })),
+      // isGroupMember(null, …) returns false in the real repo; the fake honours that contract.
+      isGroupMember: vi.fn(async (groupId) => groupId !== null),
+      claimListing: vi.fn(async () => "claimed" as ClaimResult),
+    });
+    const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
+    expect(r.statusCode).toBe(404);
+    expect(repo.claimListing).not.toHaveBeenCalled();
+  });
+
   it("200 + already_yours on a same-user re-claim (idempotent)", async () => {
-    const repo = makeRepo({ claimListing: vi.fn(async () => "already_yours" as ClaimResult) });
+    const repo = memberClaimRepo({
+      claimListing: vi.fn(async () => "already_yours" as ClaimResult),
+    });
     const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
     expect(r.statusCode).toBe(200);
     expect(bodyOf(r).status).toBe("already_yours");
   });
 
-  it("409 with a clear message when another user already claimed it", async () => {
-    const repo = makeRepo({ claimListing: vi.fn(async () => "already_claimed" as ClaimResult) });
+  it("409 with a clear message when another member already claimed it (within-group race)", async () => {
+    const repo = memberClaimRepo({
+      claimListing: vi.fn(async () => "already_claimed" as ClaimResult),
+    });
     const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
     expect(r.statusCode).toBe(409);
     expect(bodyOf(r).error).toBe("already_claimed");
     expect(typeof bodyOf(r).message).toBe("string");
   });
 
-  it("404 when the listing doesn't exist", async () => {
-    const repo = makeRepo({ claimListing: vi.fn(async () => "not_found" as ClaimResult) });
+  it("404 when the listing doesn't exist (gate short-circuits before the lock)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () => undefined),
+      claimListing: vi.fn(async () => "not_found" as ClaimResult),
+    });
     const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
     expect(r.statusCode).toBe(404);
+    expect(repo.claimListing).not.toHaveBeenCalled();
   });
 });
 

@@ -10,6 +10,8 @@ import {
   createViewing,
   type Db,
   dbFromPool,
+  deleteListingCascade,
+  getListing,
   getPortalListingDetail,
   isGroupMember,
   keepListingPrivate,
@@ -265,5 +267,21 @@ describe("markClaimInvited (one-shot claim-DM guard)", () => {
     expect(await markClaimInvited(db, id, new Date())).toBe(false);
     const detail = await getPortalListingDetail(db, id);
     expect(detail?.listing.claimInvitedAt?.toISOString()).toBe(at.toISOString());
+  });
+});
+
+describe("deleteListingCascade with a listing_note (regression: FK no-action)", () => {
+  it("deletes a listing that has notes without an FK violation", async () => {
+    const id = await newListing(2_100_000);
+    // A note's FK to listing is ON DELETE no action — before the fix, this made the cascade throw.
+    await addListingNote(db, id, alice, "a note that would block the delete");
+    await expect(deleteListingCascade(db, id)).resolves.toBeUndefined();
+    expect(await getListing(db, id)).toBeUndefined();
+    // The note is gone too (same transaction), so no orphan rows linger.
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM listing_note WHERE listing_id = $1",
+      [id],
+    );
+    expect(rows[0].n).toBe(0);
   });
 });

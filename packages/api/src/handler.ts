@@ -1,8 +1,45 @@
-import type { PortalListingDetail } from "@line-robot/db";
+import type {
+  ClaimResult,
+  ListingNoteRow,
+  MyListingCard,
+  PortalListingDetail,
+  SavedListingCard,
+  UserRow,
+  ViewingCard,
+  ViewingRow,
+} from "@line-robot/db";
 import type { Presign } from "./adapters/s3Presigner.ts";
 import { bearerToken, type HttpRequest, type HttpResponse, json, parseJsonBody } from "./http.ts";
 import type { LineTokenVerifier } from "./ports/lineTokenVerifier.ts";
-import type { Repo } from "./repo.ts";
+
+// The DB seam for the handler. DB is a real seam (named alongside LLM/LINE in the project rules), and
+// this interface is what lets the handler be unit-tested as pure logic against a fake — no Postgres,
+// the same port-driven pattern the bot's readApiHandler uses. Every member is the matching
+// @line-robot/db public-barrel function with its leading `db` bound; the production binding is an
+// inline object literal in lambda/api.ts's buildDeps(). The handler reads/writes the catalog ONLY
+// through this — never a deep import of schema.ts or another package's internals.
+export interface Repo {
+  findUserByIdentity(provider: "line", subject: string): Promise<UserRow | undefined>;
+  createLineUser(displayName: string, subject: string): Promise<UserRow>;
+  getPortalListingDetail(id: string): Promise<PortalListingDetail | undefined>;
+  isGroupMember(groupId: string | null, userId: string): Promise<boolean>;
+  listMyListings(userId: string): Promise<MyListingCard[]>;
+  claimListing(listingId: string, userId: string): Promise<ClaimResult>;
+  publishListing(listingId: string, userId: string, consentVersion: string): Promise<void>;
+  keepListingPrivate(listingId: string): Promise<void>;
+  updateListingFields(id: string, patch: Record<string, unknown>): Promise<void>;
+  updateRentalMonthlyRent(id: string, monthlyRent: number): Promise<void>;
+  listSavedListingsForUser(userId: string): Promise<SavedListingCard[]>;
+  saveListing(listingId: string, userId: string): Promise<void>;
+  unsaveListing(listingId: string, userId: string): Promise<void>;
+  listViewingsForUser(
+    userId: string,
+    now: Date,
+  ): Promise<{ upcoming: ViewingCard[]; past: ViewingCard[] }>;
+  createViewing(listingId: string, userId: string, scheduledAt: Date): Promise<ViewingRow>;
+  listNotesForUserListing(listingId: string, userId: string): Promise<ListingNoteRow[]>;
+  addListingNote(listingId: string, userId: string, body: string): Promise<ListingNoteRow>;
+}
 
 // The mini-app API handler — independent of the Lambda Function URL plumbing. It turns a LIFF id-token
 // (the `Authorization: Bearer …` header) into the caller's LINE user id, resolves that to a Postgres
@@ -93,12 +130,24 @@ function toCardDto(
 
 /** Resolve the verified LINE user id to a Postgres user, creating one on first contact (D-S1-6). The
  * display name is unknown at this seam (we only have the id-token subject), so a placeholder is used;
- * the bot/profile flow can backfill it later. */
+ * the bot/profile flow can backfill it later.
+ *
+ * Race-safe: two concurrent first requests from the same subject both miss the lookup and both try to
+ * create. The `user_identity_provider_subject` unique index lets at most one win; the loser's insert
+ * throws, so we re-read and use the winner's row instead of 500ing. (The losing transaction may leave
+ * an orphaned `user` row with no identity — harmless: it's unreachable, never returned by any identity
+ * lookup. A periodic orphan sweep is a later cleanup, not a correctness issue.) */
 async function resolveUser(repo: Repo, lineUserId: string): Promise<string> {
   const existing = await repo.findUserByIdentity("line", lineUserId);
   if (existing) return existing.id;
-  const created = await repo.createLineUser("LINE user", lineUserId);
-  return created.id;
+  try {
+    const created = await repo.createLineUser("LINE user", lineUserId);
+    return created.id;
+  } catch (error) {
+    const winner = await repo.findUserByIdentity("line", lineUserId);
+    if (winner) return winner.id;
+    throw error; // a real failure (not a lost create race) — let the handler 500 it.
+  }
 }
 
 // --- authorization ----------------------------------------------------------
@@ -169,6 +218,18 @@ async function handleDetail(deps: ApiDeps, userId: string, id: string): Promise<
 }
 
 async function handleClaim(deps: ApiDeps, userId: string, id: string): Promise<HttpResponse> {
+  // AUTHZ GATE (security): only a member of the listing's source group may claim it — otherwise any
+  // authed user who learns a listing UUID (e.g. by viewing the detail as a group member) could claim
+  // someone else's property and inherit the claimant-gated publish/keep-private/edit rights. A
+  // non-member (or a listing with NO source group — it can't be group-claimed in Stage 5) → 404, the
+  // same response as a missing listing so existence isn't revealed. The optimistic lock below still
+  // resolves WITHIN-group races. (Build C must ensure source-group memberships are populated by the
+  // live ingest path before this endpoint is reachable in prod — see the build report.)
+  const detail = await deps.repo.getPortalListingDetail(id);
+  if (!detail) return json(404, { error: "not_found" });
+  const member = await deps.repo.isGroupMember(detail.listing.sourceGroupId, userId);
+  if (!member) return json(404, { error: "not_found" });
+
   const result = await deps.repo.claimListing(id, userId);
   switch (result) {
     case "claimed":
@@ -367,16 +428,16 @@ type PropertyRoute = (
 ) => Promise<HttpResponse>;
 
 const PROPERTY_ROUTES: ReadonlyArray<[string, string, PropertyRoute]> = [
-  ["POST", "/claim", (d, u, id) => handleClaim(d, u, id)],
-  ["POST", "/publish", (d, u, id) => handlePublish(d, u, id)],
-  ["POST", "/keep-private", (d, u, id) => handleKeepPrivate(d, u, id)],
-  ["POST", "/save", (d, u, id) => handleSave(d, u, id)],
-  ["DELETE", "/save", (d, u, id) => handleUnsave(d, u, id)],
-  ["GET", "/notes", (d, u, id) => handleNotesList(d, u, id)],
-  ["POST", "/notes", (d, u, id, body) => handleAddNote(d, u, id, body)],
-  ["POST", "/viewings", (d, u, id, body) => handleCreateViewing(d, u, id, body)],
-  ["PATCH", "", (d, u, id, body) => handleEdit(d, u, id, body)],
-  ["GET", "", (d, u, id) => handleDetail(d, u, id)],
+  ["POST", "/claim", handleClaim],
+  ["POST", "/publish", handlePublish],
+  ["POST", "/keep-private", handleKeepPrivate],
+  ["POST", "/save", handleSave],
+  ["DELETE", "/save", handleUnsave],
+  ["GET", "/notes", handleNotesList],
+  ["POST", "/notes", handleAddNote],
+  ["POST", "/viewings", handleCreateViewing],
+  ["PATCH", "", handleEdit],
+  ["GET", "", handleDetail],
 ];
 
 /** Route a verified request (the user is already resolved). Returns 404 for any unmatched route. */
