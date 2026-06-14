@@ -319,3 +319,15 @@ design-quality skills (`/frontend-review`, `/alignment-review`). Usage at start 
   when they're present) — the adversarial audit is also perceptually unreliable, so measurable styling
   moved to deterministic invariants and the orchestrator verifies audit visual-claims against pixels.
   FOUNDER-QUEUE #2 (Thai 13px vs mock 11px), #3 (LINE-green CTA vs mock blue).
+
+**Phase 2 pass 2 — website chrome → direction-a — DONE + committed.** Sticky trust-blue app-header
+(house-icon + site-title brand; no invented wordmark), rounded search pill, h1 section header with an
+orange accent underline + results count, footer (all pages). `HomePage/FilterBar/BrowseResults/Base`.
+e2e 72/72; my own pixel check confirms the chrome reads as direction-a (chips=pass3, detail=pass4).
+Skills: both ALIGNED on the chrome. alignment-review cited source tokens AGAIN (3rd time) → **A2**:
+hardened §3 to require citing a NAMED e2e computed-style assertion (UNVERIFIED if none) — structural,
+since prose ("don't cite source") never bit. Pass-2 audits BOTH over-reached (frontend audit claimed
+the underline was absent on mobile — it's present; alignment audit invented header nav/hamburger that
+don't exist) — reinforcing: audit agents reason about PROCESS well but are unreliable on PIXELS/FACTS;
+orchestrator verifies every audit claim vs ground truth. FOUNDER-QUEUE #4 (brand wordmark), #5 (header
+search placement).

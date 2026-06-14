@@ -16,6 +16,7 @@ import "@fontsource/noto-sans-thai/latin-700.css";
 // vars + utilities) → the TECH-06 oklch/old-Android fallback. One stylesheet, the single token
 // source. (Was: raw theme.css + a hand-restated fallbacks.css, because the site didn't run Tailwind.)
 import "../styles/global.css";
+import { createTranslator } from "@line-robot/ui";
 import ogDefault from "../assets/og-default.png";
 
 interface Props {
@@ -28,7 +29,8 @@ interface Props {
 }
 
 const { title, description, canonicalPath, ogImage } = Astro.props;
-const locale = Astro.currentLocale ?? "th";
+const locale = Astro.currentLocale === "en" ? "en" : "th";
+const t = createTranslator(locale);
 // astro.config.mjs always sets `site` (SITE_URL or its placeholder default).
 const site = Astro.site;
 if (!site) throw new Error("Astro.site missing — set `site` in astro.config.mjs");
@@ -64,7 +66,14 @@ const ogImageUrl = ogImage ?? new URL(ogDefault.src, site).href;
     <meta name="twitter:card" content="summary_large_image" />
     <slot name="head" />
   </head>
-  <body style="margin: 0; background: var(--color-bg); color: var(--color-text); font-family: var(--font-body-th); line-height: var(--leading-body);">
-    <slot />
+  <body class="flex min-h-dvh flex-col bg-bg font-body-th text-text leading-relaxed">
+    <div class="flex-1"><slot /></div>
+    {/* Direction-a footer chrome (all pages): muted brand + tagline. */}
+    <footer class="mt-8 border-border border-t bg-surface">
+      <div class="mx-auto max-w-5xl px-4 py-6 text-center font-body-th text-sm text-text-2 leading-relaxed">
+        <div class="font-heading-th font-semibold text-text">{t("home.title")}</div>
+        <p class="mt-1 mb-0">{t("home.description")}</p>
+      </div>
+    </footer>
   </body>
 </html>

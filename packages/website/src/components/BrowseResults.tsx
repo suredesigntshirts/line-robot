@@ -49,10 +49,7 @@ export function BrowseResults({
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--spacing-4)" }}>
-      <span style={{ color: "var(--color-text-2)", fontSize: "var(--text-sm)" }}>
-        {t("pager.count", { total })}
-      </span>
+    <div className="grid gap-4">
       <CardGrid>
         {rows.map(
           ({ listing, headline, photoCount, monthlyRent, posterName, heroUrl, distanceM }) => (
@@ -89,20 +86,20 @@ export function BrowseResults({
           ),
         )}
       </CardGrid>
-      <p style={{ color: "var(--color-text-2)", fontSize: "var(--text-xs)", margin: 0 }}>
+      <p className="m-0 font-body-th text-sm text-text-2 leading-relaxed">
         {t("legal.posterProvided")}
       </p>
-      <nav style={{ display: "flex", gap: "var(--spacing-3)", justifyContent: "center" }}>
+      <nav className="flex items-center justify-center gap-4 font-body-th">
         {query.page > 1 && (
-          <a href={pageLink(query.page - 1)} rel="prev">
+          <a href={pageLink(query.page - 1)} rel="prev" className="font-semibold text-primary-600">
             ← {t("pager.prev")}
           </a>
         )}
-        <span style={{ color: "var(--color-text-2)" }}>
+        <span className="text-sm text-text-2 leading-relaxed">
           {query.page} / {lastPage}
         </span>
         {query.page < lastPage && (
-          <a href={pageLink(query.page + 1)} rel="next">
+          <a href={pageLink(query.page + 1)} rel="next" className="font-semibold text-primary-600">
             {t("pager.next")} →
           </a>
         )}

@@ -120,33 +120,42 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
   };
 
   return (
-    <div style={{ display: "grid", gap: "var(--spacing-3)" }}>
+    <div className="grid gap-3">
       <form
         onSubmit={(e) => {
           e.preventDefault();
           navigate(value); // same selection; picks up the typed text
         }}
-        style={{ display: "flex", gap: "var(--spacing-2)" }}
+        className="flex gap-2"
       >
-        <input
-          type="search"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t("filter.searchPlaceholder")}
-          maxLength={100}
-          lang={locale}
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: "var(--spacing-2) var(--spacing-3)",
-            borderRadius: "var(--radius-md)",
-            border: "1px solid var(--color-border-2)",
-            background: "var(--color-surface)",
-            color: "var(--color-text)",
-            fontSize: "var(--text-base)",
-            fontFamily: "var(--font-body-th)",
-          }}
-        />
+        {/* Direction-a search-box: a rounded pill (surface-2) with a leading search glyph. */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-full border border-border bg-surface-2 px-3">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-text-disabled"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="search"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t("filter.searchPlaceholder")}
+            maxLength={100}
+            lang={locale}
+            className="min-w-0 flex-1 border-0 bg-transparent py-2 font-body-th text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
+          />
+        </div>
         <button type="submit" className={primaryButtonClass}>
           {t("filter.search")}
         </button>

@@ -119,6 +119,25 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
   COVERAGE/EVIDENCE/BACKPRESSURE reasoning (the alignment audit found a real bug) — just not as a
   ground-truth oracle for pixels.
 
+### 2026-06-14 · p2-pass2-chrome · alignment-review A2 — STRUCTURAL fix for the source-citation slip
+- **Audit ref:** `audits/alignment-review-pass2-1.md`. The run cited `--color-primary-600: oklch(…)` as
+  TECH-06 evidence — the **3rd recurrence**; A1's prose ("don't cite source") demonstrably did NOT bite.
+- **Fix (`alignment-review/SKILL.md` §3):** measurable styling IDs' `evidence` MUST be the **NAME of a
+  deterministic computed-style assertion** in `/frontend-review`'s e2e suite (e.g.
+  `assertThaiBodyLineHeight`), never the value/token/screenshot; if no assertion covers it → mark
+  **UNVERIFIED** and require it be added. Structural, because citing an assertion NAME leaves no value to
+  copy — the slip becomes impossible (where A1's prose ask was ignorable).
+- **Bite:** verified on the remaining passes (the next alignment-review run on a measurable-styling
+  surface must cite an assertion name or UNVERIFIED). The deterministic invariants (TH-07, TECH-06
+  token-resolution) already make the underlying CATCH agent-independent, so a residual slip can't produce
+  a false pass.
+- **META reinforcement:** the pass-2 audits re-confirmed the unreliability finding — the frontend-review
+  audit over-flagged (claimed the section-header underline was absent on mobile; it's present), and the
+  alignment audit's speculative "missed issues" (header nav/hamburger/toggle → TH-07/TECH-01/TH-11) were
+  fictions (our header is one static `<a>`). Audit agents reason well about PROCESS (the A2 recommendation
+  was excellent) but are unreliable about specific PIXELS/FACTS — so the orchestrator verifies every audit
+  claim against ground truth before acting, and measurable properties live in deterministic invariants.
+
 ---
 
 ## SUMMARY (written at run end)
