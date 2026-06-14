@@ -1,9 +1,15 @@
 /**
- * The CRM listing card (my-listings). Mock-faithful to `explore-stage5-2-mylistings.html` → `.crm-card`:
- * a horizontal thumbnail + info block (lifecycle badge row, 2-line title, bold price, muted meta line),
- * a left status accent, and tap-to-open. Authored in Tailwind utilities reading the shared `@theme`
- * tokens — NOT the domain-entity-driven shared `ListingCard` (which needs ~40 Listing fields the slim
- * api card DTO doesn't carry) and NOT the inline-styled shared `Gallery`.
+ * The CRM listing card (my-listings) — Stage-5 PHOTO-FORWARD layout. Mock-faithful to the
+ * direction-a-baania-clean card language (large 16/10 hero, the deal pill OVERLAID on the photo, a
+ * photo-present chip) crossed with explore-stage5-2-mylistings.html's lifecycle treatment (a thick
+ * left-accent stripe + the DF-4 lifecycle badge). Authored in Tailwind utilities reading the shared
+ * `@theme` tokens — NOT the domain-entity-driven shared `ListingCard` (which needs ~40 Listing fields
+ * the slim api card DTO doesn't carry) and NOT the inline-styled shared `Gallery`.
+ *
+ * Content stays schema-driven: where a listing has NO photo (`heroUrl` absent — common), the hero
+ * renders a deliberate empty state (a property-type glyph on a token gradient surface), never an empty
+ * box. The slim card DTO carries no photo COUNT, so the chip is a "has photos" indicator (📷 มีรูป),
+ * not a fabricated "N รูป" (queued S5-12).
  *
  * Markers for the LIFF-SPA frontend gate: `data-listing-card` (so the Thai-body line-height invariant
  * scopes here) on the card; the Thai title/meta are body text the TH-07 net measures.
@@ -11,6 +17,7 @@
 import type { Translator } from "@line-robot/ui";
 import {
   cardHeadline,
+  dealLabelKey,
   type LifecycleKind,
   lifecycleKind,
   locationLine,
@@ -21,14 +28,15 @@ import type { ListingCardDto } from "../lib/types.ts";
 import { HouseIcon } from "./icons.tsx";
 import { LifecycleBadge } from "./LifecycleBadge.tsx";
 
-// Left-accent colour per lifecycle (mock: .status-active/.status-offer/.status-draft/.status-closed).
+// Thicker left-accent stripe per lifecycle (S5-5: was 3px → 4px to read as in the mock). Static so
+// Tailwind's scanner keeps every class literally.
 const ACCENT: Record<LifecycleKind, string> = {
-  active: "border-l-[3px] border-l-[var(--color-success)]",
-  offer: "border-l-[3px] border-l-[var(--badge-reserved-text)]",
-  draft: "border-l-[3px] border-l-[var(--color-text-disabled)]",
-  sold: "border-l-[3px] border-l-[var(--color-danger)]",
-  rented: "border-l-[3px] border-l-[var(--color-danger)]",
-  withdrawn: "border-l-[3px] border-l-[var(--color-text-disabled)]",
+  active: "border-l-4 border-l-[var(--color-success)]",
+  offer: "border-l-4 border-l-[var(--badge-reserved-text)]",
+  draft: "border-l-4 border-l-[var(--color-text-disabled)]",
+  sold: "border-l-4 border-l-[var(--color-danger)]",
+  rented: "border-l-4 border-l-[var(--color-danger)]",
+  withdrawn: "border-l-4 border-l-[var(--color-text-disabled)]",
 };
 
 export function MyListingCard({
@@ -48,6 +56,8 @@ export function MyListingCard({
   const closed = kind === "sold" || kind === "rented";
   // A rental shows its rent (now on the card DTO) with the per-month frame; a sale shows priceThb.
   const showRentTrailer = isRent && listing.monthlyRent !== null;
+  // ONE deal-word source (display.ts) shared with the composed headline so the pill can't drift.
+  const dealLabel = t(dealLabelKey(listing.dealType));
 
   return (
     <button
@@ -55,11 +65,12 @@ export function MyListingCard({
       data-listing-card={listing.id}
       onClick={onOpen}
       lang="th"
-      className={`flex w-full overflow-hidden rounded-lg border border-border bg-surface text-left font-body-th text-text shadow-sm transition-shadow hover:shadow-md ${ACCENT[kind]}`}
+      className={`block w-full overflow-hidden rounded-lg border border-border bg-surface text-left font-body-th text-text shadow-sm transition-shadow hover:shadow-md ${ACCENT[kind]}`}
     >
-      {/* Thumbnail (gradient + camera/home glyph, or the presigned hero). */}
+      {/* Photo-forward hero: full-width 16/10, deal pill overlaid top-left, photo-present chip
+          bottom-right. No photo → a deliberate property-type glyph on a token gradient surface. */}
       <div
-        className={`relative flex aspect-[4/3] w-24 shrink-0 items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 text-primary-300 ${
+        className={`relative aspect-[16/10] w-full overflow-hidden bg-gradient-to-br from-primary-50 to-primary-100 ${
           closed ? "opacity-75 grayscale" : ""
         }`}
       >
@@ -71,12 +82,31 @@ export function MyListingCard({
             loading="lazy"
           />
         ) : (
-          <HouseIcon />
+          <span className="absolute inset-0 flex items-center justify-center text-primary-300">
+            <HouseIcon size={40} />
+          </span>
+        )}
+        {/* Deal-type pill (ขาย / ให้เช่า) — overlaid, frosted-white on the photo (direction-a). */}
+        <span
+          data-deal-pill
+          className="absolute top-2 left-2 inline-flex items-center rounded-full border border-primary-200 bg-white/90 px-2 py-0.5 font-body-th font-bold text-primary-600 text-xs leading-none backdrop-blur-sm"
+        >
+          {dealLabel}
+        </span>
+        {/* Photo-present chip (📷) — only when the listing actually has a photo (no count in the DTO). */}
+        {listing.heroUrl && (
+          <span
+            data-photo-chip
+            className="absolute right-2 bottom-2 inline-flex items-center gap-1 rounded-sm bg-text/75 px-1.5 py-0.5 font-latin font-medium text-white text-xs leading-none"
+          >
+            <span aria-hidden="true">📷</span>
+            {t("crm.hasPhotos")}
+          </span>
         )}
       </div>
 
       {/* Info block. */}
-      <div className="flex min-w-0 flex-1 flex-col gap-1 p-2.5">
+      <div className="flex min-w-0 flex-col gap-1.5 p-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <LifecycleBadge kind={kind} t={t} />
         </div>
@@ -89,7 +119,7 @@ export function MyListingCard({
           {headline}
         </div>
         {/* Price — Latin numerals, bold; a rental trails with the ค่าเช่า/เดือน frame (MKT-03). */}
-        <div className="font-latin font-bold text-text text-md leading-tight tracking-tight">
+        <div className="font-latin font-bold text-md text-text leading-tight tracking-tight">
           {priceText(listing)}
           {showRentTrailer && (
             <span className="ml-1 font-body-th font-normal text-text-2 text-xs leading-relaxed">

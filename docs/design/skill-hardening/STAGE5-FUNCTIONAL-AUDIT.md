@@ -49,7 +49,7 @@ functional outcome (not style/existence/optimistic-only).
 - **INC-2 — Real-backend e2e harness** (Phase 2 foundation): Docker-PG + in-process `handleApi` + stubbed verifier +
   fake-S3, separate playwright config; seed groups + membership (claim/detail/notes/viewings authz gate on it).
   Enables true round-trips for INC-4/5/6.
-- **INC-3 — My-listings home → mock fidelity** (mostly styling + tab functional test; no backend dep): photo-forward
+- **INC-3 — My-listings home → mock fidelity** ✅ DONE (committed; e2e 58 green; filter/search/tab controls work+bite; TH-07 net hole fixed). (mostly styling + tab functional test; no backend dep): photo-forward
   cards, deal pill overlaid, photo-count chip, search pill, thicker lifecycle stripe, section headers, identity
   chrome (LIFF profile/schema or queue), wordmark; resolve S5-1/5/9 etc.
 - **INC-4 — Claim/publish/keep-private** fidelity + **real-backend** functional tests (publish, keep-private, 409).

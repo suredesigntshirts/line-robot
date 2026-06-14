@@ -8,6 +8,7 @@
 import type { Translator, UiLocale } from "@line-robot/ui";
 import { createContext, useContext } from "react";
 import type { ApiClient } from "../lib/api.ts";
+import type { LiffProfile } from "../lib/liff.ts";
 
 export interface AppCtx {
   readonly api: ApiClient;
@@ -15,6 +16,9 @@ export interface AppCtx {
   readonly locale: UiLocale;
   /** History-API navigation (pushState + re-render). The detail screen + cards call it. */
   readonly navigate: (path: string) => void;
+  /** The viewer's LINE identity for the CRM home header (S5-5). Undefined when unavailable (opened
+   * outside LINE / no `profile` scope) — the header then renders an initial-based avatar fallback. */
+  readonly profile?: LiffProfile;
 }
 
 const Ctx = createContext<AppCtx | null>(null);

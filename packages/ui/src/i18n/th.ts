@@ -216,9 +216,32 @@ export const th = {
   // hardcodes Thai in JSX (i18n rule). Tabs/lifecycle/states + detail section labels.
   // ============================================================
   "app.accountTitle": "บัญชีของฉัน",
+  // Brand wordmark on the CRM home header (S5-5 identity chrome). "ทรัพย์ดี" = the working wordmark
+  // the Stage-5 mock carries; surfaced to FOUNDER-QUEUE (no settled brand name yet — FQ-4).
+  "app.wordmark": "ทรัพย์ดี",
   "tab.myListings": "ประกาศของฉัน",
   "tab.saved": "บันทึกไว้",
   "tab.viewings": "นัดดูทรัพย์",
+  // My-listings section header + the photo-forward card chrome (S5-5).
+  "crm.sectionListings": "ประกาศของฉัน",
+  // Photo-present chip on a card with a hero photo (the slim card DTO carries no count — so this is a
+  // "has photos" indicator, NOT a fabricated "N รูป"; FQ note S5-12). `📷` glyph + this label.
+  "crm.hasPhotos": "มีรูป",
+  // Lifecycle filter chips over the list (client-side filter). "ทั้งหมด" reuses filter.all.
+  "crm.filterActive": "ประกาศอยู่",
+  "crm.filterOffer": "มีผู้สนใจ",
+  "crm.filterDraft": "ฉบับร่าง",
+  "crm.filterClosed": "ขายแล้ว/เช่าแล้ว",
+  // The search-over-own-listings pill (client-side filter by headline/location).
+  "crm.searchPlaceholder": "ค้นหาประกาศของฉัน",
+  "crm.searchLabel": "ค้นหาในประกาศของฉัน",
+  "crm.searchClear": "ล้างการค้นหา",
+  // Empty result of a filter/search over a non-empty list (distinct from the no-listings-at-all state).
+  "crm.noMatchTitle": "ไม่พบประกาศที่ตรงกับตัวกรอง",
+  "crm.noMatchNext": "ลองล้างตัวกรองหรือเปลี่ยนคำค้นหา",
+  // Total stat tile label (5-stat strip) — reuses crm.statClosed etc; only the "active live" tile
+  // splits draft+closed out. New label for the under-offer tile in the 5-stat strip.
+  "crm.statOffer": "มีผู้สนใจ",
   // CRM lifecycle status badges (DF-4): paired bg+text badge tokens drive the colour.
   "crm.statusDraft": "ฉบับร่าง",
   "crm.statusActive": "ประกาศอยู่",

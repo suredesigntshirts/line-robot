@@ -2,7 +2,9 @@ import { createTranslator } from "@line-robot/ui";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Gallery } from "../src/components/Gallery.tsx";
+import { Header } from "../src/components/Header.tsx";
 import { MyListingCard } from "../src/components/MyListingCard.tsx";
+import { FilterChips, SearchPill } from "../src/components/MyListingsControls.tsx";
 import { computeStats } from "../src/components/StatsStrip.tsx";
 import { DETAIL, LISTING_ACTIVE, LISTING_OFFER, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
 
@@ -46,6 +48,82 @@ describe("MyListingCard", () => {
     expect(document.querySelector("img")).toBeNull();
     expect(document.querySelector("svg")).toBeTruthy(); // placeholder glyph
   });
+
+  it("overlays the deal pill (photo-forward) — ขาย for a sale, ให้เช่า for a rent", () => {
+    const { unmount } = render(<MyListingCard listing={LISTING_ACTIVE} t={t} onOpen={() => {}} />);
+    const sellPill = document.querySelector("[data-deal-pill]");
+    expect(sellPill?.textContent).toBe("ขาย");
+    unmount();
+    render(<MyListingCard listing={LISTING_RENT} t={t} onOpen={() => {}} />);
+    expect(document.querySelector("[data-deal-pill]")?.textContent).toBe("ให้เช่า");
+  });
+
+  it("shows the photo-present chip ONLY when the card has a hero photo (no fabricated count)", () => {
+    const { unmount } = render(<MyListingCard listing={LISTING_OFFER} t={t} onOpen={() => {}} />);
+    expect(document.querySelector("[data-photo-chip]")).toBeTruthy(); // LISTING_OFFER has a photo
+    unmount();
+    render(<MyListingCard listing={LISTING_ACTIVE} t={t} onOpen={() => {}} />); // no heroUrl
+    expect(document.querySelector("[data-photo-chip]")).toBeNull();
+  });
+});
+
+describe("Header identity chrome (S5-5)", () => {
+  const profile = { displayName: "คุณธนวัฒน์", pictureUrl: "https://x/p.png" };
+
+  it("renders the wordmark, the avatar image, and the display name from the profile", () => {
+    render(<Header t={t} active="listings" onSelect={() => {}} profile={profile} />);
+    expect(screen.getByText("ทรัพย์ดี")).toBeTruthy(); // the wordmark
+    expect(screen.getByText("คุณธนวัฒน์")).toBeTruthy(); // display name
+    const avatar = document.querySelector("[data-identity-avatar]") as HTMLImageElement;
+    expect(avatar.tagName).toBe("IMG");
+    expect(avatar.getAttribute("src")).toBe(profile.pictureUrl);
+  });
+
+  it("falls back to an initial-based avatar when no pictureUrl is granted", () => {
+    render(
+      <Header t={t} active="listings" onSelect={() => {}} profile={{ displayName: "ธนวัฒน์" }} />,
+    );
+    const avatar = document.querySelector("[data-identity-avatar]");
+    expect(avatar?.tagName).not.toBe("IMG"); // a span fallback
+    expect(avatar?.textContent).toBe("ธ"); // the first grapheme
+  });
+
+  it("with NO profile shows the account title (degrades, never errors)", () => {
+    render(<Header t={t} active="listings" onSelect={() => {}} />);
+    expect(screen.getByText("บัญชีของฉัน")).toBeTruthy();
+    expect(document.querySelector("[data-identity-avatar]")?.textContent).toBe("?");
+  });
+});
+
+describe("MyListings controls", () => {
+  it("FilterChips marks the active chip aria-pressed and fires onSelect with the bucket", () => {
+    const onSelect = vi.fn();
+    render(<FilterChips t={t} active="all" onSelect={onSelect} />);
+    const offer = document.querySelector("[data-filter-chip='offer']") as HTMLButtonElement;
+    expect(offer.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      (document.querySelector("[data-filter-chip='all']") as HTMLElement).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+    fireEvent.click(offer);
+    expect(onSelect).toHaveBeenCalledWith("offer");
+  });
+
+  it("SearchPill is controlled — emits typed text and a clear", () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<SearchPill t={t} value="" onChange={onChange} />);
+    // No clear button while empty.
+    expect(document.querySelector("[data-search-clear]")).toBeNull();
+    fireEvent.change(document.querySelector("[data-search-input]") as HTMLInputElement, {
+      target: { value: "สันทราย" },
+    });
+    expect(onChange).toHaveBeenCalledWith("สันทราย");
+    // With a value, the clear button appears + resets.
+    rerender(<SearchPill t={t} value="สันทราย" onChange={onChange} />);
+    fireEvent.click(document.querySelector("[data-search-clear]") as HTMLButtonElement);
+    expect(onChange).toHaveBeenCalledWith("");
+  });
 });
 
 describe("Gallery", () => {
@@ -86,12 +164,19 @@ describe("Gallery", () => {
 });
 
 describe("computeStats", () => {
-  it("derives total/active/draft/closed from the lifecycle of each listing", () => {
-    // fixtures: offer, active, active(rent), draft, sold → total 5, active 3 (offer+2 active), draft 1, closed 1
-    expect(computeStats(MY_LISTINGS)).toEqual({ total: 5, active: 3, draft: 1, closed: 1 });
+  it("derives total/active/offer/draft/closed from the lifecycle of each listing (5-stat strip)", () => {
+    // fixtures: offer, active, active(rent), draft, sold → total 5, active 2 (the two live), offer 1,
+    // draft 1, closed 1 (under-offer is now its OWN tile, split out of active — S5-5 five-stat strip).
+    expect(computeStats(MY_LISTINGS)).toEqual({
+      total: 5,
+      active: 2,
+      offer: 1,
+      draft: 1,
+      closed: 1,
+    });
   });
   it("is all-zero for an empty set", () => {
-    expect(computeStats([])).toEqual({ total: 0, active: 0, draft: 0, closed: 0 });
+    expect(computeStats([])).toEqual({ total: 0, active: 0, offer: 0, draft: 0, closed: 0 });
   });
 });
 

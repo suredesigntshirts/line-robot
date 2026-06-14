@@ -39,3 +39,21 @@ export function uiLocale(): UiLocale {
     return "th";
   }
 }
+
+/** The viewer's LINE identity for the CRM home header (S5-5 identity chrome): display name + (when
+ * granted) profile picture. Injected into the app via the context so the SPA never touches the SDK
+ * outside this module. A failure (no `profile` scope, opened outside LINE) degrades to undefined —
+ * the chrome then renders an initial-based avatar fallback, never an error. */
+export interface LiffProfile {
+  readonly displayName: string;
+  readonly pictureUrl?: string;
+}
+
+export async function getProfile(): Promise<LiffProfile | undefined> {
+  try {
+    const p = await liff.getProfile();
+    return { displayName: p.displayName, pictureUrl: p.pictureUrl };
+  } catch {
+    return undefined;
+  }
+}

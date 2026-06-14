@@ -246,7 +246,10 @@ export async function assertColorScheme(page: Page, scheme: "light" | "dark"): P
 
 /** TH-07 as a COMPUTED-STYLE invariant: Thai BODY text must render with line-height ≥1.6. Scoped to
  * listing cards + the detail/chrome body region (`[data-th-content]`); exempts headings (loopless
- * Noto, TH-13 allows tighter), pill badges, CTAs, and absolutely-positioned overlays. */
+ * Noto, TH-13 allows tighter), pill badges, CTAs, and absolutely-positioned overlays. The card root is
+ * a `<button>` (`[data-listing-card]`) — it does NOT blanket-exempt its inner body text (title,
+ * location, the LEGAL-06 disclaimer ARE measured); only GENUINE inner controls (an inner <button>, a
+ * badge/tab/CTA) are exempt. */
 export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
   const offenders = await page.evaluate(() => {
     const THAI = /[ก-ฺเ-๎]/;
@@ -258,7 +261,17 @@ export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
       if (!hasOwnThai) continue;
       const cs = getComputedStyle(el);
       if (cs.position === "absolute") continue;
-      if (el.closest("[data-badge], button, summary, a[data-cta], [role='tab']")) continue;
+      // Exempt genuine small controls/labels (loopless or short, TH-13): pill badges, tabs, CTA
+      // links, <summary>, and explicitly-flagged solid CTAs.
+      if (el.closest("[data-badge], summary, a[data-cta], [role='tab'], [data-cta-solid]"))
+        continue;
+      // <button> exemption — but DON'T let the card-as-button (`[data-listing-card]`, whose ROOT is a
+      // <button>) blanket-exempt its inner BODY text (title/location/the LEGAL-06 disclaimer). Exempt
+      // an element only if its nearest <button> ancestor is a GENUINE inner control (e.g. the edit
+      // entry), NOT the card root itself. (Previously `closest("button")` skipped the entire card
+      // body — the TH-07 hole the alignment review found.)
+      const btn = el.closest("button");
+      if (btn && !btn.hasAttribute("data-listing-card")) continue;
       if (/^["']?Noto Sans Thai/i.test(cs.fontFamily)) continue; // headings (TH-13)
       const fs = Number.parseFloat(cs.fontSize);
       const lh = Number.parseFloat(cs.lineHeight);

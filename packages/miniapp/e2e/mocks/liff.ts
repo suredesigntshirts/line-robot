@@ -24,10 +24,13 @@ const liff = {
   getIDToken: (): string | null => FIXTURE_ID_TOKEN,
   getLanguage: (): string => "th",
   isApiAvailable: (_name: string): boolean => false,
+  // The CRM home identity chrome (S5-5) reads displayName + pictureUrl from here. We supply a real,
+  // decodable picture URL (pointed at API_ORIGIN so Playwright's `page.route` intercepts it as a 1×1
+  // PNG → assertNoBrokenImages stays green).
   getProfile: async () => ({
     userId: "e2e-user",
-    displayName: "ผู้ทดสอบ",
-    pictureUrl: undefined,
+    displayName: "คุณธนวัฒน์",
+    pictureUrl: "https://e2e.api.local/img/avatar.png",
     statusMessage: undefined,
   }),
 };

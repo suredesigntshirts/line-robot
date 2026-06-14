@@ -525,3 +525,31 @@ removal, lightbox test). Gates GREEN: typecheck, lint, test (miniapp 104 / ui 26
 re-confirmed). FOUNDER-QUEUE: count-chip treatment (mock centered "PHOTOS(N)" vs SPA live bottom-left pill — SPA
 arguably better), thumbnail white-band divider. BACKLOG: defensive `kind='photo'` filter in `presignGallery`;
 retire the inline-style shared `@line-robot/ui` Gallery (dev-preview-only consumer) — two Gallery components now diverge.
+
+**INC-2 — real-backend e2e harness (DONE; built on worktree branch, pending merge into main).** A 2nd e2e
+layer that runs the SPA against the real `handleApi` + a seeded Docker-PG (not the static `page.route` mock):
+`e2e-api/{server,seed,support}.mjs|ts` + `playwright.realapi.config.ts` (port 4331) + 10 round-trip specs
+(claim→publish, keep-private, 409-loser, save, create-viewing, add-note, edit-PATCH-allowlist, 3 auth), each
+asserting REAL persistence via re-fetch (re-mount = fresh GET) — proven to bite. Stub verifier (fixture token →
+seeded subject), fake-S3 PNG, FIXED now; composes `ApiDeps` exactly like `lambda/api.ts buildDeps`. `test:e2e`
+now runs BOTH suites. Review PASS (spec/correctness/simplicity); `@line-robot/db` added as a test-only devDep;
+the `../../api/src/handler.ts` relative import is the only handle (api exports no entry — acceptable for test
+code). Branch `worktree-agent-a3646bff174583c04` (31f4d9f, base a95fe9f). Deferred MINOR cleanups (backlog):
+share PNG_1X1/settle/watchForErrors across e2e/+e2e-api/; auth.spec hardcoded literals.
+
+**INC-3 — my-listings home → photo-forward fidelity + working controls (DONE, committed).** Photo-forward
+cards (overlaid deal pill, honest "📷 มีรูป" chip since the DTO has no count → S5-12), 4px lifecycle stripe,
+identity chrome (avatar+name+wordmark), 5-stat strip, section header, search pill, lifecycle filter chips, the
+no-match state. New `MyListingsControls.tsx`. Biting e2e `mylistings.spec.ts`: tabs (fwd+back), filter chips
+(narrow→clear, exact counts), search, no-match — 3 bite proofs. Full review cadence: spec PASS, correctness
+PASS (controls bite, bucket map correct), frontend on-direction (e2e 58 green, invariants pass), simplicity
+MAJOR + alignment VIOLATIONS → all adjudicated + FIXED in a follow-up: cut the **prod-dead `groupCode`** row
+(LIFF never returns it — test theatre; kept avatar/name/wordmark), deduped the lifecycle bucket map (single
+source), `dealLabelKey` shared helper, single post-guard `data`, and — the high-value fix — **closed the TH-07
+net hole**: the card root is `<button data-listing-card>` so `assertThaiBodyLineHeight` had been blanket-
+exempting the entire card body incl. the **LEGAL-06 disclaimer**; the net now measures card-body Thai text
+(bite-confirmed: disclaimer→`leading-none`→red across all cards; no real violation — disclaimer is 1.625).
+Gates GREEN (typecheck 0, lint, miniapp 116 / ui 26 unit, e2e 58, independently re-confirmed). FOUNDER-QUEUE:
+S5-13 (asking-price/negotiable framing on owner CRM card — register applicability), S5-14 (card form: photo-
+forward direction-a vs the Stage-5 dashboard mock), group-label re-add in Stage 6. BACKLOG: contrast-net +
+TH-12 hue net-hardening.

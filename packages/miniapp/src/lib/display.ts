@@ -33,6 +33,12 @@ export function priceFrameKey(dealType: string): "listing.priceAsking" | "listin
   return dealType === "rent" ? "listing.priceMonthly" : "listing.priceAsking";
 }
 
+/** The deal-word label key (ขาย / ให้เช่า). ONE source so the overlaid card pill + the composed
+ * headline can't drift apart. */
+export function dealLabelKey(dealType: string): "badge.forRent" | "badge.forSale" {
+  return dealType === "rent" ? "badge.forRent" : "badge.forSale";
+}
+
 /** Property-type → catalog key (ที่ดิน / บ้านเดี่ยว / …). */
 export function propertyTypeKey(
   propertyType: string,
@@ -107,10 +113,52 @@ export function lifecycleLabelKey(kind: LifecycleKind): import("@line-robot/ui")
   }
 }
 
+// --- My-listings client-side filter + search (Stage 5 — the working filter chips + search pill) ----
+//
+// The lifecycle chips collapse the six DF-4 kinds into the FOUR buckets the mock's chip row shows:
+// active / offer / draft / closed (sold+rented+withdrawn), plus an implicit "all". These are pure
+// predicates so the filtering is unit-testable (the chips wire them over the loaded list — a real
+// working control, not decoration).
+
+/** The lifecycle filter buckets the chips select. `all` is the default (no filter). */
+export type LifecycleFilter = "all" | "active" | "offer" | "draft" | "closed";
+
+/** Which filter bucket a lifecycle kind belongs to (sold/rented/withdrawn collapse to `closed`). */
+export function lifecycleFilterBucket(kind: LifecycleKind): Exclude<LifecycleFilter, "all"> {
+  switch (kind) {
+    case "active":
+      return "active";
+    case "offer":
+      return "offer";
+    case "draft":
+      return "draft";
+    default:
+      return "closed"; // sold / rented / withdrawn
+  }
+}
+
+/** Does a card pass the active lifecycle filter? `all` passes everything. */
+export function passesLifecycleFilter(dto: ListingCardDto, filter: LifecycleFilter): boolean {
+  if (filter === "all") return true;
+  return lifecycleFilterBucket(lifecycleKind(dto)) === filter;
+}
+
+/** Does a card match the free-text search? Case-insensitive substring over the composed headline +
+ * the raw location parts (province/amphoe). Empty/whitespace query matches everything. The headline
+ * needs the translator (deal + property-type words), so it's threaded in. */
+export function matchesQuery(dto: ListingCardDto, query: string, t: Translator): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === "") return true;
+  const haystack = [cardHeadline(dto, t), dto.province ?? "", dto.amphoe ?? ""]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(q);
+}
+
 /** Build a localized headline for a card. Prefer the listing's own headline (detail); for a card the
  * api gives no headline, so compose deal + property-type + location ("ขาย บ้านเดี่ยว · สันทราย"). */
 export function cardHeadline(dto: ListingCardDto, t: Translator): string {
-  const deal = dto.dealType === "rent" ? t("badge.forRent") : t("badge.forSale");
+  const deal = t(dealLabelKey(dto.dealType));
   const ptype = t(propertyTypeKey(dto.propertyType));
   const loc = locationLine(dto);
   return loc !== "" ? `${deal} ${ptype} · ${loc}` : `${deal} ${ptype}`;

@@ -173,6 +173,18 @@ Playwright container for CI parity + broaden behaviour/browser coverage (plan 20
   those being public to fix share previews) **vs.** accept intermittent OG-image staleness (status quo, zero
   privacy exposure). Do NOT ship the broken 7-day presign. Until the founder rules: status quo (1h presign).
 
+## Stage-5 frontend test-net hardening (surfaced by the design+functional iteration)
+
+- **Extend the deterministic contrast net beyond solid CTAs.** `assertCtaContrast` only checks
+  `[data-cta-solid]`. The alignment review flagged that the **LifecycleBadge** (`[data-badge]`), the
+  **deal pill** (`[data-deal-pill]`), the **photo chip** (`[data-photo-chip]`), and the **stat-tile coloured
+  counts** (`[data-stat]`) have no contrast assertion — their text/bg legibility is unmeasured. Add a
+  badge/tile contrast assertion (the deal-pill-over-arbitrary-photos case is inherently photo-dependent →
+  a `/frontend-review` perceptual call, not deterministic). Plus a **TH-12 brand-hue assertion** (the
+  trust-blue/green family) — today nothing checks the primary/wordmark hue deterministically. (The TH-07
+  card-body/disclaimer hole was already FIXED in INC-3: `assertThaiBodyLineHeight` now measures the
+  card-as-button body text + bites.)
+
 ## By design / later (NOT Stages 0–4 — for completeness)
 
 Stage 5 mini-app React rebuild (Preact retired) · Stage 6 groups/dealflow + exclusivity windows + role

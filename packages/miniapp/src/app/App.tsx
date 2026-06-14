@@ -15,6 +15,7 @@ import { createTranslator, type UiLocale } from "@line-robot/ui";
 import { useEffect, useState } from "react";
 import type { ApiClient } from "../lib/api.ts";
 import { normalizePath, parseRoute, resolveInitialPath } from "../lib/deeplink.ts";
+import type { LiffProfile } from "../lib/liff.ts";
 import { ClaimScreen } from "../screens/ClaimScreen.tsx";
 import { DetailScreen } from "../screens/DetailScreen.tsx";
 import { EditScreen } from "../screens/EditScreen.tsx";
@@ -24,9 +25,12 @@ import { AppContextProvider } from "./context.ts";
 export interface AppProps {
   readonly api: ApiClient;
   readonly locale: UiLocale;
+  /** The viewer's LINE identity for the CRM home header (S5-5). Optional — undefined renders the
+   * initial-based avatar fallback. */
+  readonly profile?: LiffProfile;
 }
 
-export function App({ api, locale }: AppProps) {
+export function App({ api, locale, profile }: AppProps) {
   // Snapshot the initial route once. Deep links (…/p/{id}) may arrive via the `liff.state` query
   // param rather than the real pathname, so resolve both.
   const [path, setPath] = useState<string>(() =>
@@ -58,7 +62,7 @@ export function App({ api, locale }: AppProps) {
   const route = parseRoute(path);
 
   return (
-    <AppContextProvider value={{ api, t, locale, navigate }}>
+    <AppContextProvider value={{ api, t, locale, navigate, profile }}>
       {route.name === "detail" ? (
         <DetailScreen id={route.id} />
       ) : route.name === "claim" ? (

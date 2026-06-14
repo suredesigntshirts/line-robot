@@ -22,7 +22,7 @@ import { App } from "./app/App.tsx";
 import { ErrorView } from "./components/States.tsx";
 import "./global.css";
 import { API_BASE, createApiClient } from "./lib/api.ts";
-import { getIdToken, initLiff, uiLocale } from "./lib/liff.ts";
+import { getIdToken, getProfile, initLiff, uiLocale } from "./lib/liff.ts";
 
 const container = document.getElementById("app");
 
@@ -32,11 +32,14 @@ async function boot(): Promise<void> {
   try {
     await initLiff();
     const locale = uiLocale();
+    // The viewer's LINE identity for the CRM home header (S5-5). Resolved here (post-init); a failure
+    // degrades to undefined → the header renders the initial-based avatar fallback.
+    const profile = await getProfile();
     // The production client: the baked-in api base + the LIFF id-token (the SDK stays in liff.ts).
     const api = createApiClient(API_BASE, getIdToken);
     root.render(
       <StrictMode>
-        <App api={api} locale={locale} />
+        <App api={api} locale={locale} profile={profile} />
       </StrictMode>,
     );
   } catch (error) {

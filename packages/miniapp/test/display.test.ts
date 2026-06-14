@@ -5,9 +5,12 @@ import {
   detailHeadline,
   formatThb,
   fullDateTime,
+  lifecycleFilterBucket,
   lifecycleKind,
   locationLine,
   mapsUri,
+  matchesQuery,
+  passesLifecycleFilter,
   priceFrameKey,
   priceText,
   propertyTypeKey,
@@ -15,7 +18,15 @@ import {
   viewingStatusKey,
   viewingTime,
 } from "../src/lib/display.ts";
-import { DETAIL, LISTING_ACTIVE, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
+import {
+  DETAIL,
+  LISTING_ACTIVE,
+  LISTING_DRAFT,
+  LISTING_OFFER,
+  LISTING_RENT,
+  LISTING_SOLD,
+  MY_LISTINGS,
+} from "./fixtures.ts";
 
 const t = createTranslator("th");
 
@@ -85,6 +96,45 @@ describe("lifecycleKind (DF-4)", () => {
         rentalStatus: "withdrawn",
       }),
     ).toBe("withdrawn");
+  });
+});
+
+describe("lifecycleFilterBucket / passesLifecycleFilter (the working filter chips)", () => {
+  it("collapses the six lifecycle kinds into the four chip buckets", () => {
+    expect(lifecycleFilterBucket("active")).toBe("active");
+    expect(lifecycleFilterBucket("offer")).toBe("offer");
+    expect(lifecycleFilterBucket("draft")).toBe("draft");
+    expect(lifecycleFilterBucket("sold")).toBe("closed");
+    expect(lifecycleFilterBucket("rented")).toBe("closed");
+    expect(lifecycleFilterBucket("withdrawn")).toBe("closed");
+  });
+
+  it("'all' passes every listing; each bucket passes only its own kind", () => {
+    // fixture kinds: OFFER→offer, ACTIVE→active, RENT→active, DRAFT→draft, SOLD→closed.
+    expect(MY_LISTINGS.every((l) => passesLifecycleFilter(l, "all"))).toBe(true);
+    expect(MY_LISTINGS.filter((l) => passesLifecycleFilter(l, "active"))).toEqual([
+      LISTING_ACTIVE,
+      LISTING_RENT,
+    ]);
+    expect(MY_LISTINGS.filter((l) => passesLifecycleFilter(l, "offer"))).toEqual([LISTING_OFFER]);
+    expect(MY_LISTINGS.filter((l) => passesLifecycleFilter(l, "draft"))).toEqual([LISTING_DRAFT]);
+    expect(MY_LISTINGS.filter((l) => passesLifecycleFilter(l, "closed"))).toEqual([LISTING_SOLD]);
+  });
+});
+
+describe("matchesQuery (the working search pill)", () => {
+  it("an empty/whitespace query matches everything", () => {
+    expect(matchesQuery(LISTING_ACTIVE, "", t)).toBe(true);
+    expect(matchesQuery(LISTING_ACTIVE, "   ", t)).toBe(true);
+  });
+  it("matches case-insensitively over the composed headline + location parts", () => {
+    // LISTING_ACTIVE → "ขาย บ้านเดี่ยว · สันทราย · เชียงใหม่"
+    expect(matchesQuery(LISTING_ACTIVE, "สันทราย", t)).toBe(true);
+    expect(matchesQuery(LISTING_ACTIVE, "บ้านเดี่ยว", t)).toBe(true);
+    expect(matchesQuery(LISTING_ACTIVE, "เชียงใหม่", t)).toBe(true);
+  });
+  it("rejects a non-matching query", () => {
+    expect(matchesQuery(LISTING_ACTIVE, "ภูเก็ต", t)).toBe(false);
   });
 });
 
