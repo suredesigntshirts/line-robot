@@ -553,3 +553,11 @@ Gates GREEN (typecheck 0, lint, miniapp 116 / ui 26 unit, e2e 58, independently 
 S5-13 (asking-price/negotiable framing on owner CRM card — register applicability), S5-14 (card form: photo-
 forward direction-a vs the Stage-5 dashboard mock), group-label re-add in Stage 6. BACKLOG: contrast-net +
 TH-12 hue net-hardening.
+
+**INC-2 merged to main + integration fix.** Merged the INC-2 harness branch into main (`--no-ff`, clean —
+disjoint files). Post-merge full e2e caught a real INTEGRATION issue the worktree couldn't: INC-3's identity
+avatar `pictureUrl` was `https://e2e.api.local/img/avatar.png` — the static mock serves `/img/*` as a PNG, but
+INC-2's real-api forwarder routes ALL `e2e.api.local/**` to `handleApi`, so the unauthenticated `<img>` got a
+**401** and tripped `watchForErrors` (2 realapi specs red). Fix: made the mock avatar an inline `data:` URI (1×1
+PNG) so it decodes with zero network in BOTH suites (prod avatars are real LINE-CDN URLs — harness-only artifact).
+Both suites now green: **static 58 + real-api 10**. This is exactly why the real-backend merge-verify matters.
