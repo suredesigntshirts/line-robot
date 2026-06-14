@@ -1,0 +1,78 @@
+/* ============================================================
+   packages/miniapp/src/global.css — the mini-app's Tailwind v4 entry.
+   Plan 21 / canon Finding 10 + TECH-06: the SPA RUNS Tailwind. This file is processed by
+   @tailwindcss/vite (registered in vite.config.ts); main.tsx imports it. TECH-06 matters MORE
+   here than on the website — LIFF renders inside LINE's in-app WebView (old Thai-Android Chrome),
+   which can't parse oklch() and would render unstyled without the @supports fallback below.
+
+   Unlike the website (Phase-1 NO-visual-change → omitted Preflight), this is a clean React SPA with
+   no legacy inline styling to preserve, so we include Tailwind's base reset (Preflight) for a sane
+   box-model / margin reset, then set the document chrome from the shared tokens.
+   ============================================================ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* THE single token source (AP-3: one @theme, defined in @line-robot/ui, never redefined here).
+   Tailwind compiles its `@theme {}` into :root custom properties (consumed by utilities AND
+   readable at runtime) and the file's dark-mode override blocks are plain CSS applied as-is. */
+@import "@line-robot/ui/theme.css";
+
+/* TECH-06 oklch/old-Android fallback: Tailwind emits oklch() unconditionally; this sheet supplies
+   hex values ONLY where oklch is unsupported (`@supports not (color: oklch())`), so it is inert on
+   modern browsers and never overrides the oklch. Generated from theme.css — npm run tokens:fallbacks. */
+@import "@line-robot/ui/fallbacks.css";
+
+/* @line-robot/ui lives outside the SPA's Vite root; scan it explicitly so the Tailwind utilities the
+   shared shadcn primitives (button/card/badge) + our screens reference are generated, not tree-shaken. */
+@source "../../ui/src";
+
+/* ------------------------------------------------------------
+   shadcn/ui semantic-token layer (canon TECH-07) — verbatim from the website's global.css. Maps
+   shadcn's design-system token names onto OUR trust-blue palette so the owned shadcn primitives
+   (button/card/badge) render in-brand. `inline` because each references another variable (Tailwind
+   docs: avoids the var-resolution-context pitfall). New names only — none collide with our scale
+   tokens. Single token SOURCE stays in @line-robot/ui/theme.css.
+   ------------------------------------------------------------ */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text);
+  --color-primary: var(--color-primary-500);
+  --color-primary-foreground: var(--color-surface);
+  --color-secondary: var(--color-surface-2);
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-surface-2);
+  --color-muted-foreground: var(--color-text-2);
+  --color-accent: var(--color-primary-50);
+  --color-accent-foreground: var(--color-primary-600);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-surface);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-primary-500);
+}
+
+/* Document chrome: the LIFF webview body — brand background + looped Thai body font + ≥1.6 leading
+   (TH-06/07), so even the html/body surface (outside the Screen component) is themed, never the
+   serif fallback. data-theme on <html> drives the theme.css dark overrides. */
+@layer base {
+  html {
+    background: var(--color-bg);
+  }
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body-th);
+    line-height: var(--leading-body);
+  }
+  /* TH-08: Thai line-breaking — overflow-wrap, never break-all. */
+  [lang="th"] {
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+}

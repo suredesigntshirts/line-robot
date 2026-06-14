@@ -2,12 +2,17 @@
  * Pure routing helpers (no LIFF/DOM imports, so they're unit-testable). The SPA uses the History API
  * — NO `#` fragment routing (LIFF forbids it) — so a route is just `location.pathname`.
  *
+ * ROUTE-SHAPE FREEZE (Stage 5 open-question ruling): `/` = my-listings, `/p/{id}` = detail. These are
+ * the EXACT shapes plan-17's Flex deep links and the rich-menu tabs already resolve to, so existing
+ * chat links keep working with no Flex-template change. Claim/saved/viewings are ADDITIVE routes
+ * (Build C/D) — added to {@link parseRoute}'s table without touching the two frozen shapes.
+ *
  * Deep links open as `https://liff.line.me/{liffId}/p/{id}`. LIFF delivers the path after the LIFF
  * ID either as the real pathname (…/p/{id}) once it has redirected, or — on the primary redirect —
  * inside the `liff.state` query parameter (urlencoded). {@link resolveInitialPath} normalizes both.
  */
 
-/** The view a path maps to. */
+/** The view a path maps to. Additive routes (claim/saved/viewings) extend this union in Build C/D. */
 export type Route = { readonly name: "list" } | { readonly name: "detail"; readonly id: string };
 
 /** Strip a trailing slash (but keep "/"). */
@@ -54,7 +59,7 @@ export function parseRoute(path: string): Route {
   return { name: "list" };
 }
 
-/** The path for a property's detail view (used for in-app navigation + deep links). */
-export function detailPath(propertyId: string): string {
-  return `/p/${encodeURIComponent(propertyId)}`;
+/** The path for a listing's detail view (used for in-app navigation + deep links). FROZEN shape. */
+export function detailPath(listingId: string): string {
+  return `/p/${encodeURIComponent(listingId)}`;
 }

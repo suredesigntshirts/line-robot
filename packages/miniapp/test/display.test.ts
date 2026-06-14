@@ -1,0 +1,109 @@
+import { createTranslator } from "@line-robot/ui";
+import { describe, expect, it } from "vitest";
+import {
+  cardHeadline,
+  detailHeadline,
+  formatThb,
+  lifecycleKind,
+  locationLine,
+  mapsUri,
+  priceFrameKey,
+  priceText,
+  propertyTypeKey,
+  roomsLine,
+} from "../src/lib/display.ts";
+import { DETAIL, LISTING_ACTIVE, MY_LISTINGS } from "./fixtures.ts";
+
+const t = createTranslator("th");
+
+describe("formatThb", () => {
+  it("groups with the ฿ prefix and Latin numerals", () => {
+    expect(formatThb(4_800_000)).toBe("฿4,800,000");
+    expect(formatThb(0)).toBe("฿0");
+  });
+});
+
+describe("priceText", () => {
+  it("uses priceThb for sale", () => {
+    expect(priceText({ dealType: "sale", priceThb: 1_200_000 })).toBe("฿1,200,000");
+  });
+  it("uses monthlyRent for rent when present, else falls back / em-dash", () => {
+    expect(priceText({ dealType: "rent", priceThb: null, monthlyRent: 13_000 })).toBe("฿13,000");
+    expect(priceText({ dealType: "rent", priceThb: null })).toBe("—");
+  });
+});
+
+describe("priceFrameKey", () => {
+  it("asking for sale, monthly for rent", () => {
+    expect(priceFrameKey("sale")).toBe("listing.priceAsking");
+    expect(priceFrameKey("rent")).toBe("listing.priceMonthly");
+  });
+});
+
+describe("propertyTypeKey", () => {
+  it("maps every domain property type, falling back to other", () => {
+    expect(propertyTypeKey("land")).toBe("ptype.land");
+    expect(propertyTypeKey("condo")).toBe("ptype.condo");
+    expect(propertyTypeKey("warehouse")).toBe("ptype.other");
+  });
+});
+
+describe("locationLine", () => {
+  it("joins amphoe · province, dropping absent parts", () => {
+    expect(locationLine({ amphoe: "สันทราย", province: "เชียงใหม่" })).toBe("สันทราย · เชียงใหม่");
+    expect(locationLine({ amphoe: null, province: "เชียงใหม่" })).toBe("เชียงใหม่");
+    expect(locationLine({ amphoe: null, province: null })).toBe("");
+  });
+});
+
+describe("lifecycleKind (DF-4)", () => {
+  it("classifies the fixture spread", () => {
+    // reserved sale → offer; available+published sale → active; available rent → active;
+    // available+unpublished sale → draft; transferred sale → sold.
+    expect(MY_LISTINGS.map(lifecycleKind)).toEqual(["offer", "active", "active", "draft", "sold"]);
+  });
+  it("rent terminal states map to rented/withdrawn", () => {
+    expect(
+      lifecycleKind({
+        dealType: "rent",
+        saleStage: "available",
+        rentalStatus: "rented",
+      }),
+    ).toBe("rented");
+    expect(
+      lifecycleKind({
+        dealType: "rent",
+        saleStage: "available",
+        rentalStatus: "withdrawn",
+      }),
+    ).toBe("withdrawn");
+  });
+});
+
+describe("cardHeadline / detailHeadline", () => {
+  it("composes deal + property type + location for a card", () => {
+    expect(cardHeadline(LISTING_ACTIVE, t)).toBe("ขาย บ้านเดี่ยว · สันทราย · เชียงใหม่");
+  });
+  it("prefers the listing's own headline on the detail", () => {
+    expect(detailHeadline(DETAIL, t)).toBe(DETAIL.headline);
+  });
+  it("falls back to the composed headline when the detail headline is blank", () => {
+    expect(detailHeadline({ ...DETAIL, headline: "" }, t)).toContain("ขาย");
+  });
+});
+
+describe("roomsLine", () => {
+  it("joins bed · bath, omitting absent counts", () => {
+    expect(roomsLine({ bedrooms: 3, bathrooms: 2 }, t)).toBe("3 นอน · 2 น้ำ");
+    expect(roomsLine({ bedrooms: null, bathrooms: 2 }, t)).toBe("2 น้ำ");
+    expect(roomsLine({ bedrooms: null, bathrooms: null }, t)).toBe("");
+  });
+});
+
+describe("mapsUri", () => {
+  it("builds a google-maps search link from lat/lon", () => {
+    expect(mapsUri(18.79, 98.95)).toBe(
+      "https://www.google.com/maps/search/?api=1&query=18.79,98.95",
+    );
+  });
+});

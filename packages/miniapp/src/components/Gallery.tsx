@@ -1,84 +1,97 @@
-/** A swipeable photo strip (scroll-snap, one image per flick via `scroll-snap-stop: always`) with
- * per-photo kind/label captions, in the API's property → chanote → other order. Tapping a photo
- * opens a full-screen lightbox that is itself a snap strip — so you can swipe left/right between
- * images at full size, one at a time. */
+/**
+ * The detail photo gallery — a swipeable scroll-snap strip (one image per flick) with a full-screen
+ * lightbox. Authored in **Tailwind utilities** (NOT the shared `@line-robot/ui` Gallery, which still
+ * carries inline-style objects — plan-21's passes didn't cover island components; see the build
+ * report's conformance note). No inline-style objects anywhere here. Photos are presigned thumbs from
+ * packages/api (`photos[].url`).
+ */
+import { useEffect, useRef, useState } from "react";
+import type { PhotoDto } from "../lib/types.ts";
 
-import type { Photo } from "@line-robot/shared";
-import { useEffect, useRef, useState } from "preact/hooks";
-
-const KIND_LABEL: Record<string, string> = {
-  property: "Photo",
-  chanote: "Title deed",
-  other: "Document",
-};
-
-function caption(photo: Photo): string {
-  const kind = KIND_LABEL[photo.kind] ?? photo.kind;
-  return photo.label !== undefined && photo.label !== "" ? `${kind} · ${photo.label}` : kind;
-}
-
-export function Gallery({ photos }: { photos: readonly Photo[] }) {
+export function Gallery({ photos, alt }: { photos: readonly PhotoDto[]; alt: string }) {
   const [lightboxAt, setLightboxAt] = useState<number | null>(null);
 
-  if (photos.length === 0) {
-    return null;
-  }
+  if (photos.length === 0) return null;
 
   return (
     <>
-      <div class="gallery">
-        {photos.map((photo, i) => {
-          const cap = caption(photo);
-          return (
-            <figure class="gallery-item" key={`${photo.url}-${i}`}>
-              <button type="button" class="gallery-btn" onClick={() => setLightboxAt(i)}>
-                <img src={photo.url} alt={cap} loading="lazy" />
-              </button>
-              <figcaption class="muted small">{cap}</figcaption>
-            </figure>
-          );
-        })}
+      <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none]">
+        {photos.map((photo, i) => (
+          <button
+            type="button"
+            // biome-ignore lint/suspicious/noArrayIndexKey: presigned urls can repeat across kinds; index is stable within a render
+            key={`${photo.url}-${i}`}
+            onClick={() => setLightboxAt(i)}
+            className="relative aspect-[4/3] w-[78%] shrink-0 snap-start overflow-hidden rounded-lg border border-border bg-surface-2 [scroll-snap-stop:always]"
+          >
+            <img
+              src={photo.url}
+              alt={`${alt} ${i + 1}`}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
+          </button>
+        ))}
       </div>
 
-      {lightboxAt !== null ? (
-        <Lightbox photos={photos} startAt={lightboxAt} onClose={() => setLightboxAt(null)} />
-      ) : null}
+      {lightboxAt !== null && (
+        <Lightbox
+          photos={photos}
+          alt={alt}
+          startAt={lightboxAt}
+          onClose={() => setLightboxAt(null)}
+        />
+      )}
     </>
   );
 }
 
-/** Full-screen swipeable viewer: a horizontal snap strip of every photo, opened scrolled to the
+/** Full-screen swipeable viewer — a horizontal snap strip of every photo, opened scrolled to the
  * tapped one. One image per swipe (`scroll-snap-stop: always`); the × button closes it. */
 function Lightbox({
   photos,
+  alt,
   startAt,
   onClose,
 }: {
-  photos: readonly Photo[];
+  photos: readonly PhotoDto[];
+  alt: string;
   startAt: number;
   onClose: () => void;
 }) {
   const stripRef = useRef<HTMLDivElement>(null);
 
-  // Jump (no smooth scroll) to the tapped image once the strip is laid out. Slides are full-viewport
-  // wide, so a slide's offsetLeft is known immediately — no need to wait for the image to load.
   useEffect(() => {
     const strip = stripRef.current;
     const slide = strip?.children[startAt] as HTMLElement | undefined;
-    if (strip !== null && slide !== undefined) {
-      strip.scrollLeft = slide.offsetLeft;
-    }
+    if (strip && slide) strip.scrollLeft = slide.offsetLeft;
   }, [startAt]);
 
   return (
-    <div class="lightbox">
-      <button type="button" class="lightbox-close" aria-label="Close photo" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
+      <button
+        type="button"
+        aria-label="Close photo"
+        onClick={onClose}
+        className="absolute top-3 right-3 z-10 flex size-9 items-center justify-center rounded-full bg-white/15 text-2xl text-white"
+      >
         ×
       </button>
-      <div class="lightbox-strip" ref={stripRef}>
+      <div
+        ref={stripRef}
+        className="flex h-full snap-x snap-mandatory items-center overflow-x-auto"
+      >
         {photos.map((photo, i) => (
-          <div class="lightbox-slide" key={`${photo.url}-${i}`}>
-            <img class="lightbox-img" src={photo.url} alt={caption(photo)} />
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: see Gallery
+            key={`${photo.url}-${i}`}
+            className="flex h-full w-screen shrink-0 snap-center [scroll-snap-stop:always] items-center justify-center p-4"
+          >
+            <img
+              src={photo.url}
+              alt={`${alt} ${i + 1}`}
+              className="max-h-full max-w-full object-contain"
+            />
           </div>
         ))}
       </div>

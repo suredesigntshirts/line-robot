@@ -1,0 +1,54 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
+import { App } from "../src/app/App.tsx";
+import type { ApiClient } from "../src/lib/api.ts";
+import { DETAIL, MY_LISTINGS } from "./fixtures.ts";
+
+// A fixture api client (the injection seam — no LIFF, no network). The screens render from this.
+const fixtureApi: ApiClient = {
+  myListings: async () => structuredClone(MY_LISTINGS),
+  listing: async () => structuredClone(DETAIL),
+};
+
+function setPath(path: string) {
+  window.history.replaceState(null, "", path);
+}
+
+describe("router (frozen route shapes)", () => {
+  beforeEach(() => setPath("/"));
+
+  it("`/` resolves to the my-listings screen and renders the cards", async () => {
+    setPath("/");
+    render(<App api={fixtureApi} locale="th" />);
+    // the account header + tab bar (chrome) render immediately
+    expect(screen.getByText("บัญชีของฉัน")).toBeTruthy();
+    // after the fetch resolves, the cards appear (one per fixture listing)
+    await waitFor(() => {
+      expect(document.querySelectorAll("[data-listing-card]").length).toBe(MY_LISTINGS.length);
+    });
+  });
+
+  it("`/p/{id}` resolves to the detail screen and renders the listing", async () => {
+    setPath(`/p/${DETAIL.id}`);
+    render(<App api={fixtureApi} locale="th" />);
+    await waitFor(() => {
+      // the detail headline (the listing's own headline) renders
+      expect(screen.getByText(DETAIL.headline)).toBeTruthy();
+    });
+    // the spec table carries the rooms the api returned
+    expect(screen.getByText("3 นอน")).toBeTruthy();
+    expect(screen.getByText("2 น้ำ")).toBeTruthy();
+  });
+
+  it("an unknown path falls back to the list (deep-link safety)", async () => {
+    setPath("/totally-unknown");
+    render(<App api={fixtureApi} locale="th" />);
+    expect(screen.getByText("บัญชีของฉัน")).toBeTruthy();
+  });
+
+  it("renders English chrome when the LIFF locale is en", async () => {
+    setPath("/");
+    render(<App api={fixtureApi} locale="en" />);
+    expect(screen.getByText("My account")).toBeTruthy();
+  });
+});

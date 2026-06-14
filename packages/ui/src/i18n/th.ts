@@ -204,6 +204,52 @@ export const th = {
   // cannot own land; condos carry a 49% foreign-quota cap; leasehold is common.
   "legal.foreignOwnership":
     "ชาวต่างชาติมีข้อจำกัดในการถือครองอสังหาริมทรัพย์ในไทย (ห้ามถือครองที่ดิน คอนโดจำกัดโควตาต่างชาติ 49%) โปรดตรวจสอบสิทธิ์กับผู้เชี่ยวชาญด้านกฎหมายก่อนทำธุรกรรม",
+
+  // ============================================================
+  // MINI App / LIFF SPA chrome (Stage 5, D13 CRM). The authenticated owner surface (my listings /
+  // saved / viewings tabs); public browse stays on the website. Shared catalog so the SPA never
+  // hardcodes Thai in JSX (i18n rule). Tabs/lifecycle/states + detail section labels.
+  // ============================================================
+  "app.accountTitle": "บัญชีของฉัน",
+  "tab.myListings": "ประกาศของฉัน",
+  "tab.saved": "บันทึกไว้",
+  "tab.viewings": "นัดดูทรัพย์",
+  // CRM lifecycle status badges (DF-4): paired bg+text badge tokens drive the colour.
+  "crm.statusDraft": "ฉบับร่าง",
+  "crm.statusActive": "ประกาศอยู่",
+  "crm.statusOffer": "มีผู้สนใจ",
+  "crm.statusSold": "ขายแล้ว",
+  "crm.statusRented": "เช่าแล้ว",
+  "crm.statusWithdrawn": "ถอนประกาศ",
+  // Stats strip (summary header over the list).
+  "crm.statTotal": "ทั้งหมด",
+  "crm.statActive": "ประกาศอยู่",
+  "crm.statDraft": "ฉบับร่าง",
+  "crm.statClosed": "ปิดแล้ว",
+  // My-listings empty/loading/error states (COPY-07: what + why + next).
+  "crm.loading": "กำลังโหลดประกาศของคุณ…",
+  "crm.emptyTitle": "ยังไม่มีประกาศ",
+  "crm.emptyWhy": "ประกาศที่คุณอ้างสิทธิ์จะปรากฏที่นี่",
+  "crm.emptyNext": "เปิดประกาศจากแชทเพื่ออ้างสิทธิ์เป็นเจ้าของ",
+  "crm.authError": "เปิดจากภายในแอป LINE เพื่อดูประกาศของคุณ",
+  "crm.notFound": "ไม่พบประกาศนี้ หรือคุณไม่มีสิทธิ์เข้าถึง",
+  // Detail screen chrome + section labels.
+  "detail.back": "ประกาศของฉัน",
+  "detail.loading": "กำลังโหลด…",
+  "detail.specSection": "รายละเอียดทรัพย์",
+  "detail.location": "ทำเล",
+  "detail.openInMaps": "เปิดในแผนที่",
+  "field.dealType": "ประเภทประกาศ",
+  "field.propertyType": "ประเภททรัพย์",
+  "field.bedrooms": "ห้องนอน",
+  "field.bathrooms": "ห้องน้ำ",
+  "field.landmark": "จุดสังเกต",
+  "field.province": "จังหวัด",
+  "field.amphoe": "อำเภอ",
+  "field.tambon": "ตำบล",
+  // Coming-soon tabs (Build C/D — additive routes). Shown as a calm placeholder, not an error.
+  "crm.comingSoon": "เร็วๆ นี้",
+  "crm.comingSoonBody": "ส่วนนี้กำลังจะมาในเร็วๆ นี้",
 } as const;
 
 export type MessageKey = keyof typeof th;

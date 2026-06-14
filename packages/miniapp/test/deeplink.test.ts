@@ -1,57 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { detailPath, parseRoute, resolveInitialPath } from "../src/lib/deeplink.js";
+import { detailPath, normalizePath, parseRoute, resolveInitialPath } from "../src/lib/deeplink.ts";
 
-describe("resolveInitialPath", () => {
-  it("uses a concrete non-root pathname directly", () => {
-    expect(resolveInitialPath("/p/abc", "")).toBe("/p/abc");
+// The route-shape freeze: `/` = list, `/p/{id}` = detail (plan-17 Flex deep links + rich-menu tabs).
+describe("route-shape freeze", () => {
+  it("the bare root resolves to the list", () => {
+    expect(parseRoute("/")).toEqual({ name: "list" });
+    expect(parseRoute("")).toEqual({ name: "list" });
   });
 
-  it("strips a trailing slash", () => {
-    expect(resolveInitialPath("/p/abc/", "")).toBe("/p/abc");
-    expect(resolveInitialPath("/", "")).toBe("/");
+  it("`/p/{id}` resolves to detail with the decoded id", () => {
+    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
+    expect(parseRoute("/p/abc-123/")).toEqual({ name: "detail", id: "abc-123" }); // trailing slash
+    expect(parseRoute("/p/a%20b")).toEqual({ name: "detail", id: "a b" }); // url-decoded
   });
 
-  it("decodes a deep link delivered via the liff.state query param", () => {
-    const search = `?liff.state=${encodeURIComponent("/p/xyz-123")}`;
-    expect(resolveInitialPath("/", search)).toBe("/p/xyz-123");
+  it("detailPath round-trips through parseRoute (deep links keep working)", () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    expect(parseRoute(detailPath(id))).toEqual({ name: "detail", id });
   });
 
-  it("keeps only the path portion of liff.state (drops its query/fragment)", () => {
-    const search = `?liff.state=${encodeURIComponent("/p/xyz?foo=1#frag")}`;
-    expect(resolveInitialPath("/", search)).toBe("/p/xyz");
+  it("unknown paths fall back to the list (never throws)", () => {
+    expect(parseRoute("/saved")).toEqual({ name: "list" });
+    expect(parseRoute("/p")).toEqual({ name: "list" });
+    expect(parseRoute("/p/a/b")).toEqual({ name: "list" });
+  });
+});
+
+describe("normalizePath", () => {
+  it("strips trailing slashes but keeps root", () => {
+    expect(normalizePath("/")).toBe("/");
+    expect(normalizePath("/p/1/")).toBe("/p/1");
+    expect(normalizePath("/p/1///")).toBe("/p/1");
+  });
+});
+
+describe("resolveInitialPath (LIFF deep-link delivery)", () => {
+  it("prefers a concrete non-root pathname", () => {
+    expect(resolveInitialPath("/p/9", "")).toBe("/p/9");
   });
 
-  it("ignores an off-site liff.state and falls back to root", () => {
-    const search = `?liff.state=${encodeURIComponent("https://evil.example/p/x")}`;
+  it("decodes a path delivered via the liff.state query param", () => {
+    const search = `?liff.state=${encodeURIComponent("/p/9?foo=bar")}`;
+    expect(resolveInitialPath("/", search)).toBe("/p/9");
+  });
+
+  it("never returns an off-site path", () => {
+    const search = `?liff.state=${encodeURIComponent("https://evil.example/p/9")}`;
     expect(resolveInitialPath("/", search)).toBe("/");
   });
 
-  it("falls back to root when there is no path and no liff.state", () => {
+  it("falls back to root with no pathname + no state", () => {
     expect(resolveInitialPath("/", "")).toBe("/");
-  });
-});
-
-describe("parseRoute", () => {
-  it("routes the root to the list", () => {
-    expect(parseRoute("/")).toEqual({ name: "list" });
-  });
-
-  it("routes /p/:id to the detail with the decoded id", () => {
-    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
-    expect(parseRoute(`/p/${encodeURIComponent("weird id/with")}`)).toEqual({
-      name: "detail",
-      id: "weird id/with",
-    });
-  });
-
-  it("falls back to the list for unknown paths", () => {
-    expect(parseRoute("/something/else")).toEqual({ name: "list" });
-  });
-});
-
-describe("detailPath", () => {
-  it("builds an encoded detail path that round-trips through parseRoute", () => {
-    const id = "id with space";
-    expect(parseRoute(detailPath(id))).toEqual({ name: "detail", id });
   });
 });
