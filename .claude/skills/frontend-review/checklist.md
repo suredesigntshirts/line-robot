@@ -28,6 +28,14 @@ On the home page AND a discovered detail page, via `getComputedStyle`:
 - **Click-through journeys** (grow these over time): browse → open a card → detail → back; the 4.3
   contextual price filter relabels Buy↔Rent (island hydration); `/en/` renders the English document.
 
+## Parity — for "no visual change" foundation/refactor increments (SKILL Mode A.5)
+
+When the increment claims *no visual change* (token plumbing, Tailwind/build/config, a refactor), the
+gate is **parity vs the prior render**, not direction alignment. Mode A's invariants are blind to a
+real visual regression (a tree-shaken token once rendered badges wrong while every invariant stayed
+green). Pixel-diff the gallery before↔after: `node scripts/gallery-diff.mjs <before> <after>`. Any
+diverged screen is a finding — surface to the founder or fix. Don't grade these against the mock.
+
 ## Design review — judgment vs the DIRECTION (no pass/fail on pixels)
 
 A sub-agent opens the captured gallery (`test-results/gallery/{project}-{screen}.png`) and judges

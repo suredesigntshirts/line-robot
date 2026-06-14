@@ -1,18 +1,17 @@
-// Emits fallbacks.css from theme.css — the plain-CSS companion to theme.css.
+// Emits fallbacks.css from theme.css — the TECH-06 oklch/old-Android fallback ONLY.
 //
-// theme.css declares its base tokens inside Tailwind v4's `@theme {}`. Tailwind
-// compiles that into `:root` custom properties — but a browser DISCARDS an
-// unrecognised `@theme {}` block. Consumers that DON'T run Tailwind (the Astro
-// website imports theme.css as raw CSS and styles purely via var(--token)) would
-// therefore get no tokens at all (serif font, zero spacing, default colours).
+// Plan 21: the website now RUNS Tailwind, so it compiles theme.css's `@theme {}` into real `:root`
+// custom properties (and the dark-mode blocks below it are plain CSS the browser already applies).
+// That makes the OLD fallbacks.css (a full plain-:root restatement of every token) REDUNDANT for
+// modern browsers — Tailwind emits those tokens now.
 //
-// This file re-states every `@theme {}` base token as a real `:root {}` so those
-// consumers resolve var(--token). It also serves TECH-06: colour tokens are emitted
-// hex-first (pre-Chromium-111 Thai Android WebViews) with an @supports block
-// restating OKLCH for modern browsers. Consumers import BOTH files
-// (`import theme.css; import fallbacks.css`) — theme.css still carries the
-// dark-mode override blocks (plain CSS the browser already applies); this file
-// supplies the base :root the @theme {} block could not.
+// What is NOT redundant: Tailwind emits `oklch()` colour values unconditionally, and pre-Chrome-111
+// Thai Android WebViews cannot parse oklch() (canon TECH-06). So this file keeps ONLY the colour/
+// shadow fallback, wrapped in `@supports not (color: oklch())` so it is INERT on modern browsers
+// (oklch from Tailwind wins) and supplies hex/rgba ONLY where oklch is unsupported. Light + dark.
+//
+// Non-colour tokens (spacing/radius/text/font/leading) parse fine on old browsers straight from
+// Tailwind's compiled @theme, so they need no fallback and are no longer restated here.
 //
 // theme.css stays the single source of truth. Regenerate: npm run tokens:fallbacks.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -22,70 +21,75 @@ import { fileURLToPath } from "node:url";
 const root = dirname(fileURLToPath(import.meta.url));
 const theme = readFileSync(join(root, "../theme.css"), "utf8");
 
-// Only the @theme {} block needs re-stating (the dark-mode blocks below it are
-// already plain CSS the browser applies). Slice it out.
-const themeOpen = theme.indexOf("@theme");
-const themeBlock =
-  themeOpen === -1
-    ? ""
-    : theme.slice(themeOpen, theme.indexOf("}", theme.lastIndexOf("--leading-body")) + 1);
+/** Slice the declaration body of the first CSS block opened by `marker` (blocks here are flat —
+ *  no nested braces — so the first `}` after the opening `{` closes it). */
+function sliceBlock(src, marker) {
+  const start = src.indexOf(marker);
+  if (start === -1) return "";
+  const braceStart = src.indexOf("{", start);
+  if (braceStart === -1) return "";
+  return src.slice(braceStart + 1, src.indexOf("}", braceStart));
+}
 
-// A colour token carries both an OKLCH value and a canonical sRGB hex comment.
-const COLOUR_RE = /(--[\w-]+):\s*(oklch\([^)]*\))\s*\/\*\s*(#[0-9a-fA-F]{6})\s*\*\/\s*;/g;
-// Any token decl: `--name: <value>;`.
-const TOKEN_RE = /(--[\w-]+):\s*([^;]+?)\s*;/g;
+// A colour token carries an OKLCH value AND a canonical sRGB hex comment: `--name: oklch(..) /* #hex */;`.
+const COLOUR_RE = /(--[\w-]+):\s*oklch\([^)]*\)\s*\/\*\s*(#[0-9a-fA-F]{6})\s*\*\//g;
+// A shadow token's ink is oklch with an alpha; no hex comment — map the ink to rgba so shadows render.
+const SHADOW_RE = /(--shadow-[\w-]+):\s*([^;]*oklch\([^;]*)\s*;/g;
 
-/** Degrade an oklch(L C H / a) shadow ink to rgba() so shadows render pre-OKLCH.
- *  Every shadow here is near-black ink → map to our --color-text rgb, keep alpha. */
+/** Degrade an oklch(L C H / a) shadow ink to rgba() — every shadow ink here is near-black → our
+ *  --color-text rgb, alpha preserved. */
 const shadowFallback = (v) =>
   v.replace(/oklch\([\d.]+\s+[\d.]+\s+[\d.]+\s*\/\s*([\d.]+)\)/g, "rgba(20, 24, 32, $1)");
 
-const colourNames = new Set();
-const baseColours = [];
-const oklchColours = [];
-for (const [, name, oklch, hex] of themeBlock.matchAll(COLOUR_RE)) {
-  colourNames.add(name);
-  baseColours.push(`  ${name}: ${hex};`);
-  oklchColours.push(`    ${name}: ${oklch};`);
+/** The oklch→hex/rgba fallback declarations for one CSS block (colours via hex comment, shadows via
+ *  rgba). Tokens that are var()-refs or plain values are skipped — they parse fine pre-oklch. */
+function fallbacksFor(blockText, indent) {
+  const lines = [];
+  for (const [, name, hex] of blockText.matchAll(COLOUR_RE))
+    lines.push(`${indent}${name}: ${hex};`);
+  for (const [, name, value] of blockText.matchAll(SHADOW_RE))
+    lines.push(`${indent}${name}: ${shadowFallback(value)};`);
+  return lines;
 }
 
-// Non-colour tokens (spacing/radius/text/font/leading), var()-refs (badge-*), and
-// shadows. Colours are handled above with @supports; the Tailwind palette reset
-// (`--color-*: initial`) is meaningless outside Tailwind and is dropped.
-const otherTokens = [];
-for (const [decl, name, rawValue] of themeBlock.matchAll(TOKEN_RE)) {
-  if (colourNames.has(name) || name === "--color-*") continue;
-  void decl;
-  otherTokens.push(
-    `  ${name}: ${rawValue.includes("oklch(") ? shadowFallback(rawValue) : rawValue};`,
-  );
-}
+const lightBlock = sliceBlock(theme, "@theme");
+const darkBlock = sliceBlock(theme, ".dark");
 
-if (colourNames.size === 0) {
-  // A swapped-in candidate whose tokens don't match `oklch(...) /* #hex */` would
-  // silently ship NO base tokens / legacy fallback (TECH-06) — fail loudly.
+const lightLines = fallbacksFor(lightBlock, "    ");
+const darkLines = fallbacksFor(darkBlock, "    ");
+const darkLinesDeep = fallbacksFor(darkBlock, "      ");
+
+if (lightLines.length === 0) {
+  // A swapped-in candidate whose tokens don't match `oklch(...) /* #hex */` would silently ship NO
+  // oklch fallback (TECH-06 regression on old Android) — fail loudly rather than emit an empty net.
   console.error(
-    "emit-fallbacks: 0 colour tokens matched — the swapped theme.css doesn't follow `--token: oklch(...) /* #hex */;`. Fix the candidate block before shipping.",
+    "emit-fallbacks: 0 colour tokens matched — theme.css doesn't follow `--token: oklch(...) /* #hex */;`. Fix the candidate block before shipping.",
   );
   process.exit(1);
 }
 
 const output = `/* GENERATED by scripts/emit-fallbacks.mjs — do not edit. Source: theme.css.
-   Plain-CSS :root restating theme.css's @theme {} base tokens (which a non-Tailwind
-   browser discards), colours hex-first with an @supports OKLCH upgrade. Import
-   alongside theme.css. Regenerate: npm run tokens:fallbacks. */
-:root {
-${otherTokens.join("\n")}
-${baseColours.join("\n")}
-}
-@supports (color: oklch(0 0 0)) {
+   TECH-06 oklch/old-Android fallback ONLY. The website runs Tailwind now, so it compiles
+   theme.css's @theme {} into :root tokens for modern browsers; this file supplies hex/rgba
+   ONLY where oklch() is unsupported (pre-Chrome-111 Thai Android WebViews). @supports not()
+   keeps it inert on modern browsers (Tailwind's oklch wins). Regenerate: npm run tokens:fallbacks. */
+@supports not (color: oklch(0 0 0)) {
   :root {
-${oklchColours.join("\n")}
+${lightLines.join("\n")}
+  }
+  :root[data-theme="dark"],
+  .dark {
+${darkLines.join("\n")}
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+${darkLinesDeep.join("\n")}
+    }
   }
 }
 `;
 
 writeFileSync(join(root, "../fallbacks.css"), output);
 console.log(
-  `fallbacks.css: ${colourNames.size} colour tokens (hex + @supports oklch) + ${otherTokens.length} non-colour tokens emitted.`,
+  `fallbacks.css: TECH-06 oklch fallback — ${lightLines.length} light + ${darkLines.length} dark decls under @supports not(oklch).`,
 );

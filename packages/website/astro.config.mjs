@@ -1,5 +1,6 @@
 import node from "@astrojs/node";
 import react from "@astrojs/react";
+import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 // SSR output so routes render per-request on Lambda. The @astrojs/node adapter in `middleware`
@@ -26,6 +27,11 @@ export default defineConfig({
     routing: { prefixDefaultLocale: false },
   },
   vite: {
+    // Tailwind v4 runs via its Vite plugin (canon Finding 10 / TECH-06): it compiles the shared
+    // `@theme {}` in @line-robot/ui/theme.css to `:root` tokens AND generates the utilities the
+    // components are authored in. The global stylesheet (src/styles/global.css) is the entry that
+    // pulls `@import "tailwindcss/..."` + the shared theme; Base.astro imports it.
+    plugins: [tailwindcss()],
     ssr: {
       // Native/binary deps must never be bundled into the Lambda artifact (same rule as the bot).
       external: ["pg-native", "sharp"],

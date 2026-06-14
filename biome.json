@@ -18,6 +18,7 @@
       "!.claude",
       "!packages/ui/theme.css",
       "!packages/ui/fallbacks.css",
+      "!packages/website/src/styles/global.css",
       "!**/*.astro"
     ]
   },

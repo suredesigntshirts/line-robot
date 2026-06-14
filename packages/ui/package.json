@@ -8,6 +8,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./ui": {
+      "types": "./src/components/ui/index.ts",
+      "default": "./src/components/ui/index.ts"
+    },
     "./theme.css": "./theme.css",
     "./fallbacks.css": "./fallbacks.css"
   },
@@ -18,7 +22,11 @@
     "gallery": "vite gallery"
   },
   "dependencies": {
-    "@line-robot/domain": "*"
+    "@line-robot/domain": "*",
+    "@radix-ui/react-slot": "^1.2.5",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
     "react": "^19.0.0",

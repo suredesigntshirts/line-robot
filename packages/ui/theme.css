@@ -9,7 +9,11 @@
    `npm run tokens:fallbacks` regenerates fallbacks.css (hex-first cascade).
    ============================================================ */
 
-@theme {
+/* `static`: emit EVERY token to :root, not just the ones Tailwind sees used in a utility. This file
+   is a design-token source consumed via var(--token) by components (and by other packages) that
+   Tailwind doesn't scan — without `static`, Tailwind tree-shakes those "unused" tokens (e.g. the
+   --badge-*-text pairs) and they resolve empty at runtime. (TECH-06: the tokens must always resolve.) */
+@theme static {
   /* Kill Tailwind's default palette so only OUR tokens generate utilities (AP-3). */
   --color-*: initial;
 

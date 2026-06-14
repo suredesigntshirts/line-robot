@@ -87,7 +87,16 @@
 
 **TECH-11:** The listing search/filter panel component is wrapped in `<div transition:persist transition:name="filter-panel">` so filter state persists across listing card navigations (View Transitions). A reviewer can verify this by navigating from listing A to listing B and confirming filter panel values do not reset.
 
-**TECH-12:** The SSR adapter choice is `astro-sst` (SST Ion) deploying CloudFront + S3 + Lambda. Static assets and page shells are served from S3 via CloudFront. The Lambda function handles only dynamic SSR routes and server island requests. This is verified by inspecting the CloudFront distribution's behaviour rules post-deploy.
+**TECH-12:** ⚠️ **DECISION (spiked; confirmed 2026-06-14) — SUPERSEDED: we use Pulumi, NOT `astro-sst`.**
+We spiked the adapter question and chose **Pulumi + `packages/website/build-lambda.mjs` + `@astrojs/node`
+(middleware mode)** deploying CloudFront + S3 + Lambda — because the existing Pulumi infra + scoped deploy
+identity already runs the whole stack (RDS, DynamoDB, S3, the bot Lambdas), and the canon's `astro-sst` pick
+was explicitly "PLAUSIBLE-BUT-UNVERIFIED." The site is live on this setup. `astro-sst`/SST Ion is **not**
+adopted; swapping infra is a separate, out-of-scope program. The paragraph below is retained as research
+context only. — *Original recommendation:* The SSR adapter choice is `astro-sst` (SST Ion) deploying
+CloudFront + S3 + Lambda. Static assets and page shells are served from S3 via CloudFront. The Lambda
+function handles only dynamic SSR routes and server island requests. This is verified by inspecting the
+CloudFront distribution's behaviour rules post-deploy.
 
 **TECH-13:** JSON-LD structured data for listings is injected as a server-rendered Astro component (no hydration). The component accepts a typed `listing` prop and serialises it to JSON-LD in a `<script>` tag in `<head>`. It must never become a `client:*` island.
 
@@ -131,7 +140,11 @@
 
 ### PLAUSIBLE-BUT-UNVERIFIED
 
-- **`astro-sst` (SST Ion) is the best-maintained Lambda adapter for Astro 6** — SST Ion docs were current as of the search date, but the specific Astro 6 compatibility of `astro-sst` was not explicitly confirmed in a GitHub issue or README. Verify before committing to SST Ion: run a smoke-deploy with Astro 6.4.x.
+- **`astro-sst` (SST Ion) is the best-maintained Lambda adapter for Astro 6** — ✅ **RESOLVED (2026-06-14):
+  moot — we chose Pulumi + `@astrojs/node` instead of SST Ion (see TECH-12 decision note). The site is live
+  on Pulumi-managed CloudFront + S3 + Lambda; `astro-sst` Astro-6 compatibility no longer needs verifying.**
+  (Original note: SST Ion docs were current as of the search date, but the specific Astro 6 compatibility of
+  `astro-sst` was not explicitly confirmed in a GitHub issue or README.)
 - **Lambda cold start of 800ms–1.5s for SSR pages** — cited in community posts but no benchmark from ap-southeast-1 specifically. Measure in staging.
 - **`hreflang` auto-generation by `@astrojs/sitemap`** — the docs reference SSR mode support; verify that the sitemap integration's i18n support is active for SSR (not only SSG) builds with Astro 6.
 - **Thai Google Search preferring `th` locale code over `th-TH`** — Google's guidance says use `th` not `th-TH` for language-only (not region-specific) targeting; this is standard advice but has not been specifically confirmed against a Thai real-estate search scenario.

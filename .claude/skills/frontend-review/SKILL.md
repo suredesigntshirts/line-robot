@@ -6,11 +6,17 @@ disable-model-invocation: true
 
 # Frontend review — render the real site, assert invariants, review the design
 
-Catches two classes that source review + SSR-string smokes are structurally blind to:
+Catches classes that source review + SSR-string smokes are structurally blind to:
 1. **The site renders WRONG** — unstyled / theme not applying / broken images / dead islands — even
    though the HTML is "correct" (the TECH-06 class; it shipped an unstyled site through a whole build).
-2. **The design drifts from our DIRECTION** — not pixels, but alignment with the mockups + heuristics
-   + taste brief.
+2. **The design drifts from our DIRECTION** (feature/redesign increments) — not pixels, but alignment
+   with the mockups + heuristics + taste brief.
+3. **A "no visual change" increment silently CHANGED the render** (foundation/refactor increments —
+   Tailwind/token plumbing, build/config). Here the contract is *parity vs the prior render*, NOT
+   alignment with the mock; the mode-A invariants are blind to it (they only check that SOME tokens
+   resolve — a regression that rendered badges with the wrong colour kept every invariant green).
+   Use **Mode A.5 (parity)** for these. Picking the wrong lens (judging a foundation increment against
+   the mock) yields a meaningless verdict; match the mode to the increment's contract.
 
 NOT correctness (`/code-review`), semantics-vs-research (`/alignment-review`), or simplicity.
 
@@ -75,6 +81,22 @@ hardcoding.
   `curl -s "<url>/_astro/$(curl -s <url>/ | grep -oE 'Base[^\"]+\.css' | head -1)" | grep -c @font-face`
   → `0` on the behind deploy, `1` once redeployed.
 
+### A.5 — Parity check (for "no visual change" foundation/refactor increments)
+When the increment's contract is **"no visual change"** (Tailwind/token plumbing, build/config, a
+refactor), the right gate is **parity vs the prior render**, not direction alignment. Mode A is blind
+to a real visual regression (it once stayed green while a tree-shaken token rendered badges in the
+wrong colour). So pixel-diff the gallery BEFORE vs AFTER the change:
+- Capture the prior gallery: from the pre-change tree (`git stash` / checkout the base) run a build +
+  `npx playwright test e2e/capture.spec.ts`, copy `test-results/gallery/local` to a `before/` dir.
+- Capture the after gallery the same way from the increment, into an `after/` dir.
+- `node scripts/gallery-diff.mjs <before> <after>` (from `packages/website/`) — per-screen differing-
+  pixel count + total; exit 0 = parity, exit 1 = divergence (listed).
+- **Any diverged screen is a finding**: surface it as an open question for the founder ("the badge row
+  shifted colour — intended?") or, if it's an unintended regression, BLOCK and fix. A "no visual
+  change" increment that visibly changes the site is red until ruled intended. Don't run Mode B's
+  direction-comparison for these — a foundation increment is *supposed* to still look like the old
+  site, so "diverges from the mock" is expected and uninformative.
+
 ### B — Capture + visual design review (the design eyes)
 - Any run produces a fresh gallery, **namespaced by target**:
   `packages/website/test-results/gallery/{local|deployed}/{project}-{screen}.png` (home · home-rent ·
@@ -82,13 +104,21 @@ hardcoding.
   target overwrites it in place, so **review the gallery before launching another run of that target**
   (local and deployed no longer collide; same-target back-to-back does).
 - **Spawn a fresh `Explore` sub-agent using the ready prompt in `design-review-prompt.md`** (fill in
-  the target's gallery dir). That prompt already carries the inputs (mockups, taste brief, the register
-  §4 *visual context groups* — read the IDs from §4, don't hardcode them) and the two HARD rules:
-  **(1) style only — not content/fields/pixels**, and **(2) SURFACE divergences as open questions for
-  the founder — do NOT let the agent adjudicate a mock↔render mismatch against `theme.css`/git** (that
-  buries the very call the founder needs to make; e.g. "NPA badge renders calm-violet, mockup shows
-  red — intended?" must reach the founder, not be self-resolved). It returns per-screen notes +
-  worst-divergences-as-open-questions + the 2–3 screens worth the founder's eyes.
+  the target's gallery dir AND the mock-render dir). **The comparison is IMAGE-vs-IMAGE: the render
+  gallery PNGs vs a *rendered screenshot* of the mock (`docs/design/mockups/renders/direction-a-{light,
+  dark}.png`), and the agent is FORBIDDEN to open any CSS/HTML/theme source or cite any token/hex/oklch
+  value.** This is load-bearing: when the agent was instead handed the mock's HTML source, it read the
+  source, imagined the mock, and confabulated "ALIGNED" — inventing pills/chips that weren't in the
+  render and citing `#1f5fad`/`oklch(…)` as "evidence." Telling it "use pixels not source" in prose did
+  not stop it; removing the source did. The HARD rules: **(1) style only — not content/fields**;
+  **(2) SURFACE divergences as open questions for the founder, never self-adjudicate** (e.g. "NPA badge
+  renders calm-violet, mock shows red — intended?" must reach the founder); **(3) describe the target
+  image and each render screen BLIND before diffing, so it can't project the mock onto the render.** It
+  returns per-screen notes + worst-divergences-as-open-questions + the 2–3 screens worth founder eyes.
+  - **Regenerate the mock renders** when `direction-a-baania-clean.html` changes: serve it
+    (`cd docs/design/mockups && python3 -m http.server 8799`) and screenshot it light + dark (set
+    `document.documentElement.dataset.theme`) into `docs/design/mockups/renders/` with a headless
+    Chromium (the plan-20 Playwright is already installed). Commit the PNGs — they ARE the design bar.
 - Relay that verdict; do not inline all the images into the main conversation.
 
 ### C — Click-through journey library (list / run / add / modify / delete / promote)

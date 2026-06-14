@@ -265,3 +265,39 @@ Not an autonomous sprint; a founder-driven post-mortem of the two overnight runs
   fixture images** seeded for the e2e galleries; snapshot privacy-mask disabled (all test data).
 - **State:** uncommitted on `main`. Source of truth: **BACKLOG.md → "Quality system — perceptual/
   visual gate (2026-06-14)"**. This gate now applies to all future plan-19 UI work (Stage 5+).
+
+## 2026-06-14 — Session 3 (autonomous): plan 21 + design-skill hardening
+
+Long-running `/goal` (`plans/21-goal-prompt.md`): ship plan 21 (Tailwind v4 + shadcn → direction-a
+across all pages) AND, on every design increment, trace + adversarially audit + harden the two
+design-quality skills (`/frontend-review`, `/alignment-review`). Usage at start 6%/5h.
+
+**Phase 1 — Tailwind v4 + shadcn foundation, NO visual change (Prompt 1) — DONE + committed.**
+- Tailwind v4 now RUNS on the website (`@tailwindcss/vite`; `src/styles/global.css` imports
+  `tailwindcss/theme.css`+`utilities.css` — **Preflight deliberately omitted** to keep the look — then
+  the shared `@theme`). `theme.css` → **`@theme static`** so ALL tokens emit to `:root` (Tailwind
+  tree-shakes "unused" `@theme` vars — that dropped `--badge-*-text` etc., a real badge regression
+  caught only by pixel-diff at AE≤38403; `static` → AE 0).
+- `fallbacks.css`/`emit-fallbacks.mjs` slimmed to the **TECH-06 oklch/old-Android hex fallback only**
+  (`@supports not (color: oklch())`, light+dark); new e2e invariant asserts the served CSS ships it
+  (BLOCKER). shadcn primitives (button/card/badge + `cn` + `components.json`) added as **owned code**
+  (`@line-robot/ui/ui`), proven zero-JS (TECH-01).
+- **Visual parity proven: AE 0 across all 36 screens.** Free gates green (typecheck, lint,
+  `npm run test`, **`npm run test:e2e` 68/68**). Also FIXED a pre-existing break: the website `vitest`
+  had no config and was collecting the Playwright e2e specs → added `vitest.config.ts` scoping it.
+- Increment-review: spec "second `@theme`" + simplicity "shadcn unused" → **REBUTTED** (the `@theme
+  inline` adds NEW alias names, not an AP-3 palette redefinition; shadcn primitives are a TECH-07-
+  mandated Phase-1 deliverable in verbatim owned form, 2nd impl = Phase 2 this run). /code-review:
+  fixed gallery-diff sort key + hardened the fallback-assert regex; "Badge className lost" refuted.
+
+**Skill hardening (`docs/design/skill-hardening/`: traces + audits + HARDENING-LOG + FOUNDER-QUEUE):**
+- **`/frontend-review` — audit INSUFFICIENT, 2 gaps fixed + re-verified to BITE:** (F1) mode-B
+  CONFABULATED "ALIGNED" from theme.css token VALUES on a render that's the OLD plain styling; prose
+  hardening didn't stop it → made mode-B **images-only, source-forbidden** (render gallery vs a
+  committed *rendered screenshot* of the mock at `docs/design/mockups/renders/`) + blind-describe-first
+  + a **signature-element checklist** → re-run now returns OPEN-QUESTIONS with 7 correct pixel-grounded
+  divergences (= the Phase-2 work-list). (F2) no **parity mode** for no-visual-change increments →
+  added Mode A.5 + `gallery-diff.mjs` (flags a regression at AE 16281, confirms parity at AE 0).
+- **`/alignment-review` — audit SUFFICIENT:** correct groups, every ID, rendered evidence, TECH-06
+  routed to founder not self-adjudicated → no skill edit (anti-bloat). TECH-06 fallback Q →
+  `FOUNDER-QUEUE.md` #1 (proceeded: `@supports not(oklch)` covers the whole realistic old-Android range).

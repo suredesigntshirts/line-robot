@@ -34,6 +34,33 @@ test.describe("theme applies (TECH-06 net)", () => {
     expect(families, "Noto Sans Thai must be delivered via @font-face").toContain("Noto Sans Thai");
   });
 
+  test("oklch/old-Android fallback ships hex tokens under @supports not(oklch) (TECH-06)", async ({
+    page,
+    request,
+  }) => {
+    // Tailwind compiles @theme to oklch() unconditionally; pre-Chrome-111 Thai Android WebViews
+    // can't parse oklch and would render unstyled. The fallback restates the colour tokens as hex
+    // inside `@supports not (color: oklch())` (inert on modern browsers, applied on old ones). A
+    // modern browser can't EXERCISE that branch, so we assert the served CSS SHIPS it — the net
+    // that bites if a future change drops the fallback import or regenerates it empty. BLOCKER.
+    await page.goto("/");
+    const hrefs = await page
+      .locator('link[rel="stylesheet"]')
+      .evaluateAll((els) => els.map((e) => (e as HTMLLinkElement).href));
+    expect(hrefs.length, "page must ship at least one stylesheet").toBeGreaterThan(0);
+    let css = "";
+    for (const href of hrefs) css += await (await request.get(href)).text();
+    expect(css, "must ship a @supports not(oklch) fallback block").toMatch(
+      /@supports\s+not\s*\(\s*color\s*:\s*oklch/,
+    );
+    // After Phase 1 the ONLY hex colour declarations are inside that fallback block (Tailwind emits
+    // oklch everywhere else), so a hex --color-bg / --color-primary-500 is proof the net is present.
+    expect(css, "fallback must restate --color-bg as hex").toMatch(/--color-bg:\s*#[0-9a-fA-F]{6}/);
+    expect(css, "fallback must restate --color-primary-500 as hex").toMatch(
+      /--color-primary-500:\s*#[0-9a-fA-F]{6}/,
+    );
+  });
+
   test("dark mode flips the surface token by colour scheme", async ({ page }) => {
     await page.goto("/");
     const bgFor = async (scheme: "light" | "dark") => {

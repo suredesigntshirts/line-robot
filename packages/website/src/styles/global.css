@@ -1,0 +1,61 @@
+/* ============================================================
+   packages/website/src/styles/global.css — the website's Tailwind v4 entry.
+   Plan 21 / canon Finding 10 + TECH-06: the website RUNS Tailwind. This file is
+   processed by @tailwindcss/vite (registered in astro.config.mjs); Base.astro imports it.
+
+   PHASE-1 CONTRACT — NO VISUAL CHANGE. We therefore OMIT Tailwind's Preflight (its reset
+   re-styles headings/margins/box-sizing and WOULD change the look). We import only the
+   `theme` layer (token vars + the utilities they drive) and the `utilities` layer. The
+   existing components keep their own inline styling and look identical; a redesign
+   (Prompt 2) that wants a base reset adds one explicitly and on purpose.
+   ============================================================ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* THE single token source (AP-3: one @theme, defined in @line-robot/ui, never redefined here).
+   Tailwind compiles its `@theme {}` into :root custom properties (consumed by utilities AND
+   readable at runtime) and the file's dark-mode override blocks are plain CSS applied as-is. */
+@import "@line-robot/ui/theme.css";
+
+/* TECH-06 oklch/old-Android fallback: Tailwind emits oklch() unconditionally; this sheet supplies
+   hex values ONLY where oklch is unsupported (`@supports not (color: oklch())`), so it is inert on
+   modern browsers and never overrides the oklch. Generated from theme.css — npm run tokens:fallbacks. */
+@import "@line-robot/ui/fallbacks.css";
+
+/* The website's own src is auto-detected from the Vite root; @line-robot/ui lives outside it, so
+   scan it explicitly — Prompt 2 authors the shared cards/badges there in Tailwind utilities. */
+@source "../../../ui/src";
+
+/* ------------------------------------------------------------
+   shadcn/ui semantic-token layer (canon TECH-07). Maps shadcn's design-system token names onto OUR
+   trust-blue palette so the owned shadcn primitives (button/card/badge) render in-brand — "override
+   via tokens only, never rewrite the primitives." These alias our --color-* tokens, which already
+   flip in dark mode (theme.css dark blocks), so the shadcn tokens flip with them. `inline` because
+   each references another variable (Tailwind docs: avoids the var-resolution-context pitfall).
+   New names only — none collide with our scale tokens (--color-border/--color-surface stay ours).
+   NOT an AP-3 violation: AP-3 forbids REDEFINING the shared namespace in a consumer (re-doing
+   `--*: initial` / re-declaring --color-primary-500 → cascade ambiguity). This block declares only
+   NEW shadcn alias names that point at the shared tokens; the single token SOURCE stays in
+   @line-robot/ui/theme.css. (Standard shadcn-in-a-Tailwind-app pattern.)
+   ------------------------------------------------------------ */
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-text);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-text);
+  --color-primary: var(--color-primary-500);
+  --color-primary-foreground: var(--color-surface);
+  --color-secondary: var(--color-surface-2);
+  --color-secondary-foreground: var(--color-text);
+  --color-muted: var(--color-surface-2);
+  --color-muted-foreground: var(--color-text-2);
+  --color-accent: var(--color-primary-50);
+  --color-accent-foreground: var(--color-primary-600);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-surface);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-primary-500);
+}

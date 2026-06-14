@@ -11,12 +11,11 @@ import "@fontsource/noto-sans-thai/thai-600.css";
 import "@fontsource/noto-sans-thai/thai-700.css";
 import "@fontsource/noto-sans-thai/latin-600.css";
 import "@fontsource/noto-sans-thai/latin-700.css";
-import "@line-robot/ui/theme.css";
-// theme.css declares tokens inside Tailwind v4 `@theme {}`; the website doesn't run
-// Tailwind, so a browser discards that block and every var(--token) would be empty
-// (serif font, no spacing/colour). fallbacks.css restates them as a plain :root
-// (hex-first + @supports OKLCH). Import AFTER theme.css so its dark-mode blocks win.
-import "@line-robot/ui/fallbacks.css";
+// The website's Tailwind v4 entry (plan 21): @import "tailwindcss" (theme + utilities layers, no
+// Preflight) → the shared @theme tokens (@line-robot/ui/theme.css, compiled by Tailwind to :root
+// vars + utilities) → the TECH-06 oklch/old-Android fallback. One stylesheet, the single token
+// source. (Was: raw theme.css + a hand-restated fallbacks.css, because the site didn't run Tailwind.)
+import "../styles/global.css";
 import ogDefault from "../assets/og-default.png";
 
 interface Props {
