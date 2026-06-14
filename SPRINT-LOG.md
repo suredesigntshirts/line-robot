@@ -301,3 +301,21 @@ design-quality skills (`/frontend-review`, `/alignment-review`). Usage at start 
 - **`/alignment-review` — audit SUFFICIENT:** correct groups, every ID, rendered evidence, TECH-06
   routed to founder not self-adjudicated → no skill edit (anti-bloat). TECH-06 fallback Q →
   `FOUNDER-QUEUE.md` #1 (proceeded: `@supports not(oklch)` covers the whole realistic old-Android range).
+
+**Phase 2 pass 1 — shared listing cards → direction-a (`packages/ui`) — DONE + committed.**
+- Restyled `ListingCard/Badge/StatusBadge/PriceDisplay/States/Layout` to the mock in Tailwind utilities
+  (no inline-style objects): ขาย/ให้เช่า deal-pill overlay on the photo, gradient+camera placeholder,
+  photo-count chip, calm-violet NPA badge, "ราคาเสนอขาย/ค่าเช่า" label above a bold Latin price, hover
+  lift, redesigned EmptyState. Added `--color-white`/`--color-black` brand constants (overlays/inverse
+  text). `primaryButtonStyle` (inline obj) → `primaryButtonClass` (FilterBar + NearMe updated). Chrome
+  + detail are later passes. e2e 72/72; my own pixel check confirms cards now read as direction-a.
+- **Skill hardening (pass 1):** frontend-review mode-B + alignment-review run, traced + audited.
+  alignment audit caught a REAL **TH-07** miss (Thai body at `text-xs` renders line-height 1.33 < 1.6 —
+  the `text-*` utility pins a tight default over the inherited 1.65). Fixed (Thai body → text-sm +
+  leading-relaxed). **F3:** added a deterministic `assertThaiBodyLineHeight` computed-style invariant
+  (re-verified to bite: flags 1.33, passes the fix). **A1:** hardened alignment-review §3 to forbid
+  source-token citations for styling IDs + require computed-style for measurable ones.
+  **META-FINDING:** the frontend-review AUDIT itself confabulated (claimed the deal-pills were missing
+  when they're present) — the adversarial audit is also perceptually unreliable, so measurable styling
+  moved to deterministic invariants and the orchestrator verifies audit visual-claims against pixels.
+  FOUNDER-QUEUE #2 (Thai 13px vs mock 11px), #3 (LINE-green CTA vs mock blue).

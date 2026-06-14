@@ -1,16 +1,7 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { Translator } from "../i18n/index.ts";
 
-const box = {
-  display: "grid",
-  gap: "var(--spacing-2)",
-  justifyItems: "center",
-  textAlign: "center" as const,
-  padding: "var(--spacing-10) var(--spacing-4)",
-  fontFamily: "var(--font-body-th)",
-  lineHeight: "var(--leading-body)",
-  color: "var(--color-text)",
-};
+const BOX = "grid justify-items-center gap-2 px-4 py-12 text-center font-body-th text-text";
 
 interface StateProps {
   t: Translator;
@@ -18,37 +9,36 @@ interface StateProps {
   action?: ReactNode;
 }
 
-/** The one primary-action button style (second copy appeared in the website FilterBar). */
-export const primaryButtonStyle: CSSProperties = {
-  padding: "var(--spacing-2) var(--spacing-4)",
-  borderRadius: "var(--radius-md)",
-  border: "none",
-  background: "var(--color-primary-500)",
-  color: "var(--color-surface)",
-  fontSize: "var(--text-base)",
-  fontFamily: "var(--font-body-th)",
-  cursor: "pointer",
-};
+/** The one primary-action button treatment (direction-a btn-primary, smaller). A class, not an inline
+ * style object — shared by the website FilterBar + ErrorState. */
+export const primaryButtonClass =
+  "inline-flex cursor-pointer items-center justify-center rounded-md border-0 bg-primary-500 px-4 py-2 font-body-th text-base text-white transition-colors hover:bg-primary-600";
 
-/** COPY-07: what happened + why + what to do next — never a bare "no results". */
+/** COPY-07: what happened + why + what to do next — never a bare "no results". Direction-a: a calm
+ * centred state with a muted icon, not an error. */
 export function EmptyState({ t, action }: StateProps) {
   return (
-    <div style={box} data-state="empty">
-      <div
-        style={{
-          fontSize: "var(--text-md)",
-          fontWeight: 600,
-          fontFamily: "var(--font-heading-th)",
-        }}
-      >
-        {t("empty.title")}
-      </div>
-      <div style={{ fontSize: "var(--text-base)", color: "var(--color-text-2)" }}>
-        {t("empty.why")}
-      </div>
-      <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>
-        {t("empty.next")}
-      </div>
+    <div className={BOX} data-state="empty">
+      <span className="text-primary-300">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="40"
+          height="40"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="11" cy="11" r="7" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+      </span>
+      <div className="font-heading-th font-semibold text-md">{t("empty.title")}</div>
+      <div className="text-base text-text-2">{t("empty.why")}</div>
+      <div className="text-sm text-text-2">{t("empty.next")}</div>
       {action}
     </div>
   );
@@ -65,21 +55,11 @@ export function ErrorState({
   action?: ReactNode;
 }) {
   return (
-    <div style={box} data-state="error">
-      <div
-        style={{
-          fontSize: "var(--text-md)",
-          fontWeight: 600,
-          fontFamily: "var(--font-heading-th)",
-        }}
-      >
-        {t("error.title")}
-      </div>
-      <div style={{ fontSize: "var(--text-base)", color: "var(--color-text-2)" }}>
-        {t("error.why")}
-      </div>
+    <div className={BOX} data-state="error">
+      <div className="font-heading-th font-semibold text-md">{t("error.title")}</div>
+      <div className="text-base text-text-2">{t("error.why")}</div>
       {onRetry && (
-        <button type="button" onClick={onRetry} style={primaryButtonStyle}>
+        <button type="button" onClick={onRetry} className={primaryButtonClass}>
           {t("error.retry")}
         </button>
       )}

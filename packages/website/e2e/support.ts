@@ -67,6 +67,47 @@ export async function assertThemeApplies(page: Page): Promise<void> {
   );
 }
 
+/** TH-07 as a COMPUTED-STYLE invariant (not an eyeball): Thai BODY text must render with line-height
+ * ≥1.6. This catches the regression class where a `text-*` utility pins a tight default line-height
+ * (1.33–1.43) over the inherited --leading-body (1.65) — invisible to source review AND unreliable for
+ * an LLM to see in a screenshot. Scoped to listing-card body text (the redesigned surface); exempts
+ * headings (loopless Noto, TH-13 allows tighter), pill badges (`[data-badge]`), and absolutely-
+ * positioned photo overlays (deal-pill / photo-count chips — short labels, not body text). */
+export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
+  const offenders = await page.evaluate(() => {
+    // Thai CONSONANTS + VOWELS/marks only (the readability concern). Deliberately EXCLUDES ฿ (the
+    // Baht sign U+0E3F) and Thai digits, so a Latin-numeral price like "฿2,900,000" — which rightly
+    // uses tight leading — is not mistaken for Thai body text.
+    const THAI = /[ก-ฺเ-๎]/;
+    const bad: { text: string; ratio: number }[] = [];
+    for (const el of document.querySelectorAll("[data-listing-card] *")) {
+      // only elements with their OWN direct Thai text node (a leaf line, not a wrapper)
+      const hasOwnThai = [...el.childNodes].some(
+        (n) => n.nodeType === 3 && THAI.test(n.textContent ?? ""),
+      );
+      if (!hasOwnThai) continue;
+      const cs = getComputedStyle(el);
+      if (cs.position === "absolute") continue; // overlay chips (deal-pill, photo-count)
+      if (el.closest("[data-badge]")) continue; // pill badges (short labels)
+      if (/^["']?Noto Sans Thai/i.test(cs.fontFamily)) continue; // headings (TH-13)
+      const fs = Number.parseFloat(cs.fontSize);
+      const lh = Number.parseFloat(cs.lineHeight);
+      if (!fs || Number.isNaN(lh)) continue;
+      const ratio = lh / fs;
+      if (ratio < 1.59)
+        bad.push({
+          text: (el.textContent ?? "").trim().slice(0, 24),
+          ratio: Math.round(ratio * 100) / 100,
+        });
+    }
+    return bad;
+  });
+  expect(
+    offenders,
+    `Thai body text below line-height 1.6 (TH-07): ${JSON.stringify(offenders)}`,
+  ).toEqual([]);
+}
+
 /** Every rendered image actually loaded — catches the presign/IAM/CDN image bugs that only appear
  * against real infra (locally the fake-S3 serves them; on deploy this checks the real S3 path). */
 export async function assertNoBrokenImages(page: Page): Promise<void> {

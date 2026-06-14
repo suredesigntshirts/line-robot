@@ -54,7 +54,7 @@ export function StatusBadge({ listing, verified = false, t }: StatusBadgeProps) 
   }
 
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--spacing-1)" }}>
+    <div className="flex flex-wrap gap-1">
       {badges.map((b) => (
         <Badge key={`${b.kind}-${b.label}`} kind={b.kind}>
           {b.label}

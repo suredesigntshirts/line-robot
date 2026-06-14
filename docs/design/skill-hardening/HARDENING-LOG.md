@@ -80,6 +80,45 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
   freshness note ("regenerate a generated artifact before citing it"), and clarifying when "Search &
   discovery" applies to styling-only public-page changes. The TECH-06 finding itself → FOUNDER-QUEUE #1.
 
+### 2026-06-14 · p2-pass1-cards · GAP F3 — measurable styling (TH-07 line-height) needs a DETERMINISTIC net
+- **Audit ref:** `audits/alignment-review-pass1-1.md` (the alignment audit caught it; the frontend
+  audit confabulated — see meta-finding below).
+- **Gap (demonstrated):** restyling the cards to Tailwind utilities lost the inherited `--leading-body`
+  (1.65) because `text-*` utilities pin a tight default line-height (`text-xs`=1.33, `text-sm`=1.43) —
+  so Thai body text (location/spec/postedBy) rendered below the TH-07 ≥1.6 floor. NEITHER design-skill
+  caught it: alignment-review passed TH-06/07 from the DECLARED `--leading-body` (source-inference);
+  frontend-review's mode-B agent can't read 1.33-vs-1.65 off a screenshot.
+- **Fix:** the card bug fixed (Thai body → `text-sm` ≥13px + `leading-relaxed`; heading → `leading-normal`).
+  Durable net: **`assertThaiBodyLineHeight` computed-style invariant** in `e2e/support.ts` + `theme.spec.ts`
+  (Thai consonant/vowel-bearing card body text must render line-height ≥1.6; excludes headings, pill
+  badges, overlay chips, and the ฿-prefixed Latin price — the ฿ sign sits in the Thai Unicode block, an
+  edge the first cut tripped on).
+- **Re-verified to BITE:** reverting one card line to tight `text-xs` → the invariant flags
+  `"สุเทพ · เมืองเชียงใหม่"` at ratio 1.33 (exit fail); fixed cards pass; full suite 72/72.
+- **Residual:** scoped to listing-card body text (the redesigned surface) — broaden to chrome/detail as
+  those passes land.
+
+### 2026-06-14 · p2-pass1-cards · alignment-review A1 — forbid source-citation for styling IDs (reinforcement)
+- The run cited token values (`--badge-npa: oklch(…)`) as evidence for styling IDs despite the existing
+  "don't infer from source" rule. **Hardened SKILL §3:** a styling-ID verdict's evidence may NOT contain
+  a token/oklch/hex/source line (invalid if it does; citing source *alongside* a screenshot still
+  counts); measurable styling must use `/frontend-review`'s computed-style assertions, not eyeballing.
+  Bite is verified on the remaining passes (next run must cite the invariant, not the token); F3 makes
+  the catch agent-independent regardless. Logged as reinforcement, not the load-bearing fix (F3 is).
+
+### 2026-06-14 · META-FINDING — the adversarial AUDIT agent is ALSO perceptually unreliable
+- The pass-1 **frontend-review audit confabulated**: it claimed the ขาย/เช่า deal-pills were "missing /
+  in the card chrome" when they ARE overlaid on the photos (runner verified the pixels). So the
+  goal's "independent adversarial audit" backstop is itself unreliable for fine-grained VISUAL claims —
+  it can false-negative on alignment just as the skill false-positives.
+- **Mitigations (in force):** (1) measurable styling → DETERMINISTIC computed-style invariants (F3, the
+  TECH-06 net) that neither agent can mis-see; (2) the orchestrator verifies an audit's visual claims
+  against the actual pixels before acting (done — the confabulated "pills missing" was refuted, the real
+  TH-07 finding sustained); (3) subjective "does it look like the mock" stays a founder-ruled judgment,
+  never an auto-ship and never an auto-reject on an unverified audit claim. Audits remain valuable for
+  COVERAGE/EVIDENCE/BACKPRESSURE reasoning (the alignment audit found a real bug) — just not as a
+  ground-truth oracle for pixels.
+
 ---
 
 ## SUMMARY (written at run end)

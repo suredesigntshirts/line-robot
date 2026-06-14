@@ -2,7 +2,7 @@ import { dealType, listingType, propertyType, saleCondition } from "@line-robot/
 import {
   createTranslator,
   type FilterGroup,
-  primaryButtonStyle,
+  primaryButtonClass,
   SearchFilters,
   type UiLocale,
 } from "@line-robot/ui";
@@ -147,7 +147,7 @@ export function FilterBar({ query, locale, basePath, provinces }: FilterBarProps
             fontFamily: "var(--font-body-th)",
           }}
         />
-        <button type="submit" style={primaryButtonStyle}>
+        <button type="submit" className={primaryButtonClass}>
           {t("filter.search")}
         </button>
       </form>

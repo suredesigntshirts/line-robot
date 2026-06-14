@@ -75,6 +75,10 @@
   /* --- Brand constants (identical across all candidates) --- */
   --color-line: oklch(0.76 0.23 150) /* #06c755 */; /* LINE brand green (CONV-06) */
   --color-line-text: oklch(1 0 0) /* #ffffff */;
+  /* Non-flipping neutrals for overlays + inverse text (do NOT swap in dark mode): a white deal-pill
+     and white-on-primary button text stay white; the photo-count chip stays a dark ink overlay. */
+  --color-white: oklch(1 0 0) /* #ffffff */;
+  --color-black: oklch(0.18 0.01 240) /* #141820 */;
 
   /* --- Spacing scale (4px base) --- */
   --spacing-0: 0px;

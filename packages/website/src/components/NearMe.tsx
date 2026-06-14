@@ -1,4 +1,4 @@
-import { createTranslator, primaryButtonStyle, type UiLocale } from "@line-robot/ui";
+import { createTranslator, primaryButtonClass, type UiLocale } from "@line-robot/ui";
 import { useState } from "react";
 import {
   type BrowseQuery,
@@ -86,7 +86,7 @@ export function NearMe({ query, locale, basePath }: NearMeProps) {
           type="button"
           onClick={locate}
           disabled={status === "locating"}
-          style={{ ...primaryButtonStyle, opacity: status === "locating" ? 0.6 : 1 }}
+          className={`${primaryButtonClass}${status === "locating" ? " opacity-60" : ""}`}
         >
           {status === "locating" ? t("near.locating") : `\u{1F4CD} ${t("near.button")}`}
         </button>

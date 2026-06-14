@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { assertThemeApplies, discoverDetailPaths } from "./support.ts";
+import { assertThaiBodyLineHeight, assertThemeApplies, discoverDetailPaths } from "./support.ts";
 
 // The TECH-06 net as INVARIANTS, not pixels — these survive theme churn (they check that a theme
 // applies at all + the brand font is delivered + dark mode flips, never an exact colour/layout). Runs
@@ -59,6 +59,11 @@ test.describe("theme applies (TECH-06 net)", () => {
     expect(css, "fallback must restate --color-primary-500 as hex").toMatch(
       /--color-primary-500:\s*#[0-9a-fA-F]{6}/,
     );
+  });
+
+  test("Thai body text in listing cards renders line-height >= 1.6 (TH-07)", async ({ page }) => {
+    await page.goto("/");
+    await assertThaiBodyLineHeight(page);
   });
 
   test("dark mode flips the surface token by colour scheme", async ({ page }) => {

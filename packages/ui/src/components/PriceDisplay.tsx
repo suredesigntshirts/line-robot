@@ -14,8 +14,9 @@ interface PriceDisplayProps {
 const formatThb = (n: number) => `฿${n.toLocaleString("en-US")}`;
 
 /**
- * COPY-06: prices are framed as ASKING prices (ราคาเสนอขาย), never implied
- * appraisals. TH-03: per-area uses Thai units — wah² for land, m² for built.
+ * COPY-06: prices are framed as ASKING prices (ราคาเสนอขาย), never implied appraisals. TH-03:
+ * per-area uses Thai units — wah² for land, m² for built. Direction-a treatment: a small muted
+ * frame LABEL above a bold price (Latin numerals, tight tracking); negotiable + per-area trail muted.
  */
 export function PriceDisplay({ listing, monthlyRent, t }: PriceDisplayProps) {
   const isRent = listing.dealType === "rent";
@@ -29,34 +30,19 @@ export function PriceDisplay({ listing, monthlyRent, t }: PriceDisplayProps) {
         : null;
 
   return (
-    <div style={{ fontFamily: "var(--font-body-th)" }}>
-      <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>{frame}</div>
-      <div
-        style={{
-          fontSize: "var(--text-xl)",
-          fontWeight: 700,
-          color: "var(--color-text)",
-          fontFamily: "var(--font-body-th)", // TH-03: numerals stay in the Thai context stack
-        }}
-      >
+    <div className="font-body-th">
+      {/* TH-06/07: the Thai frame label is body text → ≥13px + leading ≥1.6. The price itself is
+          Latin numerals (font-latin), so a tight line-height is fine there. */}
+      <div className="text-sm text-text-2 leading-relaxed">{frame}</div>
+      <div className="font-latin font-bold text-md text-text leading-tight tracking-tight">
         {amount !== null ? formatThb(amount) : "—"}
         {listing.priceNegotiable && (
-          <span
-            style={{
-              marginLeft: "var(--spacing-2)",
-              fontSize: "var(--text-sm)",
-              fontWeight: 400,
-              color: "var(--color-text-2)",
-              fontFamily: "var(--font-body-th)",
-            }}
-          >
+          <span className="ml-2 font-body-th font-normal text-sm text-text-2 leading-relaxed tracking-normal">
             {t("listing.negotiable")}
           </span>
         )}
       </div>
-      {perArea && (
-        <div style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>{perArea}</div>
-      )}
+      {perArea && <div className="text-sm text-text-2 leading-relaxed">{perArea}</div>}
     </div>
   );
 }
