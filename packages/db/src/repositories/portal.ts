@@ -91,18 +91,29 @@ export async function keepListingPrivate(db: Db, listingId: string): Promise<voi
 }
 
 /** A row of the "My listings" portal: the listing the caller has claimed, its lifecycle status, its
- * publish state, and its hero thumb (the API presigns it). */
+ * publish state, its hero thumb (the API presigns it), and — for a RENT listing — its monthly rent
+ * (which lives on the `listing_rental` satellite, NOT on `listing.price_thb`). */
 export interface MyListingCard {
   listing: typeof listings.$inferSelect;
   /** True iff an active publish consent exists (LEGAL-02) — the listing is on the public website. */
   isPublished: boolean;
   heroThumbKey: string | null;
+  /** Monthly rent from `listing_rental.monthly_rent`, or NULL for a sale (its asking price rides on
+   * `listing.price_thb`). The card needs this so a rental shows its rent, not the empty `priceThb`. */
+  monthlyRent: number | null;
 }
 
 const heroThumbKeySql = sql<string | null>`(
   select m.thumb_key from ${listingMedia} m
   where m.listing_id = "listing".id and m.kind = 'photo' and m.thumb_key is not null
   order by m.hero_index asc nulls last, m.id asc limit 1)`;
+
+// Monthly rent from the rental satellite (same correlated-subquery pattern as repositories/listings.ts'
+// `monthlyRentSql`). The outer correlation MUST be the literal `"listing".id` (drizzle renders
+// `${listings.id}` unqualified inside a projection subquery — same gotcha as heroThumbKey/isPublished).
+const monthlyRentSql = sql<
+  number | null
+>`(select r.monthly_rent::int from ${listingRental} r where r.listing_id = "listing".id)`;
 
 // Active-consent existence (LEGAL-02): an unrevoked publish_consent row. Surfaced as the "published"
 // badge on the My-listings card. The outer correlation MUST be the literal `"listing".id` — drizzle
@@ -125,6 +136,7 @@ export async function listMyListings(db: Db, userId: string): Promise<MyListingC
       listing: listings,
       isPublished: isPublishedSql,
       heroThumbKey: heroThumbKeySql,
+      monthlyRent: monthlyRentSql,
     })
     .from(listings)
     .where(eq(listings.claimedByUserId, userId))

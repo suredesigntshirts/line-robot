@@ -30,11 +30,6 @@ export function getIdToken(): string | null {
   return liff.getIDToken();
 }
 
-/** True inside the LINE in-app (LIFF) browser; false in an external browser. */
-export function isInClient(): boolean {
-  return liff.isInClient();
-}
-
 /** The UI locale (th default, DF-3) from LIFF's reported language. `liff.getLanguage()` returns a
  * BCP-47 tag (e.g. "th", "en-US"); anything that isn't English maps to Thai (Thai-first market). */
 export function uiLocale(): UiLocale {

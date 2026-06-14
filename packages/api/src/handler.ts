@@ -106,10 +106,13 @@ async function presignGallery(
 
 // --- DTO mappers ------------------------------------------------------------
 
-/** A card row (my-listings / saved): the columns the mini-app list screens render. */
+/** A card row (my-listings / saved): the columns the mini-app list screens render. `monthlyRent` is
+ * the rent for a RENT listing (from the rental satellite) so the card can show it — a sale's asking
+ * price rides on `priceThb`, and a sale's `monthlyRent` is null. */
 function toCardDto(
   listing: PortalListingDetail["listing"],
   heroUrl: string | undefined,
+  monthlyRent: number | null,
   extra: Record<string, unknown>,
 ) {
   return {
@@ -117,6 +120,7 @@ function toCardDto(
     dealType: listing.dealType,
     propertyType: listing.propertyType,
     priceThb: listing.priceThb,
+    monthlyRent,
     saleStage: listing.saleStage,
     rentalStatus: listing.rentalStatus,
     province: listing.province,
@@ -179,7 +183,7 @@ async function handleMyListings(deps: ApiDeps, userId: string): Promise<HttpResp
       const heroUrl = c.heroThumbKey
         ? ((await presignOne(deps.presign, c.heroThumbKey, deps.logger)) ?? undefined)
         : undefined;
-      return toCardDto(c.listing, heroUrl, { isPublished: c.isPublished });
+      return toCardDto(c.listing, heroUrl, c.monthlyRent, { isPublished: c.isPublished });
     }),
   );
   return json(200, dtos);
@@ -312,7 +316,8 @@ async function handleSaved(deps: ApiDeps, userId: string): Promise<HttpResponse>
       const heroUrl = c.heroThumbKey
         ? ((await presignOne(deps.presign, c.heroThumbKey, deps.logger)) ?? undefined)
         : undefined;
-      return toCardDto(c.listing, heroUrl, { savedAt: c.savedAt });
+      // Saved cards don't surface rent yet (Build D wires saved rendering) — null is correct here.
+      return toCardDto(c.listing, heroUrl, null, { savedAt: c.savedAt });
     }),
   );
   return json(200, dtos);
@@ -342,7 +347,7 @@ async function handleViewingsList(deps: ApiDeps, userId: string): Promise<HttpRe
       viewingId: c.viewing.id,
       scheduledAt: c.viewing.scheduledAt,
       status: c.viewing.status,
-      listing: toCardDto(c.listing, heroUrl, {}),
+      listing: toCardDto(c.listing, heroUrl, null, {}),
     };
   };
   return json(200, {

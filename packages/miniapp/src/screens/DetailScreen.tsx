@@ -136,12 +136,16 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
           {loc !== "" && (
             <p className="m-0 font-body-th text-base text-text-2 leading-relaxed">{`📍 ${loc}`}</p>
           )}
+          {/* A SOLID primary CTA (not an outline): bg-primary-500 + text-surface is the both-mode-safe
+              pairing (surface flips with the lighter-in-dark primary → WCAG-AA in light AND dark). Marked
+              data-cta-solid so the contrast net verifies it in dark too (an outline primary-600-on-surface
+              CTA had an unverified, likely-failing dark pairing). */}
           <a
             href={mapsUri(dto.lat, dto.lon)}
             target="_blank"
             rel="noreferrer"
-            data-cta
-            className="inline-flex items-center justify-center gap-1 rounded-md border border-border bg-surface px-4 py-2 font-body-th text-base text-primary-600 leading-relaxed no-underline"
+            data-cta-solid
+            className="inline-flex items-center justify-center gap-1 rounded-md border-0 bg-primary-500 px-4 py-2 font-body-th text-base text-surface leading-relaxed no-underline"
           >
             🗺 {t("detail.openInMaps")}
           </a>

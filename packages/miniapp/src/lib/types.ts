@@ -17,7 +17,11 @@ export interface ListingCardDto {
   readonly id: string;
   readonly dealType: DealType;
   readonly propertyType: PropertyType;
+  /** Asking price for a SALE (null for a rental — its rent is on `monthlyRent`). */
   readonly priceThb: number | null;
+  /** Monthly rent for a RENT listing, from the rental satellite (null for a sale). The card needs
+   * this so the owner sees their rent instead of an empty "—". */
+  readonly monthlyRent: number | null;
   readonly saleStage: SaleStage;
   readonly rentalStatus: RentalStatus;
   readonly province: string | null;

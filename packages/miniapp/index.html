@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="th" data-theme="light">
+<!-- No hardcoded data-theme: light is the base :root, dark comes via @media (prefers-color-scheme:
+     dark) in @line-robot/ui/theme.css (mirrors the website's Base.astro). Hardcoding data-theme="light"
+     suppressed the `:root:not([data-theme="light"])` dark block, so the LINE WebView's dark mode never
+     applied + the dark e2e project was a no-op (defeating the F4 dark-CTA-contrast check). -->
+<html lang="th">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />

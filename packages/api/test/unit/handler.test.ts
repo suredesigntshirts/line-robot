@@ -208,6 +208,7 @@ describe("GET /me/listings", () => {
           listing: listingRow({ claimedByUserId: DB_USER_ID }),
           isPublished: true,
           heroThumbKey: "derivatives/h.jpg",
+          monthlyRent: null, // a sale — rent rides on priceThb
         },
       ]),
     });
@@ -217,6 +218,33 @@ describe("GET /me/listings", () => {
     expect(card.id).toBe(LISTING_ID);
     expect(card.isPublished).toBe(true);
     expect(card.heroUrl).toBe("https://signed/derivatives/h.jpg");
+    // A sale card carries its asking price on priceThb and a null monthlyRent.
+    expect(card.priceThb).toBe(2_000_000);
+    expect(card.monthlyRent).toBeNull();
+  });
+
+  it("a RENT card carries its monthly rent (the rent lives on the rental satellite, not priceThb)", async () => {
+    const repo = makeRepo({
+      listMyListings: vi.fn(async () => [
+        {
+          listing: listingRow({
+            claimedByUserId: DB_USER_ID,
+            dealType: "rent",
+            rentalStatus: "available",
+            priceThb: null, // a rental has no asking price on the listing row
+          }),
+          isPublished: true,
+          heroThumbKey: null,
+          monthlyRent: 13_000,
+        },
+      ]),
+    });
+    const r = await handleApi(deps(repo), req("GET", "/me/listings"));
+    expect(r.statusCode).toBe(200);
+    const [card] = bodyOf(r);
+    expect(card.dealType).toBe("rent");
+    expect(card.monthlyRent).toBe(13_000); // the owner can SEE their rent on the card
+    expect(card.priceThb).toBeNull();
   });
 });
 
@@ -225,6 +253,7 @@ describe("saved listings", () => {
     const repo = makeRepo({
       listSavedListingsForUser: vi.fn(async () => [
         { listing: listingRow(), savedAt: new Date("2026-06-19T00:00:00Z"), heroThumbKey: null },
+        // SavedListingCard carries no monthlyRent (Build D) — the api passes null for saved cards.
       ]),
     });
     const r = await handleApi(deps(repo), req("GET", "/me/saved"));

@@ -17,15 +17,15 @@ export function formatThb(n: number): string {
 }
 
 /** The headline price string for a card/detail, framed by deal type. Sale → priceThb; rent →
- * monthlyRent (detail) — the card DTO has no monthlyRent, so a rent card shows its asking field if
- * present, else "—". Returns the amount only (the frame label is a separate catalog string). */
+ * monthlyRent (both the card AND detail DTOs now carry it). Returns the amount only (the frame label
+ * is a separate catalog string); "—" when the relevant amount is absent. */
 export function priceText(dto: {
   dealType: string;
   priceThb: number | null;
-  monthlyRent?: number | null;
+  monthlyRent: number | null;
 }): string {
-  const amount = dto.dealType === "rent" ? (dto.monthlyRent ?? dto.priceThb) : dto.priceThb;
-  return amount !== null && amount !== undefined ? formatThb(amount) : "—";
+  const amount = dto.dealType === "rent" ? dto.monthlyRent : dto.priceThb;
+  return amount !== null ? formatThb(amount) : "—";
 }
 
 /** The price frame label key (COPY-06): asking-price for sale, monthly for rent. */
@@ -120,17 +120,6 @@ export function cardHeadline(dto: ListingCardDto, t: Translator): string {
 export function detailHeadline(dto: ListingDetailDto, t: Translator): string {
   if (dto.headline && dto.headline.trim() !== "") return dto.headline;
   return cardHeadline(dto, t);
-}
-
-/** "{bedrooms} นอน · {bathrooms} น้ำ" spec line for the detail (rooms only; the slim card omits it). */
-export function roomsLine(
-  dto: { bedrooms: number | null; bathrooms: number | null },
-  t: Translator,
-): string {
-  const parts: string[] = [];
-  if (dto.bedrooms !== null) parts.push(t("listing.bedrooms", { count: dto.bedrooms }));
-  if (dto.bathrooms !== null) parts.push(t("listing.bathrooms", { count: dto.bathrooms }));
-  return parts.join(" · ");
 }
 
 /** Google-Maps deep link for a lat/lon (used by the detail "Open in Maps" CTA). */

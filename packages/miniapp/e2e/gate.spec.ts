@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  assertColorScheme,
   assertCtaContrast,
   assertNoBrokenImages,
   assertThaiBodyLineHeight,
@@ -14,7 +15,12 @@ import {
 
 // The LIFF-SPA frontend gate. Renders the REAL built SPA with a MOCKED LIFF context (the @line/liff
 // alias) + a MOCKED api (page.route fixtures). Asserts the deterministic invariants on the two
-// screens of Build B: `/` my-listings + `/p/{id}` detail. Runs mobile light + dark.
+// screens of Build B: `/` my-listings + `/p/{id}` detail. Runs mobile light + dark — the dark project
+// is NOT a tautology (assertColorScheme proves the surface flips), so assertCtaContrast bites in dark.
+
+/** The colour scheme this project renders (project names: mobile-light / mobile-dark). */
+const schemeOf = (projectName: string): "light" | "dark" =>
+  projectName.includes("dark") ? "dark" : "light";
 
 test.describe("LIFF-SPA frontend gate", () => {
   test("the my-listings screen renders, themed, with the cards from the api", async ({
@@ -35,9 +41,13 @@ test.describe("LIFF-SPA frontend gate", () => {
       "every call sent the id-token",
     ).toBe(true);
 
+    // A RENT card shows its monthly rent, NOT "—" (review finding #1: the owner can see their rent).
+    await expect(page.getByText("฿13,000")).toBeVisible();
+
     await assertThemeApplies(page);
+    await assertColorScheme(page, schemeOf(testInfo.project.name)); // dark project actually renders dark
     await assertThaiBodyLineHeight(page);
-    await assertCtaContrast(page);
+    await assertCtaContrast(page); // bites in dark too (the surface flipped)
     await assertNoBrokenImages(page);
 
     await capture(page, "my-listings", testInfo);
@@ -60,7 +70,10 @@ test.describe("LIFF-SPA frontend gate", () => {
     await expect(page.getByText("2 น้ำ")).toBeVisible();
 
     await assertThemeApplies(page);
+    await assertColorScheme(page, schemeOf(testInfo.project.name));
     await assertThaiBodyLineHeight(page);
+    // The detail's "Open in Maps" is a solid CTA (data-cta-solid) — verify its contrast in BOTH modes.
+    await assertCtaContrast(page);
     await assertNoBrokenImages(page);
 
     await capture(page, "detail", testInfo);

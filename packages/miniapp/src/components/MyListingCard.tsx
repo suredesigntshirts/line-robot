@@ -18,6 +18,7 @@ import {
   propertyTypeKey,
 } from "../lib/display.ts";
 import type { ListingCardDto } from "../lib/types.ts";
+import { HouseIcon } from "./icons.tsx";
 import { LifecycleBadge } from "./LifecycleBadge.tsx";
 
 // Left-accent colour per lifecycle (mock: .status-active/.status-offer/.status-draft/.status-closed).
@@ -29,26 +30,6 @@ const ACCENT: Record<LifecycleKind, string> = {
   rented: "border-l-[3px] border-l-[var(--color-danger)]",
   withdrawn: "border-l-[3px] border-l-[var(--color-text-disabled)]",
 };
-
-function HomeGlyph() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M3 9.5 12 3l9 6.5" />
-      <path d="M5 10v10h14V10" />
-    </svg>
-  );
-}
 
 export function MyListingCard({
   listing,
@@ -65,6 +46,8 @@ export function MyListingCard({
   const loc = locationLine(listing);
   const ptype = t(propertyTypeKey(listing.propertyType));
   const closed = kind === "sold" || kind === "rented";
+  // A rental shows its rent (now on the card DTO) with the per-month frame; a sale shows priceThb.
+  const showRentTrailer = isRent && listing.monthlyRent !== null;
 
   return (
     <button
@@ -88,7 +71,7 @@ export function MyListingCard({
             loading="lazy"
           />
         ) : (
-          <HomeGlyph />
+          <HouseIcon />
         )}
       </div>
 
@@ -105,31 +88,26 @@ export function MyListingCard({
         >
           {headline}
         </div>
-        {/* Price — Latin numerals, bold; rent shows /เดือน trailer. */}
+        {/* Price — Latin numerals, bold; a rental trails with the ค่าเช่า/เดือน frame (MKT-03). */}
         <div className="font-latin font-bold text-text text-md leading-tight tracking-tight">
           {priceText(listing)}
-          {isRent && listing.priceThb !== null && (
+          {showRentTrailer && (
             <span className="ml-1 font-body-th font-normal text-text-2 text-xs leading-relaxed">
               {t("listing.priceMonthly")}
             </span>
           )}
         </div>
-        {/* Meta — property type + location (muted body text). */}
+        {/* Meta — property type + location (muted body text). The "📍" pin matches the mock. */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-text-disabled text-xs leading-relaxed">
           <span>{ptype}</span>
           {loc !== "" && (
             <>
               <span aria-hidden="true">·</span>
-              <span className="truncate">{formatLoc(loc)}</span>
+              <span className="truncate">{`📍 ${loc}`}</span>
             </>
           )}
         </div>
       </div>
     </button>
   );
-}
-
-/** Prefix the location with a pin glyph (matches the mock's "📍 …" meta). */
-function formatLoc(loc: string): string {
-  return `📍 ${loc}`;
 }

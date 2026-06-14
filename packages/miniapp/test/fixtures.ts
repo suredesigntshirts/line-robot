@@ -1,9 +1,17 @@
-/** Deterministic fixtures mirroring the frozen packages/api contract — reused by the unit/component
- * tests AND the e2e harness's mock (one source of truth so the tests + the rendered SPA agree). */
+/**
+ * Deterministic fixtures mirroring the frozen packages/api contract — the ONE source of truth, reused
+ * by the unit/component tests AND the e2e harness's mock (so the tests + the rendered SPA can't drift).
+ * Named single fixtures (one per lifecycle state) — referenced by NAME, never by index, so access stays
+ * type-safe under noUncheckedIndexedAccess.
+ *
+ * Image URLs are built from {@link API_ORIGIN} so the e2e harness can intercept them via Playwright
+ * `page.route(`${API_ORIGIN}/**`)`; the unit tests don't fetch them (they only assert <img> presence).
+ */
 import type { ListingCardDto, ListingDetailDto } from "../src/lib/types.ts";
 
-// Named single fixtures (one per lifecycle state) — tests reference these by NAME, never by index, so
-// access stays type-safe under noUncheckedIndexedAccess. `MY_LISTINGS` composes them for spread tests.
+/** The api origin the e2e build is pinned to (vite.config.ts `define`); all api + image URLs hit it. */
+export const API_ORIGIN = "https://e2e.api.local";
+const img = (name: string): string => `${API_ORIGIN}/img/${name}.jpg`;
 
 /** Under-offer sale (reserved), has a hero photo. */
 export const LISTING_OFFER: ListingCardDto = {
@@ -11,11 +19,12 @@ export const LISTING_OFFER: ListingCardDto = {
   dealType: "sale",
   propertyType: "house",
   priceThb: 4_800_000,
+  monthlyRent: null,
   saleStage: "reserved",
   rentalStatus: "available",
   province: "เชียงใหม่",
   amphoe: "สันกำแพง",
-  heroUrl: "https://example.test/derivatives/a/01.jpg",
+  heroUrl: img("a"),
   isPublished: true,
 };
 
@@ -25,6 +34,7 @@ export const LISTING_ACTIVE: ListingCardDto = {
   dealType: "sale",
   propertyType: "house",
   priceThb: 1_200_000,
+  monthlyRent: null,
   saleStage: "available",
   rentalStatus: "available",
   province: "เชียงใหม่",
@@ -32,17 +42,19 @@ export const LISTING_ACTIVE: ListingCardDto = {
   isPublished: true,
 };
 
-/** Live rental (available rent). */
+/** Live RENT listing — its rent is on `monthlyRent` (priceThb is null, as the api returns for a rental).
+ * The card must show ฿13,000 / ค่าเช่า/เดือน, NOT "—" (review finding #1). */
 export const LISTING_RENT: ListingCardDto = {
   id: "33333333-3333-3333-3333-333333333333",
   dealType: "rent",
   propertyType: "condo",
   priceThb: null,
+  monthlyRent: 13_000,
   saleStage: "available",
   rentalStatus: "available",
   province: "เชียงใหม่",
   amphoe: "เมืองเชียงใหม่",
-  heroUrl: "https://example.test/derivatives/c/01.jpg",
+  heroUrl: img("c"),
   isPublished: true,
 };
 
@@ -52,6 +64,7 @@ export const LISTING_DRAFT: ListingCardDto = {
   dealType: "sale",
   propertyType: "land",
   priceThb: 3_200_000,
+  monthlyRent: null,
   saleStage: "available",
   rentalStatus: "available",
   province: "เชียงใหม่",
@@ -65,6 +78,7 @@ export const LISTING_SOLD: ListingCardDto = {
   dealType: "sale",
   propertyType: "commercial",
   priceThb: 13_800_000,
+  monthlyRent: null,
   saleStage: "transferred",
   rentalStatus: "available",
   province: "เชียงใหม่",
@@ -72,7 +86,8 @@ export const LISTING_SOLD: ListingCardDto = {
   isPublished: true,
 };
 
-/** The full spread (offer, active, rent, draft, sold) — for stats + lifecycle-classification tests. */
+/** The full spread (offer, active, rent, draft, sold) — for stats + lifecycle tests AND the e2e
+ * my-listings render (so the e2e card-count + the rent-price case stay honest vs the unit tests). */
 export const MY_LISTINGS: ListingCardDto[] = [
   LISTING_OFFER,
   LISTING_ACTIVE,
@@ -81,7 +96,7 @@ export const MY_LISTINGS: ListingCardDto[] = [
   LISTING_SOLD,
 ];
 
-/** A full detail for the first listing — with photos, rooms, location, coordinates, description. */
+/** A full detail for LISTING_OFFER — with photos, rooms, location, coordinates, description. */
 export const DETAIL: ListingDetailDto = {
   id: "11111111-1111-1111-1111-111111111111",
   dealType: "sale",
@@ -105,7 +120,7 @@ export const DETAIL: ListingDetailDto = {
   claimedByUserId: "user-1",
   isClaimedByMe: true,
   photos: [
-    { url: "https://example.test/derivatives/a/01.jpg", kind: "photo", isThumb: true },
-    { url: "https://example.test/derivatives/a/02.jpg", kind: "photo", isThumb: true },
+    { url: img("a"), kind: "photo", isThumb: true },
+    { url: img("a2"), kind: "photo", isThumb: true },
   ],
 };

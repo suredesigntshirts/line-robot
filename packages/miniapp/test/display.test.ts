@@ -10,9 +10,8 @@ import {
   priceFrameKey,
   priceText,
   propertyTypeKey,
-  roomsLine,
 } from "../src/lib/display.ts";
-import { DETAIL, LISTING_ACTIVE, MY_LISTINGS } from "./fixtures.ts";
+import { DETAIL, LISTING_ACTIVE, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
 
 const t = createTranslator("th");
 
@@ -24,12 +23,17 @@ describe("formatThb", () => {
 });
 
 describe("priceText", () => {
-  it("uses priceThb for sale", () => {
-    expect(priceText({ dealType: "sale", priceThb: 1_200_000 })).toBe("฿1,200,000");
+  it("uses priceThb for a sale (the REAL card DTO shape — sale: priceThb set, monthlyRent null)", () => {
+    expect(priceText(LISTING_ACTIVE)).toBe("฿1,200,000");
   });
-  it("uses monthlyRent for rent when present, else falls back / em-dash", () => {
-    expect(priceText({ dealType: "rent", priceThb: null, monthlyRent: 13_000 })).toBe("฿13,000");
-    expect(priceText({ dealType: "rent", priceThb: null })).toBe("—");
+  it("uses monthlyRent for a rent card — NOT '—' (review finding #1)", () => {
+    // LISTING_RENT is the real api shape for a rental: priceThb null, monthlyRent 13_000.
+    expect(LISTING_RENT.priceThb).toBeNull();
+    expect(priceText(LISTING_RENT)).toBe("฿13,000");
+  });
+  it("falls back to '—' only when the relevant amount is genuinely absent", () => {
+    expect(priceText({ dealType: "rent", priceThb: null, monthlyRent: null })).toBe("—");
+    expect(priceText({ dealType: "sale", priceThb: null, monthlyRent: null })).toBe("—");
   });
 });
 
@@ -89,14 +93,6 @@ describe("cardHeadline / detailHeadline", () => {
   });
   it("falls back to the composed headline when the detail headline is blank", () => {
     expect(detailHeadline({ ...DETAIL, headline: "" }, t)).toContain("ขาย");
-  });
-});
-
-describe("roomsLine", () => {
-  it("joins bed · bath, omitting absent counts", () => {
-    expect(roomsLine({ bedrooms: 3, bathrooms: 2 }, t)).toBe("3 นอน · 2 น้ำ");
-    expect(roomsLine({ bedrooms: null, bathrooms: 2 }, t)).toBe("2 น้ำ");
-    expect(roomsLine({ bedrooms: null, bathrooms: null }, t)).toBe("");
   });
 });
 

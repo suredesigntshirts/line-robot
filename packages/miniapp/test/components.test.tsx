@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MyListingCard } from "../src/components/MyListingCard.tsx";
 import { computeStats } from "../src/components/StatsStrip.tsx";
-import { DETAIL, LISTING_ACTIVE, LISTING_OFFER, MY_LISTINGS } from "./fixtures.ts";
+import { DETAIL, LISTING_ACTIVE, LISTING_OFFER, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
 
 const t = createTranslator("th");
 
@@ -19,6 +19,15 @@ describe("MyListingCard", () => {
     // the card carries the e2e marker (its id) so the frontend gate's invariants scope here
     const card = document.querySelector(`[data-listing-card="${LISTING_ACTIVE.id}"]`);
     expect(card).toBeTruthy();
+  });
+
+  it("a RENT card shows its monthly rent + ค่าเช่า/เดือน frame, NOT '—' (review finding #1)", () => {
+    // LISTING_RENT is the real api shape for a rental: priceThb null, monthlyRent 13_000.
+    expect(LISTING_RENT.priceThb).toBeNull();
+    render(<MyListingCard listing={LISTING_RENT} t={t} onOpen={() => {}} />);
+    expect(screen.getByText("฿13,000")).toBeTruthy(); // the owner SEES their rent
+    expect(screen.queryByText("—")).toBeNull(); // never the empty em-dash
+    expect(screen.getByText("ค่าเช่า/เดือน")).toBeTruthy(); // MKT-03 monthly frame
   });
 
   it("fires onOpen when tapped (navigates to detail)", async () => {

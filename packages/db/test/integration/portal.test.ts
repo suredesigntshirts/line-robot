@@ -63,6 +63,24 @@ async function newListing(priceThb: number, sourceGroupId?: string): Promise<str
   return created.id;
 }
 
+/** A RENT listing: no asking price on the row, a rental satellite carrying `monthly_rent`. */
+async function newRentListing(monthlyRent: number): Promise<string> {
+  const created = await createListing(db, {
+    listing: {
+      ...baseListing,
+      dealType: "rent",
+      saleStage: "available",
+      rentalStatus: "available",
+      ownerUserId: alice,
+      priceThb: null,
+    },
+    content: [{ lang: "th", headline: "เช่าทดสอบ", description: "x", generatedBy: "human" }],
+    media: [{ s3Key: "conv/r/0.jpg", kind: "photo", heroIndex: 0 }],
+    rental: { monthlyRent },
+  });
+  return created.id;
+}
+
 beforeAll(async () => {
   const connectionString = await startPostgresLocal(CONTAINER);
   pool = new pg.Pool({ connectionString, max: 2 });
@@ -167,6 +185,19 @@ describe("listMyListings (claimed-by-user portal read)", () => {
     // An unclaimed pipeline listing (pseudo-owner alice) is not "Alice's" either.
     const unclaimed = await newListing(7_000_000);
     expect((await listMyListings(db, alice)).map((c) => c.listing.id)).not.toContain(unclaimed);
+    // A SALE card carries a null monthlyRent (its asking price is on priceThb).
+    expect(card?.monthlyRent).toBeNull();
+  });
+
+  it("a claimed RENT listing carries its monthly rent from the rental satellite", async () => {
+    const rent = await newRentListing(13_000);
+    await claimListing(db, rent, bob);
+    const cards = await listMyListings(db, bob);
+    const card = cards.find((c) => c.listing.id === rent);
+    expect(card).toBeDefined();
+    expect(card?.listing.dealType).toBe("rent");
+    expect(card?.monthlyRent).toBe(13_000); // the owner can SEE their rent, not an empty priceThb
+    expect(card?.listing.priceThb).toBeNull();
   });
 });
 

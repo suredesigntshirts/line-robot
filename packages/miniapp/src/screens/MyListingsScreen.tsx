@@ -37,25 +37,25 @@ export function MyListingsScreen() {
           status={state.error instanceof ApiError ? state.error.status : undefined}
           onRetry={reload}
         />
-      ) : state.data.length === 0 ? (
-        <>
-          <StatsStrip stats={computeStats(state.data)} t={t} />
-          <EmptyListings t={t} />
-        </>
       ) : (
+        // Ready: the stats strip (one computeStats call) over either the empty state or the cards.
         <>
           <StatsStrip stats={computeStats(state.data)} t={t} />
-          <ul className="grid list-none gap-2.5 p-0">
-            {state.data.map((listing) => (
-              <li key={listing.id}>
-                <MyListingCard
-                  listing={listing}
-                  t={t}
-                  onOpen={() => navigate(detailPath(listing.id))}
-                />
-              </li>
-            ))}
-          </ul>
+          {state.data.length === 0 ? (
+            <EmptyListings t={t} />
+          ) : (
+            <ul className="grid list-none gap-2.5 p-0">
+              {state.data.map((listing) => (
+                <li key={listing.id}>
+                  <MyListingCard
+                    listing={listing}
+                    t={t}
+                    onOpen={() => navigate(detailPath(listing.id))}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
     </Screen>

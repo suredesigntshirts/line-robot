@@ -21,7 +21,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app/App.tsx";
 import { ErrorView } from "./components/States.tsx";
 import "./global.css";
-import { createDefaultApiClient } from "./lib/api.ts";
+import { API_BASE, createApiClient } from "./lib/api.ts";
 import { getIdToken, initLiff, uiLocale } from "./lib/liff.ts";
 
 const container = document.getElementById("app");
@@ -32,7 +32,8 @@ async function boot(): Promise<void> {
   try {
     await initLiff();
     const locale = uiLocale();
-    const api = createDefaultApiClient(getIdToken);
+    // The production client: the baked-in api base + the LIFF id-token (the SDK stays in liff.ts).
+    const api = createApiClient(API_BASE, getIdToken);
     root.render(
       <StrictMode>
         <App api={api} locale={locale} />

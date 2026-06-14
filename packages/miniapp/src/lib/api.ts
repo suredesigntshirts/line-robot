@@ -11,8 +11,10 @@
  */
 import type { ListingCardDto, ListingDetailDto } from "./types.ts";
 
-/** The api base URL, trimmed of any trailing slash. Empty in tests / mis-config (caught at call). */
-const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
+/** The baked-in api base URL (`VITE_API_URL`), trimmed of any trailing slash. main.tsx binds the
+ * production client to this + the LIFF id-token; the e2e harness/tests pass their own base. */
+export const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ?? "";
 
 export class ApiError extends Error {
   constructor(readonly status: number) {
@@ -54,9 +56,3 @@ export function createApiClient(base: string, getToken: TokenSource) {
 }
 
 export type ApiClient = ReturnType<typeof createApiClient>;
-
-/** The production client, bound to the baked-in base URL + the LIFF id-token. Imported by the
- * screens via the ApiProvider context (so the e2e harness can inject a fixture client instead). */
-export function createDefaultApiClient(getToken: TokenSource): ApiClient {
-  return createApiClient(BASE, getToken);
-}

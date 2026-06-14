@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
+// ONE fixture source (review finding #4): the e2e harness renders the SAME fixtures the unit tests
+// assert against (the full 5-listing spread incl. the rent + sold cards), so the e2e card-count + the
+// rent-price case stay honest. Image URLs already point at API_ORIGIN (intercepted below).
+import { API_ORIGIN, DETAIL, MY_LISTINGS } from "../test/fixtures.ts";
 
 // Shared helpers for the LIFF-SPA frontend gate (plan-20 net, ported from packages/website/e2e). The
 // SPA renders the REAL built artifact with a MOCKED LIFF context (the @line/liff alias in the e2e
@@ -11,73 +15,7 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 /** Ephemeral review gallery (gitignored). Filenames self-describing ({project}-{screen}.png). */
 export const GALLERY_DIR = "test-results/gallery";
 
-/** The api origin the e2e build is pinned to (vite.config.ts define). All api calls hit this; we
- * intercept them with fixtures so the real api client + Bearer header are exercised end to end. */
-export const API_ORIGIN = "https://e2e.api.local";
-
-// --- fixtures (mirror test/fixtures.ts → the frozen packages/api contract) -------------------------
-
-export const MY_LISTINGS = [
-  {
-    id: "11111111-1111-1111-1111-111111111111",
-    dealType: "sale",
-    propertyType: "house",
-    priceThb: 4_800_000,
-    saleStage: "reserved",
-    rentalStatus: "available",
-    province: "เชียงใหม่",
-    amphoe: "สันกำแพง",
-    heroUrl: `${API_ORIGIN}/img/a.jpg`,
-    isPublished: true,
-  },
-  {
-    id: "22222222-2222-2222-2222-222222222222",
-    dealType: "sale",
-    propertyType: "house",
-    priceThb: 1_200_000,
-    saleStage: "available",
-    rentalStatus: "available",
-    province: "เชียงใหม่",
-    amphoe: "สันทราย",
-    isPublished: true,
-  },
-  {
-    id: "44444444-4444-4444-4444-444444444444",
-    dealType: "sale",
-    propertyType: "land",
-    priceThb: 3_200_000,
-    saleStage: "available",
-    rentalStatus: "available",
-    province: "เชียงใหม่",
-    amphoe: "แม่ริม",
-    isPublished: false,
-  },
-];
-
-export const DETAIL = {
-  id: "11111111-1111-1111-1111-111111111111",
-  dealType: "sale",
-  propertyType: "house",
-  priceThb: 4_800_000,
-  monthlyRent: null,
-  saleStage: "reserved",
-  rentalStatus: "available",
-  province: "เชียงใหม่",
-  amphoe: "สันกำแพง",
-  tambon: "ต้นเปา",
-  landmark: "ใกล้บ่อสร้าง",
-  projectName: "บ้านสวนบ่อสร้าง",
-  bedrooms: 3,
-  bathrooms: 2,
-  lat: 18.7953,
-  lon: 98.9525,
-  headline: "ขายหอพักย่านบ่อสร้าง 14 ห้อง ต้นเปา สันกำแพง",
-  description: "หอพัก 14 ห้อง ทำเลดี ใกล้แหล่งชุมชนบ่อสร้าง เหมาะสำหรับนักลงทุน",
-  sourceGroupId: "C0835",
-  claimedByUserId: "e2e-user",
-  isClaimedByMe: true,
-  photos: [{ url: `${API_ORIGIN}/img/a.jpg`, kind: "photo", isThumb: true }],
-};
+export { API_ORIGIN, DETAIL, MY_LISTINGS };
 
 // A 1x1 transparent PNG — a real, decodable image so assertNoBrokenImages passes (naturalWidth > 0).
 const PNG_1X1 = Buffer.from(
@@ -158,6 +96,35 @@ export async function assertThemeApplies(page: Page): Promise<void> {
   expect(t.bodyFont, "body must use the brand font stack, not the serif fallback").toContain(
     "Sarabun",
   );
+}
+
+/** Proves the dark e2e project ISN'T a tautology (review finding #2): the rendered surface actually
+ * flips with the project's colour scheme. In a `colorScheme: "dark"` project, `prefers-color-scheme:
+ * dark` matches → theme.css's `:root:not([data-theme="light"])` dark block applies → the body's bg is
+ * DARK. We resolve `--color-bg` to sRGB and assert its luminance sits on the expected side. (If
+ * index.html still hardcoded data-theme="light", dark would render light here and this would fail.) */
+export async function assertColorScheme(page: Page, scheme: "light" | "dark"): Promise<void> {
+  const lum = await page.evaluate(() => {
+    const bg = getComputedStyle(document.body).backgroundColor;
+    const c = document.createElement("canvas");
+    c.width = c.height = 1;
+    const ctx = c.getContext("2d");
+    if (!ctx) return 1;
+    ctx.fillStyle = "#000";
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    const lin = (v: number) => {
+      const s = (v ?? 0) / 255;
+      return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * lin(r ?? 0) + 0.7152 * lin(g ?? 0) + 0.0722 * lin(b ?? 0);
+  });
+  if (scheme === "dark") {
+    expect(lum, `dark scheme: body bg must be DARK (got luminance ${lum})`).toBeLessThan(0.2);
+  } else {
+    expect(lum, `light scheme: body bg must be LIGHT (got luminance ${lum})`).toBeGreaterThan(0.5);
+  }
 }
 
 /** TH-07 as a COMPUTED-STYLE invariant: Thai BODY text must render with line-height ≥1.6. Scoped to
