@@ -477,3 +477,17 @@ signaling a shipping boundary"). `pulumi preview` (read-only) is CLEAN — 33 cr
 no destructive/security surprise. Go-live steps + caveats (the SPA cutover REPLACES the live LIFF app; the
 v1 Preact SPA source is gone → rollback = revert+rebuild; deploying the sweep ACTIVATES real claim DMs on
 the next gate-pass) are in the `deploy-status` memory. **STAGE 5 CODE COMPLETE — shipping is the founder's call.**
+
+**DEPLOYED + VERIFIED on staging (2026-06-15, founder-authorized).** Founder authorized push + `db:migrate` +
+`pulumi up` (claim DMs ON). Pushed `731014e..df2d750` to `origin/main` (plan-21 + Stage 5). Migration `0008`
+applied to staging RDS. **pulumi up ×2** (api Lambda created → wired `VITE_API_URL` to the api Function URL →
+rebuilt SPA → uploaded): api at `https://gochky6danrywxavclqadecga40misuh.lambda-url.ap-southeast-1.on.aws`,
+mini-app at `https://d15tyvvqffrn4a.cloudfront.net/`. **Deployed verification GREEN:** api `401
+{"error":"unauthorized"}` (no/invalid token); CORS preflight 200 scoped to the mini-app origin (GET/POST/
+PATCH/DELETE); api Lambda boots clean (`initStart→status:success`, alarm OK); the **new React SPA** serves
+(200, `<title>บัญชีของฉัน</title>`, JS bundle 200 with the live api URL baked in); the **sweep** (claim-DM
+activator) redeployed + booted clean, all cron runs `status:success`; the public website unregressed (200).
+**Claim DMs ACTIVE** (Pulumi `miniappUrl` set) — the next listing to pass the gate DMs its poster a `/claim/{id}`
+link. **REMAINING = the founder's manual authenticated spot-check** (open the LIFF app → my-listings → claim →
+publish → appears on the public site) — needs a real LINE login, which can't be automated. v1 read-api still
+parallel-runs (rollback path; deletion = Stage-6 deliverable #12).
