@@ -43,3 +43,22 @@ Same discipline: mock-faithful default taken, build PROCEEDED, founder reviews l
 - **S5-9 (trust signal on the SAVED card) — NOT in this increment's scope.** The saved card is owned by `SavedPanel`/its card (a separate increment). Still OPEN as written (needs `postedByRole`/`isOwnerDirect` on the card DTO).
 - **FQ-4 brand wordmark — provisionally taken as "ทรัพย์ดี"** (the working wordmark the Stage-5 mock carries) on the CRM home identity header. No brand name is settled (FQ-4 OPEN); chosen to render the mock's wordmark slot rather than leave it blank. Replace once a brand name is decided.
 - **Group attribution — the identity-row group line was CUT (post-review).** It rendered the source-group code from a `groupCode` field that the real LIFF profile never returns (only the e2e mock set it) — dead-in-production "config nobody sets" / test theatre, flagged by the increment review. Removed for now (avatar + display name + wordmark, all real LIFF data, remain). **Stage-6 re-add:** restore a group label to the identity chrome once the source group is genuinely threaded into the user's profile (group names land with Stage-6 group management — consistent with S5-8).
+
+## Stage 6 (Groups & Dealflow) — strategy defaults built in the overnight run (founder review)
+
+The founder waived the pre-build approval gate for Stage 6 in this run; these are the **smallest-defensible
+defaults** taken to unblock the build, each behind a clean seam. Full rationale in
+`plans/19-v2-marketplace-rebuild/stage-6-groups-dealflow.md` §Resolved decisions (D-S6-1…9). Reverse/tune any.
+
+| # | Decision point | Default taken | Founder call |
+|---|---|---|---|
+| S6-1 | Exclusivity window length | **7 days, per-group configurable** (D8); minimal admin number-field | Right for the Thai broker market? Richer per-deal-type tuning? | 
+| S6-2 | Exclusivity state model | **DERIVED in the domain engine** (open/interest-flagged/lapsed/released/extended) from the existing `[held\|releasable\|released]` + expiry + flags; no enum migration | OK, or want explicit persisted states? |
+| S6-3 | Interest-flag semantics | **Non-binding signal**, all flags shown newest-first, no priority queue, doesn't block early release | Add hold/notify/priority semantics? |
+| S6-4 | Release mechanics + ignore behavior | Bot DM offers **release-publicly / release-to-other-groups / extend**; **ignored → stays group-private (NO silent auto-release)**; release-to-other-groups v1 = drop the exclusive mandate (no per-target-group plumbing) | Add a grace-period auto-release? Per-target-group release? |
+| S6-5 | Admin surface + auth | **Inside the mini-app, `admin`-role gated, SERVER-enforced** — sidesteps the D19 domain / 4.4 LINE-Login dependency | Mini-app admin, or a future website `/admin`? |
+| S6-6 | Quick-sale matching criteria | **Smallest overlap behind `matchVettedUsers` seam**: approved-vetted brokers/investors whose **stated preferences** (collected in the role-application: province + property-type + price-band) overlap the listing; server-side vetted filter | Add weighting / radius / deal-history ranking? Confirm preferences-in-application is the right capture point. |
+| S6-7 | Moderation queue scope | **Minimal approve/reject** over `moderation_item WHERE pending` (not full CRUD); approve → listing active | Expand to a full moderation panel? |
+| S6-8 | Vetting rejection + reviewer | 0009 adds `rejected` to approvalStatus + `reviewed_by`/`reviewed_at` to role | OK? |
+| S6-9 | Rental renewal loop (D26) | **NOT built** (sales-first per D26) — queued | Confirm fast-follow, not this stage. |
+| S6-10 | Migration 0009 + staging apply | 0009 = roleKind+`admin`, approvalStatus+`rejected`, role reviewer cols, minimal `broker_preference`. **Applying 0009 to staging RDS is FOUNDER-GATED** (written + Docker-PG-tested; staging `db:migrate` awaits founder) | Run the staging migrate when ready. |
