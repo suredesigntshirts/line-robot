@@ -19,6 +19,8 @@ export interface AlarmTargets {
   sweepFn: aws.lambda.Function;
   reminderFn: aws.lambda.Function;
   readApiFn: aws.lambda.Function;
+  /** Stage 5 mini-app API (parallel to read-api). */
+  apiFn: aws.lambda.Function;
 }
 
 export interface Alarms {
@@ -36,6 +38,7 @@ export function createAlarms(targets: AlarmTargets): Alarms {
     sweep: targets.sweepFn,
     reminder: targets.reminderFn,
     "read-api": targets.readApiFn,
+    "miniapp-api": targets.apiFn,
   };
 
   for (const [svc, fn] of Object.entries(lambdas)) {

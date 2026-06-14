@@ -57,6 +57,13 @@
       "when": 1781392199179,
       "tag": "0007_overjoyed_wiccan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781441333179,
+      "tag": "0008_normal_frightful_four",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as pulumi from "@pulumi/pulumi";
 import { createAlarms } from "./src/alarms";
+import { createApi } from "./src/api";
 import { createDatabase } from "./src/database";
 import { createBotLambdas } from "./src/lambdas";
 import { createMiniApp } from "./src/miniapp";
@@ -28,12 +29,19 @@ const { readApiUrl, readApiFn, siteDistribution, siteBucket } = createMiniApp(
   MINIAPP_DIST,
   database,
 );
+// Stage 5 (plan 19): the rebuilt mini-app's `packages/api` Lambda + Function URL. PARALLEL to the v1
+// read-api above (not a replacement until the Stage 6 gate). CORS-locked to the mini-app SPA origin.
+const { apiUrl, apiFn } = createApi(
+  storage,
+  database,
+  pulumi.interpolate`https://${siteDistribution.domainName}`,
+);
 const website = createWebsite(database, storage.archiveBucket, WEBSITE_CLIENT_DIST);
 
 // A5 cutover hardening: an SNS topic + an Errors alarm per production Lambda, so a Lambda failing
 // is observable rather than silent. The website SSR Lambda is omitted — it serves the public site,
 // not the v2 ingestion/catalog path this hardening covers (it has its own gate work, 4.x).
-const alarms = createAlarms({ processorFn, sweepFn, reminderFn, readApiFn });
+const alarms = createAlarms({ processorFn, sweepFn, reminderFn, readApiFn, apiFn });
 
 // ---------------------------------------------------------------------------
 // Outputs
@@ -53,6 +61,9 @@ export const alarmTopicArn = alarms.topic.arn;
 // Mini app (plan 14): the read-api endpoint (→ VITE_READ_API_URL) + the CloudFront SPA host
 // (→ the LIFF Endpoint URL set in the LINE console, and the SPA's public origin).
 export const readApiUrlOutput = readApiUrl.functionUrl;
+// Stage 5 (plan 19): the rebuilt mini-app's API endpoint (→ the SPA's VITE_API_URL). Parallel to the
+// v1 read-api above until the Stage 6 cutover.
+export const miniAppApiUrlOutput = apiUrl.functionUrl;
 export const miniAppCloudFrontDomain = siteDistribution.domainName;
 export const miniAppUrl = pulumi.interpolate`https://${siteDistribution.domainName}/`;
 export const miniAppSiteBucket = siteBucket.bucket;

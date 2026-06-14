@@ -248,6 +248,17 @@ export const listings = pgTable(
     exclusivityExpiresAt: timestamp("exclusivity_expires_at", { withTimezone: true }),
     postedByRole: roleKindPg("posted_by_role"), // DEAL-10
     extractionSource: extractionSourcePg("extraction_source").notNull().default("auto"), // LEGAL-06
+    // --- Stage 5 claim/publish opt-in (D7) ----------------------------------
+    // The pipeline writes every listing with a pseudo-user `ownerUserId` (NOT NULL). A real LINE user
+    // *claims* ownership through the mini-app: `claimedByUserId` is the verified claimant (NULL until
+    // claimed) and is the optimistic-lock target — `claimListing` updates only WHERE it IS NULL, so two
+    // concurrent claims can't both win. `claimedAt` stamps the moment; `claimInvitedAt` guards the
+    // one-shot claim DM (set once on the first DF-6 gate pass so a re-trigger can't re-spam — Stage 5
+    // open-question resolution). Publishing is consent-driven (publish_consent / LEGAL-02), NOT a column
+    // here — a claim is "I own this", publish is the separate "make it public" decision.
+    claimInvitedAt: timestamp("claim_invited_at", { withTimezone: true }),
+    claimedAt: timestamp("claimed_at", { withTimezone: true }),
+    claimedByUserId: uuid("claimed_by_user_id").references(() => users.id),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -392,6 +403,26 @@ export const viewings = pgTable("viewing", {
   scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
   status: viewingStatusPg("status").notNull().default("requested"),
 });
+
+// D13 per-user follow-up notes: free-text notes a user keeps against a listing (their private CRM).
+// Append-only (no edit/delete surface in Stage 5); scoped to the writing user — `listNotesForUserListing`
+// only ever returns the caller's own notes, never another user's. The (listing_id, user_id) index serves
+// the "my notes on this listing" read; newest-first ordering is applied in the query.
+export const listingNotes = pgTable(
+  "listing_note",
+  {
+    id: id(),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.id),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("listing_note_listing_user").on(t.listingId, t.userId)],
+);
 
 // Bot follow-up reminders — the at-most-once calendar primitive behind "📅 Follow-up" and the
 // mini-app "Book a viewing". DISTINCT from `viewing` above (a marketplace viewing request with a

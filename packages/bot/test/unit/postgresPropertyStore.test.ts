@@ -54,6 +54,10 @@ function row(overrides: Partial<ListingRow> = {}): ListingRow {
     exclusivityExpiresAt: null,
     postedByRole: null,
     extractionSource: "auto",
+    // Stage 5 claim/publish opt-in columns (the bot doesn't read them, but the row must be complete).
+    claimInvitedAt: null,
+    claimedAt: null,
+    claimedByUserId: null,
     createdAt: new Date("2026-06-01T00:00:00Z"),
     updatedAt: new Date("2026-06-10T00:00:00Z"),
     ...overrides,
