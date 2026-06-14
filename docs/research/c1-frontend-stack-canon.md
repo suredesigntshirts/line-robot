@@ -100,6 +100,8 @@ CloudFront distribution's behaviour rules post-deploy.
 
 **TECH-13:** JSON-LD structured data for listings is injected as a server-rendered Astro component (no hydration). The component accepts a typed `listing` prop and serialises it to JSON-LD in a `<script>` tag in `<head>`. It must never become a `client:*` island.
 
+**TECH-14:** ✅ **(Added 2026-06-14, plan 21 — closes the canon's own gap.) Author components in Tailwind utilities / shadcn, never inline `style={{}}` objects.** The component-authoring MEDIUM is the gap that let Stage 3/4 silently deviate from Finding 10 / TECH-06/07: every component was styled with inline `style={{ "var(--token)" }}` objects, so the site ran no Tailwind, no shadcn, and the unstyled-site bug class became possible. Required medium: Tailwind utility classes (mapping to the shared `@theme` tokens) and owned shadcn primitives. No inline-style OBJECTS (a React `style={{}}` or an Astro `style="…"` for anything a class can do); no raw hex/px/oklch in component code (the token check in `packages/ui/scripts/check-colors.mjs` enforces this for `packages/ui`); inline styles are allowed ONLY for a genuinely dynamic value a class cannot express. **Crucially, MEASURABLE rendered properties (Thai body line-height ≥1.6 TH-06/07, filled-CTA WCAG-AA contrast incl. the dark-mode token flip, token resolution TECH-06) are guarded by DETERMINISTIC computed-style invariants in the plan-20 e2e suite (`assertThaiBodyLineHeight`, `assertCtaContrast`, `assertThemeApplies`)** — not by eyeballing a screenshot, because an LLM reviewer (skill OR adversarial audit) cannot reliably read line-height/contrast off a PNG (see `docs/design/skill-hardening/HARDENING-LOG.md`). A new measurable styling rule SHOULD ship with its computed-style assertion.
+
 ---
 
 ## Anti-patterns
@@ -119,6 +121,8 @@ CloudFront distribution's behaviour rules post-deploy.
 **AP-7: SST Ion `astro-sst` with Node 18 runtime.** Node 18 reached EOL April 2025; AWS SDK v3 dropped Node 18 support in January 2026. Astro 6 requires Node 22. A Lambda runtime mismatch causes a silent cold-start failure returning a 502.
 
 **AP-8: Shipping Lambda@Edge for SSR on this app.** Lambda@Edge has a 30-second origin-request timeout, no environment variables, and restricted bundle size. These constraints conflict with Astro's SSR model (env-config, Sharp image processing). Use a standard Lambda + Function URL or API Gateway instead.
+
+**AP-9: Styling components with inline `style={{}}` objects instead of Tailwind utilities / shadcn (TECH-14).** Observed in the Stage 3/4 build: every component styled with `style={{ background: "var(--color-surface)", … }}`. It looks fine (the tokens resolve) but it means the app runs no Tailwind and no shadcn — the `@theme {}` block is discarded at runtime (the unstyled-site bug class), and inline-style objects structurally cannot express `:hover`/`:focus`/`:active`/`::placeholder`/`@media`, so the design can never reach a real interactive mock. It also evades the token lint. Author in utility classes; reserve inline styles for a genuinely dynamic, class-inexpressible value only.
 
 ---
 

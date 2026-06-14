@@ -191,6 +191,68 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
 
 ---
 
-## SUMMARY (written at run end)
+## SUMMARY (run end — durable hand-off for the next run)
 
-_Per skill: gaps found, changes made, residual risks, recommended future improvements._
+Across plan-21 (Phase 1 + 5 Phase-2 passes), EVERY `/frontend-review` and `/alignment-review` invocation
+was traced (`traces/`) and independently+adversarially audited (`audits/`); every CONFIRMED gap was fixed
+in the skill files / e2e net and re-verified to BITE. The arc, per skill:
+
+### `/frontend-review` — gaps → fixes (all re-verified to bite)
+- **F1 — mode-B CONFABULATED alignment.** It returned "ALIGNED with direction-a" for the OLD plain
+  styling, citing theme.css token VALUES as evidence. Prose ("use pixels not source") did NOT stop it.
+  FIX: made mode-B **image-vs-image and source-FORBIDDEN** — compare the render gallery to a committed
+  *rendered screenshot* of the mock (`docs/design/mockups/renders/`), no css/html/token access, with a
+  blind-describe-first step + a **signature-element checklist**. Re-run flipped the false ALIGNED into 7
+  correct pixel-grounded divergences.
+- **F2 — no parity mode** for "no visual change" increments. Mode A only checks a few tokens (it stayed
+  green through a real badge regression). FIX: **Mode A.5 + `scripts/gallery-diff.mjs`** (before↔after
+  pixel-diff). Bites: AE 0 = parity, flags an injected regression.
+- **F3 / F3b / F3c — the TH-07 line-height net** (`assertThaiBodyLineHeight`). Restyling to Tailwind
+  utilities pinned tight default line-heights (1.33–1.43) over the inherited 1.65 on Thai body text —
+  invisible to source review and to an LLM reading a PNG. FIX: a **deterministic computed-style
+  invariant** (≥1.6), broadened over the run to cover cards (F3), the detail page (F3b), and the
+  empty/404 states (F3c — which also exposed a latent EmptyState leading bug from pass 1). Each
+  re-verified to bite.
+- **F4 — WCAG-AA contrast net** (`assertCtaContrast`). Filled CTAs used `text-white` on a primary bg
+  that flips LIGHTER in dark mode → white-on-light-blue ≈ 2.9:1 (fails AA). FIX: `text-surface` (flips
+  with the bg) + a **deterministic canvas-resolved contrast invariant** (≥4.5:1, every project). Bites
+  at 2.63 on the broken version.
+
+### `/alignment-review` — gaps → fixes
+- **A1 → A2 — the source-citation slip.** The agent repeatedly cited token/oklch values as evidence for
+  styling IDs despite the rule. A1 (stronger prose) did not bite. **A2 (structural):** a styling-ID's
+  evidence MUST be the NAME of a deterministic computed-style assertion (or marked UNVERIFIED if none) —
+  there is no value to copy. By passes 3–5 the skill exhibited it (marked COPY-02 UNVERIFIED; cited
+  `assertThaiBodyLineHeight`/`assertCtaContrast`/`assertThemeApplies`).
+- Otherwise SUFFICIENT throughout (right context groups, every ID, founder-routed the TECH-06 + contrast
+  questions rather than self-adjudicating).
+
+### THE durable finding (META)
+**LLM pixel perception is unreliable — for BOTH the design skill AND the adversarial audit.** Skill
+mode-B agents confabulated PRESENCE (false ALIGNED); audit agents confabulated ABSENCE (claimed present
+deal-pills/underlines were missing). Yet every audit that found a REAL defect did so by COMPUTING
+(contrast) or reading CODE/TEST-INFRA (TH-07 scope, inert markers) — never by perceiving pixels. So the
+reliable design defense is the THREE-layer stack: (1) **deterministic computed-style invariants** for
+every measurable property (theme/TH-07/contrast — these neither agent can mis-see); (2) **audits that
+reason over code/tests**, with the orchestrator verifying any visual claim against the actual pixels
+before acting; (3) **subjective "does it look like the mock" stays a founder-ruled judgment** — never an
+auto-ship, never an auto-reject on an unverified audit claim.
+
+### Residual risks / recommended future improvements
+- **Mock-render staleness:** mode-B compares to committed PNGs of the mock; regenerate them when the mock
+  changes (recipe in SKILL Mode B) or the comparison drifts.
+- **Invariant coverage is allow-list:** TH-07/contrast cover cards + chrome/detail/state regions
+  (`[data-listing-card]`, `[data-th-content]`, `[data-cta-solid]`). New surfaces must add the marker —
+  an un-marked new surface is silently un-checked. Consider a lint that flags Thai-body `text-*` without
+  an explicit `leading-*` in `packages/ui`/website components.
+- **Contrast invariant** checks only `[data-cta-solid]` filled CTAs + the 4.5 text threshold; it does not
+  audit body-text-on-surface contrast generally. The register still has **no explicit WCAG heuristic**
+  (FOUNDER-QUEUE #6) — a founder call whether to add one.
+- **A2 residual:** the agent still occasionally computes a measurable value from hex when no assertion
+  exists (e.g. chip contrast). The deterministic nets make this low-stakes, but adding an assertion for
+  any NEW measurable rule keeps it honest (now codified in canon TECH-14).
+- The skills are now coupled to the plan-20 e2e harness (the invariants live there); keep them in sync.
+
+_Founder decisions surfaced during the run: `FOUNDER-QUEUE.md` (#1 oklch fallback scope, #2 Thai 13px vs
+mock 11px, #3 LINE-green CTA, #4 brand wordmark, #5 header search placement, #6 WCAG heuristic, + the
+LINE white-on-green brand exception)._

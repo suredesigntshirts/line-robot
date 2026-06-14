@@ -18,3 +18,10 @@ Surface heuristics that always apply when their artifact type appears anywhere i
 - Any new/changed table or enum → **Schema & data model**.
 - Any prompt or LLM schema → **Extraction pipeline & quality gate**.
 - Any public page → **Search & discovery** (SEO rules) + **Architecture & frontend**.
+
+**Verified 2026-06-14 (plan 21, the direction-a frontend rebuild):** every design surface touched —
+shared listing cards, the website chrome (header/search/section/footer), filter chips, the detail page,
+and the empty/404 states — routed cleanly to the EXISTING groups (Listing card & detail UI; Search &
+discovery; Typography, i18n & copy; Architecture & frontend). The NPA/distressed TREATMENT on a card or
+detail is judged via DIST-01/02 inside **Listing card & detail UI** (the **Dealflow & distressed** group
+is for the Stage-6/7 quote/AVM/market-data flows, not card display). No group was missing; no edit needed.
