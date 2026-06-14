@@ -29,16 +29,41 @@ function renderClaim(api: ApiClient) {
 describe("ClaimScreen — review → claim → decide", () => {
   beforeEach(() => setPath("/"));
 
-  it("renders the review step with the extracted listing + a claim CTA", async () => {
+  it("renders the review step with the step-progress, the structured spec card + a claim CTA", async () => {
     renderClaim(makeApi());
     await waitFor(() => expect(screen.getByText("ตรวจสอบประกาศ")).toBeTruthy());
-    // The bot-extracted listing summary (the fixture's own headline + price) is shown for review.
+    // The step-progress indicator: 3 steps, the REVIEW step (index 0) active, the rest pending.
+    const stepper = screen.getByRole("navigation", { name: "progress" });
+    expect(stepper.getAttribute("data-stepper")).toBe("0");
+    expect(
+      stepper.querySelector("[data-step-state='active']")?.textContent,
+      "the active dot is step 1",
+    ).toBe("1");
+    // The structured review spec card (FieldList) shows the SCHEMA-PRESENT fields (label + value rows):
+    // the headline, the property type, the price, and the bedroom/bathroom counts from the fixture.
+    expect(screen.getByText("ชื่อประกาศ")).toBeTruthy();
     expect(screen.getByText(DETAIL.headline)).toBeTruthy();
+    expect(screen.getByText("ประเภททรัพย์")).toBeTruthy();
+    expect(screen.getByText("บ้านเดี่ยว")).toBeTruthy(); // DETAIL.propertyType = "house"
     expect(screen.getByText("฿4,800,000")).toBeTruthy();
+    expect(screen.getByText("3 นอน")).toBeTruthy(); // DETAIL.bedrooms = 3
+    expect(screen.getByText("2 น้ำ")).toBeTruthy(); // DETAIL.bathrooms = 2
     // The LEGAL-06 "auto-extracted — verify" banner.
     expect(screen.getByText("บอทดึงข้อมูลอัตโนมัติ")).toBeTruthy();
     // The claim CTA.
     expect(screen.getByText(/อ้างสิทธิ์ประกาศนี้/)).toBeTruthy();
+  });
+
+  it("the verify link (S5-7) navigates to the full detail at /p/{id}", async () => {
+    renderClaim(makeApi());
+    await waitFor(() => screen.getByText(/ดูรายละเอียดทั้งหมด/));
+    fireEvent.click(screen.getByText(/ดูรายละเอียดทั้งหมด/));
+    // The router pushed the frozen `/p/{id}` detail route and rendered the DetailScreen, identified by
+    // its UNIQUE spec-section head "รายละเอียดทรัพย์" (asserted below) — absent on the claim review screen.
+    await waitFor(() => expect(window.location.pathname).toBe(`/p/${DETAIL.id}`));
+    await waitFor(() => expect(screen.getByText("รายละเอียดทรัพย์")).toBeTruthy());
+    // The claim review chrome (the step-progress nav) is gone — we left the claim flow.
+    expect(screen.queryByRole("navigation", { name: "progress" })).toBeNull();
   });
 
   it("claiming advances to the visibility decision (with the group-private boundary copy)", async () => {
@@ -51,7 +76,9 @@ describe("ClaimScreen — review → claim → decide", () => {
     expect(claim).toHaveBeenCalledWith(DETAIL.id);
     // The publish-vs-private choice; the group-private option carries the spec's mandated boundary copy.
     expect(screen.getByText("เผยแพร่สาธารณะ")).toBeTruthy();
-    expect(screen.getAllByText("เฉพาะสมาชิกกลุ่มเดิม").length).toBeGreaterThan(0);
+    // exact match: assert the private-option SUBTITLE row specifically (the feature line
+    // "เห็นเฉพาะสมาชิกกลุ่มเดิม" is a superstring, so a loose match would pass even if the subtitle dropped).
+    expect(screen.getByText("เฉพาะสมาชิกกลุ่มเดิม", { exact: true })).toBeTruthy();
   });
 
   it("publishing shows the public-success outcome", async () => {

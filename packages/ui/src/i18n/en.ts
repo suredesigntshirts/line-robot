@@ -290,8 +290,14 @@ export const en: Record<keyof typeof th, string> = {
   // Claim / publish flow (Stage 5, Build C — D7 poster opt-in).
   "claim.title": "Review listing",
   "claim.loading": "Loading listing…",
+  "claim.stepReview": "Review",
+  "claim.stepClaim": "Claim",
+  "claim.stepPublish": "Publish",
   "claim.reviewBannerTitle": "Auto-extracted by the bot",
   "claim.reviewBannerBody": "Please check the details are correct before you claim and publish.",
+  "claim.specHead": "Key details",
+  "claim.fieldHeadline": "Listing title",
+  "claim.viewFullDetail": "View full details",
   "claim.claimCta": "Claim this listing",
   "claim.claiming": "Claiming…",
   "claim.legalNote":

@@ -561,3 +561,19 @@ INC-2's real-api forwarder routes ALL `e2e.api.local/**` to `handleApi`, so the 
 **401** and tripped `watchForErrors` (2 realapi specs red). Fix: made the mock avatar an inline `data:` URI (1×1
 PNG) so it decodes with zero network in BOTH suites (prod avatars are real LINE-CDN URLs — harness-only artifact).
 Both suites now green: **static 58 + real-api 10**. This is exactly why the real-backend merge-verify matters.
+
+**INC-4 — Claim screen review-step fidelity + S5-7 (DONE, committed).** The only remaining screen with real
+mock-fidelity debt (a scoping pass confirmed viewings/saved/edit/detail-non-gallery already on-direction →
+INC-5/INC-6 closed as no-rework; their round-trips are tested by INC-2). Enriched the claim REVIEW step to
+match `explore-stage5-1-claim.html`: a 3-step `Stepper` (ตรวจสอบ→อ้างสิทธิ์→เผยแพร่), a structured spec
+`FieldList` (REUSING the shared `@line-robot/ui` FieldList the detail screen uses + the same display mappers —
+no drift), and **S5-7 RESOLVED**: a "ดูรายละเอียดทั้งหมด" verify link → `/p/{id}` so the poster verifies the
+bot's full extraction before the irreversible publish (deed-type ROW still defers to the S5-4 DTO field — not
+faked). DECIDE step + claim/publish/409 flow untouched (already matched). New biting e2e (verify-link nav →
+/p/{id}, proven red on no-op). Full cadence: spec PASS, simplicity PASS, **alignment ALIGNED** (LEGAL-06 verify
+gate adequate, COPY-02 bare-verb stepper labels, TH-07 FieldList rows measured), frontend on-direction (static
+60 + real-api 10 green). Adjudicated findings FIXED inline: the LOW Stepper `claiming`-phase mapping (now
+review→0 / claiming→1 / decide→2 so step 2 shows active in-flight) + 2 test-hygiene tweaks (misleading comment;
+exact-match the private subtitle). Gates GREEN: typecheck/lint, miniapp unit **117**, e2e **60 + 10**. TH-06
+per-surface Thai-face assertion folded into the BACKLOG net-hardening item (low risk). **Part A build work
+COMPLETE — next: Stage-5 stage gate + staging deploy + verify, then the A→B gate.**

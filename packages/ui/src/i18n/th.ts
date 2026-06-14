@@ -353,9 +353,19 @@ export const th = {
   // ============================================================
   "claim.title": "ตรวจสอบประกาศ",
   "claim.loading": "กำลังโหลดประกาศ…",
+  // Step-progress indicator (mock `.step-progress`): ตรวจสอบ → อ้างสิทธิ์ → เผยแพร่.
+  "claim.stepReview": "ตรวจสอบ",
+  "claim.stepClaim": "อ้างสิทธิ์",
+  "claim.stepPublish": "เผยแพร่",
   // Review banner (LEGAL-06: the listing is auto-extracted — verify before publishing).
   "claim.reviewBannerTitle": "บอทดึงข้อมูลอัตโนมัติ",
   "claim.reviewBannerBody": "กรุณาตรวจสอบความถูกต้องของข้อมูลก่อนอ้างสิทธิ์และเผยแพร่",
+  // The structured review spec card (mock `.field-card`): a section head + the schema-present rows.
+  "claim.specHead": "ข้อมูลหลัก",
+  "claim.fieldHeadline": "ชื่อประกาศ",
+  // S5-7 verify affordance: a link to the full detail (`/p/{id}`) so the poster can verify the bot's
+  // full extraction BEFORE the irreversible publish.
+  "claim.viewFullDetail": "ดูรายละเอียดทั้งหมด",
   // The claim CTA + states.
   "claim.claimCta": "อ้างสิทธิ์ประกาศนี้",
   "claim.claiming": "กำลังอ้างสิทธิ์…",

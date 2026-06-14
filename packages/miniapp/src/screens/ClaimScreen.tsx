@@ -19,13 +19,15 @@
  * `data-th-content` (the TH-07 Thai line-height net scopes here) and `data-cta-solid` on every FILLED
  * CTA (the WCAG-AA contrast net measures them, light AND dark).
  */
-import { Screen } from "@line-robot/ui";
+import { FieldList, Screen } from "@line-robot/ui";
 import { useState } from "react";
 import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
 import { Outcome } from "../components/Outcome.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
+import { Stepper } from "../components/Stepper.tsx";
 import { ApiError, apiStatus } from "../lib/api.ts";
+import { detailPath } from "../lib/deeplink.ts";
 import {
   detailHeadline,
   locationLine,
@@ -45,6 +47,10 @@ const SOLID_BTN_BASE =
 const solidBtnFull = `${SOLID_BTN_BASE} w-full px-4 py-3 font-bold disabled:opacity-60`;
 const outlineBtn =
   "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border-2 bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60";
+// The S5-7 verify affordance — the mock's `.btn-secondary` outline (NOT solid): an OUTLINE button is
+// correct here because it's a secondary "go verify" action, and an outline avoids an unverified solid
+// dark pairing (the contrast net only measures `data-cta-solid`, which this is deliberately NOT).
+const outlineLinkBtn = `${outlineBtn} no-underline`;
 
 /** The flow phase. `review` (pre-claim) → `decide` (claimed, choosing visibility) → a terminal
  * outcome (`published`/`privated`/`alreadyClaimed`/`failed`). In-flight phases drive the spinners. */
@@ -165,13 +171,22 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
   }
 
   // review / claiming / decide / publishing / keeping — all render the listing summary + the active step.
+  const onReview = phase === "review" || phase === "claiming";
   return (
     <article className="grid gap-4" lang="th" data-th-content>
       <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">
         {t("claim.title")}
       </h1>
 
-      {phase === "review" || phase === "claiming" ? (
+      {/* Step-progress indicator (mock `.step-progress`): ตรวจสอบ → อ้างสิทธิ์ → เผยแพร่. Review = step 1
+          (index 0); while the claim request is in flight = step 2 (index 1, the user is claiming); once
+          claimed, the decision step = step 3 (index 2, review+claim done). */}
+      <Stepper
+        steps={[t("claim.stepReview"), t("claim.stepClaim"), t("claim.stepPublish")]}
+        current={phase === "claiming" ? 1 : onReview ? 0 : 2}
+      />
+
+      {onReview ? (
         <ReviewStep dto={dto} busy={phase === "claiming"} onClaim={claim} />
       ) : (
         <DecideStep dto={dto} phase={phase} onPublish={publish} onKeepPrivate={keepPrivate} />
@@ -180,7 +195,9 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
   );
 }
 
-/** PHASE 1 — review the bot-extracted listing + the claim CTA. */
+/** PHASE 1 — review the bot-extracted listing + the claim CTA. The mock's review screen shows a
+ * structured field-card (label/value rows) the poster checks BEFORE the irreversible publish, plus a
+ * verify link to the full detail. */
 function ReviewStep({
   dto,
   busy,
@@ -190,7 +207,7 @@ function ReviewStep({
   busy: boolean;
   onClaim: () => void;
 }) {
-  const { t } = useApp();
+  const { t, navigate } = useApp();
   return (
     <>
       {/* LEGAL-06 banner: the listing is auto-extracted — verify before claiming/publishing. */}
@@ -206,7 +223,26 @@ function ReviewStep({
         </div>
       </div>
 
-      <ListingSummary dto={dto} />
+      {/* Structured review spec card (mock `.field-card`): a section head + the schema-present rows.
+          NOTE (deferred): the mock also shows a "เอกสารสิทธิ์ / โฉนดที่ดิน" (title-deed) row + warning —
+          deferred until the ListingDetailDto carries a deed-type field (schema gap S5-4). NOT faked here. */}
+      <section className="grid gap-1.5">
+        <h2 className="m-0 font-heading-th font-bold text-sm text-text leading-normal">
+          {t("claim.specHead")}
+        </h2>
+        <ReviewSpec dto={dto} />
+      </section>
+
+      {/* S5-7 — verify affordance: navigate to the full detail (`/p/{id}`) so the poster can verify the
+          bot's full extraction (description, gallery, every field) BEFORE the irreversible publish. */}
+      <button
+        type="button"
+        data-verify-detail={dto.id}
+        onClick={() => navigate(detailPath(dto.id))}
+        className={outlineLinkBtn}
+      >
+        🔍 {t("claim.viewFullDetail")}
+      </button>
 
       {/* Claim CTA — a SOLID primary button (data-cta-solid → contrast net measures it, both modes). */}
       <button
@@ -224,6 +260,38 @@ function ReviewStep({
       </p>
     </>
   );
+}
+
+/** The structured review spec card (mock `.field-card`) — a label/value {@link FieldList} of the
+ * SCHEMA-PRESENT fields only (nulls skipped): headline / type / price (asking for sale, monthly for
+ * rent — the frame label flips) / bedrooms / bathrooms / location. Reuses the SAME shared FieldList +
+ * display mappers the detail screen uses, so the review and the full detail can't drift. Content is
+ * schema-driven, never faked. (The mock's separate "รายได้/เดือน" income row + the title-deed row are
+ * NOT rendered — the DTO carries no distinct income field, and deed-type is schema gap S5-4.) */
+function ReviewSpec({ dto }: { dto: ListingDetailDto }) {
+  const { t } = useApp();
+  const rows: Array<{ label: string; value: string }> = [];
+  const headline = detailHeadline(dto, t);
+  if (headline.trim() !== "") rows.push({ label: t("claim.fieldHeadline"), value: headline });
+  rows.push({ label: t("field.propertyType"), value: t(propertyTypeKey(dto.propertyType)) });
+  // The price row — the frame label flips with deal type (asking for sale / monthly rent for rent),
+  // and `priceText` already returns monthlyRent for a rental, so this single row covers both.
+  rows.push({ label: t(priceFrameKey(dto.dealType)), value: priceText(dto) });
+  if (dto.bedrooms !== null) {
+    rows.push({
+      label: t("field.bedrooms"),
+      value: t("listing.bedrooms", { count: dto.bedrooms }),
+    });
+  }
+  if (dto.bathrooms !== null) {
+    rows.push({
+      label: t("field.bathrooms"),
+      value: t("listing.bathrooms", { count: dto.bathrooms }),
+    });
+  }
+  const loc = locationLine(dto);
+  if (loc !== "") rows.push({ label: t("detail.location"), value: loc });
+  return <FieldList rows={rows} />;
 }
 
 /** PHASE 2 — claimed; choose public vs group-private (D7). */

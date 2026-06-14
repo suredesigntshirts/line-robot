@@ -25,7 +25,7 @@ const schemeOf = (projectName: string): "light" | "dark" =>
 const UNCLAIMED = { ...DETAIL, isClaimedByMe: false };
 
 test.describe("claim flow — frontend gate", () => {
-  test("the review step renders the extracted listing, themed, with a contrast-safe claim CTA", async ({
+  test("the review step renders the step-progress, the structured spec card, themed, with a contrast-safe claim CTA", async ({
     page,
   }, testInfo) => {
     const problems = watchForErrors(page);
@@ -36,6 +36,23 @@ test.describe("claim flow — frontend gate", () => {
     await expect(page.getByRole("heading", { name: "ตรวจสอบประกาศ" })).toBeVisible();
     await expect(page.getByText(DETAIL.headline)).toBeVisible();
     await expect(page.getByText("อ้างสิทธิ์ประกาศนี้ →")).toBeVisible();
+
+    // (a) The step-progress indicator renders with the REVIEW step (index 0) active.
+    const stepper = page.getByRole("navigation", { name: "progress" });
+    await expect(stepper).toBeVisible();
+    await expect(stepper).toHaveAttribute("data-stepper", "0");
+    await expect(stepper.locator("[data-step-state='active']")).toHaveText("1");
+
+    // (b) The structured review spec FieldList shows the listing's SCHEMA-PRESENT fields — the
+    // property-type, price, and the bedroom/bathroom values from the fixture (DETAIL).
+    await expect(page.getByText("ชื่อประกาศ")).toBeVisible();
+    await expect(page.getByText("ประเภททรัพย์")).toBeVisible();
+    await expect(page.getByText("บ้านเดี่ยว")).toBeVisible(); // propertyType: house
+    await expect(page.getByText("฿4,800,000")).toBeVisible(); // priceThb
+    await expect(page.getByText("3 นอน")).toBeVisible(); // bedrooms: 3
+    await expect(page.getByText("2 น้ำ")).toBeVisible(); // bathrooms: 2
+    // (S5-7) The verify affordance — the link to the full detail.
+    await expect(page.getByText("ดูรายละเอียดทั้งหมด")).toBeVisible();
     await settle(page);
 
     expect(tokensSeen.length, "the api was called").toBeGreaterThan(0);
@@ -52,6 +69,22 @@ test.describe("claim flow — frontend gate", () => {
 
     await capture(page, "claim-review", testInfo);
     expect(problems(), `console/network problems: ${problems().join("\n")}`).toEqual([]);
+  });
+
+  test("the verify link (S5-7) navigates to the full detail at /p/{id}", async ({ page }) => {
+    await mockApi(page, { detail: UNCLAIMED });
+
+    await page.goto(`/claim/${DETAIL.id}`);
+    await expect(page.getByText("ดูรายละเอียดทั้งหมด")).toBeVisible();
+
+    // Tapping the verify affordance pushes the frozen `/p/{id}` detail route + renders the DetailScreen
+    // (its unique spec-section head "รายละเอียดทรัพย์" distinguishes it from the claim review screen).
+    await page.getByText("ดูรายละเอียดทั้งหมด").click();
+    await expect(page).toHaveURL(new RegExp(`/p/${DETAIL.id}$`));
+    await expect(page.getByRole("heading", { name: DETAIL.headline })).toBeVisible();
+    await expect(page.getByText("รายละเอียดทรัพย์")).toBeVisible();
+    // We left the claim flow — the step-progress chrome is gone.
+    await expect(page.getByRole("navigation", { name: "progress" })).toHaveCount(0);
   });
 
   test("claim → publish: the decision step then the public-success outcome (writes hit the api)", async ({
