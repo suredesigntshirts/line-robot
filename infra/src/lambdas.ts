@@ -275,6 +275,10 @@ export function createBotLambdas(
         variables: {
           ...commonEnv,
           ...dbEnv,
+          // Stage 6 (INC-B4): the dealflow sweep folds into this lambda; the quick-quote Flex push
+          // deep-links to `{MINIAPP_URL}/quote/{id}`. Absent → the quote push is skipped (the lapse
+          // prompt is postback-only and runs regardless). FOUNDER-GATED env add (existing function).
+          ...(miniappUrl !== undefined ? { MINIAPP_URL: miniappUrl } : {}),
         },
       },
       loggingConfig: { logFormat: "JSON", logGroup: sweepLogGroup.name },

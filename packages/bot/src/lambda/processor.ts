@@ -47,9 +47,10 @@ async function buildDeps(): Promise<Deps> {
   const doc = DynamoDBDocumentClient.from(ddb);
   // v2 catalog cutover: tracker/membership/memory stay on DynamoDB; the property
   // catalog (listings, edges, follow-up events) reads/writes Postgres.
+  const db = getDb(env.DATABASE_URL);
   const catalog = new CompositeCatalogRepository(
     new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
-    new PostgresPropertyStore(getDb(env.DATABASE_URL)),
+    new PostgresPropertyStore(db),
   );
   const s3 = new S3Client({});
   // Signs presigned GET URLs for property-card hero images (the archive bucket is private).
@@ -63,6 +64,8 @@ async function buildDeps(): Promise<Deps> {
     logger,
     // When set, the detail card gains an "Open in Catalog" deep link to the MINI App listing screen.
     miniappUrl: env.MINIAPP_URL,
+    // Stage 6: the same Postgres handle backs the exclusivity-lapse release-prompt postback handlers.
+    db,
   });
 
   const processor = new EventProcessor({

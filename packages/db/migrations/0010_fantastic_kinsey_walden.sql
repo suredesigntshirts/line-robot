@@ -1,0 +1,1 @@
+ALTER TABLE "listing" ADD COLUMN "quick_sale_pushed_at" timestamp with time zone;

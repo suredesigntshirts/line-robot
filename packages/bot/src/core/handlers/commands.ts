@@ -30,6 +30,14 @@ export const ACTIONS = {
   delete: "delete",
   /** Confirmed delete: actually remove the property (param: `id`). */
   deleteConfirm: "deleteconfirm",
+  /** Stage 6 (D-S6-4) release-prompt decisions (param: `id`). The lapse DM offers all three; tapping
+   * one lands in the {@link ./postbackRouter}'s Stage-6 release handlers. */
+  /** Release publicly: grant publish consent + release the window (the listing appears on the website). */
+  releasePublicly: "releasepublicly",
+  /** Release to other groups: drop the group-exclusive mandate + release the window. */
+  releaseToOtherGroups: "releasetoothergroups",
+  /** Extend the window: bump `expires_at` by the source group's window (back to held). */
+  extendExclusivity: "extendexclusivity",
 } as const;
 
 export type ActionName = (typeof ACTIONS)[keyof typeof ACTIONS];

@@ -1,3 +1,4 @@
+import type { Db } from "@line-robot/db";
 import type { IncomingMessage, OutboundMessage } from "../domain/message.js";
 import type { CatalogRepository } from "../ports/catalog.js";
 import type { MediaUrlSigner } from "../ports/mediaUrlSigner.js";
@@ -7,6 +8,7 @@ import type { Clock, Logger } from "../ports/runtime.js";
 import { CatalogAssistant } from "./catalogAssistant.js";
 import { CommandHandler } from "./commandHandler.js";
 import { CatalogPostbackRouter } from "./postbackRouter.js";
+import { ReleaseDecider } from "./releaseDecider.js";
 
 /**
  * Chain-of-responsibility over handlers: the first handler to produce output wins. This is the
@@ -38,6 +40,10 @@ export interface HandlerDeps {
   /** MINI App base URL (`https://miniapp.line.me/{liffId}`); when set, the detail card gains an
    * "Open in Catalog" deep link. Absent → no button (the original in-chat-only detail card). */
   readonly miniappUrl?: string;
+  /** Postgres handle (Stage 6). When present, the postback router resolves the exclusivity-lapse
+   * release-prompt decisions (release-publicly / release-to-other-groups / extend); absent → those
+   * three postbacks no-op (the Stage-6 release flow isn't wired). */
+  readonly db?: Db;
 }
 
 /**
@@ -58,8 +64,10 @@ export function createHandlers(deps: HandlerDeps): {
     deps.logger,
     deps.miniappUrl,
   );
+  const release =
+    deps.db !== undefined ? new ReleaseDecider({ db: deps.db, clock: deps.clock }) : undefined;
   return {
     messageHandler: new CompositeMessageHandler([new CommandHandler(assistant)]),
-    postbackRouter: new CatalogPostbackRouter(assistant),
+    postbackRouter: new CatalogPostbackRouter(assistant, release),
   };
 }

@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "../pool.ts";
-import { groupMemberships, groups } from "../schema.ts";
+import { groupMemberships, groups, listings } from "../schema.ts";
 
 export type NewGroup = typeof groups.$inferInsert;
 export type NewGroupMembership = typeof groupMemberships.$inferInsert;
@@ -54,4 +54,19 @@ export async function upsertMembership(db: Db, membership: NewGroupMembership): 
     .insert(groupMemberships)
     .values(membership)
     .onConflictDoNothing({ target: [groupMemberships.groupId, groupMemberships.userId] });
+}
+
+/** The per-group exclusivity window (days) for a listing's source group (Stage 6, D-S6-1) — the value
+ * an `extend` bumps `expires_at` by. Undefined when the listing doesn't exist or has no source group
+ * (a 1:1-sourced listing); the caller falls back to the system default (7). */
+export async function getExclusivityWindowDays(
+  db: Db,
+  listingId: string,
+): Promise<number | undefined> {
+  const [row] = await db
+    .select({ windowDays: groups.exclusivityWindowDays })
+    .from(listings)
+    .innerJoin(groups, eq(groups.id, listings.sourceGroupId))
+    .where(eq(listings.id, listingId));
+  return row?.windowDays;
 }
