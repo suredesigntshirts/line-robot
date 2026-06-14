@@ -23,8 +23,9 @@ import { Screen } from "@line-robot/ui";
 import { useState } from "react";
 import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
+import { Outcome } from "../components/Outcome.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
-import { ApiError } from "../lib/api.ts";
+import { ApiError, apiStatus } from "../lib/api.ts";
 import {
   detailHeadline,
   locationLine,
@@ -34,15 +35,14 @@ import {
 } from "../lib/display.ts";
 import type { ListingDetailDto } from "../lib/types.ts";
 
-// CTA class strings, named once (a reader shouldn't diff three 14-token strings). All three solid
-// variants are `bg-primary-500` + `text-surface` (the both-mode-safe pairing the contrast net verifies)
-// with `leading-relaxed` (≥1.6, TH-07). `solidBtnFull` = the full-width, disable-able primary used for
-// the step actions (claim / publish); `solidBtnNarrow` = the outcome panel's single CTA; `outlineBtn` =
-// the group-private secondary. Each FILLED button also carries `data-cta-solid` at its call site.
+// CTA class strings, named once (a reader shouldn't diff the long strings). Both solid variants are
+// `bg-primary-500` + `text-surface` (the both-mode-safe pairing the contrast net verifies) with
+// `leading-relaxed` (≥1.6, TH-07). `solidBtnFull` = the full-width, disable-able primary used for the
+// step actions (claim / publish); `outlineBtn` = the group-private secondary. Each FILLED button also
+// carries `data-cta-solid` at its call site. The terminal-outcome CTA uses the shared <Outcome>.
 const SOLID_BTN_BASE =
   "inline-flex items-center justify-center gap-2 rounded-md border-0 bg-primary-500 font-body-th text-base text-surface leading-relaxed transition-opacity hover:opacity-90";
 const solidBtnFull = `${SOLID_BTN_BASE} w-full px-4 py-3 font-bold disabled:opacity-60`;
-const solidBtnNarrow = `${SOLID_BTN_BASE} px-5 py-2.5 font-semibold`;
 const outlineBtn =
   "inline-flex w-full items-center justify-center gap-2 rounded-md border border-border-2 bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60";
 
@@ -68,11 +68,7 @@ export function ClaimScreen({ id }: { id: string }) {
       {state.status === "loading" ? (
         <Loading label={t("claim.loading")} />
       ) : state.status === "error" ? (
-        <ErrorView
-          t={t}
-          status={state.error instanceof ApiError ? state.error.status : undefined}
-          onRetry={reload}
-        />
+        <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />
       ) : (
         <ClaimFlow id={id} dto={state.data} />
       )}
@@ -121,7 +117,7 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
 
   if (phase === "alreadyClaimed") {
     return (
-      <OutcomePanel
+      <Outcome
         tone="warn"
         glyph="🔒"
         title={t("claim.alreadyClaimedTitle")}
@@ -133,7 +129,7 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
   }
   if (phase === "failed") {
     return (
-      <OutcomePanel
+      <Outcome
         tone="danger"
         glyph="⚠️"
         title={t("claim.failedTitle")}
@@ -145,7 +141,7 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
   }
   if (phase === "published") {
     return (
-      <OutcomePanel
+      <Outcome
         tone="success"
         glyph="🌐"
         title={t("claim.publishedTitle")}
@@ -157,7 +153,7 @@ function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
   }
   if (phase === "privated") {
     return (
-      <OutcomePanel
+      <Outcome
         tone="success"
         glyph="🔒"
         title={t("claim.privatedTitle")}
@@ -388,50 +384,5 @@ function ListingSummary({ dto }: { dto: ListingDetailDto }) {
         </div>
       </div>
     </section>
-  );
-}
-
-/** A terminal outcome panel (already-claimed / failed / published / kept-private): a tinted glyph, a
- * COPY-07 title+body, and a single CTA back to My Listings. `tone` colours the glyph ring only. */
-function OutcomePanel({
-  tone,
-  glyph,
-  title,
-  body,
-  ctaLabel,
-  onCta,
-}: {
-  tone: "success" | "warn" | "danger";
-  glyph: string;
-  title: string;
-  body: string;
-  ctaLabel: string;
-  onCta: () => void;
-}) {
-  const ring =
-    tone === "success"
-      ? "border-success bg-success-bg"
-      : tone === "warn"
-        ? "border-[var(--badge-owner-text)] bg-[var(--badge-owner)]"
-        : "border-danger bg-danger-bg";
-  return (
-    <article
-      className="grid justify-items-center gap-3 py-8 text-center"
-      lang="th"
-      data-th-content
-      data-state={tone === "danger" ? "error" : "outcome"}
-    >
-      <span
-        aria-hidden="true"
-        className={`flex size-14 items-center justify-center rounded-full border-2 text-2xl ${ring}`}
-      >
-        {glyph}
-      </span>
-      <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">{title}</h1>
-      <p className="m-0 max-w-[20rem] font-body-th text-base text-text-2 leading-relaxed">{body}</p>
-      <button type="button" data-cta-solid onClick={onCta} className={solidBtnNarrow}>
-        {ctaLabel}
-      </button>
-    </article>
   );
 }

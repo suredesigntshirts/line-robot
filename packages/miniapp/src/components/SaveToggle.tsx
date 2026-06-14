@@ -1,13 +1,9 @@
 /**
- * The save/unsave bookmark control on the detail screen (D13). Tapping it POSTs/DELETEs
- * `/properties/{id}/save` and flips OPTIMISTICALLY — the icon/label change immediately, and a failed
- * request ROLLS BACK to the prior state (no silent divergence). Idempotent server-side, so a fast
- * double-tap is safe.
- *
- * DTO gap (noted in the build report): the detail DTO carries no `isSaved`, so the initial state can't
- * be derived from the detail fetch. We start UNSAVED and let the toggle drive it (the simplest correct
- * thing per the build prompt) — a re-fetch of `/me/saved` to seed it would be a heavier call for a
- * single boolean; queued as a possible api addition if the founder wants the persisted state shown.
+ * The save/unsave bookmark control on the detail screen (D13). Seeds from the detail DTO's `isSaved`
+ * (the api computes it per-caller), so a bookmarked listing renders "saved" on every revisit and the
+ * first tap correctly fires `unsave`. Tapping flips OPTIMISTICALLY — the icon/label change immediately,
+ * and a failed request ROLLS BACK to the prior state (no silent divergence). Idempotent server-side, so
+ * a fast double-tap is safe.
  *
  * Authored in Tailwind utilities; `data-save-toggle` marks it for the e2e gate (the bookmark is an
  * icon button — exempt from the Thai-line-height net, which skips `button`).
@@ -16,8 +12,18 @@ import type { Translator } from "@line-robot/ui";
 import { useState } from "react";
 import type { ApiClient } from "../lib/api.ts";
 
-export function SaveToggle({ id, api, t }: { id: string; api: ApiClient; t: Translator }) {
-  const [saved, setSaved] = useState(false);
+export function SaveToggle({
+  id,
+  api,
+  t,
+  initialSaved,
+}: {
+  id: string;
+  api: ApiClient;
+  t: Translator;
+  initialSaved: boolean;
+}) {
+  const [saved, setSaved] = useState(initialSaved);
   const [busy, setBusy] = useState(false);
 
   async function toggle(): Promise<void> {

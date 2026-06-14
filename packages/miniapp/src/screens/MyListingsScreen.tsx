@@ -16,7 +16,7 @@ import { type CrmTab, Header } from "../components/Header.tsx";
 import { MyListingCard } from "../components/MyListingCard.tsx";
 import { EmptyListings, ErrorView, Loading } from "../components/States.tsx";
 import { computeStats, StatsStrip } from "../components/StatsStrip.tsx";
-import { ApiError } from "../lib/api.ts";
+import { apiStatus } from "../lib/api.ts";
 import { detailPath, editPath } from "../lib/deeplink.ts";
 import { SavedPanel } from "./SavedPanel.tsx";
 import { ViewingsPanel } from "./ViewingsPanel.tsx";
@@ -48,13 +48,7 @@ function ListingsPanel() {
 
   if (state.status === "loading") return <Loading label={t("crm.loading")} />;
   if (state.status === "error") {
-    return (
-      <ErrorView
-        t={t}
-        status={state.error instanceof ApiError ? state.error.status : undefined}
-        onRetry={reload}
-      />
-    );
+    return <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />;
   }
 
   return (

@@ -52,12 +52,16 @@ function listingRow(
   } as PortalListingDetail["listing"];
 }
 
-function portalDetail(over: Partial<PortalListingDetail["listing"]> = {}): PortalListingDetail {
+function portalDetail(
+  over: Partial<PortalListingDetail["listing"]> = {},
+  isSaved = false,
+): PortalListingDetail {
   return {
     listing: listingRow(over),
     lat: 18.79,
     lon: 98.96,
     monthlyRent: null,
+    isSaved,
     media: [
       { s3Key: "conv/x/0.jpg", thumbKey: null, kind: "photo", heroIndex: 0 },
       { s3Key: "conv/x/1.jpg", thumbKey: "derivatives/1.jpg", kind: "photo", heroIndex: 1 },
@@ -287,11 +291,34 @@ describe("GET /properties/{id} (detail authz)", () => {
     expect(r.statusCode).toBe(200);
     const d = bodyOf(r);
     expect(d.isClaimedByMe).toBe(true);
+    // Default fixture is not saved → the detail reflects the persisted save state.
+    expect(d.isSaved).toBe(false);
     // Gallery prefers the derivative, falls back to the original; both presigned, in hero order.
     expect(d.photos.map((p: { url: string }) => p.url)).toEqual([
       "https://signed/conv/x/0.jpg",
       "https://signed/derivatives/1.jpg",
     ]);
+  });
+
+  it("a SAVED listing's detail returns isSaved:true (the bookmark seeds from the persisted state)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () =>
+        portalDetail({ claimedByUserId: DB_USER_ID }, true),
+      ),
+    });
+    const r = await handleApi(deps(repo), req("GET", `/properties/${LISTING_ID}`));
+    expect(r.statusCode).toBe(200);
+    expect(bodyOf(r).isSaved).toBe(true);
+  });
+
+  it("threads the caller's userId into getPortalListingDetail (so isSaved is computed for the caller)", async () => {
+    const spy = vi.fn(async () => portalDetail({ claimedByUserId: DB_USER_ID }));
+    await handleApi(
+      deps(makeRepo({ getPortalListingDetail: spy })),
+      req("GET", `/properties/${LISTING_ID}`),
+    );
+    // (listingId, callerUserId) — the resolved DB user, not the raw LINE subject.
+    expect(spy).toHaveBeenCalledWith(LISTING_ID, DB_USER_ID);
   });
 
   it("a source-group member sees a listing they didn't claim", async () => {

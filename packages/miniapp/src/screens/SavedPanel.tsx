@@ -8,7 +8,7 @@ import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
 import { MyListingCard } from "../components/MyListingCard.tsx";
 import { ErrorView, Loading, SavedEmpty } from "../components/States.tsx";
-import { ApiError } from "../lib/api.ts";
+import { apiStatus } from "../lib/api.ts";
 import { detailPath } from "../lib/deeplink.ts";
 
 export function SavedPanel() {
@@ -17,13 +17,7 @@ export function SavedPanel() {
 
   if (state.status === "loading") return <Loading label={t("saved.loading")} />;
   if (state.status === "error") {
-    return (
-      <ErrorView
-        t={t}
-        status={state.error instanceof ApiError ? state.error.status : undefined}
-        onRetry={reload}
-      />
-    );
+    return <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />;
   }
   if (state.data.length === 0) return <SavedEmpty t={t} />;
 

@@ -14,7 +14,7 @@ import { LifecycleBadge } from "../components/LifecycleBadge.tsx";
 import { NotesSection } from "../components/NotesSection.tsx";
 import { SaveToggle } from "../components/SaveToggle.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
-import { ApiError } from "../lib/api.ts";
+import { apiStatus } from "../lib/api.ts";
 import { editPath } from "../lib/deeplink.ts";
 import {
   detailHeadline,
@@ -48,11 +48,7 @@ export function DetailScreen({ id }: { id: string }) {
       {state.status === "loading" ? (
         <Loading label={t("detail.loading")} />
       ) : state.status === "error" ? (
-        <ErrorView
-          t={t}
-          status={state.error instanceof ApiError ? state.error.status : undefined}
-          onRetry={reload}
-        />
+        <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />
       ) : (
         <DetailBody dto={state.data} />
       )}
@@ -97,9 +93,10 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
       <header className="grid gap-2">
         <div className="flex flex-wrap items-center justify-between gap-1.5">
           <LifecycleBadge kind={kind} t={t} />
-          {/* Save/unsave (optimistic). For the owner, an edit entry instead/alongside (own listing). */}
+          {/* Save/unsave (optimistic, seeded from the persisted isSaved). For the owner, an edit entry
+              alongside (own listing). */}
           <div className="flex items-center gap-1.5">
-            <SaveToggle id={dto.id} api={api} t={t} />
+            <SaveToggle id={dto.id} api={api} t={t} initialSaved={dto.isSaved} />
             {dto.isClaimedByMe && (
               <button
                 type="button"

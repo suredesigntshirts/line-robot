@@ -8,6 +8,7 @@ import {
   listingRental,
   listings,
   publishConsents,
+  savedListings,
 } from "../schema.ts";
 
 // Stage 5 (D7) — the claim/publish opt-in lifecycle and the "My listings" portal read.
@@ -171,13 +172,17 @@ export async function isGroupMember(
 }
 
 /** The mini-app detail read: one listing with its authz facts (claimant + source group), lifecycle
- * (on the row), gallery photo keys in hero order, content, and monthly rent. The API presigns the
- * `s3Key`s and gates on `claimedByUserId === caller OR isGroupMember(sourceGroupId, caller)`. */
+ * (on the row), gallery photo keys in hero order, content, monthly rent, and whether the CALLER has
+ * saved it. The API presigns the `s3Key`s and gates on
+ * `claimedByUserId === caller OR isGroupMember(sourceGroupId, caller)`. */
 export interface PortalListingDetail {
   listing: typeof listings.$inferSelect;
   lat: number | null;
   lon: number | null;
   monthlyRent: number | null;
+  /** True iff the calling user has saved this listing — so the detail's bookmark renders its real
+   * persisted state on every revisit (not always "unsaved"). */
+  isSaved: boolean;
   /** Photos in hero order; `thumbKey` is the 640px derivative (NULL until re-derived) — the API
    * presigns `thumbKey ?? s3Key`. Kind lets the UI separate the chanote/floorplan from the gallery. */
   media: Array<{
@@ -190,16 +195,25 @@ export interface PortalListingDetail {
 }
 
 /** Full detail read for the mini-app (no consent gate — the API applies its own claimant/group gate).
- * Undefined when the listing doesn't exist. */
+ * `callerUserId` is the verified caller, used only to compute `isSaved` (a correlated EXISTS over
+ * `saved_listing`). Undefined when the listing doesn't exist. */
 export async function getPortalListingDetail(
   db: Db,
   id: string,
+  callerUserId: string,
 ): Promise<PortalListingDetail | undefined> {
   const [row] = await db
     .select({
       listing: listings,
       lat: sql<number | null>`ST_Y(${listings.geom}::geometry)`,
       lon: sql<number | null>`ST_X(${listings.geom}::geometry)`,
+      // Per-caller saved state. The outer correlation MUST be the literal `"listing".id` — drizzle
+      // renders `${listings.id}` UNQUALIFIED inside a projection subquery, where it would bind to
+      // `saved_listing`'s own `id` column instead of the outer listing (same gotcha as the heroThumbKey /
+      // isPublished subqueries above). `callerUserId` binds as a parameter.
+      isSaved: sql<boolean>`exists (
+        select 1 from ${savedListings} s
+        where s.listing_id = "listing".id and s.user_id = ${callerUserId})`,
     })
     .from(listings)
     .where(eq(listings.id, id));
@@ -218,6 +232,7 @@ export async function getPortalListingDetail(
     lat: row.lat,
     lon: row.lon,
     monthlyRent: rental[0]?.monthlyRent ?? null,
+    isSaved: row.isSaved,
     media: media.map((m) => ({
       s3Key: m.s3Key,
       thumbKey: m.thumbKey,

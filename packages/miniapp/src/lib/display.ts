@@ -135,6 +135,13 @@ export function mapsUri(lat: number, lon: number): string {
 // clutter it. `en` falls back to the Gregorian locale (the SPA is th-default, but the locale flips with
 // LIFF's reported language). All pure — no DOM — so they're unit-testable.
 
+/** The BCP-47 tag the Intl formatters take. `th` → `th-TH` (its Buddhist-era calendar gives the "2569"
+ * year + Thai month names natively); anything else → `en-US`. One place so the formatters don't repeat
+ * the ternary. */
+function intlLocale(locale: "th" | "en"): "th-TH" | "en-US" {
+  return locale === "th" ? "th-TH" : "en-US";
+}
+
 /** A viewing's date bubble: the day number + the short localized month (e.g. `{ day: "14", month:
  * "มิ.ย." }`). Latin numerals stay Latin via the bubble's `font-latin`; the month is localized. */
 export function viewingDateBubble(
@@ -147,9 +154,7 @@ export function viewingDateBubble(
   // localized (th → "มิ.ย.", en → "Jun"). For th we still want the Buddhist calendar's month name,
   // which `th-TH` gives; the day number is calendar-agnostic.
   const day = new Intl.DateTimeFormat("en-US", { day: "numeric" }).format(d);
-  const month = new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
-    month: "short",
-  }).format(d);
+  const month = new Intl.DateTimeFormat(intlLocale(locale), { month: "short" }).format(d);
   return { day, month };
 }
 
@@ -158,7 +163,7 @@ export function viewingDateBubble(
 export function viewingTime(iso: string, locale: "th" | "en"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -170,7 +175,7 @@ export function viewingTime(iso: string, locale: "th" | "en"): string {
 export function fullDateTime(iso: string, locale: "th" | "en"): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -181,13 +186,7 @@ export function fullDateTime(iso: string, locale: "th" | "en"): string {
 }
 
 /** The viewing status → catalog label key (the status pill on a viewing card). */
-export function viewingStatusKey(
-  status: string,
-):
-  | "viewing.statusRequested"
-  | "viewing.statusConfirmed"
-  | "viewing.statusDone"
-  | "viewing.statusCancelled" {
+export function viewingStatusKey(status: string): import("@line-robot/ui").MessageKey {
   switch (status) {
     case "confirmed":
       return "viewing.statusConfirmed";

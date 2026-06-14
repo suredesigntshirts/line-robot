@@ -16,8 +16,9 @@ import { Screen } from "@line-robot/ui";
 import { useState } from "react";
 import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
+import { Outcome } from "../components/Outcome.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
-import { ApiError } from "../lib/api.ts";
+import { ApiError, apiStatus } from "../lib/api.ts";
 import type { ListingDetailDto, ListingPatch } from "../lib/types.ts";
 
 export function EditScreen({ id }: { id: string }) {
@@ -29,11 +30,7 @@ export function EditScreen({ id }: { id: string }) {
       {state.status === "loading" ? (
         <Loading label={t("edit.loading")} />
       ) : state.status === "error" ? (
-        <ErrorView
-          t={t}
-          status={state.error instanceof ApiError ? state.error.status : undefined}
-          onRetry={reload}
-        />
+        <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />
       ) : (
         <EditForm id={id} dto={state.data} />
       )}
@@ -44,7 +41,12 @@ export function EditScreen({ id }: { id: string }) {
 type Phase = "editing" | "saving" | "saved" | "error" | "notOwner";
 
 /** The string-form values for every editable field (numbers are kept as strings for `<input>` and
- * parsed on submit). Seeded from the dto; only fields that CHANGED are sent. */
+ * parsed on submit). Seeded from the dto; only fields that CHANGED are sent.
+ *
+ * NOTE: `addressDetail` is in the api allowlist (and `ListingPatch`) but is DELIBERATELY not exposed as
+ * an edit field — the precise street address is sensitive and there's no UX need for the owner to retype
+ * it here (the public detail surfaces tambon/amphoe/province, not the door number). Omitting it is the
+ * conservative default; surface it later only if a real flow needs it. */
 interface FormState {
   priceThb: string;
   monthlyRent: string;
@@ -74,11 +76,20 @@ function seed(dto: ListingDetailDto): FormState {
   };
 }
 
+/** Parse a numeric form field to a non-negative int, or undefined if it isn't a finite number ≥ 0.
+ * Negative values are rejected here (the inputs also carry `min`) so a `-5` never reaches the api as a
+ * negative price/beds/baths/rent. */
+function nonNegInt(raw: string): number | undefined {
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
 /** Build the minimal patch: only fields whose form value differs from the seeded original. Numbers
- * parse to ints (a non-numeric or empty numeric field is skipped); strings send their trimmed value.
- * Built mutably then returned as the readonly `ListingPatch`. */
+ * parse to non-negative ints (a non-numeric, empty, or negative numeric field is skipped); strings send
+ * their trimmed value. Built on a writable mirror of the (readonly, all-optional) `ListingPatch`. */
+type MutablePatch = { -readonly [K in keyof ListingPatch]: ListingPatch[K] };
 function buildPatch(form: FormState, original: FormState, isRent: boolean): ListingPatch {
-  const patch: { -readonly [K in keyof ListingPatch]: ListingPatch[K] } = {};
+  const patch: MutablePatch = {};
   const strFields = ["projectName", "landmark", "tambon", "amphoe", "province"] as const;
   for (const f of strFields) {
     if (form[f].trim() !== original[f].trim()) patch[f] = form[f].trim();
@@ -86,15 +97,15 @@ function buildPatch(form: FormState, original: FormState, isRent: boolean): List
   const intFields = ["bedrooms", "bathrooms"] as const;
   for (const f of intFields) {
     if (form[f] !== original[f]) {
-      const n = Number.parseInt(form[f], 10);
-      if (Number.isFinite(n)) patch[f] = n;
+      const n = nonNegInt(form[f]);
+      if (n !== undefined) patch[f] = n;
     }
   }
   // Price: a sale edits priceThb, a rent edits monthlyRent (the form shows only the matching one).
   const priceKey = isRent ? "monthlyRent" : "priceThb";
   if (form[priceKey] !== original[priceKey]) {
-    const n = Number.parseInt(form[priceKey], 10);
-    if (Number.isFinite(n)) patch[priceKey] = n;
+    const n = nonNegInt(form[priceKey]);
+    if (n !== undefined) patch[priceKey] = n;
   }
   return patch;
 }
@@ -127,7 +138,7 @@ function EditForm({ id, dto }: { id: string; dto: ListingDetailDto }) {
         tone="success"
         title={t("edit.savedTitle")}
         body={t("edit.savedBody")}
-        cta={t("edit.back")}
+        ctaLabel={t("edit.back")}
         onCta={() => navigate("/")}
       />
     );
@@ -139,7 +150,7 @@ function EditForm({ id, dto }: { id: string; dto: ListingDetailDto }) {
         tone="warn"
         title={t("edit.errorTitle")}
         body={t("edit.notOwnerBody")}
-        cta={t("edit.back")}
+        ctaLabel={t("edit.back")}
         onCta={() => navigate("/")}
       />
     );
@@ -165,16 +176,18 @@ function EditForm({ id, dto }: { id: string; dto: ListingDetailDto }) {
       </div>
 
       <div className="grid gap-3">
-        <NumberField label={priceLabel} value={form[priceKey]} onChange={set(priceKey)} />
+        <NumberField label={priceLabel} value={form[priceKey]} onChange={set(priceKey)} min={0} />
         <NumberField
           label={t("edit.fieldBedrooms")}
           value={form.bedrooms}
           onChange={set("bedrooms")}
+          min={1}
         />
         <NumberField
           label={t("edit.fieldBathrooms")}
           value={form.bathrooms}
           onChange={set("bathrooms")}
+          min={1}
         />
         <TextField
           label={t("edit.fieldProjectName")}
@@ -238,16 +251,19 @@ function TextField({
   );
 }
 
-/** A labelled numeric field — `inputMode="numeric"` for a Thai-phone number pad; the value is parsed
- * to an int on submit (non-numeric is skipped, never sent). */
+/** A labelled numeric field — `inputMode="numeric"` for a Thai-phone number pad; `min` blocks negative
+ * entry in supporting UAs (the submit `buildPatch` also rejects `< 0`, so a negative never reaches the
+ * api regardless). The value is parsed to a non-negative int on submit (non-numeric/negative skipped). */
 function NumberField({
   label,
   value,
   onChange,
+  min = 0,
 }: {
   label: string;
   value: string;
   onChange: (e: { currentTarget: { value: string } }) => void;
+  min?: number;
 }) {
   return (
     <label className="grid gap-1 font-body-th text-sm text-text-2 leading-relaxed">
@@ -255,57 +271,11 @@ function NumberField({
       <input
         type="number"
         inputMode="numeric"
+        min={min}
         value={value}
         onChange={onChange}
         className="rounded-md border border-border bg-surface px-3 py-2 font-latin text-base text-text leading-relaxed"
       />
     </label>
-  );
-}
-
-/** A terminal outcome panel (saved / not-owner) — a tinted glyph, title+body, and a CTA back. */
-function Outcome({
-  glyph,
-  tone,
-  title,
-  body,
-  cta,
-  onCta,
-}: {
-  glyph: string;
-  tone: "success" | "warn";
-  title: string;
-  body: string;
-  cta: string;
-  onCta: () => void;
-}) {
-  const ring =
-    tone === "success"
-      ? "border-success bg-success-bg"
-      : "border-[var(--badge-owner-text)] bg-[var(--badge-owner)]";
-  return (
-    <article
-      className="grid justify-items-center gap-3 py-8 text-center"
-      lang="th"
-      data-th-content
-      data-state="edit-outcome"
-    >
-      <span
-        aria-hidden="true"
-        className={`flex size-14 items-center justify-center rounded-full border-2 text-2xl ${ring}`}
-      >
-        {glyph}
-      </span>
-      <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">{title}</h1>
-      <p className="m-0 max-w-[20rem] font-body-th text-base text-text-2 leading-relaxed">{body}</p>
-      <button
-        type="button"
-        data-cta-solid
-        onClick={onCta}
-        className="rounded-md border-0 bg-primary-500 px-5 py-2.5 font-body-th font-semibold text-base text-surface leading-relaxed"
-      >
-        {cta}
-      </button>
-    </article>
   );
 }

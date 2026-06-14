@@ -8,7 +8,7 @@ import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
 import { ErrorView, Loading, ViewingsEmpty } from "../components/States.tsx";
 import { ViewingCard } from "../components/ViewingCard.tsx";
-import { ApiError } from "../lib/api.ts";
+import { apiStatus } from "../lib/api.ts";
 import { detailPath } from "../lib/deeplink.ts";
 import type { ViewingDto } from "../lib/types.ts";
 
@@ -18,13 +18,7 @@ export function ViewingsPanel() {
 
   if (state.status === "loading") return <Loading label={t("viewing.loading")} />;
   if (state.status === "error") {
-    return (
-      <ErrorView
-        t={t}
-        status={state.error instanceof ApiError ? state.error.status : undefined}
-        onRetry={reload}
-      />
-    );
+    return <ErrorView t={t} status={apiStatus(state.error)} onRetry={reload} />;
   }
 
   const { upcoming, past } = state.data;

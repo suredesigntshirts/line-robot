@@ -116,7 +116,7 @@ describe("claim (optimistic lock, D7)", () => {
     const id = await newListing(2_000_000);
     expect(await claimListing(db, id, alice)).toBe("claimed");
     // The listing now carries the claim facts.
-    const detail = await getPortalListingDetail(db, id);
+    const detail = await getPortalListingDetail(db, id, alice);
     expect(detail?.listing.claimedByUserId).toBe(alice);
     expect(detail?.listing.claimedAt).not.toBeNull();
     // Alice re-claiming her own listing is idempotent (not an error).
@@ -128,7 +128,7 @@ describe("claim (optimistic lock, D7)", () => {
     expect(await claimListing(db, id, alice)).toBe("claimed");
     expect(await claimListing(db, id, bob)).toBe("already_claimed");
     // The original claimant is unchanged after the failed claim.
-    const detail = await getPortalListingDetail(db, id);
+    const detail = await getPortalListingDetail(db, id, alice);
     expect(detail?.listing.claimedByUserId).toBe(alice);
   });
 
@@ -214,7 +214,7 @@ describe("group-membership authz", () => {
   it("getPortalListingDetail exposes the source group + claimant for the API gate", async () => {
     const id = await newListing(2_200_000, groupId);
     await claimListing(db, id, alice);
-    const detail = await getPortalListingDetail(db, id);
+    const detail = await getPortalListingDetail(db, id, alice);
     expect(detail?.listing.sourceGroupId).toBe(groupId);
     expect(detail?.listing.claimedByUserId).toBe(alice);
     // Gallery is in hero order; both originals + the one derivative are exposed.
@@ -261,7 +261,7 @@ describe("ingest population (findOrCreateGroupByLineGroupId + upsertMembership)"
     await upsertMembership(db, { groupId: group.id, userId: bob });
     // The pipeline writes a listing carrying THIS source group (source_group_id non-NULL).
     const id = await newListing(2_800_000, group.id);
-    const detail = await getPortalListingDetail(db, id);
+    const detail = await getPortalListingDetail(db, id, bob);
     expect(detail?.listing.sourceGroupId).toBe(group.id);
     // The gate the API runs before claiming: bob is a member → admitted → his claim wins.
     expect(await isGroupMember(db, detail?.listing.sourceGroupId ?? null, bob)).toBe(true);
@@ -289,6 +289,17 @@ describe("saved listings", () => {
     expect((await listSavedListingsForUser(db, bob)).map((s) => s.listing.id)).not.toContain(a);
     // Bob's saves are not Alice's.
     expect(await listSavedListingsForUser(db, alice)).toHaveLength(0);
+  });
+
+  it("getPortalListingDetail.isSaved reflects the CALLER's save state (per-user, not global)", async () => {
+    const id = await newListing(1_500_000);
+    await saveListing(db, id, bob);
+    // Bob saved it → true for bob; alice never saved it → false for alice (per-caller correlation).
+    expect((await getPortalListingDetail(db, id, bob))?.isSaved).toBe(true);
+    expect((await getPortalListingDetail(db, id, alice))?.isSaved).toBe(false);
+    // Un-saving flips it back to false for bob.
+    await unsaveListing(db, id, bob);
+    expect((await getPortalListingDetail(db, id, bob))?.isSaved).toBe(false);
   });
 });
 
@@ -344,7 +355,7 @@ describe("markClaimInvited (one-shot claim-DM guard)", () => {
     expect(await markClaimInvited(db, id, at)).toBe(true);
     // A second trigger can't re-send (the guard already fired).
     expect(await markClaimInvited(db, id, new Date())).toBe(false);
-    const detail = await getPortalListingDetail(db, id);
+    const detail = await getPortalListingDetail(db, id, alice);
     expect(detail?.listing.claimInvitedAt?.toISOString()).toBe(at.toISOString());
   });
 });

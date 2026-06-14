@@ -126,6 +126,7 @@ export const DETAIL: ListingDetailDto = {
   sourceGroupId: "C0835",
   claimedByUserId: "user-1",
   isClaimedByMe: true,
+  isSaved: false,
   photos: [
     { url: img("a"), kind: "photo", isThumb: true },
     { url: img("a2"), kind: "photo", isThumb: true },

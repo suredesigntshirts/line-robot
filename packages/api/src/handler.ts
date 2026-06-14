@@ -21,7 +21,10 @@ import type { LineTokenVerifier } from "./ports/lineTokenVerifier.ts";
 export interface Repo {
   findUserByIdentity(provider: "line", subject: string): Promise<UserRow | undefined>;
   createLineUser(displayName: string, subject: string): Promise<UserRow>;
-  getPortalListingDetail(id: string): Promise<PortalListingDetail | undefined>;
+  getPortalListingDetail(
+    id: string,
+    callerUserId: string,
+  ): Promise<PortalListingDetail | undefined>;
   isGroupMember(groupId: string | null, userId: string): Promise<boolean>;
   listMyListings(userId: string): Promise<MyListingCard[]>;
   claimListing(listingId: string, userId: string): Promise<ClaimResult>;
@@ -170,7 +173,7 @@ async function authorizedListing(
   userId: string,
   requireClaimant: boolean,
 ): Promise<PortalListingDetail | null> {
-  const detail = await deps.repo.getPortalListingDetail(listingId);
+  const detail = await deps.repo.getPortalListingDetail(listingId, userId);
   if (!detail) return null;
   const isClaimant = detail.listing.claimedByUserId === userId;
   if (requireClaimant) return isClaimant ? detail : null;
@@ -222,6 +225,7 @@ async function handleDetail(deps: ApiDeps, userId: string, id: string): Promise<
     sourceGroupId: detail.listing.sourceGroupId,
     claimedByUserId: detail.listing.claimedByUserId,
     isClaimedByMe: detail.listing.claimedByUserId === userId,
+    isSaved: detail.isSaved,
     photos,
   });
 }
@@ -234,7 +238,7 @@ async function handleClaim(deps: ApiDeps, userId: string, id: string): Promise<H
   // same response as a missing listing so existence isn't revealed. The optimistic lock below still
   // resolves WITHIN-group races. (Build C must ensure source-group memberships are populated by the
   // live ingest path before this endpoint is reachable in prod — see the build report.)
-  const detail = await deps.repo.getPortalListingDetail(id);
+  const detail = await deps.repo.getPortalListingDetail(id, userId);
   if (!detail) return json(404, { error: "not_found" });
   const member = await deps.repo.isGroupMember(detail.listing.sourceGroupId, userId);
   if (!member) return json(404, { error: "not_found" });

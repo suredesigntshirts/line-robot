@@ -1,9 +1,10 @@
 /**
  * Book-a-viewing on the detail screen (D13). A collapsible panel with a NATIVE `<input
  * type="datetime-local">` (no heavy date-picker dep — anti-over-engineering) → `POST
- * /properties/{id}/viewings`. Validates a FUTURE time client-side, and maps a server `400 invalid_time`
- * (ApiError 400) to a calm field error. On success it shows a confirmation and refreshes nothing on the
- * detail (the new viewing surfaces on the Viewings tab on its next fetch).
+ * /properties/{id}/viewings`. The FUTURE-time guard is CLIENT-side (the real UX rule); the api only
+ * checks parseability (`400 invalid_time` for an unparseable/empty time), which we map to the "invalid
+ * time" field error. On success it shows a confirmation and refreshes nothing on the detail (the new
+ * viewing surfaces on the Viewings tab on its next fetch).
  *
  * `datetime-local` yields a LOCAL wall-clock string (`YYYY-MM-DDTHH:mm`, no zone). We convert it to an
  * absolute instant with `new Date(value)` (interpreted in the device's local zone — Asia/Bangkok on a
@@ -39,9 +40,10 @@ export function BookViewing({ id, api, t }: { id: string; api: ApiClient; t: Tra
       await api.createViewing(id, when.toISOString());
       setStatus("created");
     } catch (err) {
-      // The server's own future-time check (400 invalid_time) — surface it, stay on the form.
+      // The server only validates parseability (400 invalid_time) — surface "invalid time", stay on the
+      // form. (The future-time rule is the client guard above; the server doesn't re-check it.)
       setError(
-        err instanceof ApiError && err.status === 400 ? t("viewing.errorPast") : t("error.why"),
+        err instanceof ApiError && err.status === 400 ? t("viewing.errorInvalid") : t("error.why"),
       );
       setStatus("open");
     }
@@ -122,7 +124,9 @@ export function BookViewing({ id, api, t }: { id: string; api: ApiClient; t: Tra
           type="button"
           disabled={status === "submitting"}
           onClick={() => {
+            // Clean slate on reopen — clear the picked value + any error.
             setStatus("idle");
+            setValue("");
             setError(null);
           }}
           className="rounded-md border border-border bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed disabled:opacity-60"

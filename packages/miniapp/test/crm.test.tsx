@@ -89,6 +89,23 @@ describe("Save/unsave toggle on the detail screen", () => {
     expect(toggle.getAttribute("data-saved")).toBe("true");
     await waitFor(() => expect(toggle.getAttribute("data-saved")).toBe("false"));
   });
+
+  it("a SAVED listing renders the toggle as 'saved' (seeded from detail.isSaved); first tap UN-saves", async () => {
+    const unsave = vi.fn(async () => ({ status: "unsaved" }));
+    const save = vi.fn();
+    // The detail reports the listing already saved → the toggle seeds to saved.
+    const listing = async () => ({ ...structuredClone(DETAIL), isSaved: true });
+    renderAt(`/p/${DETAIL.id}`, makeFixtureApi({ listing, unsave, save }));
+    const toggle = await screen.findByRole("button", { name: "บันทึกประกาศนี้" });
+    // Persisted state shown on first render — NOT always "unsaved".
+    expect(toggle.getAttribute("data-saved")).toBe("true");
+    expect(screen.getByText("บันทึกแล้ว")).toBeTruthy();
+    // The first tap therefore UN-saves (not save).
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("data-saved")).toBe("false");
+    await waitFor(() => expect(unsave).toHaveBeenCalledWith(DETAIL.id));
+    expect(save).not.toHaveBeenCalled();
+  });
 });
 
 describe("Create a viewing from the detail screen", () => {

@@ -107,5 +107,8 @@ export interface ListingDetailDto {
   readonly sourceGroupId: string | null;
   readonly claimedByUserId: string | null;
   readonly isClaimedByMe: boolean;
+  /** Whether the CALLER has saved this listing — seeds the detail's bookmark so a saved listing renders
+   * "saved" on every revisit (computed per-caller by the api). */
+  readonly isSaved: boolean;
   readonly photos: readonly PhotoDto[];
 }

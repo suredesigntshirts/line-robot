@@ -58,7 +58,7 @@ function buildDeps(): ApiDeps {
         { displayName },
         { provider: "line", providerSubject: subject, verifiedAt: new Date() },
       ),
-    getPortalListingDetail: (id) => getPortalListingDetail(db, id),
+    getPortalListingDetail: (id, callerUserId) => getPortalListingDetail(db, id, callerUserId),
     isGroupMember: (groupId, userId) => isGroupMember(db, groupId, userId),
     listMyListings: (userId) => listMyListings(db, userId),
     claimListing: (listingId, userId) => claimListing(db, listingId, userId),

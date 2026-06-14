@@ -101,6 +101,21 @@ test.describe("CRM — save/unsave on the detail", () => {
     await expect(toggle).toHaveAttribute("data-saved", "true");
     expect(writes).toContain(`POST /properties/${DETAIL.id}/save`);
   });
+
+  test("a SAVED listing's bookmark renders 'saved' on load (seeded from detail.isSaved); first tap UN-saves", async ({
+    page,
+  }) => {
+    const { writes } = await mockApi(page, { detail: { ...DETAIL, isSaved: true } });
+    await page.goto(`/p/${DETAIL.id}`);
+    const toggle = page.locator(`[data-save-toggle='${DETAIL.id}']`);
+    // The persisted save state shows on first render — not always "unsaved".
+    await expect(toggle).toHaveAttribute("data-saved", "true");
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("data-saved", "false");
+    // First tap on a saved listing un-saves (DELETE), never POST-save.
+    expect(writes).toContain(`DELETE /properties/${DETAIL.id}/save`);
+    expect(writes).not.toContain(`POST /properties/${DETAIL.id}/save`);
+  });
 });
 
 test.describe("CRM — book a viewing from the detail", () => {

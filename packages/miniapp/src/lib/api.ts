@@ -29,6 +29,13 @@ export class ApiError extends Error {
   }
 }
 
+/** The HTTP status of a thrown error iff it's an {@link ApiError}, else undefined — the one-liner every
+ * screen passes to `ErrorView`/branching so it can show 401 (re-open in LINE) / 404 (gone) vs generic.
+ * Centralises the `err instanceof ApiError ? err.status : undefined` shape (was copy-pasted per screen). */
+export function apiStatus(err: unknown): number | undefined {
+  return err instanceof ApiError ? err.status : undefined;
+}
+
 /** The id-token supplier — injected so the client never imports the LIFF SDK (hexagonal: LIFF stays
  * in liff.ts). In production this is `getIdToken` from liff.ts; tests pass a stub. */
 export type TokenSource = () => string | null;

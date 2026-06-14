@@ -107,6 +107,12 @@ export function MyListingCard({
             </>
           )}
         </div>
+        {/* LEGAL-06 (register §4): the poster-provided/verify-independently line is required ON CARDS —
+            it earns its place on saved/third-party cards (it reads slightly redundant on the owner's own
+            card; that owner-own nuance is queued as a founder polish call). data-th-content → TH-07 net. */}
+        <div className="font-body-th text-text-disabled text-xs leading-relaxed" data-th-content>
+          {t("legal.posterProvided")}
+        </div>
       </div>
     </button>
   );
