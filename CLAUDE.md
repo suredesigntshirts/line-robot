@@ -108,6 +108,47 @@ PUBLIC barrel only (repository fns) — never another package's adapters/interna
   founder-gated, needs the real domain)**, owner submission, Google OAuth, schema gaps (NPA/new-vs-resale),
   detail sub-fields. None ship-blocking; the website is anonymous browse + detail.
 
+## v2 MINI App (Stage 5)
+
+`packages/miniapp` — **React 19 SPA on `@line-robot/ui`** (Tailwind v4 + owned shadcn + shared `@theme` +
+oklch/old-Android fallback — TECH-06 matters MORE here: LIFF renders in LINE's in-app WebView). Replaces the
+retired Preact SPA. Routes (shape-frozen for plan-17 deep links + rich-menu): `/` my-listings home, `/p/{id}`
+detail; additive `/claim/{id}`, `/edit/{id}`. The LIFF SDK is isolated to `src/lib/liff.ts`; the SPA talks to
+the backend **HTTP-only** (no api/db internal imports). i18n strings live in `@line-robot/ui/src/i18n/{th,en}.ts`.
+**Frontend gate:** `npm run test:e2e -w @line-robot/miniapp` (the plan-20 net ported — real built SPA, mocked
+LIFF, computed-style invariants `assertThemeApplies`/`assertThaiBodyLineHeight`/`assertCtaContrast`/`assertColorScheme`).
+Never inline-style objects / bespoke CSS.
+
+`packages/api` — the mini-app's **HTTP backend** (Lambda behind a Function URL, `infra/src/api.ts`, parallel
+to the v1 read-api). LIFF id-token auth (ported v1 verifier; `aud` = the MINI App channel). Endpoints:
+my-listings, detail, claim, publish/keep-private, owner PATCH-edit, saved (save/unsave), viewings (list/create),
+notes. Reads the catalog via the **`@line-robot/db` PUBLIC barrel only** (the injectable `Repo` port — no deep
+imports); **no `@line/liff` SDK anywhere in api**. Scoped IAM (`s3:GetObject` on the archive for gallery
+presign). The SPA's `VITE_API_URL` = the api Function URL (Pulumi output `miniAppApiUrlOutput`), baked at build.
+
+- **Claim/publish (D7 — the only public path).** Pipeline gate-pass → the bot sweep DMs the poster a
+  `/claim/{id}` deep link (once, prospective, `claim_invited_at`-guarded; skipped for 1:1/group-less listings).
+  Claim = optimistic lock (`UPDATE … WHERE claimed_by_user_id IS NULL`); concurrent loser → 409. **Publish =
+  `grantPublishConsent`** (the website's `publiclyVisible` consent gate — appears on the public site within a
+  refresh); **keep-group-private = withdraw consent** (`publish_consent.deletion_requested_at`, NOT a visibility
+  column), copy "เฉพาะสมาชิกกลุ่มเดิม".
+- **Source-group membership (launch-critical).** The claim gate (`isGroupMember`) needs the poster in Postgres
+  `group_membership`. The live sweep (`pipelineV2Sweep.ts`) now `findOrCreateGroupByLineGroupId` + threads
+  `sourceGroupId` into the pipeline + `upsertMembership` for every batch sender — so real posters can claim (was
+  seed-only before; `source_group_id` was always NULL).
+- **CRM (D13):** saved, viewings (+book via native `datetime-local`), per-listing notes, owner edit surface
+  (`/edit/{id}`, claimant-only PATCH — **NOT edit-by-reply**, retired per A3a). Schema: claim columns +
+  `listing_note` table (migration `0008`); per-caller `isSaved` on the detail DTO. Server-side validation
+  (non-negativity, future-time) backs the client guards.
+- **Edit-by-reply RETIRED (A3a); DF-6 descoped.** Founder taste calls queued in
+  `docs/design/skill-hardening/FOUNDER-QUEUE.md` (S5-*).
+- **v1 retired/parked:** the Preact SPA is gone (grep-proven); a route-compat unit test
+  (`packages/miniapp/test/route-compat.test.ts`) asserts every bot-emitted miniapp path resolves in the new
+  router; the v1 read-api parallel-runs (deletion = Stage 6 deliverable #12).
+- **Deploy:** `npm run build` bundles `packages/api/dist/api` + the miniapp SPA; `pulumi up` creates the api
+  Lambda/Function-URL/role. Migration `0008` must be applied to staging RDS (`npm run db:migrate -w @line-robot/db`)
+  and `VITE_API_URL` set to the api Function URL before the SPA build that ships.
+
 ## Deploying (Pulumi → AWS staging)
 
 Pulumi state is on a **local file backend** (`file://~`); secrets use a **passphrase** provider.

@@ -458,3 +458,22 @@ FOUNDER-QUEUE grew to S5-9/10/11 (saved-card trust signal; "นัดดูท�
 LEGAL-06 parity). Also fixed 2 stale "edit-by-reply" lines in the spec. **Builds A–D complete; remaining =
 Build E (retire Preact + route-compat + the Stage-5 stage gate incl. the consolidated perceptual review) +
 deploy/verify on staging.**
+
+**Build E + Stage-5 STAGE GATE + deploy-gated (`fe2e419`, gate-hardening `bc638dc`).** Build E: Preact
+retirement grep-proven (zero surviving); a **route-compat unit test** (`packages/miniapp/test/route-compat.test.ts`)
+invokes the REAL bot deep-link builders + asserts each resolves in the SPA `parseRoute` (proven to bite by
+injecting a fake unhandled path); rich-menu needs no re-deploy (Catalog tab → frozen `/`); v1 read-api
+parallel-runs (deletion = Stage-6 deliverable #12). **Stage gate (full-diff architecture + integration
+review, opus): CONDITIONAL-PASS** — all 6 hexagonal gates clean, contract consistent A↔B↔C↔D, the
+claim→publish→website + membership→claim-gate chains coherent end-to-end, every DoD bullet MET; 3 LOW
+server-side-validation conditions (viewing future-time + edit non-negativity were client-only) → FIXED in
+`bc638dc` (+ a `updateListingFields` caution comment + 2 tests). Eval (oracle) **62/0** unregressed (D21
+advisory). Consolidated perceptual `/frontend-review`: **cohesive + on-direction** across 10 screens
+(divergences = founder-queue taste — thin left-stripe / no profile chrome / the orange viewings divider is
+direction-a's section-accent — none blocking). CLAUDE.md gained a "v2 MINI App (Stage 5)" section; the
+`deploy-status` memory is updated. **⛔ DEPLOY + PUSH FOUNDER-GATED:** the auto-approver denied BOTH `git
+push origin main` AND the staging RDS `db:migrate` ("the push to main was already permission-denied,
+signaling a shipping boundary"). `pulumi preview` (read-only) is CLEAN — 33 create / 11 update / 9 delete,
+no destructive/security surprise. Go-live steps + caveats (the SPA cutover REPLACES the live LIFF app; the
+v1 Preact SPA source is gone → rollback = revert+rebuild; deploying the sweep ACTIVATES real claim DMs on
+the next gate-pass) are in the `deploy-status` memory. **STAGE 5 CODE COMPLETE — shipping is the founder's call.**
