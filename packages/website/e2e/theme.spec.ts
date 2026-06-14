@@ -71,6 +71,18 @@ test.describe("theme applies (TECH-06 net)", () => {
     await assertThaiBodyLineHeight(page);
   });
 
+  // The state pages carry data-th-content; visit them so the invariant actually runs there (a marker
+  // that no test exercises is inert — that gap is exactly what this closes).
+  test("Thai body text in the empty state renders line-height >= 1.6 (TH-07)", async ({ page }) => {
+    await page.goto("/?q=zzqqx-no-such-listing-12345");
+    await assertThaiBodyLineHeight(page);
+  });
+
+  test("Thai body text on the 404 page renders line-height >= 1.6 (TH-07)", async ({ page }) => {
+    await page.goto("/this-path-does-not-exist-404-xyz");
+    await assertThaiBodyLineHeight(page);
+  });
+
   test("filled CTAs keep WCAG-AA contrast in this colour scheme (incl. dark)", async ({ page }) => {
     await page.goto("/");
     await assertCtaContrast(page);

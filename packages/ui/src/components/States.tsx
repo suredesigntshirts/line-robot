@@ -22,7 +22,7 @@ export const primaryButtonClass =
  * centred state with a muted icon, not an error. */
 export function EmptyState({ t, action }: StateProps) {
   return (
-    <div className={BOX} data-state="empty">
+    <div className={BOX} data-state="empty" data-th-content>
       <span className="text-primary-300">
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -40,9 +40,10 @@ export function EmptyState({ t, action }: StateProps) {
           <path d="m21 21-4.3-4.3" />
         </svg>
       </span>
-      <div className="font-heading-th font-semibold text-md">{t("empty.title")}</div>
-      <div className="text-base text-text-2">{t("empty.why")}</div>
-      <div className="text-sm text-text-2">{t("empty.next")}</div>
+      <div className="font-heading-th font-semibold text-md leading-normal">{t("empty.title")}</div>
+      {/* TH-06/07: Thai body lines carry leading-relaxed (≥1.6) — text-* utilities pin line-height. */}
+      <div className="text-base text-text-2 leading-relaxed">{t("empty.why")}</div>
+      <div className="text-sm text-text-2 leading-relaxed">{t("empty.next")}</div>
       {action}
     </div>
   );
@@ -59,9 +60,9 @@ export function ErrorState({
   action?: ReactNode;
 }) {
   return (
-    <div className={BOX} data-state="error">
-      <div className="font-heading-th font-semibold text-md">{t("error.title")}</div>
-      <div className="text-base text-text-2">{t("error.why")}</div>
+    <div className={BOX} data-state="error" data-th-content>
+      <div className="font-heading-th font-semibold text-md leading-normal">{t("error.title")}</div>
+      <div className="text-base text-text-2 leading-relaxed">{t("error.why")}</div>
       {onRetry && (
         <button type="button" onClick={onRetry} className={primaryButtonClass}>
           {t("error.retry")}

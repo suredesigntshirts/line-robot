@@ -170,6 +170,25 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
   not token values). The hardening has converged: the design skills now lean on the deterministic
   invariants for measurable styling, and those invariants now cover cards + chrome/detail.
 
+### 2026-06-14 · p2-pass5-empty/404 · F3c — exercise the TH-07 markers (inert-marker gap) + a bug it hid
+- **Audit ref:** `audits/pass5-empty-404-1.md`. The pass-5 audit (reading the TEST INFRA) found the
+  `data-th-content` markers on the 404 + empty state were INERT — the TH-07 test only visited `"/"`, so
+  no test ever rendered those pages. The "TH-07 covers the 404" claim was syntactically true, practically
+  false.
+- **Bug it revealed:** the `EmptyState`/`ErrorState` why+next lines used `text-base`/`text-sm` WITHOUT
+  `leading-relaxed` (line-height pinned to 1.5/1.43) — a TH-07 violation introduced in pass 1, invisible
+  because no TH-07 test rendered the empty state.
+- **Fix:** `States.tsx` → `leading-relaxed` on the empty/error Thai body lines + `data-th-content` on the
+  state roots; `theme.spec.ts` → TH-07 tests that VISIT the empty state + a 404 path. **Re-verified to
+  BITE:** reverting the empty `why` line → the empty-state TH-07 test fails at 1.5; fixed → all pass;
+  suite 84/84.
+- **Three-in-a-row pattern (the durable conclusion):** every audit that found a REAL defect this run did
+  so by COMPUTING (contrast F4) or reading CODE/TEST-INFRA (scope F3b, inert markers F3c) — NOT by
+  perceiving pixels; every audit PIXEL claim was an over-flag the runner refuted. So the reliable design-
+  defense is: deterministic invariants (theme/TH-07/contrast) + audits reasoning over code + the
+  orchestrator verifying any visual claim against the actual pixels. LLM pixel perception (skill OR
+  audit) is the unreliable link and is never the sole gate.
+
 ---
 
 ## SUMMARY (written at run end)

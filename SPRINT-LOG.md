@@ -353,3 +353,15 @@ real TH-07 SCOPE gap → **F3b**: broadened `assertThaiBodyLineHeight` to cover 
 (`data-th-content`), exempting CTA buttons/summaries; re-verified, suite 76/76. The hardening has
 converged: design skills lean on the deterministic invariants (TH-07, CTA-contrast, theme), now
 covering cards + chrome + detail.
+
+**Phase 2 pass 5 — empty state + 404 → direction-a — DONE + committed. PHASE 2 COMPLETE (all 5 passes).**
+Restyled `404.astro` to the calm direction-a not-found state (icon + what/why/next + home link); the
+EmptyState was designed in pass 1. Both skills ALIGNED (COPY-07 fulfilled on both; HTTP-404 status set).
+The pass-5 audit (reading the test infra) found the `data-th-content` markers on the 404/empty were
+INERT (the TH-07 test only visited "/"), which REVEALED a latent bug: EmptyState why/next used
+text-base/text-sm with no leading-relaxed (1.5/1.43 < 1.6) — a TH-07 violation from pass 1. **F3c:**
+added leading-relaxed + data-th-content to the states; added TH-07 tests that VISIT the empty state +
+a 404 path; re-verified to bite (empty test fails at 1.5 when reverted). e2e 84/84.
+THREE-IN-A-ROW: every audit that found a real defect did so by computing/reading code, never by
+perceiving pixels — the durable conclusion (logged): deterministic invariants + audits-on-code +
+orchestrator pixel-verification, not LLM pixel perception, are the reliable design defense.

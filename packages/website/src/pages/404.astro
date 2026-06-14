@@ -16,18 +16,26 @@ Astro.response.status = 404;
   description={t("empty.why")}
   canonicalPath={isEn ? "/en/" : "/"}
 >
-  <main style="max-width: 32rem; margin: 0 auto; padding: var(--spacing-8) var(--spacing-4); display: grid; gap: var(--spacing-3);">
-    <h1 style="font-size: var(--text-xl); font-family: var(--font-heading-th); margin: 0;">
+  {/* Direction-a calm not-found state (COPY-07 register): centred, muted icon, what/why/next.
+      data-th-content so the TH-07 line-height invariant covers this page too. */}
+  <main
+    class="mx-auto grid max-w-lg justify-items-center gap-3 px-4 py-12 text-center"
+    data-th-content
+  >
+    <span class="text-primary-300" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </span>
+    <h1 class="m-0 font-bold font-heading-th text-xl text-text leading-normal">
       {locale === "th" ? "ไม่พบหน้านี้" : "Page not found"}
     </h1>
-    <p style="color: var(--color-text-2); margin: 0;">
+    <p class="m-0 text-base text-text-2 leading-relaxed">
       {
         locale === "th"
           ? "ประกาศอาจถูกปิดการเผยแพร่หรือลิงก์ไม่ถูกต้อง"
           : "The listing may have been unpublished, or the link is incorrect"
       }
     </p>
-    <a href={isEn ? "/en/" : "/"} style="color: var(--color-primary-600);">
+    <a href={isEn ? "/en/" : "/"} class="font-semibold text-primary-600 leading-relaxed">
       ← {t("home.title")}
     </a>
   </main>
