@@ -365,3 +365,66 @@ a 404 path; re-verified to bite (empty test fails at 1.5 when reverted). e2e 84/
 THREE-IN-A-ROW: every audit that found a real defect did so by computing/reading code, never by
 perceiving pixels — the durable conclusion (logged): deterministic invariants + audits-on-code +
 orchestrator pixel-verification, not LLM pixel perception, are the reliable design defense.
+
+---
+
+## 2026-06-14 — Stage 5 (MINI App rebuild) — BUILD STARTED (orchestrated takeover)
+
+**Gate + takeover.** This session was a `/goal` to build Stage 5, GATED on the plan-21 session
+(`f741df23`) finishing. Waited (background watcher + paced wakeups, no busy-poll) through plan-21
+ph1→ph2(5 passes)→ph3. That session committed all of plan-21 (HEAD `1267356`: Tailwind v4 + shadcn
+foundation + direction-a redesign + skill-hardening + Stage-4 re-gate note + Stage-5 spec amendment)
+then **exited mid-`plan-22` (instruction-surface-cleanup) leaving 2 uncommitted doc edits**
+(`CLAUDE.md` token-bullet, `design-direction.md` DECIDED-reconcile) + an untracked `plans/22-*.md`
+DRAFT. plan-22's own §0 says "DO NOT EXECUTE until plan-21 lands clean / awaiting founder approval."
+Confirmed the session was dead (transcript idle 1h+, no live process, no other session editing the
+tree), notified founder (terminal; mobile push inactive), then **took over**: stashed the plan-22 WIP
+(`git stash` — `stash@{0}`, recoverable via `git stash pop`) to get a clean tree. plan-21's 8 commits
+were local-only; they ride along on the first Stage-5 push.
+
+**Phase 0/1 (`331e02d`).** Verified `packages/ui` is plan-21-conformant (Tailwind pipeline, owned
+shadcn `button/card/badge`, `@theme static`, oklch `@supports not(oklch)` fallback). **Caveat:** inline
+`style={{}}` survives in the shared `Gallery.tsx` + website map islands (plan-21's 5 passes skipped
+island components) — the mini-app gallery must be authored in Tailwind, not reuse it. Reconciled the
+Stage-5 spec: removed edit-by-reply (A3a) in all 4 places; **descoped DF-6** (mock-faithful default,
+queued — consistent with A3a, no reply-driven flow); bound the build to direction-a + the ported
+plan-20 LIFF frontend gate (deterministic invariants TH-07/contrast/theme); added the A–E increment plan.
+
+**Build A — backend foundation (`20e19f2` + review fixes `646badc`).** New `packages/api` (LIFF
+id-token auth ported from v1; endpoints my-listings/detail/claim/publish/keep-private/PATCH-edit/saved/
+viewings/notes; reads `@line-robot/db` public barrel only; no LIFF SDK) + db repos + schema (claim
+columns + `listing_note` table, migration `0008`) + scoped Pulumi api Lambda parallel to v1 read-api.
+Claim = optimistic lock (`UPDATE … WHERE claimed_by_user_id IS NULL`); publish = `grantPublishConsent`;
+keep-private = withdraw consent (`publish_consent.deletion_requested_at`, NOT a new column). Review
+panel (spec auditor + correctness[opus] + simplicity critic + my verification): **CHANGES-REQUESTED →
+all fixed**: [MAJOR security] claim now gates on source-group membership (a member who saw a UUID could
+else claim another's listing → publish/edit rights); [bug] `deleteListingCascade` now deletes
+`listing_note` (was FK-violation on delete); dropped the `repo.ts` one-impl facade (kept the `Repo`
+test-seam interface); user-create race + base64 hardening. Gate GREEN (api 43, bot 254 untouched, +6
+workspaces); not yet deployed (bundling into the post-Build-B first deploy).
+
+**⚠️ BUILD-C LAUNCH BLOCKER (carry forward).** The claim authz gate requires source-group membership,
+but only the SEED path writes `group_membership` (`pipeline/src/seed/seed.ts:80`) — the **live ingest
+path + bot write none**, so in prod the gate would 404 every real poster's claim. **Build C must
+populate the poster's source-group membership** (or refine the gate to match a stored invited-poster id)
+before the claim endpoint is reachable in prod. Invisible to the test suite (tests use seeded data).
+
+**Usage:** readings 19%→31%→57%→59% (5h) across the wait/Build-A; the 5h window reset mid-run (→2%);
+7d ~2%. Normal mode throughout (never hit the 85% wrap threshold).
+
+**Build B — mini-app React shell (`8a8080b` + review fixes).** Rebuilt `packages/miniapp` Preact→React 19
+on `packages/ui` (Tailwind v4 + owned shadcn + shared `@theme` + oklch fallback): `/` = my-listings home,
+`/p/{id}` = detail (route shapes frozen); LIFF SDK isolated to `lib/liff.ts`; HTTP-only api client; the
+LIFF-SPA frontend gate ported from plan-20 (mocked LIFF + `assertThemeApplies`/`assertThaiBodyLineHeight`/
+`assertCtaContrast`/`assertColorScheme`). 4-seat review (spec + correctness[opus] + simplicity + alignment)
++ perceptual `/frontend-review` Mode B (gallery vs the rendered Stage-5 mock). **CHANGES-REQUESTED → all
+fixed:** [MAJOR] rent cards showed "—" (card DTO lacked `monthlyRent` — threaded api+db+miniapp); [MAJOR]
+dark mode was unreachable (`index.html` hardcoded `data-theme=light`, so the dark e2e was a tautology —
+removed it + added `assertColorScheme` so dark actually bites + brought the detail "Open in Maps" CTA into
+the contrast net); minors (stale `.env` comment, e2e fixture drift, 7 one-caller/dead-code cleanups). Gate
+GREEN (miniapp unit 37, e2e 10/10 incl. real dark + rent assertions; api 44, db integ 37; website e2e 84/84
+unregressed). The perceptual seat's lone "missing left-accent stripe" claim was **REFUTED against code**
+(the `border-l-[3px]` lifecycle accent IS present) — another LLM-pixel-perception miss caught by
+orchestrator code-verification (the durable lesson again). Minor design divergences (stripe thickness, stats
+icons, identity row) + the TH-03 trust-signal-on-owner-card judgment → FOUNDER-QUEUE S5. Push to `main`
+remains permission-gated (denied once) — all increments committed LOCALLY, awaiting founder push authz.
