@@ -1,0 +1,435 @@
+/**
+ * The `/claim/{id}` CLAIM screen (Stage 5, Build C — D7 poster opt-in). The single LIFF surface the
+ * bot's claim DM deep-links to. It folds the claim mock's three storyboard phones (the bot DM lives in
+ * chat) into one in-app flow:
+ *
+ *   review  → (claim)  → decide  → (publish | keep-private)  → done
+ *
+ * - REVIEW: fetch `GET /properties/{id}`, render the bot-extracted listing (headline, price, spec
+ *   table) with a "bot auto-extracted — verify" banner (LEGAL-06), and a single "claim ownership" CTA.
+ * - DECIDE (post-claim): a success tick + the publish-vs-group-private choice. The group-private option
+ *   carries the boundary copy "เฉพาะสมาชิกกลุ่มเดิม" (the spec's mandated string).
+ * - DONE: a calm outcome confirming public or group-private, with a CTA back to My Listings.
+ *
+ * Concurrency: a 409 from `POST /claim` (another group member won the optimistic lock) is caught and
+ * rendered as a clear "already claimed by someone else" message — the loser is never left guessing.
+ *
+ * Authored in Tailwind utilities over the shared `@theme` tokens — NO inline-style objects, NO bespoke
+ * CSS (style = match the mock, content = schema/code-driven). Markers for the LIFF-SPA frontend gate:
+ * `data-th-content` (the TH-07 Thai line-height net scopes here) and `data-cta-solid` on every FILLED
+ * CTA (the WCAG-AA contrast net measures them, light AND dark).
+ */
+import { Screen } from "@line-robot/ui";
+import { useState } from "react";
+import { useApp } from "../app/context.ts";
+import { useAsync } from "../app/useAsync.ts";
+import { ErrorView, Loading } from "../components/States.tsx";
+import { ApiError } from "../lib/api.ts";
+import {
+  detailHeadline,
+  locationLine,
+  priceFrameKey,
+  priceText,
+  propertyTypeKey,
+} from "../lib/display.ts";
+import type { ListingDetailDto } from "../lib/types.ts";
+
+/** The flow phase. `review` (pre-claim) → `decide` (claimed, choosing visibility) → a terminal
+ * outcome (`published`/`privated`/`alreadyClaimed`/`failed`). In-flight phases drive the spinners. */
+type Phase =
+  | "review"
+  | "claiming"
+  | "decide"
+  | "publishing"
+  | "keeping"
+  | "published"
+  | "privated"
+  | "alreadyClaimed"
+  | "failed";
+
+export function ClaimScreen({ id }: { id: string }) {
+  const { api, locale, t } = useApp();
+  const { state, reload } = useAsync(() => api.listing(id), [id]);
+
+  return (
+    <Screen lang={locale}>
+      {state.status === "loading" ? (
+        <Loading label={t("claim.loading")} />
+      ) : state.status === "error" ? (
+        <ErrorView
+          t={t}
+          status={state.error instanceof ApiError ? state.error.status : undefined}
+          onRetry={reload}
+        />
+      ) : (
+        <ClaimFlow id={id} dto={state.data} />
+      )}
+    </Screen>
+  );
+}
+
+function ClaimFlow({ id, dto }: { id: string; dto: ListingDetailDto }) {
+  const { api, t, navigate } = useApp();
+  // If the api already reports the caller as the claimant (a re-open of an own listing), skip straight
+  // to the visibility decision — claiming again would just be idempotent.
+  const [phase, setPhase] = useState<Phase>(dto.isClaimedByMe ? "decide" : "review");
+
+  async function claim(): Promise<void> {
+    setPhase("claiming");
+    try {
+      await api.claim(id);
+      setPhase("decide");
+    } catch (error) {
+      // 409 = another group member won the optimistic lock (the concurrent-claim loser).
+      setPhase(error instanceof ApiError && error.status === 409 ? "alreadyClaimed" : "failed");
+    }
+  }
+
+  async function publish(): Promise<void> {
+    setPhase("publishing");
+    try {
+      await api.publish(id);
+      setPhase("published");
+    } catch {
+      setPhase("failed");
+    }
+  }
+
+  async function keepPrivate(): Promise<void> {
+    setPhase("keeping");
+    try {
+      await api.keepPrivate(id);
+      setPhase("privated");
+    } catch {
+      setPhase("failed");
+    }
+  }
+
+  const toMyListings = (): void => navigate("/");
+
+  if (phase === "alreadyClaimed") {
+    return (
+      <OutcomePanel
+        tone="warn"
+        glyph="🔒"
+        title={t("claim.alreadyClaimedTitle")}
+        body={t("claim.alreadyClaimedBody")}
+        ctaLabel={t("claim.alreadyClaimedNext")}
+        onCta={toMyListings}
+      />
+    );
+  }
+  if (phase === "failed") {
+    return (
+      <OutcomePanel
+        tone="danger"
+        glyph="⚠️"
+        title={t("claim.failedTitle")}
+        body={t("claim.failedBody")}
+        ctaLabel={t("claim.alreadyClaimedNext")}
+        onCta={toMyListings}
+      />
+    );
+  }
+  if (phase === "published") {
+    return (
+      <OutcomePanel
+        tone="success"
+        glyph="🌐"
+        title={t("claim.publishedTitle")}
+        body={t("claim.publishedBody")}
+        ctaLabel={t("claim.doneCta")}
+        onCta={toMyListings}
+      />
+    );
+  }
+  if (phase === "privated") {
+    return (
+      <OutcomePanel
+        tone="success"
+        glyph="🔒"
+        title={t("claim.privatedTitle")}
+        body={t("claim.privatedBody")}
+        ctaLabel={t("claim.doneCta")}
+        onCta={toMyListings}
+      />
+    );
+  }
+
+  // review / claiming / decide / publishing / keeping — all render the listing summary + the active step.
+  return (
+    <article className="grid gap-4" lang="th" data-th-content>
+      <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">
+        {t("claim.title")}
+      </h1>
+
+      {phase === "review" || phase === "claiming" ? (
+        <ReviewStep dto={dto} busy={phase === "claiming"} onClaim={claim} />
+      ) : (
+        <DecideStep dto={dto} phase={phase} onPublish={publish} onKeepPrivate={keepPrivate} />
+      )}
+    </article>
+  );
+}
+
+/** PHASE 1 — review the bot-extracted listing + the claim CTA. */
+function ReviewStep({
+  dto,
+  busy,
+  onClaim,
+}: {
+  dto: ListingDetailDto;
+  busy: boolean;
+  onClaim: () => void;
+}) {
+  const { t } = useApp();
+  return (
+    <>
+      {/* LEGAL-06 banner: the listing is auto-extracted — verify before claiming/publishing. */}
+      <div className="flex items-start gap-2 rounded-md border border-primary-200 bg-primary-50 px-3 py-2.5">
+        <span aria-hidden="true" className="shrink-0 text-lg leading-none">
+          🤖
+        </span>
+        <div className="font-body-th text-primary-700">
+          {/* Sarabun body title — leading-relaxed (≥1.6) to satisfy the TH-07 line-height net (NOT a
+              loopless-Noto heading, so it can't take the tighter heading leading). */}
+          <div className="font-bold text-base leading-relaxed">{t("claim.reviewBannerTitle")}</div>
+          <div className="text-sm leading-relaxed">{t("claim.reviewBannerBody")}</div>
+        </div>
+      </div>
+
+      <ListingSummary dto={dto} />
+
+      {/* Claim CTA — a SOLID primary button (data-cta-solid → contrast net measures it, both modes). */}
+      <button
+        type="button"
+        data-cta-solid
+        disabled={busy}
+        onClick={onClaim}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-md border-0 bg-primary-500 px-4 py-3 font-body-th font-bold text-base text-surface leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
+      >
+        {busy ? t("claim.claiming") : `${t("claim.claimCta")} →`}
+      </button>
+
+      <p className="m-0 text-center font-body-th text-sm text-text-disabled leading-relaxed">
+        {t("claim.legalNote")}
+      </p>
+    </>
+  );
+}
+
+/** PHASE 2 — claimed; choose public vs group-private (D7). */
+function DecideStep({
+  dto,
+  phase,
+  onPublish,
+  onKeepPrivate,
+}: {
+  dto: ListingDetailDto;
+  phase: Phase;
+  onPublish: () => void;
+  onKeepPrivate: () => void;
+}) {
+  const { t } = useApp();
+  const busy = phase === "publishing" || phase === "keeping";
+  return (
+    <>
+      {/* Claim success header. */}
+      <div className="grid justify-items-center gap-2 text-center" data-state="claimed">
+        <span
+          aria-hidden="true"
+          className="flex size-14 items-center justify-center rounded-full border-2 border-success bg-success-bg text-2xl"
+        >
+          ✅
+        </span>
+        <div className="font-heading-th font-bold text-lg text-text leading-snug">
+          {t("claim.successTitle")}
+        </div>
+        <div className="font-body-th text-sm text-text-2 leading-relaxed">
+          {t("claim.successBody")}
+        </div>
+      </div>
+
+      <ListingSummary dto={dto} />
+
+      <hr className="m-0 border-0 border-border border-t" />
+
+      <h2 className="m-0 font-heading-th font-bold text-md text-text leading-normal">
+        {t("claim.visibilityHead")}
+      </h2>
+
+      {/* PUBLIC option. */}
+      <VisibilityOption
+        glyph="🌐"
+        title={t("claim.publicTitle")}
+        subtitle={t("claim.publicSubtitle")}
+        features={[
+          t("claim.publicFeatPublic"),
+          t("claim.publicFeatSeo"),
+          t("claim.publicFeatContact"),
+        ]}
+      />
+
+      {/* GROUP-PRIVATE option — the boundary copy "เฉพาะสมาชิกกลุ่มเดิม" (the spec's mandated string). */}
+      <VisibilityOption
+        glyph="🔒"
+        title={t("claim.privateTitle")}
+        subtitle={t("claim.privateSubtitle")}
+        features={[t("claim.privateFeatGroup"), t("claim.privateFeatNoPublic")]}
+      />
+
+      {/* Decision CTAs: publish (solid primary) + keep-private (outline secondary). */}
+      <div className="grid gap-2">
+        <button
+          type="button"
+          data-cta-solid
+          disabled={busy}
+          onClick={onPublish}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md border-0 bg-primary-500 px-4 py-3 font-body-th font-bold text-base text-surface leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          🌐 {phase === "publishing" ? t("claim.publishing") : t("claim.publishCta")}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onKeepPrivate}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border-2 bg-surface px-4 py-2.5 font-body-th font-semibold text-base text-text-2 leading-relaxed transition-opacity hover:opacity-90 disabled:opacity-60"
+        >
+          🔒 {phase === "keeping" ? t("claim.keepingPrivate") : t("claim.keepPrivateCta")}
+        </button>
+      </div>
+
+      <p className="m-0 text-center font-body-th text-sm text-text-disabled leading-relaxed">
+        {t("claim.publishConsentNote")}
+      </p>
+    </>
+  );
+}
+
+/** One visibility option card (mock `.option-card`): a glyph header (title + subtitle) and a feature
+ * list. Presentational only — the choice is made by the CTA buttons below (not by tapping the card),
+ * keeping the interaction model simple (anti-over-engineering: no radio state nobody reads). */
+function VisibilityOption({
+  glyph,
+  title,
+  subtitle,
+  features,
+}: {
+  glyph: string;
+  title: string;
+  subtitle: string;
+  features: string[];
+}) {
+  return (
+    <section className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="flex items-center gap-2.5 border-border border-b bg-surface-2 px-3.5 py-3">
+        <span
+          aria-hidden="true"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-50 text-lg"
+        >
+          {glyph}
+        </span>
+        <div className="min-w-0">
+          <div className="font-heading-th font-bold text-base text-text leading-normal">
+            {title}
+          </div>
+          <div className="font-body-th text-sm text-text-2 leading-relaxed">{subtitle}</div>
+        </div>
+      </div>
+      <ul className="m-0 grid list-none gap-1.5 px-3.5 py-3">
+        {features.map((f) => (
+          <li
+            key={f}
+            className="flex items-start gap-2 font-body-th text-sm text-text-2 leading-relaxed"
+          >
+            <span aria-hidden="true" className="shrink-0 text-success">
+              ✓
+            </span>
+            <span>{f}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** A compact summary of the listing under review/claimed (mock `.listing-summary`): the headline, the
+ * framed price, and the location line. Reuses the same schema-driven display mappers as the cards. */
+function ListingSummary({ dto }: { dto: ListingDetailDto }) {
+  const { t } = useApp();
+  const headline = detailHeadline(dto, t);
+  const loc = locationLine(dto);
+  const ptype = t(propertyTypeKey(dto.propertyType));
+  return (
+    <section
+      data-listing-summary={dto.id}
+      className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm"
+    >
+      <div className="grid gap-1 p-3">
+        <div className="font-heading-th font-bold text-base text-text leading-normal">
+          {headline}
+        </div>
+        <div className="font-body-th text-sm text-text-2 leading-relaxed">
+          {t(priceFrameKey(dto.dealType))}
+        </div>
+        <div className="font-latin font-bold text-text text-xl leading-tight tracking-tight">
+          {priceText(dto)}
+        </div>
+        <div className="font-body-th text-sm text-text-disabled leading-relaxed">
+          <span>{ptype}</span>
+          {loc !== "" && <span>{` · 📍 ${loc}`}</span>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** A terminal outcome panel (already-claimed / failed / published / kept-private): a tinted glyph, a
+ * COPY-07 title+body, and a single CTA back to My Listings. `tone` colours the glyph ring only. */
+function OutcomePanel({
+  tone,
+  glyph,
+  title,
+  body,
+  ctaLabel,
+  onCta,
+}: {
+  tone: "success" | "warn" | "danger";
+  glyph: string;
+  title: string;
+  body: string;
+  ctaLabel: string;
+  onCta: () => void;
+}) {
+  const ring =
+    tone === "success"
+      ? "border-success bg-success-bg"
+      : tone === "warn"
+        ? "border-[var(--badge-owner-text)] bg-[var(--badge-owner)]"
+        : "border-danger bg-danger-bg";
+  return (
+    <article
+      className="grid justify-items-center gap-3 py-8 text-center"
+      lang="th"
+      data-th-content
+      data-state={tone === "danger" ? "error" : "outcome"}
+    >
+      <span
+        aria-hidden="true"
+        className={`flex size-14 items-center justify-center rounded-full border-2 text-2xl ${ring}`}
+      >
+        {glyph}
+      </span>
+      <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">{title}</h1>
+      <p className="m-0 max-w-[20rem] font-body-th text-base text-text-2 leading-relaxed">{body}</p>
+      <button
+        type="button"
+        data-cta-solid
+        onClick={onCta}
+        className="inline-flex items-center justify-center rounded-md border-0 bg-primary-500 px-5 py-2.5 font-body-th font-semibold text-base text-surface leading-relaxed transition-opacity hover:opacity-90"
+      >
+        {ctaLabel}
+      </button>
+    </article>
+  );
+}

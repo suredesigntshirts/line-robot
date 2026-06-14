@@ -13,7 +13,10 @@
  */
 
 /** The view a path maps to. Additive routes (claim/saved/viewings) extend this union in Build C/D. */
-export type Route = { readonly name: "list" } | { readonly name: "detail"; readonly id: string };
+export type Route =
+  | { readonly name: "list" }
+  | { readonly name: "detail"; readonly id: string }
+  | { readonly name: "claim"; readonly id: string };
 
 /** Strip a trailing slash (but keep "/"). */
 export function normalizePath(path: string): string {
@@ -46,15 +49,27 @@ export function resolveInitialPath(pathname: string, search: string): string {
   return "/";
 }
 
-/** Parse a route path into a view descriptor. Unknown paths fall back to the List. */
+/** Decode a captured path segment, falling back to the raw segment if it isn't valid %-encoding. */
+function decodeId(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/** Parse a route path into a view descriptor. Unknown paths fall back to the List. The CLAIM route
+ * (`/claim/{id}`, Build C) is ADDITIVE — checked alongside the frozen `/p/{id}` detail; neither frozen
+ * shape changed (the plan-17 Flex deep links + rich-menu tabs still resolve). */
 export function parseRoute(path: string): Route {
-  const match = /^\/p\/([^/]+)$/.exec(normalizePath(path));
-  if (match?.[1] !== undefined) {
-    try {
-      return { name: "detail", id: decodeURIComponent(match[1]) };
-    } catch {
-      return { name: "detail", id: match[1] };
-    }
+  const normalized = normalizePath(path);
+  const detail = /^\/p\/([^/]+)$/.exec(normalized);
+  if (detail?.[1] !== undefined) {
+    return { name: "detail", id: decodeId(detail[1]) };
+  }
+  const claim = /^\/claim\/([^/]+)$/.exec(normalized);
+  if (claim?.[1] !== undefined) {
+    return { name: "claim", id: decodeId(claim[1]) };
   }
   return { name: "list" };
 }
@@ -62,4 +77,10 @@ export function parseRoute(path: string): Route {
 /** The path for a listing's detail view (used for in-app navigation + deep links). FROZEN shape. */
 export function detailPath(listingId: string): string {
   return `/p/${encodeURIComponent(listingId)}`;
+}
+
+/** The path for a listing's CLAIM screen (`/claim/{id}`, Build C). The bot DMs this; the SPA navigates
+ * to it post-claim's parent (My Listings) on completion. ADDITIVE — the frozen shapes are untouched. */
+export function claimPath(listingId: string): string {
+  return `/claim/${encodeURIComponent(listingId)}`;
 }

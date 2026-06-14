@@ -63,4 +63,43 @@ describe("createApiClient", () => {
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(404);
   });
+
+  // Stage 5, Build C — the claim/publish writes.
+  it("POST /claim hits the claim sub-path with the Bearer header and returns the status", async () => {
+    const fetchSpy = stubFetch(200, { status: "claimed" });
+    vi.stubGlobal("fetch", fetchSpy);
+    const api = createApiClient(BASE, () => "tok");
+    expect(await api.claim("L-1")).toEqual({ status: "claimed" });
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/claim",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer tok" }),
+      }),
+    );
+  });
+
+  it("a 409 from /claim (the concurrent-claim loser) surfaces as ApiError(409)", async () => {
+    vi.stubGlobal("fetch", stubFetch(409, { error: "already_claimed" }));
+    const api = createApiClient(BASE, () => "tok");
+    const err = await api.claim("L-1").catch((e) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    expect(err.status).toBe(409);
+  });
+
+  it("POST /publish and /keep-private hit their sub-paths", async () => {
+    const fetchSpy = stubFetch(200, { status: "published" });
+    vi.stubGlobal("fetch", fetchSpy);
+    const api = createApiClient(BASE, () => "tok");
+    await api.publish("L-1");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/publish",
+      expect.objectContaining({ method: "POST" }),
+    );
+    await api.keepPrivate("L-1");
+    expect(fetchSpy).toHaveBeenCalledWith(
+      "https://api.test/properties/L-1/keep-private",
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
 });

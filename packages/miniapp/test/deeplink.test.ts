@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { detailPath, normalizePath, parseRoute, resolveInitialPath } from "../src/lib/deeplink.ts";
+import {
+  claimPath,
+  detailPath,
+  normalizePath,
+  parseRoute,
+  resolveInitialPath,
+} from "../src/lib/deeplink.ts";
 
 // The route-shape freeze: `/` = list, `/p/{id}` = detail (plan-17 Flex deep links + rich-menu tabs).
 describe("route-shape freeze", () => {
@@ -23,6 +29,29 @@ describe("route-shape freeze", () => {
     expect(parseRoute("/saved")).toEqual({ name: "list" });
     expect(parseRoute("/p")).toEqual({ name: "list" });
     expect(parseRoute("/p/a/b")).toEqual({ name: "list" });
+  });
+});
+
+// The ADDITIVE claim route (Stage 5, Build C) — `/claim/{id}`. The two frozen shapes are untouched.
+describe("claim route (additive)", () => {
+  it("`/claim/{id}` resolves to claim with the decoded id", () => {
+    expect(parseRoute("/claim/L-1")).toEqual({ name: "claim", id: "L-1" });
+    expect(parseRoute("/claim/L-1/")).toEqual({ name: "claim", id: "L-1" }); // trailing slash
+    expect(parseRoute("/claim/a%20b")).toEqual({ name: "claim", id: "a b" }); // url-decoded
+  });
+
+  it("claimPath round-trips through parseRoute (the bot DM deep link keeps working)", () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    expect(parseRoute(claimPath(id))).toEqual({ name: "claim", id });
+  });
+
+  it("a malformed claim path falls back to the list (never throws)", () => {
+    expect(parseRoute("/claim")).toEqual({ name: "list" });
+    expect(parseRoute("/claim/a/b")).toEqual({ name: "list" });
+  });
+
+  it("the frozen detail shape is NOT shadowed by adding the claim route", () => {
+    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
   });
 });
 

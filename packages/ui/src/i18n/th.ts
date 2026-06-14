@@ -250,6 +250,55 @@ export const th = {
   // Coming-soon tabs (Build C/D — additive routes). Shown as a calm placeholder, not an error.
   "crm.comingSoon": "เร็วๆ นี้",
   "crm.comingSoonBody": "ส่วนนี้กำลังจะมาในเร็วๆ นี้",
+
+  // ============================================================
+  // Claim / publish flow (Stage 5, Build C — D7 poster opt-in). The LIFF claim screen the bot DM
+  // deep-links to: review the bot-extracted listing → claim ownership → choose public vs group-private.
+  // Bare-verb CTAs (COPY-02 / B3-F08). Style matches docs/design/mockups/explore-stage5-1-claim.html.
+  // ============================================================
+  "claim.title": "ตรวจสอบประกาศ",
+  "claim.loading": "กำลังโหลดประกาศ…",
+  // Review banner (LEGAL-06: the listing is auto-extracted — verify before publishing).
+  "claim.reviewBannerTitle": "บอทดึงข้อมูลอัตโนมัติ",
+  "claim.reviewBannerBody": "กรุณาตรวจสอบความถูกต้องของข้อมูลก่อนอ้างสิทธิ์และเผยแพร่",
+  "claim.sectionCore": "ข้อมูลหลัก",
+  "claim.sectionDescription": "รายละเอียด",
+  // The claim CTA + states.
+  "claim.claimCta": "อ้างสิทธิ์ประกาศนี้",
+  "claim.claiming": "กำลังอ้างสิทธิ์…",
+  "claim.legalNote": "ข้อมูลจากผู้ลงประกาศ โปรดตรวจสอบด้วยตนเองก่อนทำธุรกรรม",
+  // The concurrent-claim loser (409). COPY-07: what + why + next.
+  "claim.alreadyClaimedTitle": "ประกาศนี้ถูกอ้างสิทธิ์แล้ว",
+  "claim.alreadyClaimedBody": "อสังหาฯ นี้ถูกอ้างสิทธิ์โดยสมาชิกกลุ่มท่านอื่นก่อนแล้ว จึงไม่สามารถอ้างสิทธิ์ซ้ำได้",
+  "claim.alreadyClaimedNext": "กลับไปหน้าประกาศของฉัน",
+  "claim.failedTitle": "อ้างสิทธิ์ไม่สำเร็จ",
+  "claim.failedBody": "เกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้ง",
+  // Post-claim success + the publish decision (D7).
+  "claim.successTitle": "อ้างสิทธิ์สำเร็จแล้ว",
+  "claim.successBody": "คุณเป็นเจ้าของประกาศนี้แล้ว เลือกว่าจะให้ใครเห็นข้อมูลนี้ได้บ้าง",
+  "claim.visibilityHead": "เลือกการมองเห็น",
+  // Public option.
+  "claim.publicTitle": "เผยแพร่สาธารณะ",
+  "claim.publicSubtitle": "ทุกคนค้นหาเจอ · แชร์ลิงก์ได้",
+  "claim.publicFeatPublic": "ปรากฏในหน้าค้นหาสาธารณะ",
+  "claim.publicFeatSeo": "Google ค้นหาเจอ (SEO)",
+  "claim.publicFeatContact": "ข้อมูลติดต่อของคุณยังคงเป็นส่วนตัว",
+  "claim.publishCta": "เผยแพร่สาธารณะเลย",
+  "claim.publishing": "กำลังเผยแพร่…",
+  // Group-private option — the boundary copy the spec mandates.
+  "claim.privateTitle": "เฉพาะสมาชิกกลุ่ม",
+  "claim.privateSubtitle": "เฉพาะสมาชิกกลุ่มเดิม",
+  "claim.privateFeatGroup": "เห็นเฉพาะสมาชิกกลุ่มเดิม",
+  "claim.privateFeatNoPublic": "ไม่ปรากฏในหน้าค้นหาสาธารณะ",
+  "claim.keepPrivateCta": "เก็บไว้เฉพาะกลุ่มก่อน",
+  "claim.keepingPrivate": "กำลังบันทึก…",
+  // Publish-decision outcomes (after the choice). COPY-07.
+  "claim.publishedTitle": "เผยแพร่สาธารณะแล้ว",
+  "claim.publishedBody": "ประกาศของคุณปรากฏบนเว็บไซต์สาธารณะแล้ว ผู้ซื้อค้นหาเจอได้ทันที",
+  "claim.privatedTitle": "เก็บไว้เฉพาะกลุ่มแล้ว",
+  "claim.privatedBody": "ประกาศนี้เห็นได้เฉพาะสมาชิกกลุ่มเดิม คุณเปลี่ยนเป็นสาธารณะได้ภายหลังจากหน้าประกาศของฉัน",
+  "claim.doneCta": "ไปที่ประกาศของฉัน",
+  "claim.publishConsentNote": "การเผยแพร่ถือว่าคุณยินยอมให้ข้อมูลปรากฏในระบบ คุณถอนการเผยแพร่ได้ตลอดเวลา",
 } as const;
 
 export type MessageKey = keyof typeof th;

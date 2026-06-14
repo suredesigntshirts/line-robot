@@ -40,11 +40,17 @@ async function buildSweep(): Promise<IngestionSweep> {
     import("@line-robot/pipeline"),
     import("@line-robot/db"),
   ]);
+  // One gateway, shared: IngestionSweep pushes the post-sweep confirmation, and the v2 port pushes
+  // the gate-pass claim DM (Stage 5, Build C). MINIAPP_URL deep-links that DM to the LIFF claim screen
+  // — absent simply skips the DM (membership/group population is unaffected).
+  const gateway = createLineMessagingGateway(channelAccessToken);
   const v2 = createPipelineV2Port({
     db: getDb(env.DATABASE_URL),
     llm: new AnthropicStepLlm(new Anthropic({ apiKey: anthropicApiKey })),
     media: archive,
     logger,
+    gateway,
+    miniappUrl: env.MINIAPP_URL,
   });
 
   const ddb = new DynamoDBClient({});
@@ -55,7 +61,7 @@ async function buildSweep(): Promise<IngestionSweep> {
     catalog: new DynamoCatalogRepository(doc, env.CATALOG_TABLE),
     messages: new DynamoMessageRepository(doc, env.MESSAGES_TABLE),
     v2,
-    gateway: createLineMessagingGateway(channelAccessToken),
+    gateway,
     logger,
     clock: SYSTEM_CLOCK,
   });

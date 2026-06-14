@@ -23,10 +23,26 @@ const PNG_1X1 = Buffer.from(
   "base64",
 );
 
+/** Options for the api mock. `claimStatus` lets a claim-flow test simulate the concurrent-claim loser
+ * (409) vs the happy path (200). `detail` overrides the served detail (e.g. an unclaimed listing so
+ * the claim flow starts at the review step). */
+export interface MockApiOptions {
+  /** The status the `POST /properties/{id}/claim` route returns (200 happy / 409 already-claimed). */
+  claimStatus?: number;
+  /** Override the `GET /properties/{id}` detail (defaults to the shared DETAIL fixture). */
+  detail?: typeof DETAIL;
+}
+
 /** Install the api + image fixtures on a page. Asserts the request carried the Bearer id-token (the
- * mocked LIFF token), so the auth contract is exercised, not bypassed. Returns a list of seen tokens. */
-export async function mockApi(page: Page): Promise<{ tokensSeen: string[] }> {
+ * mocked LIFF token), so the auth contract is exercised, not bypassed. Handles the GET reads AND the
+ * Stage-5 claim/publish POST writes. Returns the seen tokens + a record of the POST writes observed. */
+export async function mockApi(
+  page: Page,
+  opts: MockApiOptions = {},
+): Promise<{ tokensSeen: string[]; writes: string[] }> {
   const tokensSeen: string[] = [];
+  const writes: string[] = [];
+  const detail = opts.detail ?? DETAIL;
   await page.route(`${API_ORIGIN}/**`, async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -43,11 +59,36 @@ export async function mockApi(page: Page): Promise<{ tokensSeen: string[] }> {
         body: JSON.stringify(MY_LISTINGS),
       });
     }
+    // The claim/publish/keep-private POST writes (Stage 5, Build C).
+    if (
+      req.method() === "POST" &&
+      /\/properties\/[^/]+\/(claim|publish|keep-private)$/.test(url.pathname)
+    ) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      if (url.pathname.endsWith("/claim")) {
+        const status = opts.claimStatus ?? 200;
+        const body =
+          status === 409
+            ? { error: "already_claimed", message: "อสังหาฯ นี้ถูกอ้างสิทธิ์โดยผู้อื่นแล้ว" }
+            : { status: "claimed" };
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify(body),
+        });
+      }
+      const status = url.pathname.endsWith("/publish") ? "published" : "group_private";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status }),
+      });
+    }
     if (url.pathname.startsWith("/properties/")) {
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(DETAIL),
+        body: JSON.stringify(detail),
       });
     }
     return route.fulfill({
@@ -56,7 +97,7 @@ export async function mockApi(page: Page): Promise<{ tokensSeen: string[] }> {
       body: '{"error":"not_found"}',
     });
   });
-  return { tokensSeen };
+  return { tokensSeen, writes };
 }
 
 /** Wait for fonts + every image to finish, so invariants/screenshots aren't measured mid-load. */

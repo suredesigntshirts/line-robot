@@ -8,6 +8,9 @@ import { DETAIL, MY_LISTINGS } from "./fixtures.ts";
 const fixtureApi: ApiClient = {
   myListings: async () => structuredClone(MY_LISTINGS),
   listing: async () => structuredClone(DETAIL),
+  claim: async () => ({ status: "claimed" }),
+  publish: async () => ({ status: "published" }),
+  keepPrivate: async () => ({ status: "group_private" }),
 };
 
 function setPath(path: string) {
@@ -38,6 +41,22 @@ describe("router (frozen route shapes)", () => {
     // the spec table carries the rooms the api returned
     expect(screen.getByText("3 นอน")).toBeTruthy();
     expect(screen.getByText("2 น้ำ")).toBeTruthy();
+  });
+
+  it("`/claim/{id}` resolves to the claim screen (additive route) and renders the review step", async () => {
+    setPath(`/claim/${DETAIL.id}`);
+    // DETAIL.isClaimedByMe is true in the fixture, so the screen would open at the decide step. Use a
+    // not-yet-claimed clone so the review step (with the claim CTA) renders.
+    const unclaimedApi: ApiClient = {
+      ...fixtureApi,
+      listing: async () => ({ ...structuredClone(DETAIL), isClaimedByMe: false }),
+    };
+    render(<App api={unclaimedApi} locale="th" />);
+    await waitFor(() => {
+      // The claim screen title + the claim CTA copy (a distinct surface from list/detail).
+      expect(screen.getByText("ตรวจสอบประกาศ")).toBeTruthy();
+      expect(screen.getByText(/อ้างสิทธิ์ประกาศนี้/)).toBeTruthy();
+    });
   });
 
   it("an unknown path falls back to the list (deep-link safety)", async () => {

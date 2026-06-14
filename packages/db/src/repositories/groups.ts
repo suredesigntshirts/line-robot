@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Db } from "../pool.ts";
 import { groupMemberships, groups } from "../schema.ts";
 
@@ -13,4 +14,44 @@ export async function createGroup(db: Db, group: NewGroup): Promise<GroupRow> {
 
 export async function addMembership(db: Db, membership: NewGroupMembership): Promise<void> {
   await db.insert(groupMemberships).values(membership);
+}
+
+/**
+ * Find-or-create the Postgres `group` for a LINE group id, returning its row (Stage 5, Build C). The
+ * live ingest path needs this so a freshly-discovered source group is materialised before any listing
+ * references it — `listing.source_group_id` must be non-NULL for the mini-app claim gate (a NULL group
+ * can never be group-claimed). Idempotent + concurrency-safe: an `ON CONFLICT (line_group_id) DO
+ * NOTHING` insert races at most one winner; a 0-row insert means a concurrent sweep already created it,
+ * so we read it back. The display `name` is only set on first create (the group's own name flows in
+ * later via Stage 6 group management); a re-call never overwrites it.
+ */
+export async function findOrCreateGroupByLineGroupId(
+  db: Db,
+  lineGroupId: string,
+  name?: string,
+): Promise<GroupRow> {
+  const [inserted] = await db
+    .insert(groups)
+    .values({ lineGroupId, name: name ?? lineGroupId })
+    .onConflictDoNothing({ target: groups.lineGroupId })
+    .returning();
+  if (inserted) return inserted;
+  // The insert was a no-op (a concurrent sweep won the race) — read the existing row.
+  const [existing] = await db.select().from(groups).where(eq(groups.lineGroupId, lineGroupId));
+  if (!existing) throw new Error(`group upsert found no row for lineGroupId=${lineGroupId}`);
+  return existing;
+}
+
+/**
+ * Record a `(group, user)` membership edge, idempotently (Stage 5, Build C). The live ingest path
+ * writes one of these per distinct message sender so the mini-app claim gate (`isGroupMember`) admits
+ * real posters. `addMembership`'s plain insert throws on the `(group_id, user_id)` unique index when
+ * the edge already exists; `onConflictDoNothing` makes a re-sweep a safe no-op. NOT a replacement for
+ * `addMembership` (the seed wants the throw-on-dup) — a distinct fn for the at-least-once ingest path.
+ */
+export async function upsertMembership(db: Db, membership: NewGroupMembership): Promise<void> {
+  await db
+    .insert(groupMemberships)
+    .values(membership)
+    .onConflictDoNothing({ target: [groupMemberships.groupId, groupMemberships.userId] });
 }

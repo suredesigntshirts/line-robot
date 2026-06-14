@@ -11,6 +11,7 @@ import {
   type Db,
   dbFromPool,
   deleteListingCascade,
+  findOrCreateGroupByLineGroupId,
   getListing,
   getPortalListingDetail,
   isGroupMember,
@@ -25,6 +26,7 @@ import {
   searchPublicListings,
   unsaveListing,
   updateViewingStatus,
+  upsertMembership,
 } from "../../src/index.ts";
 import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.ts";
 
@@ -218,6 +220,52 @@ describe("group-membership authz", () => {
     // Gallery is in hero order; both originals + the one derivative are exposed.
     expect(detail?.media.map((m) => m.s3Key)).toEqual(["conv/x/0.jpg", "conv/x/1.jpg"]);
     expect(detail?.media[1]?.thumbKey).toBe("derivatives/x-1-thumb.jpg");
+  });
+});
+
+// Stage 5, Build C — the live-ingest population repos that make a real poster claimable. The sweep
+// upserts the source group (so listing.source_group_id is non-NULL) + a membership edge per sender;
+// both must be idempotent (the sweep runs at-least-once) and the membership must satisfy the claim
+// gate (isGroupMember true → handleClaim admits the poster).
+describe("ingest population (findOrCreateGroupByLineGroupId + upsertMembership)", () => {
+  it("findOrCreateGroupByLineGroupId is idempotent: same row, no throw on re-call", async () => {
+    const first = await findOrCreateGroupByLineGroupId(db, "C-ingest-1");
+    expect(first.lineGroupId).toBe("C-ingest-1");
+    // A second call (a later sweep of the same group) returns the SAME row, never a duplicate/throw.
+    const second = await findOrCreateGroupByLineGroupId(db, "C-ingest-1");
+    expect(second.id).toBe(first.id);
+    const { rows } = await pool.query(
+      'SELECT count(*)::int AS n FROM "group" WHERE line_group_id = $1',
+      ["C-ingest-1"],
+    );
+    expect(rows[0].n).toBe(1);
+  });
+
+  it("upsertMembership is idempotent and the claim gate (isGroupMember) admits the member after it", async () => {
+    const group = await findOrCreateGroupByLineGroupId(db, "C-ingest-2");
+    // A real poster who has never been seeded into Postgres membership.
+    await upsertMembership(db, { groupId: group.id, userId: bob });
+    await upsertMembership(db, { groupId: group.id, userId: bob }); // a re-sweep — no throw, no dup
+    expect(await isGroupMember(db, group.id, bob)).toBe(true);
+    // A non-member is still rejected (the gate isn't blanket-open).
+    expect(await isGroupMember(db, group.id, alice)).toBe(false);
+    const { rows } = await pool.query(
+      "SELECT count(*)::int AS n FROM group_membership WHERE group_id = $1 AND user_id = $2",
+      [group.id, bob],
+    );
+    expect(rows[0].n).toBe(1);
+  });
+
+  it("a poster who claims after upsertMembership wins the listing (the launch-blocker end to end)", async () => {
+    const group = await findOrCreateGroupByLineGroupId(db, "C-ingest-3");
+    await upsertMembership(db, { groupId: group.id, userId: bob });
+    // The pipeline writes a listing carrying THIS source group (source_group_id non-NULL).
+    const id = await newListing(2_800_000, group.id);
+    const detail = await getPortalListingDetail(db, id);
+    expect(detail?.listing.sourceGroupId).toBe(group.id);
+    // The gate the API runs before claiming: bob is a member → admitted → his claim wins.
+    expect(await isGroupMember(db, detail?.listing.sourceGroupId ?? null, bob)).toBe(true);
+    expect(await claimListing(db, id, bob)).toBe("claimed");
   });
 });
 

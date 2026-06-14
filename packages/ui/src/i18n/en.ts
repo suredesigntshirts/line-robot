@@ -213,4 +213,47 @@ export const en: Record<keyof typeof th, string> = {
   "field.tambon": "Subdistrict",
   "crm.comingSoon": "Coming soon",
   "crm.comingSoonBody": "This section is coming soon",
+
+  // Claim / publish flow (Stage 5, Build C — D7 poster opt-in).
+  "claim.title": "Review listing",
+  "claim.loading": "Loading listing…",
+  "claim.reviewBannerTitle": "Auto-extracted by the bot",
+  "claim.reviewBannerBody": "Please check the details are correct before you claim and publish.",
+  "claim.sectionCore": "Key details",
+  "claim.sectionDescription": "Description",
+  "claim.claimCta": "Claim this listing",
+  "claim.claiming": "Claiming…",
+  "claim.legalNote":
+    "Information provided by the poster — verify independently before transacting.",
+  "claim.alreadyClaimedTitle": "Already claimed",
+  "claim.alreadyClaimedBody":
+    "Another group member claimed this listing first, so it can't be claimed again.",
+  "claim.alreadyClaimedNext": "Back to My Listings",
+  "claim.failedTitle": "Claim failed",
+  "claim.failedBody": "A temporary error occurred. Please try again.",
+  "claim.successTitle": "Claimed successfully",
+  "claim.successBody": "You now own this listing. Choose who can see it.",
+  "claim.visibilityHead": "Choose visibility",
+  "claim.publicTitle": "Publish publicly",
+  "claim.publicSubtitle": "Anyone can find it · shareable link",
+  "claim.publicFeatPublic": "Appears in public search",
+  "claim.publicFeatSeo": "Found on Google (SEO)",
+  "claim.publicFeatContact": "Your contact details stay private",
+  "claim.publishCta": "Publish publicly",
+  "claim.publishing": "Publishing…",
+  "claim.privateTitle": "Group members only",
+  "claim.privateSubtitle": "Original group members only",
+  "claim.privateFeatGroup": "Visible only to the original group",
+  "claim.privateFeatNoPublic": "Not shown in public search",
+  "claim.keepPrivateCta": "Keep group-private for now",
+  "claim.keepingPrivate": "Saving…",
+  "claim.publishedTitle": "Published publicly",
+  "claim.publishedBody":
+    "Your listing is now on the public website — buyers can find it right away.",
+  "claim.privatedTitle": "Kept group-private",
+  "claim.privatedBody":
+    "Only original group members can see this. You can switch it to public later from My Listings.",
+  "claim.doneCta": "Go to My Listings",
+  "claim.publishConsentNote":
+    "Publishing means you consent to your information appearing in the system. You can withdraw at any time.",
 };

@@ -46,12 +46,24 @@ export function createApiClient(base: string, getToken: TokenSource) {
     return (await response.json()) as T;
   }
 
+  const propertyPath = (id: string): string => `/properties/${encodeURIComponent(id)}`;
+
   return {
     /** `GET /me/listings` — the home screen's my-listings. */
     myListings: (): Promise<ListingCardDto[]> => request<ListingCardDto[]>("/me/listings"),
-    /** `GET /properties/{id}` — the detail screen. */
-    listing: (id: string): Promise<ListingDetailDto> =>
-      request<ListingDetailDto>(`/properties/${encodeURIComponent(id)}`),
+    /** `GET /properties/{id}` — the detail + claim screens. */
+    listing: (id: string): Promise<ListingDetailDto> => request<ListingDetailDto>(propertyPath(id)),
+    /** `POST /properties/{id}/claim` — claim ownership (optimistic lock). Resolves `{status}` on a win
+     * (claimed/already_yours); a concurrent/late loser gets a 409 → the client throws ApiError(409),
+     * which the claim screen maps to the "already taken" message. */
+    claim: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/claim`, { method: "POST" }),
+    /** `POST /properties/{id}/publish` — opt in to public visibility (LEGAL-02 consent). */
+    publish: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/publish`, { method: "POST" }),
+    /** `POST /properties/{id}/keep-private` — keep group-private (the default; revokes any consent). */
+    keepPrivate: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/keep-private`, { method: "POST" }),
   };
 }
 

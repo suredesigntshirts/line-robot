@@ -9,14 +9,23 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // vi.mock factories are hoisted above top-level declarations, so the mock fns must be created via
 // vi.hoisted() (which is hoisted with them) rather than as plain consts.
-const { runPipeline, buildDerivatives, findUserByIdentity, createUserWithIdentity } = vi.hoisted(
-  () => ({
-    runPipeline: vi.fn(),
-    buildDerivatives: vi.fn(),
-    findUserByIdentity: vi.fn(),
-    createUserWithIdentity: vi.fn(),
-  }),
-);
+const {
+  runPipeline,
+  buildDerivatives,
+  findUserByIdentity,
+  createUserWithIdentity,
+  findOrCreateGroupByLineGroupId,
+  upsertMembership,
+  markClaimInvited,
+} = vi.hoisted(() => ({
+  runPipeline: vi.fn(),
+  buildDerivatives: vi.fn(),
+  findUserByIdentity: vi.fn(),
+  createUserWithIdentity: vi.fn(),
+  findOrCreateGroupByLineGroupId: vi.fn(),
+  upsertMembership: vi.fn(),
+  markClaimInvited: vi.fn(),
+}));
 
 vi.mock("@line-robot/pipeline", () => ({
   runPipeline,
@@ -35,6 +44,9 @@ vi.mock("@line-robot/pipeline", () => ({
 vi.mock("@line-robot/db", () => ({
   findUserByIdentity,
   createUserWithIdentity,
+  findOrCreateGroupByLineGroupId,
+  upsertMembership,
+  markClaimInvited,
 }));
 
 import type { Db } from "@line-robot/db";
@@ -44,7 +56,8 @@ import {
   type ClassifiedMedia,
   createPipelineV2Port,
 } from "../../src/app/pipelineV2Sweep.js";
-import type { StoredMessage } from "../../src/core/domain/message.js";
+import type { OutboundMessage, StoredMessage } from "../../src/core/domain/message.js";
+import type { LineGateway } from "../../src/core/ports/lineGateway.js";
 import type { Logger } from "../../src/core/ports/runtime.js";
 
 // ---------------------------------------------------------------------------
@@ -69,6 +82,19 @@ function imageMsg(timestamp: number, s3Key: string): StoredMessage {
     direction: "in",
     contentType: "image",
     attachment: { s3Key, contentType: "image/jpeg" },
+    timestamp,
+  };
+}
+
+/** A group message carrying a real sender id — the shape the live ingest path sees (the membership +
+ * claim-DM population in Build C reads `ref.senderUserId`, not the conversation pseudo-user). */
+function groupTextMsg(timestamp: number, text: string, senderUserId = "Usender"): StoredMessage {
+  return {
+    ref: { kind: "group", groupId: "Cgrp1", senderUserId },
+    messageId: `m${timestamp}`,
+    direction: "in",
+    contentType: "text",
+    text,
     timestamp,
   };
 }
@@ -169,11 +195,30 @@ function makeLogger(): Logger & {
   } as unknown as Logger & { infos: unknown[]; warns: unknown[] };
 }
 
-const deps = () => ({
+/** A fake LINE gateway recording every push (the claim DM). Implements the full LineGateway port; the
+ * port only calls `push`, so reply/isPermanentError are inert stubs. */
+function makeGateway(): LineGateway & {
+  push: ReturnType<typeof vi.fn>;
+  pushes: Array<{ to: string; messages: OutboundMessage[] }>;
+} {
+  const pushes: Array<{ to: string; messages: OutboundMessage[] }> = [];
+  const push = vi.fn(async (to: string, messages: OutboundMessage[]) => {
+    pushes.push({ to, messages });
+  });
+  return {
+    push,
+    pushes,
+    reply: async () => {},
+    isPermanentError: () => false,
+  };
+}
+
+const deps = (over: { gateway?: LineGateway; miniappUrl?: string } = {}) => ({
   db: {} as Db,
   llm: {} as StepLlm,
   media: {} as MediaStore,
   logger: makeLogger(),
+  ...over,
 });
 
 describe("createPipelineV2Port.run", () => {
@@ -182,6 +227,10 @@ describe("createPipelineV2Port.run", () => {
     // Default owner lookup: a user already exists, so no create.
     findUserByIdentity.mockResolvedValue({ id: "owner-1" });
     createUserWithIdentity.mockResolvedValue({ id: "owner-new" });
+    // Build C population defaults: group upsert returns a stable id; membership + guard succeed.
+    findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
+    upsertMembership.mockResolvedValue(undefined);
+    markClaimInvited.mockResolvedValue(true); // first invite (overridden per-test)
   });
 
   it("short-circuits an empty batch without calling the pipeline", async () => {
@@ -260,5 +309,193 @@ describe("createPipelineV2Port.run", () => {
     const input = runPipeline.mock.calls[0]?.[2];
     expect(input.geoHints).toEqual(["18.7883,98.9853"]);
     expect(input.contentLang).toBe("th");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Stage 5, Build C — source-group + membership population and the gate-pass claim DM.
+// ---------------------------------------------------------------------------
+
+const passGate = { pass: true };
+const failGate = { pass: false };
+
+function listing(listingId: string, gate: { pass: boolean }, title = "A listing") {
+  return { listingId, title, decision: { decision: "new" }, gate };
+}
+
+describe("createPipelineV2Port.run — group/membership population (the launch blocker)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findUserByIdentity.mockResolvedValue({ id: "owner-1" });
+    createUserWithIdentity.mockResolvedValue({ id: "user-new" });
+    findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
+    upsertMembership.mockResolvedValue(undefined);
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({ listings: [], droppedSegments: [] });
+  });
+
+  it("upserts the source group from the conversation key and passes its id as sourceGroupId", async () => {
+    const d = deps();
+    await createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "house for sale")]);
+
+    // The Postgres group is found-or-created from the LINE group id parsed out of the key.
+    expect(findOrCreateGroupByLineGroupId).toHaveBeenCalledWith(d.db, "Cgrp1");
+    // …and its id is now threaded into the pipeline input (previously dropped → always NULL).
+    expect(runPipeline.mock.calls[0]?.[2]).toMatchObject({ sourceGroupId: "grp-pg-1" });
+  });
+
+  it("writes a membership for EVERY distinct real sender in the batch (resolving each to a pg user)", async () => {
+    const d = deps();
+    await createPipelineV2Port(d).run("group#Cgrp1", [
+      groupTextMsg(1000, "first", "Ualice"),
+      groupTextMsg(2000, "second", "Ubob"),
+      groupTextMsg(3000, "alice again", "Ualice"), // duplicate sender → one membership
+    ]);
+
+    // Two DISTINCT senders → two membership upserts (deduped), each scoped to the pg group id.
+    expect(upsertMembership).toHaveBeenCalledTimes(2);
+    const groupsWritten = upsertMembership.mock.calls.map((c) => c[1].groupId);
+    expect(new Set(groupsWritten)).toEqual(new Set(["grp-pg-1"]));
+    // The real senders were resolved as `line` identities (the same lookup the LIFF token resolves to).
+    expect(findUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ualice");
+    expect(findUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ubob");
+  });
+
+  it("does NOT touch groups/memberships for a 1:1 (user#) conversation — no source group", async () => {
+    const d = deps();
+    await createPipelineV2Port(d).run("user#Upeer", [textMsg(1000, "house for sale")]);
+
+    expect(findOrCreateGroupByLineGroupId).not.toHaveBeenCalled();
+    expect(upsertMembership).not.toHaveBeenCalled();
+    // A DM's listings carry no source group.
+    expect(runPipeline.mock.calls[0]?.[2]?.sourceGroupId).toBeUndefined();
+  });
+});
+
+describe("createPipelineV2Port.run — gate-pass claim DM (once, prospective)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findUserByIdentity.mockResolvedValue({ id: "owner-1" });
+    createUserWithIdentity.mockResolvedValue({ id: "user-new" });
+    findOrCreateGroupByLineGroupId.mockResolvedValue({ id: "grp-pg-1", lineGroupId: "Cgrp1" });
+    upsertMembership.mockResolvedValue(undefined);
+  });
+
+  it("sends exactly ONE claim DM for a gate-passed listing, to the batch's primary sender", async () => {
+    markClaimInvited.mockResolvedValue(true); // first invite → this sweep stamps + sends
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate, "Condo near Nimman")],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    await createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "post", "Uposter")]);
+
+    expect(markClaimInvited).toHaveBeenCalledWith(d.db, "L-pass", expect.any(Date));
+    expect(gw.pushes).toHaveLength(1);
+    // The DM targets the real sender (a 1:1 DM to the poster), not the group.
+    expect(gw.pushes[0]?.to).toBe("Uposter");
+    // It's a Flex claim card whose CTA deep-links to {miniappUrl}/claim/{id}.
+    const msg = gw.pushes[0]?.messages[0] as unknown as {
+      type: string;
+      cards: Array<{ actions: Array<{ uri?: string }> }>;
+    };
+    expect(msg.type).toBe("flex");
+    expect(msg.cards[0]?.actions[0]?.uri).toBe("https://miniapp.line.me/123-abc/claim/L-pass");
+  });
+
+  it("a SECOND sweep of the same listing sends NO DM (the claim_invited_at guard)", async () => {
+    // markClaimInvited returns false → the listing was already invited on a prior sweep.
+    markClaimInvited.mockResolvedValue(false);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate)],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    await createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "re-post", "Uposter")]);
+
+    // The guard was consulted, but no push happened.
+    expect(markClaimInvited).toHaveBeenCalledTimes(1);
+    expect(gw.pushes).toHaveLength(0);
+  });
+
+  it("a NON-gate-pass listing is never invited (no guard stamp, no DM)", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-fail", failGate)],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    await createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "weak post", "Uposter")]);
+
+    // A failing gate is skipped BEFORE the guard — claim_invited_at is never burned on a non-pass.
+    expect(markClaimInvited).not.toHaveBeenCalled();
+    expect(gw.pushes).toHaveLength(0);
+  });
+
+  it("only the gate-passed listings of a mixed batch get a DM", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [
+        listing("L-pass-1", passGate, "Pass one"),
+        listing("L-fail", failGate, "Fail"),
+        listing("L-pass-2", passGate, "Pass two"),
+      ],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    await createPipelineV2Port(d).run("group#Cgrp1", [
+      groupTextMsg(1000, "two good one bad", "Uposter"),
+    ]);
+
+    expect(gw.pushes).toHaveLength(2);
+    const uris = gw.pushes.map(
+      (p) =>
+        (p.messages[0] as unknown as { cards: Array<{ actions: Array<{ uri?: string }> }> })
+          .cards[0]?.actions[0]?.uri,
+    );
+    expect(uris).toEqual([
+      "https://miniapp.line.me/123-abc/claim/L-pass-1",
+      "https://miniapp.line.me/123-abc/claim/L-pass-2",
+    ]);
+  });
+
+  it("skips the DM entirely (and does NOT stamp the guard) when no miniappUrl is configured", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate)],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    // No miniappUrl → the claim deep link can't resolve, so the whole invite step is skipped.
+    const d = deps({ gateway: gw });
+
+    await createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "post", "Uposter")]);
+
+    expect(gw.pushes).toHaveLength(0);
+    // Crucially the guard is NOT consulted — once the URL is set later, the listing still gets its DM.
+    expect(markClaimInvited).not.toHaveBeenCalled();
+  });
+
+  it("a failed claim DM push never throws out of the sweep (best-effort)", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate)],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    gw.push.mockRejectedValueOnce(new Error("LINE 500"));
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    await expect(
+      createPipelineV2Port(d).run("group#Cgrp1", [groupTextMsg(1000, "post", "Uposter")]),
+    ).resolves.toBeDefined();
   });
 });

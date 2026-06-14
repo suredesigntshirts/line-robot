@@ -4,6 +4,8 @@ import { decodePostback } from "../../src/core/handlers/commands.js";
 import {
   buildConfirmation,
   catalogDeepLink,
+  claimDeepLink,
+  claimInviteCard,
   formatPrice,
   helpMessage,
   imageCarouselMessage,
@@ -219,6 +221,50 @@ describe("catalogDeepLink", () => {
   it("returns undefined without a base URL (button omitted)", () => {
     expect(catalogDeepLink(undefined, "p1")).toBeUndefined();
     expect(catalogDeepLink("", "p1")).toBeUndefined();
+  });
+});
+
+describe("claimDeepLink (Stage 5, Build C)", () => {
+  it("builds the additive `{base}/claim/{id}` route, trimming a trailing slash and encoding the id", () => {
+    expect(claimDeepLink("https://miniapp.line.me/123-abc", "L1")).toBe(
+      "https://miniapp.line.me/123-abc/claim/L1",
+    );
+    expect(claimDeepLink("https://miniapp.line.me/123-abc/", "a b")).toBe(
+      "https://miniapp.line.me/123-abc/claim/a%20b",
+    );
+  });
+  it("returns undefined without a base URL (the DM is then skipped)", () => {
+    expect(claimDeepLink(undefined, "L1")).toBeUndefined();
+    expect(claimDeepLink("", "L1")).toBeUndefined();
+  });
+});
+
+describe("claimInviteCard (Stage 5, Build C)", () => {
+  it("is a single-bubble Flex with the title headline + a claim CTA deep-linking to the claim screen", () => {
+    const msg = claimInviteCard("ขายบ้าน 14 ห้อง", "https://miniapp.line.me/x/claim/L1");
+    expect(msg.type).toBe("flex");
+    if (msg.type !== "flex") throw new Error("expected flex");
+    expect(msg.cards).toHaveLength(1);
+    const card = msg.cards[0];
+    expect(card?.headline).toBe("ขายบ้าน 14 ห้อง");
+    // One CTA: a uri-mode button to the claim screen, bare-verb Thai label (COPY-02 / B3-F08).
+    expect(card?.actions).toHaveLength(1);
+    expect(card?.actions[0]?.mode).toBe("uri");
+    expect(card?.actions[0]?.uri).toBe("https://miniapp.line.me/x/claim/L1");
+    expect(card?.actions[0]?.label).toBe("อ้างสิทธิ์ประกาศนี้");
+  });
+
+  it("includes area/price rows only when supplied (nulls omitted)", () => {
+    const bare = claimInviteCard("t", "https://x/claim/L1");
+    if (bare.type !== "flex") throw new Error("expected flex");
+    expect(bare.cards[0]?.rows).toHaveLength(0);
+
+    const full = claimInviteCard("t", "https://x/claim/L1", "สันกำแพง · เชียงใหม่", "฿4,800,000");
+    if (full.type !== "flex") throw new Error("expected flex");
+    expect(full.cards[0]?.rows).toEqual([
+      { label: "ทำเล", value: "สันกำแพง · เชียงใหม่" },
+      { label: "ราคา", value: "฿4,800,000" },
+    ]);
   });
 });
 

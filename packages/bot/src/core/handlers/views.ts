@@ -181,6 +181,44 @@ export function catalogDeepLink(
   return `${baseUrl.replace(/\/+$/, "")}/p/${encodeURIComponent(propertyId)}`;
 }
 
+/** The MINI App deep link to a listing's CLAIM screen (`{base}/claim/{id}`), or undefined when no base
+ * URL is configured. The webview's router resolves `/claim/{id}` (directly or via `liff.state`), so
+ * this opens straight to the claim/publish flow. Additive to the frozen `/` + `/p/{id}` shapes.
+ * (Stage 5, Build C — the bot DMs this once per gate-passed listing.) */
+export function claimDeepLink(baseUrl: string | undefined, listingId: string): string | undefined {
+  if (baseUrl === undefined || baseUrl === "") {
+    return undefined;
+  }
+  return `${baseUrl.replace(/\/+$/, "")}/claim/${encodeURIComponent(listingId)}`;
+}
+
+/**
+ * The one-shot "claim your listing" DM the bot pushes when a listing first passes the quality gate
+ * (Stage 5, D7 / CONV-14). A Flex card: the bot-extracted title, a "bot auto-extracted — please
+ * verify" note (LEGAL-06), and a single CTA that deep-links to the LIFF claim screen
+ * (`{base}/claim/{id}`). Thai copy throughout (the poster's locale). The deep link is required — this
+ * card is only built when a `miniappUrl` is configured (the sweep guards on it), so the CTA always
+ * resolves. Provider-agnostic: the LINE Flex JSON is built later in the gateway.
+ */
+export function claimInviteCard(
+  listingTitle: string,
+  claimUrl: string,
+  area?: string,
+  price?: string,
+): OutboundMessage {
+  const rows: PropertyCardRow[] = [];
+  pushRow(rows, "ทำเล", area);
+  pushRow(rows, "ราคา", price);
+  const card: PropertyCard = {
+    title: "📋 ตรวจสอบประกาศของคุณ",
+    headline: listingTitle,
+    rows,
+    notes: ["บอทดึงข้อมูลอัตโนมัติ · กรุณายืนยันความถูกต้อง แล้วเลือกการเผยแพร่"],
+    actions: [{ label: "อ้างสิทธิ์ประกาศนี้", data: "", mode: "uri", uri: claimUrl }],
+  };
+  return { type: "flex", altText: "ตรวจสอบและอ้างสิทธิ์ประกาศของคุณ", cards: [card] };
+}
+
 /** Push `{label, value}` only when `value` is a non-empty string (keeps the detail card to fields we
  * actually have — nulls are simply omitted). */
 function pushRow(rows: PropertyCardRow[], label: string, value?: string): void {

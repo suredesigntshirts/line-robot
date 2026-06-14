@@ -15,6 +15,7 @@ import { createTranslator, type UiLocale } from "@line-robot/ui";
 import { useEffect, useState } from "react";
 import type { ApiClient } from "../lib/api.ts";
 import { normalizePath, parseRoute, resolveInitialPath } from "../lib/deeplink.ts";
+import { ClaimScreen } from "../screens/ClaimScreen.tsx";
 import { DetailScreen } from "../screens/DetailScreen.tsx";
 import { MyListingsScreen } from "../screens/MyListingsScreen.tsx";
 import { AppContextProvider } from "./context.ts";
@@ -57,7 +58,13 @@ export function App({ api, locale }: AppProps) {
 
   return (
     <AppContextProvider value={{ api, t, locale, navigate }}>
-      {route.name === "detail" ? <DetailScreen id={route.id} /> : <MyListingsScreen />}
+      {route.name === "detail" ? (
+        <DetailScreen id={route.id} />
+      ) : route.name === "claim" ? (
+        <ClaimScreen id={route.id} />
+      ) : (
+        <MyListingsScreen />
+      )}
     </AppContextProvider>
   );
 }
