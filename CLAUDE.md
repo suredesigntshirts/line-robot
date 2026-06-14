@@ -6,6 +6,8 @@ Project-specific guidance for Claude. (The global `~/.claude/CLAUDE.md` also app
 
 When capturing or auditing external websites (playwright-cli or any browser tooling): **always run HEADED (not headless) with a current standard Chrome user-agent, realistic viewport, locale `th-TH` / timezone Asia/Bangkok for Thai sites, and human pacing** (load homepage, wait, then navigate deeper). We are on a residential IP; headless mode + bot UA is what gets blocked — headed-as-real-user got us past walls (DDproperty et al.) that hard-blocked headless runs. Never attempt to solve CAPTCHAs yourself; for hard walls (Cloudflare JS challenge, DataDome) open the page headed and ask the user to clear it — it takes them seconds.
 
+**Scope — our own app is the exception.** The headed-real-user rule above is ONLY for third-party sites behind anti-bot walls. Testing **our own website** (the plan-20 e2e/visual suite — `npm run test:e2e`, local build OR a deployed URL) runs **HEADLESS** for determinism and speed; CloudFront won't bot-wall us. Don't apply the headed rule to our own app, local or deployed.
+
 **Reusable cleared session:** `playwright-cli -s=manual … --persistent` has a persistent Chrome profile with founder-cleared Cloudflare (ddproperty.com) + DataDome (idealista.com) cookies; saved state also at `.playwright-cli/clearance-state.json` (gitignored — NEVER commit cookies). Reuse via `-s=manual` or `state-load` before re-asking the founder. Headed flag: `playwright-cli open <url> --browser=chrome --persistent --headed`. Gotchas: `mousewheel` may not scroll (use `eval` `window.scrollTo`); the CLI's echoed Page Title can be stale after `goto` — verify with `eval document.title`.
 
 ## V2 rebuild — plan & product research
@@ -24,9 +26,9 @@ this mechanically is a Stage 0 deliverable.)
 
 Review cadence (canonical: master plan §5.3):
 
-- **Every change (free, non-negotiable):** `npm run typecheck`, `npm run lint` (Biome), `npm run test`, coverage threshold.
-- **Every increment (PR-sized unit):** run `/increment-review` — three fresh-context reviewers that did not write the code (spec auditor vs the stage spec; correctness via the installed `/code-review` skill; simplicity critic vs the rules below), then a skeptic verifies bespoke findings before anything is acted on; judgment calls surface to the founder. Design-bearing increments (UI, copy, schema, flows) also run `/alignment-review` against the heuristic register.
-- **Every stage gate:** high-effort review of the stage's full diff; architecture-conformance check (hexagonal boundaries, no adapter imports in core, file-size watchlist); eval scorecard vs baseline; Playwright smoke on critical user flows (user-facing stages); docs and `CLAUDE.md` updated.
+- **Every change (free, non-negotiable):** `npm run typecheck`, `npm run lint` (Biome), `npm run test`, coverage threshold. **For frontend changes (`packages/website`, `packages/ui`):** also `npm run test:e2e -w @line-robot/website` (plan 20) — the Playwright suite renders the REAL built artifact in a browser and asserts computed styles (the TECH-06 net), island hydration, and visual baselines. This is the layer that catches an unstyled/theme-not-applying regression; SSR-string smokes are blind to it.
+- **Every increment (PR-sized unit):** run `/increment-review` — three fresh-context reviewers that did not write the code (spec auditor vs the stage spec; correctness via the installed `/code-review` skill; simplicity critic vs the rules below), then a skeptic verifies bespoke findings before anything is acted on; judgment calls surface to the founder. Design-bearing increments (UI, copy, schema, flows) also run `/alignment-review` against the heuristic register. **Frontend/visual increments also run `/frontend-review`** — it renders the real production artifact and asserts computed styles + a style-only diff against the chosen mockup (never source-assumed styling — that is how the unstyled site passed review).
+- **Every stage gate:** high-effort review of the stage's full diff; architecture-conformance check (hexagonal boundaries, no adapter imports in core, file-size watchlist); eval scorecard vs baseline; **for user-facing stages, `/frontend-review` + the `npm run test:e2e` suite (real-browser, not SSR-string smokes)** on critical user flows; docs and `CLAUDE.md` updated.
 
 **Anti-over-engineering rules** (canonical copy — the simplicity critic loads these at review time; findings carry the same weight as bugs):
 
@@ -36,7 +38,7 @@ Review cadence (canonical: master plan §5.3):
 4. No config nobody sets.
 5. The deliverable is code a human developer reads without a guide.
 
-Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `docs/research/00-product-principles.md`.
+Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `/frontend-review` (`.claude/skills/frontend-review/` — perceptual + e2e gate; runs the plan-20 Playwright suite), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `docs/research/00-product-principles.md`. Frontend e2e/visual: `plans/20-frontend-visual-e2e-testing.md`.
 
 ## Anthropic usage budget (long autonomous runs)
 
@@ -123,6 +125,14 @@ Pulumi state is on a **local file backend** (`file://~`); secrets use a **passph
   npm run build              # bundle Lambdas — infra points at packages/bot/dist/*
   cd infra && pulumi up      # review diff, then "yes"
   ```
+
+**After a meaningful deploy (post-deploy verification).** For any deploy that ships a large chunk of
+work or touches the website, run the **deployed** frontend gate against the live site — it catches
+infra-boundary bugs local testing structurally can't (CloudFront content-types/caching, the scoped
+S3-presign IAM role, the real Lambda env, RDS connectivity, redirects/headers):
+`E2E_BASE_URL=https://<cloudfront-domain> npm run test:e2e:deployed -w @line-robot/website`, then run
+`/frontend-review <that-url>` for the visual design-review pass. (Same data-driven specs as local —
+they discover whatever's published live.) A red invariant here = the deploy is broken or behind.
 
 ## AWS identities (shared account 259543826733, region ap-southeast-1)
 

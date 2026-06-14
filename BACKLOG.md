@@ -13,7 +13,7 @@ be deferred and then forgotten. This file supersedes the sprint-01 `BLOCKERS.md`
   shipped." **Stage 2 and Stage 4 were never formally gated** — running those gates is itself a
   backlog item (below), and is how 4.1 (image rendering) should have been caught.
 
-_Last updated: 2026-06-13 (audited each OPEN item against code + git log; corrections below)._
+_Last updated: 2026-06-14 (session 2 — added the perceptual/visual quality gate; see below)._
 
 ## Status at a glance
 
@@ -35,6 +35,45 @@ reimported through v2 + published · v2 write-path verified vs real RDS · `fix/
 merged to `main` · the over-built `v2-catalog-cutover.md` spec deleted, finding salvaged · eval real
 baseline · Q-SA1 connection-budget assertion · increment-7 batch acceptance (API side) · sharp-on-
 Lambda mechanics proven.
+
+## Quality system — perceptual/visual gate added (2026-06-14, session 2)
+
+An **audit of the overnight orchestrator runs** found the root cause behind the TECH-06 near-miss
+(the whole public site shipped UNSTYLED — Times New Roman — through an entire build, caught only at
+the Stage-4 gate): **the quality loop was perceptually blind.** No check ever rendered the
+production site in a browser and asserted anything measurable — the one "visual" smoke ran the
+Tailwind component gallery (where tokens DO resolve), the website smokes were `body.includes()`
+string matches (byte-identical styled or not), and `/alignment-review` graded styling by reading
+`theme.css` source. Full post-mortem: the `quality-loop-perceptually-blind` memory.
+
+**Fixes built this session (NOT yet committed — on `main`, working tree):**
+- **`plans/20-frontend-visual-e2e-testing.md` — BUILT, 56/56 local green; deployed target proven.**
+  Committed Playwright suite (`packages/website/e2e/`) over the **real built artifact** (sirv static +
+  SSR + fake-S3 rendering 20 committed fixture images — reproduces the prod CloudFront/Lambda split,
+  NEVER the Tailwind gallery). **Model (founder-revised, session 2): NO pixel-regression** (premature
+  during theme work) — instead **invariants that survive theme churn** (theme applies / fonts
+  delivered / dark mode — TECH-06 net, **red-proof passed**; no-broken-images / no-JS-errors;
+  data-driven detail loop; click-through journeys) **+ capture-for-LLM-review** (a gitignored gallery
+  a `/frontend-review` sub-agent critiques vs the mockups/heuristics/taste — qualitative, not pixels).
+  **Data-driven** (discovers listings from the page) + **local/deployed targets** via `E2E_BASE_URL`
+  (same specs against seeded test data or the live CloudFront site). Research-first: 3 cited artifacts
+  in `plans/20-.../research-0{1,2,3}.md`. Pixel baselines + DB-driven assertions deferred to lock-in.
+- **New `/frontend-review` skill** (perceptual + e2e gate) + `/increment-review` & `/alignment-review`
+  wired to require it for frontend surfaces. **CLAUDE.md §Quality-system cadence updated** — this now
+  applies to ALL future plan-19 UI work (Stage 5 mini-app etc.): frontend changes run
+  `npm run test:e2e -w @line-robot/website` (free) + `/frontend-review` (per increment / user-facing gate).
+- **2nd gap the new pipeline found → FIXED:** brand fonts (Sarabun / Noto Sans Thai) were never
+  delivered (no `@font-face` anywhere — only named in the stack) → wired self-hosted `@fontsource`;
+  regression-guarded in the suite (asserts both families are in `document.fonts`).
+- **Mockups reframed** (`docs/design/mockups/README.md`): style = MATCH the mockups (the visual
+  acceptance reference); content/fields = driven by the live code/schema — "steal the styling, ignore
+  the data" (the earlier "inspiration only, rebuild from scratch" had thrown out the style bar too).
+- **E2E test fixtures:** 20 free-license (Pexels) property photos seeded into the e2e DB (house /
+  condo / NPA galleries) so card heroes + detail galleries render real images locally; the seed pins
+  `updatedAt` for deterministic snapshots (the screenshot privacy-mask is disabled — all test data).
+
+**Open:** commit this work (uncommitted); deferred hardening = regenerate baselines inside the pinned
+Playwright container for CI parity + broaden behaviour/browser coverage (plan 20 "deferred" tail).
 
 ---
 

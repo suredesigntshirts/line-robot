@@ -1,5 +1,13 @@
 # Morning Handoff — Sun Jun 14 (overnight orchestrated run)
 
+> **Addendum (2026-06-14, session 2 — founder-led audit of this run):** the audit traced the TECH-06
+> "shipped unstyled" near-miss to a **perceptually blind quality loop** and fixed it — a new
+> `/frontend-review` skill + a built Playwright **e2e/visual gate** (`plans/20`, 36/36 green) that
+> renders the real artifact and asserts computed styles; the brand-font delivery gap it found was
+> wired (`@fontsource`); mockups reframed (style=match, content=from code); 20 real fixture images
+> seeded. Details: **BACKLOG.md → "Quality system — perceptual/visual gate"** + the
+> `quality-loop-perceptually-blind` memory. (Uncommitted on `main`.)
+
 Autonomous thin-orchestrator run: one Opus increment-owner per backlog item, each taken to
 green → 3-reviewer panel (+ /alignment-review for design-bearing) → deployed → **verified on real
 infra** → committed → **pushed to `main`**. The orchestrator independently re-verified every claim

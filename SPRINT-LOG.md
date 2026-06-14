@@ -243,3 +243,25 @@ Buildable queue remaining: 4.9 (minor SEO/perf), 4.7 (schema gaps — founder di
 - **4.3 contextual price filter** (`91cd0d4`+`6b55fca`) — one range relabeling Buy↔Rent (`price_thb` vs `monthly_rent`), bands from `a2-market-landscape-north.md`; verified no cross-column leak (wrong-context band safely dropped).
 
 **Both never-run gates done: Stage 2 GATE-PASS (A8), Stage 4 CONDITIONAL-PASS (4.10). All Stages 0–4 gated.** Buildable queue EXHAUSTED → handoff in `MORNING.md`. Usage at wrap: 16% of the rolling 5h window (peaked ~24%); pacing never engaged. `origin/main` = `6b55fca`, tree clean. Founder queue: DF-6 descope, og:image-PII, condo floor/unit, domain D19 (→LINE Login 4.4), D7 consent, Stage 5 go, bless Stage 1–3 deviations.
+
+---
+
+## 2026-06-14 — Session 2 (founder-led audit of the overnight runs → quality-system fix)
+
+Not an autonomous sprint; a founder-driven post-mortem of the two overnight runs, then a fix.
+
+- **Audit finding:** the quality loop was **perceptually blind** — the TECH-06 "shipped unstyled"
+  near-miss happened because no check rendered prod pixels vs a target (the one visual smoke ran the
+  Tailwind gallery where tokens resolve; website smokes were `body.includes()` strings;
+  `/alignment-review` read `theme.css` source). Evidence from the sub-agent transcripts; full
+  post-mortem in the `quality-loop-perceptually-blind` memory.
+- **Built `plans/20` frontend visual + e2e pipeline (36/36 green):** Playwright suite over the REAL
+  built artifact (sirv static + SSR; not the gallery) — computed-style TECH-06 net (**red-proof
+  passed**), island-hydration + 4.3 relabel, 12 visual baselines. New `/frontend-review` skill;
+  `/increment-review` + `/alignment-review` + CLAUDE.md cadence wired to require it for frontend work.
+  Research-first (3 cited artifacts under `plans/20-.../`).
+- **2nd gap found + fixed:** brand fonts never delivered → wired self-hosted `@fontsource`
+  (regression-guarded). **Mockups reframed** (style=match / content=from code). **20 free-license
+  fixture images** seeded for the e2e galleries; snapshot privacy-mask disabled (all test data).
+- **State:** uncommitted on `main`. Source of truth: **BACKLOG.md → "Quality system — perceptual/
+  visual gate (2026-06-14)"**. This gate now applies to all future plan-19 UI work (Stage 5+).

@@ -38,4 +38,5 @@ Reviews one PR-sized increment against its stage spec and the project's quality 
 
 - Reviewers and skeptic are read-only: they never edit files. All fixes happen after the verdict, by the author.
 - Never soften a confirmed finding to keep momentum; never invent findings to seem thorough — a clean PASS is a valid outcome.
-- If the increment is design-bearing (UI, copy, schema, user-facing flows), remind the caller to also run `/alignment-review`.
+- If the increment is design-bearing (UI, copy, schema, user-facing flows), remind the caller to also run `/alignment-review` (semantic heuristics vs the research register).
+- If the increment touches a **frontend / visual surface** (`packages/website/**`, `packages/ui/**`, `theme.css`/tokens, any rendered Astro page / island / component), ALSO run `/frontend-review` — the perceptual + e2e gate that builds and serves the *real* production artifact, drives it in a real browser, and asserts computed styles + island behaviour + a style diff against the chosen mockup. This is the seat that catches an unstyled / theme-not-applying regression; the correctness, spec, simplicity, and alignment seats are all structurally blind to it (they read source / SSR-HTML strings, which are byte-identical whether the page paints styled or in Times New Roman). Never approve a frontend increment without it.
