@@ -9,7 +9,13 @@
  * the api for Build C/D — they are added here as one-line methods over the same `get`/`post`/etc.
  * helpers when those builds land, never a speculative interface now.
  */
-import type { ListingCardDto, ListingDetailDto } from "./types.ts";
+import type {
+  ListingCardDto,
+  ListingDetailDto,
+  ListingPatch,
+  NoteDto,
+  ViewingsDto,
+} from "./types.ts";
 
 /** The baked-in api base URL (`VITE_API_URL`), trimmed of any trailing slash. main.tsx binds the
  * production client to this + the LIFF id-token; the e2e harness/tests pass their own base. */
@@ -64,6 +70,48 @@ export function createApiClient(base: string, getToken: TokenSource) {
     /** `POST /properties/{id}/keep-private` — keep group-private (the default; revokes any consent). */
     keepPrivate: (id: string): Promise<{ status: string }> =>
       request<{ status: string }>(`${propertyPath(id)}/keep-private`, { method: "POST" }),
+
+    // --- Per-user CRM (Stage 5, Build D — D13) ----------------------------------
+
+    /** `GET /me/saved` — the listings the caller saved (card DTOs, each with `savedAt`). */
+    saved: (): Promise<ListingCardDto[]> => request<ListingCardDto[]>("/me/saved"),
+    /** `POST /properties/{id}/save` — save a listing (idempotent → `{status:"saved"}`). */
+    save: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/save`, { method: "POST" }),
+    /** `DELETE /properties/{id}/save` — un-save a listing (`{status:"unsaved"}`). */
+    unsave: (id: string): Promise<{ status: string }> =>
+      request<{ status: string }>(`${propertyPath(id)}/save`, { method: "DELETE" }),
+
+    /** `GET /me/viewings` — the caller's viewings, split `{upcoming, past}`. */
+    viewings: (): Promise<ViewingsDto> => request<ViewingsDto>("/me/viewings"),
+    /** `POST /properties/{id}/viewings` — book a viewing at `scheduledAt` (ISO-8601). `201 {viewingId,
+     * scheduledAt, status}`; a bad time is `400 invalid_time` → ApiError(400). */
+    createViewing: (
+      id: string,
+      scheduledAt: string,
+    ): Promise<{ viewingId: string; scheduledAt: string; status: string }> =>
+      request(`${propertyPath(id)}/viewings`, {
+        method: "POST",
+        body: JSON.stringify({ scheduledAt }),
+      }),
+
+    /** `GET /properties/{id}/notes` — the caller's OWN notes on a listing (never another user's). */
+    notes: (id: string): Promise<NoteDto[]> => request<NoteDto[]>(`${propertyPath(id)}/notes`),
+    /** `POST /properties/{id}/notes` — add a note. `201 {id, body, createdAt}`; an empty body is
+     * `400 empty_note` → ApiError(400) (the screen validates client-side too). */
+    addNote: (id: string, body: string): Promise<NoteDto> =>
+      request<NoteDto>(`${propertyPath(id)}/notes`, {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      }),
+
+    /** `PATCH /properties/{id}` — edit an owned listing's fields (NOT edit-by-reply). `200
+     * {status:"updated"}`; a non-claimant is `404 not_found`, a malformed body `400 invalid_body`. */
+    editListing: (id: string, patch: ListingPatch): Promise<{ status: string }> =>
+      request<{ status: string }>(propertyPath(id), {
+        method: "PATCH",
+        body: JSON.stringify(patch),
+      }),
   };
 }
 

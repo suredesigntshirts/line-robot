@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/app/App.tsx";
 import { type ApiClient, ApiError } from "../src/lib/api.ts";
-import { DETAIL } from "./fixtures.ts";
+import { DETAIL, makeFixtureApi } from "./fixtures.ts";
 
 // The claim/publish flow (Stage 5, Build C) driven through the real <App> router at `/claim/{id}` with
 // a fixture api client (the injection seam — no LIFF, no network). Asserts the four user-visible paths:
@@ -16,16 +16,9 @@ function setPath(path: string) {
   window.history.replaceState(null, "", path);
 }
 
-/** A fixture api with sp-yable claim/publish/keepPrivate; `listing` returns an unclaimed detail. */
+/** A fixture api with spy-able claim/publish/keepPrivate; `listing` returns an unclaimed detail. */
 function makeApi(over: Partial<ApiClient> = {}): ApiClient {
-  return {
-    myListings: async () => [],
-    listing: async () => structuredClone(UNCLAIMED),
-    claim: async () => ({ status: "claimed" }),
-    publish: async () => ({ status: "published" }),
-    keepPrivate: async () => ({ status: "group_private" }),
-    ...over,
-  };
+  return makeFixtureApi({ listing: async () => structuredClone(UNCLAIMED), ...over });
 }
 
 function renderClaim(api: ApiClient) {

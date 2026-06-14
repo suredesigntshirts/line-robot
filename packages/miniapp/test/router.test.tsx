@@ -2,16 +2,10 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { App } from "../src/app/App.tsx";
 import type { ApiClient } from "../src/lib/api.ts";
-import { DETAIL, MY_LISTINGS } from "./fixtures.ts";
+import { DETAIL, MY_LISTINGS, makeFixtureApi } from "./fixtures.ts";
 
 // A fixture api client (the injection seam — no LIFF, no network). The screens render from this.
-const fixtureApi: ApiClient = {
-  myListings: async () => structuredClone(MY_LISTINGS),
-  listing: async () => structuredClone(DETAIL),
-  claim: async () => ({ status: "claimed" }),
-  publish: async () => ({ status: "published" }),
-  keepPrivate: async () => ({ status: "group_private" }),
-};
+const fixtureApi: ApiClient = makeFixtureApi();
 
 function setPath(path: string) {
   window.history.replaceState(null, "", path);

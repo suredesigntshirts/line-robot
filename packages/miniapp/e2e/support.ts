@@ -4,7 +4,7 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
 // ONE fixture source (review finding #4): the e2e harness renders the SAME fixtures the unit tests
 // assert against (the full 5-listing spread incl. the rent + sold cards), so the e2e card-count + the
 // rent-price case stay honest. Image URLs already point at API_ORIGIN (intercepted below).
-import { API_ORIGIN, DETAIL, MY_LISTINGS } from "../test/fixtures.ts";
+import { API_ORIGIN, DETAIL, MY_LISTINGS, NOTES, SAVED, VIEWINGS } from "../test/fixtures.ts";
 
 // Shared helpers for the LIFF-SPA frontend gate (plan-20 net, ported from packages/website/e2e). The
 // SPA renders the REAL built artifact with a MOCKED LIFF context (the @line/liff alias in the e2e
@@ -15,7 +15,7 @@ import { API_ORIGIN, DETAIL, MY_LISTINGS } from "../test/fixtures.ts";
 /** Ephemeral review gallery (gitignored). Filenames self-describing ({project}-{screen}.png). */
 export const GALLERY_DIR = "test-results/gallery";
 
-export { API_ORIGIN, DETAIL, MY_LISTINGS };
+export { API_ORIGIN, DETAIL, MY_LISTINGS, NOTES, SAVED, VIEWINGS };
 
 // A 1x1 transparent PNG — a real, decodable image so assertNoBrokenImages passes (naturalWidth > 0).
 const PNG_1X1 = Buffer.from(
@@ -31,11 +31,20 @@ export interface MockApiOptions {
   claimStatus?: number;
   /** Override the `GET /properties/{id}` detail (defaults to the shared DETAIL fixture). */
   detail?: typeof DETAIL;
+  /** Override `GET /me/saved` (defaults to the shared SAVED fixture; `[]` exercises the empty state). */
+  saved?: typeof SAVED;
+  /** Override `GET /me/viewings` (defaults to VIEWINGS; `{upcoming:[],past:[]}` is the empty state). */
+  viewings?: typeof VIEWINGS;
+  /** The status `PATCH /properties/{id}` returns (200 updated / 404 non-claimant / 400 invalid). */
+  editStatus?: number;
+  /** The status `POST /properties/{id}/viewings` returns (201 created / 400 invalid_time). */
+  createViewingStatus?: number;
 }
 
 /** Install the api + image fixtures on a page. Asserts the request carried the Bearer id-token (the
- * mocked LIFF token), so the auth contract is exercised, not bypassed. Handles the GET reads AND the
- * Stage-5 claim/publish POST writes. Returns the seen tokens + a record of the POST writes observed. */
+ * mocked LIFF token), so the auth contract is exercised, not bypassed. Handles the GET reads (listings,
+ * detail, saved, viewings, notes) AND the Stage-5 writes (claim/publish/keep-private, save/unsave,
+ * create-viewing, add-note, edit). Returns the seen tokens + a record of the write requests observed. */
 export async function mockApi(
   page: Page,
   opts: MockApiOptions = {},
@@ -58,6 +67,73 @@ export async function mockApi(
         contentType: "application/json",
         body: JSON.stringify(MY_LISTINGS),
       });
+    }
+    // --- Per-user CRM reads (Stage 5, Build D) -------------------------------
+    if (url.pathname === "/me/saved") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(opts.saved ?? SAVED),
+      });
+    }
+    if (url.pathname === "/me/viewings") {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(opts.viewings ?? VIEWINGS),
+      });
+    }
+    if (req.method() === "GET" && /\/properties\/[^/]+\/notes$/.test(url.pathname)) {
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(NOTES),
+      });
+    }
+    // --- Per-user CRM writes (Stage 5, Build D) ------------------------------
+    if (
+      (req.method() === "POST" || req.method() === "DELETE") &&
+      /\/properties\/[^/]+\/save$/.test(url.pathname)
+    ) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const status = req.method() === "DELETE" ? "unsaved" : "saved";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status }),
+      });
+    }
+    if (req.method() === "POST" && /\/properties\/[^/]+\/viewings$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const status = opts.createViewingStatus ?? 201;
+      const body =
+        status === 201
+          ? { viewingId: "v-new", scheduledAt: "2030-12-31T03:00:00.000Z", status: "requested" }
+          : { error: "invalid_time" };
+      return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
+    }
+    if (req.method() === "POST" && /\/properties\/[^/]+\/notes$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const sent = JSON.parse(req.postData() ?? "{}") as { body?: string };
+      const text = typeof sent.body === "string" ? sent.body.trim() : "";
+      if (text === "") {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: '{"error":"empty_note"}',
+        });
+      }
+      return route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ id: "n-new", body: text, createdAt: "2026-06-14T10:00:00.000Z" }),
+      });
+    }
+    if (req.method() === "PATCH" && /^\/properties\/[^/]+$/.test(url.pathname)) {
+      writes.push(`${req.method()} ${url.pathname}`);
+      const status = opts.editStatus ?? 200;
+      const body = status === 200 ? { status: "updated" } : { error: "not_found" };
+      return route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     }
     // The claim/publish/keep-private POST writes (Stage 5, Build C).
     if (

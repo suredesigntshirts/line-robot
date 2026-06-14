@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   claimPath,
   detailPath,
+  editPath,
   normalizePath,
   parseRoute,
   resolveInitialPath,
@@ -52,6 +53,31 @@ describe("claim route (additive)", () => {
 
   it("the frozen detail shape is NOT shadowed by adding the claim route", () => {
     expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
+  });
+});
+
+// The ADDITIVE edit route (Stage 5, Build D) — `/edit/{id}` (the owner edit surface that replaced
+// edit-by-reply, A3a). The frozen shapes (and the claim route) are untouched.
+describe("edit route (additive)", () => {
+  it("`/edit/{id}` resolves to edit with the decoded id", () => {
+    expect(parseRoute("/edit/L-1")).toEqual({ name: "edit", id: "L-1" });
+    expect(parseRoute("/edit/L-1/")).toEqual({ name: "edit", id: "L-1" }); // trailing slash
+    expect(parseRoute("/edit/a%20b")).toEqual({ name: "edit", id: "a b" }); // url-decoded
+  });
+
+  it("editPath round-trips through parseRoute", () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    expect(parseRoute(editPath(id))).toEqual({ name: "edit", id });
+  });
+
+  it("a malformed edit path falls back to the list (never throws)", () => {
+    expect(parseRoute("/edit")).toEqual({ name: "list" });
+    expect(parseRoute("/edit/a/b")).toEqual({ name: "list" });
+  });
+
+  it("the frozen detail + additive claim shapes are NOT shadowed by adding the edit route", () => {
+    expect(parseRoute("/p/abc-123")).toEqual({ name: "detail", id: "abc-123" });
+    expect(parseRoute("/claim/abc-123")).toEqual({ name: "claim", id: "abc-123" });
   });
 });
 

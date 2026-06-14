@@ -4,11 +4,11 @@
  * frozen route shapes (`/` list, `/p/{id}` detail) are a tiny `parseRoute` switch; pulling in a
  * framework would violate the anti-over-engineering rules.
  *
- * ROUTE-SHAPE FREEZE: `/` = my-listings, `/p/{id}` = detail (plan-17 Flex deep links + rich-menu tabs
- * resolve here). New screens (claim/saved/viewings) are ADDITIVE — Build C/D extends `parseRoute`'s
- * union + adds a branch to the switch below WITHOUT changing the two frozen shapes. Until then the
- * my-listings header's saved/viewings tabs render an in-screen "coming soon" panel (no premature
- * route).
+ * ROUTE-SHAPE FREEZE: `/` = the CRM shell (listings/saved/viewings TABS), `/p/{id}` = detail (plan-17
+ * Flex deep links + rich-menu tabs resolve here). The additive routes are `/claim/{id}` (Build C) and
+ * `/edit/{id}` (Build D, the owner edit surface) — each extends `parseRoute`'s union + adds a branch
+ * to the switch below WITHOUT changing the two frozen shapes. Saved/viewings are tabs within `/`, not
+ * routes (the deep links never target them).
  */
 
 import { createTranslator, type UiLocale } from "@line-robot/ui";
@@ -17,6 +17,7 @@ import type { ApiClient } from "../lib/api.ts";
 import { normalizePath, parseRoute, resolveInitialPath } from "../lib/deeplink.ts";
 import { ClaimScreen } from "../screens/ClaimScreen.tsx";
 import { DetailScreen } from "../screens/DetailScreen.tsx";
+import { EditScreen } from "../screens/EditScreen.tsx";
 import { MyListingsScreen } from "../screens/MyListingsScreen.tsx";
 import { AppContextProvider } from "./context.ts";
 
@@ -62,6 +63,8 @@ export function App({ api, locale }: AppProps) {
         <DetailScreen id={route.id} />
       ) : route.name === "claim" ? (
         <ClaimScreen id={route.id} />
+      ) : route.name === "edit" ? (
+        <EditScreen id={route.id} />
       ) : (
         <MyListingsScreen />
       )}

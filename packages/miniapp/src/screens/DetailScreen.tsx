@@ -8,10 +8,14 @@
 import { FieldList, Screen } from "@line-robot/ui";
 import { useApp } from "../app/context.ts";
 import { useAsync } from "../app/useAsync.ts";
+import { BookViewing } from "../components/BookViewing.tsx";
 import { Gallery } from "../components/Gallery.tsx";
 import { LifecycleBadge } from "../components/LifecycleBadge.tsx";
+import { NotesSection } from "../components/NotesSection.tsx";
+import { SaveToggle } from "../components/SaveToggle.tsx";
 import { ErrorView, Loading } from "../components/States.tsx";
 import { ApiError } from "../lib/api.ts";
+import { editPath } from "../lib/deeplink.ts";
 import {
   detailHeadline,
   lifecycleKind,
@@ -57,7 +61,7 @@ export function DetailScreen({ id }: { id: string }) {
 }
 
 function DetailBody({ dto }: { dto: ListingDetailDto }) {
-  const { t } = useApp();
+  const { api, t, locale, navigate } = useApp();
   const kind = lifecycleKind(dto);
   const headline = detailHeadline(dto, t);
   const loc = locationLine(dto);
@@ -91,8 +95,23 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
     <article className="grid gap-4" lang="th" data-th-content>
       {/* Headline + status + price hero. */}
       <header className="grid gap-2">
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <LifecycleBadge kind={kind} t={t} />
+          {/* Save/unsave (optimistic). For the owner, an edit entry instead/alongside (own listing). */}
+          <div className="flex items-center gap-1.5">
+            <SaveToggle id={dto.id} api={api} t={t} />
+            {dto.isClaimedByMe && (
+              <button
+                type="button"
+                data-edit-listing={dto.id}
+                onClick={() => navigate(editPath(dto.id))}
+                className="rounded-full border border-border bg-surface px-3 py-1.5 font-body-th font-semibold text-primary-600 text-sm leading-relaxed"
+                lang="th"
+              >
+                {t("edit.cta")}
+              </button>
+            )}
+          </div>
         </div>
         <h1 className="m-0 font-heading-th font-bold text-lg text-text leading-snug">{headline}</h1>
         <div className="font-body-th">
@@ -151,6 +170,14 @@ function DetailBody({ dto }: { dto: ListingDetailDto }) {
           </a>
         </section>
       )}
+
+      {/* Book a viewing (D13) — native datetime-local picker → POST /properties/{id}/viewings. */}
+      <section className="grid gap-1.5">
+        <BookViewing id={dto.id} api={api} t={t} />
+      </section>
+
+      {/* Follow-up notes (D13) — the caller's own notes on this listing. */}
+      <NotesSection id={dto.id} api={api} t={t} locale={locale} />
 
       {/* LEGAL-06: poster-provided disclaimer (P4). Thai body text. */}
       <p className="m-0 font-body-th text-sm text-text-disabled leading-relaxed">

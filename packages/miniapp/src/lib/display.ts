@@ -126,3 +126,76 @@ export function detailHeadline(dto: ListingDetailDto, t: Translator): string {
 export function mapsUri(lat: number, lon: number): string {
   return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 }
+
+// --- Viewing date/time formatting (Stage 5, Build D — D13) ------------------
+//
+// The viewings mock (explore-stage5-3-viewings.html) shows a date BUBBLE (big day number + short Thai
+// month) and a time line. Thai locales (th-TH) render the Buddhist-era calendar natively via Intl, so
+// the note-meta year reads "2569" as in the mock; the bubble shows only day + month so the era doesn't
+// clutter it. `en` falls back to the Gregorian locale (the SPA is th-default, but the locale flips with
+// LIFF's reported language). All pure — no DOM — so they're unit-testable.
+
+/** A viewing's date bubble: the day number + the short localized month (e.g. `{ day: "14", month:
+ * "มิ.ย." }`). Latin numerals stay Latin via the bubble's `font-latin`; the month is localized. */
+export function viewingDateBubble(
+  iso: string,
+  locale: "th" | "en",
+): { day: string; month: string } {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { day: "—", month: "" };
+  // `en-US` numerals for the day (the mock's bubble uses Latin digits in both locales); the month is
+  // localized (th → "มิ.ย.", en → "Jun"). For th we still want the Buddhist calendar's month name,
+  // which `th-TH` gives; the day number is calendar-agnostic.
+  const day = new Intl.DateTimeFormat("en-US", { day: "numeric" }).format(d);
+  const month = new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+    month: "short",
+  }).format(d);
+  return { day, month };
+}
+
+/** A viewing's time-of-day range start (e.g. "10:00") — 24h, locale-stable. The api stores a single
+ * scheduledAt; we render the start time (no end time in the schema — the mock's range is illustrative). */
+export function viewingTime(iso: string, locale: "th" | "en"): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
+/** A full date-time stamp for a note's meta line / a viewing's full date (Buddhist-era for th — "14
+ * มิ.ย. 2569"). Uses the native th-TH Buddhist calendar so the year matches the mock's "2569". */
+export function fullDateTime(iso: string, locale: "th" | "en"): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+}
+
+/** The viewing status → catalog label key (the status pill on a viewing card). */
+export function viewingStatusKey(
+  status: string,
+):
+  | "viewing.statusRequested"
+  | "viewing.statusConfirmed"
+  | "viewing.statusDone"
+  | "viewing.statusCancelled" {
+  switch (status) {
+    case "confirmed":
+      return "viewing.statusConfirmed";
+    case "done":
+      return "viewing.statusDone";
+    case "cancelled":
+      return "viewing.statusCancelled";
+    default:
+      return "viewing.statusRequested";
+  }
+}

@@ -1,9 +1,8 @@
 /**
- * The my-listings app header + CRM tab bar (D13: my listings / saved / viewings). Mock-faithful to
- * `.app-header` + `.tab-bar` in explore-stage5-2-mylistings.html, authored in Tailwind utilities. The
- * three tabs are the D13 owner surfaces; saved + viewings are ADDITIVE (Build C/D) — tapping them
- * here switches an in-screen panel to a "coming soon" placeholder (no premature route). `data-th-content`
- * marks the Thai chrome so the TH-07 line-height net measures it.
+ * The CRM app header + tab bar (D13: my listings / saved / viewings). Mock-faithful to `.app-header` +
+ * `.tab-bar` in explore-stage5-2-mylistings.html, authored in Tailwind utilities. The three tabs are
+ * the D13 owner surfaces; tapping one swaps the panel beneath (MyListingsScreen owns the switch — these
+ * are tabs, not routes). `data-th-content` marks the Thai chrome so the TH-07 line-height net measures it.
  */
 import type { Translator } from "@line-robot/ui";
 

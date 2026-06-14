@@ -37,6 +37,38 @@ export function EmptyListings({ t }: { t: Translator }) {
   );
 }
 
+/** The SAVED-tab empty state (COPY-07: what + why + next). */
+export function SavedEmpty({ t }: { t: Translator }) {
+  return (
+    <div className={BOX} data-state="empty-saved" data-th-content>
+      <span aria-hidden="true" className="text-4xl opacity-40">
+        🔖
+      </span>
+      <div className="font-heading-th font-semibold text-md leading-normal">
+        {t("saved.emptyTitle")}
+      </div>
+      <div className="text-base text-text-2 leading-relaxed">{t("saved.emptyWhy")}</div>
+      <div className="text-sm text-text-2 leading-relaxed">{t("saved.emptyNext")}</div>
+    </div>
+  );
+}
+
+/** The VIEWINGS-tab empty state (COPY-07: what + why + next). */
+export function ViewingsEmpty({ t }: { t: Translator }) {
+  return (
+    <div className={BOX} data-state="empty-viewings" data-th-content>
+      <span aria-hidden="true" className="text-4xl opacity-40">
+        📅
+      </span>
+      <div className="font-heading-th font-semibold text-md leading-normal">
+        {t("viewing.emptyTitle")}
+      </div>
+      <div className="text-base text-text-2 leading-relaxed">{t("viewing.emptyWhy")}</div>
+      <div className="text-sm text-text-2 leading-relaxed">{t("viewing.emptyNext")}</div>
+    </div>
+  );
+}
+
 /** The error state. `status` distinguishes 401 (re-open in LINE) / 404 (not yours/gone) / other. */
 export function ErrorView({
   t,

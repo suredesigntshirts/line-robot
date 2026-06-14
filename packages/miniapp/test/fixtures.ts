@@ -7,7 +7,14 @@
  * Image URLs are built from {@link API_ORIGIN} so the e2e harness can intercept them via Playwright
  * `page.route(`${API_ORIGIN}/**`)`; the unit tests don't fetch them (they only assert <img> presence).
  */
-import type { ListingCardDto, ListingDetailDto } from "../src/lib/types.ts";
+import type { ApiClient } from "../src/lib/api.ts";
+import type {
+  ListingCardDto,
+  ListingDetailDto,
+  NoteDto,
+  ViewingDto,
+  ViewingsDto,
+} from "../src/lib/types.ts";
 
 /** The api origin the e2e build is pinned to (vite.config.ts `define`); all api + image URLs hit it. */
 export const API_ORIGIN = "https://e2e.api.local";
@@ -124,3 +131,65 @@ export const DETAIL: ListingDetailDto = {
     { url: img("a2"), kind: "photo", isThumb: true },
   ],
 };
+
+// --- Per-user CRM fixtures (Stage 5, Build D — D13) -------------------------
+
+/** The user's saved listings (`GET /me/saved`) — card DTOs with a `savedAt` (newest first). Reuses two
+ * of the my-listings cards so the saved render is a real, distinct set the test counts. */
+export const SAVED: ListingCardDto[] = [
+  { ...LISTING_ACTIVE, savedAt: "2026-06-12T09:00:00.000Z" },
+  { ...LISTING_RENT, savedAt: "2026-06-10T09:00:00.000Z" },
+];
+
+/** Two upcoming + one past viewing (`GET /me/viewings`). `scheduledAt` is an ISO string (the api
+ * serializes the DB Date). The listing on each is a slim card DTO. */
+const viewing = (
+  viewingId: string,
+  scheduledAt: string,
+  status: ViewingDto["status"],
+  listing: ListingCardDto,
+): ViewingDto => ({ viewingId, scheduledAt, status, listing });
+
+export const VIEWINGS: ViewingsDto = {
+  upcoming: [
+    viewing("v-1", "2026-06-20T03:00:00.000Z", "confirmed", LISTING_OFFER),
+    viewing("v-2", "2026-06-22T07:30:00.000Z", "requested", LISTING_ACTIVE),
+  ],
+  past: [viewing("v-3", "2026-06-01T06:00:00.000Z", "done", LISTING_SOLD)],
+};
+
+/** The caller's own notes on a listing (`GET /properties/{id}/notes`, newest first). */
+export const NOTES: NoteDto[] = [
+  {
+    id: "n-1",
+    body: "โทรถามเจ้าของเรื่องราคา ต่อรองได้อีก 200,000",
+    createdAt: "2026-06-11T04:00:00.000Z",
+  },
+  { id: "n-2", body: "ทำเลดี ใกล้ตลาด เดินทางสะดวก", createdAt: "2026-06-09T08:30:00.000Z" },
+];
+
+/** A complete fixture {@link ApiClient} (the injection seam — no LIFF, no network). Every method has a
+ * sensible default returning the fixtures above; pass `over` to spy on / override any of them. Shared by
+ * the router, claim, and CRM component tests so they don't each re-stub the whole client. */
+export function makeFixtureApi(over: Partial<ApiClient> = {}): ApiClient {
+  return {
+    myListings: async () => structuredClone(MY_LISTINGS),
+    listing: async () => structuredClone(DETAIL),
+    claim: async () => ({ status: "claimed" }),
+    publish: async () => ({ status: "published" }),
+    keepPrivate: async () => ({ status: "group_private" }),
+    saved: async () => structuredClone(SAVED),
+    save: async () => ({ status: "saved" }),
+    unsave: async () => ({ status: "unsaved" }),
+    viewings: async () => structuredClone(VIEWINGS),
+    createViewing: async (_id, scheduledAt) => ({
+      viewingId: "v-new",
+      scheduledAt,
+      status: "requested",
+    }),
+    notes: async () => structuredClone(NOTES),
+    addNote: async (_id, body) => ({ id: "n-new", body, createdAt: "2026-06-14T10:00:00.000Z" }),
+    editListing: async () => ({ status: "updated" }),
+    ...over,
+  };
+}

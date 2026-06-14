@@ -4,12 +4,16 @@ import {
   cardHeadline,
   detailHeadline,
   formatThb,
+  fullDateTime,
   lifecycleKind,
   locationLine,
   mapsUri,
   priceFrameKey,
   priceText,
   propertyTypeKey,
+  viewingDateBubble,
+  viewingStatusKey,
+  viewingTime,
 } from "../src/lib/display.ts";
 import { DETAIL, LISTING_ACTIVE, LISTING_RENT, MY_LISTINGS } from "./fixtures.ts";
 
@@ -101,5 +105,58 @@ describe("mapsUri", () => {
     expect(mapsUri(18.79, 98.95)).toBe(
       "https://www.google.com/maps/search/?api=1&query=18.79,98.95",
     );
+  });
+});
+
+// --- Viewing date/time formatting (Stage 5, Build D — D13) ------------------
+// A fixed UTC instant: 2026-06-20T03:00:00Z = 10:00 in Asia/Bangkok (UTC+7). The Intl outputs are
+// asserted structurally (Latin day digit, non-empty Thai month, 24h time, B.E. year) so they don't
+// break on a non-Bangkok CI tz — except the deterministic en-US cases, which are exact.
+
+const ISO = "2026-06-20T03:00:00.000Z";
+
+describe("viewingDateBubble", () => {
+  it("returns a Latin day number + a localized short month", () => {
+    const en = viewingDateBubble(ISO, "en");
+    expect(en.month).toBe("Jun"); // en-US short month is deterministic
+    expect(en.day).toMatch(/^\d{1,2}$/); // Latin day digit
+    const th = viewingDateBubble(ISO, "th");
+    expect(th.day).toMatch(/^\d{1,2}$/); // the day is Latin in both locales
+    expect(th.month).not.toBe(""); // a localized Thai month abbreviation
+  });
+  it("returns an em-dash bubble for an unparseable date (never throws)", () => {
+    expect(viewingDateBubble("not-a-date", "th")).toEqual({ day: "—", month: "" });
+  });
+});
+
+describe("viewingTime", () => {
+  it("renders a 24h HH:mm time", () => {
+    expect(viewingTime(ISO, "en")).toMatch(/^\d{2}:\d{2}$/);
+  });
+  it("returns '' for an unparseable date", () => {
+    expect(viewingTime("nope", "en")).toBe("");
+  });
+});
+
+describe("fullDateTime", () => {
+  it("includes a year for the th (Buddhist-era) stamp — 2026 → 2569", () => {
+    // The th-TH locale defaults to the Buddhist calendar: 2026 CE = 2569 BE.
+    expect(fullDateTime(ISO, "th")).toContain("2569");
+  });
+  it("includes the Gregorian year for en", () => {
+    expect(fullDateTime(ISO, "en")).toContain("2026");
+  });
+  it("returns '' for an unparseable date", () => {
+    expect(fullDateTime("", "th")).toBe("");
+  });
+});
+
+describe("viewingStatusKey", () => {
+  it("maps each viewing status to its label key, defaulting to requested", () => {
+    expect(viewingStatusKey("confirmed")).toBe("viewing.statusConfirmed");
+    expect(viewingStatusKey("done")).toBe("viewing.statusDone");
+    expect(viewingStatusKey("cancelled")).toBe("viewing.statusCancelled");
+    expect(viewingStatusKey("requested")).toBe("viewing.statusRequested");
+    expect(viewingStatusKey("anything-else")).toBe("viewing.statusRequested");
   });
 });

@@ -12,7 +12,7 @@
  */
 import type { DealType, PropertyType, RentalStatus, SaleStage } from "@line-robot/domain";
 
-/** A card row from `GET /me/listings` (also the shape inside saved/viewings later, Build D). */
+/** A card row from `GET /me/listings` (also the shape inside saved/viewings, Build D). */
 export interface ListingCardDto {
   readonly id: string;
   readonly dealType: DealType;
@@ -30,6 +30,51 @@ export interface ListingCardDto {
   readonly heroUrl?: string;
   /** Whether this listing is publicly published (my-listings only). */
   readonly isPublished?: boolean;
+  /** ISO-8601 timestamp the listing was saved (`GET /me/saved` cards only). Orders newest-first. */
+  readonly savedAt?: string;
+}
+
+/** A viewing lifecycle status (`GET /me/viewings`). Mirrors @line-robot/domain `viewingStatus`. */
+export type ViewingStatusDto = "requested" | "confirmed" | "done" | "cancelled";
+
+/** One viewing from `GET /me/viewings` (in the `upcoming`/`past` arrays). `scheduledAt` is an ISO-8601
+ * string (the api serializes the DB `Date`); `listing` is the slim card DTO. */
+export interface ViewingDto {
+  readonly viewingId: string;
+  readonly scheduledAt: string;
+  readonly status: ViewingStatusDto;
+  readonly listing: ListingCardDto;
+}
+
+/** `GET /me/viewings` → the two sections the screen renders (upcoming + past). */
+export interface ViewingsDto {
+  readonly upcoming: readonly ViewingDto[];
+  readonly past: readonly ViewingDto[];
+}
+
+/** A per-user follow-up note on a listing (`GET /properties/{id}/notes` — the caller's own only). */
+export interface NoteDto {
+  readonly id: string;
+  readonly body: string;
+  /** ISO-8601 timestamp the note was created (the api serializes the DB `Date`). */
+  readonly createdAt: string;
+}
+
+/** The owner-editable fields of a claimed listing (`PATCH /properties/{id}`). Every field is optional —
+ * the api applies only the keys present (the allowlist mirrors the server's EDITABLE_*_FIELDS). String
+ * fields trim server-side; `monthlyRent` is applied only to a rent listing (claimant-only, enforced
+ * server-side → a non-claimant PATCH is `404 not_found`). */
+export interface ListingPatch {
+  readonly landmark?: string;
+  readonly projectName?: string;
+  readonly addressDetail?: string;
+  readonly province?: string;
+  readonly amphoe?: string;
+  readonly tambon?: string;
+  readonly priceThb?: number;
+  readonly bedrooms?: number;
+  readonly bathrooms?: number;
+  readonly monthlyRent?: number;
 }
 
 /** One presigned photo in a detail response. `kind` is the media kind (photo/chanote/…). */

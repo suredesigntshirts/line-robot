@@ -247,9 +247,76 @@ export const th = {
   "field.province": "จังหวัด",
   "field.amphoe": "อำเภอ",
   "field.tambon": "ตำบล",
-  // Coming-soon tabs (Build C/D — additive routes). Shown as a calm placeholder, not an error.
-  "crm.comingSoon": "เร็วๆ นี้",
-  "crm.comingSoonBody": "ส่วนนี้กำลังจะมาในเร็วๆ นี้",
+  // ============================================================
+  // Per-user CRM (Stage 5, Build D — D13): saved / viewings / notes / owner-edit. Bare-verb CTAs
+  // (COPY-02). Style matches docs/design/mockups/explore-stage5-3-viewings.html + direction-a.
+  // ============================================================
+  // Saved tab (GET /me/saved).
+  "saved.loading": "กำลังโหลดรายการที่บันทึกไว้…",
+  "saved.emptyTitle": "ยังไม่มีรายการที่บันทึก",
+  "saved.emptyWhy": "ประกาศที่คุณกดบันทึกจะปรากฏที่นี่",
+  "saved.emptyNext": "เปิดประกาศแล้วกดบันทึกเพื่อเก็บไว้ดูภายหลัง",
+  "saved.count": "{count} รายการ",
+  // Save/unsave toggle on the detail screen (optimistic).
+  "save.save": "บันทึก",
+  "save.saved": "บันทึกแล้ว",
+  "save.toggleLabel": "บันทึกประกาศนี้",
+
+  // Viewings tab (GET /me/viewings) — upcoming + past sections.
+  "viewing.loading": "กำลังโหลดนัดดูทรัพย์…",
+  "viewing.upcomingHead": "นัดดูที่กำลังจะถึง",
+  "viewing.pastHead": "ดูแล้ว",
+  "viewing.count": "{count} รายการ",
+  "viewing.emptyTitle": "ยังไม่มีนัดดูทรัพย์",
+  "viewing.emptyWhy": "นัดดูทรัพย์ที่คุณสร้างจะปรากฏที่นี่",
+  "viewing.emptyNext": "เปิดประกาศแล้วกด “นัดดูทรัพย์” เพื่อสร้างนัด",
+  // Viewing status pills (domain viewingStatus).
+  "viewing.statusRequested": "รอยืนยัน",
+  "viewing.statusConfirmed": "ยืนยันแล้ว",
+  "viewing.statusDone": "ดูแล้ว",
+  "viewing.statusCancelled": "ยกเลิกแล้ว",
+  // Create-a-viewing (on the detail screen).
+  "viewing.bookCta": "นัดดูทรัพย์",
+  "viewing.bookTitle": "เลือกวันและเวลานัดดู",
+  "viewing.pickLabel": "วันและเวลา",
+  "viewing.submit": "ยืนยันนัดดู",
+  "viewing.submitting": "กำลังบันทึก…",
+  "viewing.cancel": "ยกเลิก",
+  "viewing.created": "สร้างนัดดูทรัพย์แล้ว",
+  "viewing.errorPast": "กรุณาเลือกเวลาในอนาคต",
+  "viewing.errorInvalid": "เวลาไม่ถูกต้อง กรุณาเลือกใหม่",
+
+  // Notes / follow-ups (per listing, the caller's own — GET/POST /properties/{id}/notes).
+  "notes.head": "บันทึกของฉัน",
+  "notes.loading": "กำลังโหลดบันทึก…",
+  "notes.empty": "ยังไม่มีบันทึกสำหรับประกาศนี้",
+  "notes.placeholder": "เพิ่มบันทึกส่วนตัว เช่น สิ่งที่ต้องถามเจ้าของ…",
+  "notes.add": "เพิ่มบันทึก",
+  "notes.adding": "กำลังบันทึก…",
+  "notes.errorEmpty": "กรุณากรอกข้อความก่อนบันทึก",
+  "notes.private": "บันทึกเหล่านี้เป็นส่วนตัว เห็นได้เฉพาะคุณเท่านั้น",
+
+  // Owner edit surface (PATCH /properties/{id}) — the mini-app edit form (NOT edit-by-reply).
+  "edit.cta": "แก้ไขประกาศ",
+  "edit.title": "แก้ไขประกาศ",
+  "edit.loading": "กำลังโหลดประกาศ…",
+  "edit.fieldPriceThb": "ราคาขาย (บาท)",
+  "edit.fieldMonthlyRent": "ค่าเช่า/เดือน (บาท)",
+  "edit.fieldBedrooms": "ห้องนอน",
+  "edit.fieldBathrooms": "ห้องน้ำ",
+  "edit.fieldProjectName": "โครงการ",
+  "edit.fieldLandmark": "จุดสังเกต",
+  "edit.fieldTambon": "ตำบล",
+  "edit.fieldAmphoe": "อำเภอ",
+  "edit.fieldProvince": "จังหวัด",
+  "edit.save": "บันทึกการแก้ไข",
+  "edit.saving": "กำลังบันทึก…",
+  "edit.savedTitle": "บันทึกการแก้ไขแล้ว",
+  "edit.savedBody": "ข้อมูลประกาศได้รับการอัปเดตแล้ว",
+  "edit.errorTitle": "บันทึกไม่สำเร็จ",
+  "edit.errorBody": "เกิดข้อผิดพลาดชั่วคราว กรุณาลองใหม่อีกครั้ง",
+  "edit.notOwnerBody": "คุณไม่มีสิทธิ์แก้ไขประกาศนี้ หรือประกาศไม่พบ",
+  "edit.back": "กลับ",
 
   // ============================================================
   // Claim / publish flow (Stage 5, Build C — D7 poster opt-in). The LIFF claim screen the bot DM

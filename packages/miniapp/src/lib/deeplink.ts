@@ -12,11 +12,13 @@
  * inside the `liff.state` query parameter (urlencoded). {@link resolveInitialPath} normalizes both.
  */
 
-/** The view a path maps to. Additive routes (claim/saved/viewings) extend this union in Build C/D. */
+/** The view a path maps to. Additive routes (claim/edit) extend this union; saved/viewings are TABS
+ * within the list shell (`/`), not their own routes (the rich-menu/Flex deep links never target them). */
 export type Route =
   | { readonly name: "list" }
   | { readonly name: "detail"; readonly id: string }
-  | { readonly name: "claim"; readonly id: string };
+  | { readonly name: "claim"; readonly id: string }
+  | { readonly name: "edit"; readonly id: string };
 
 /** Strip a trailing slash (but keep "/"). */
 export function normalizePath(path: string): string {
@@ -71,6 +73,10 @@ export function parseRoute(path: string): Route {
   if (claim?.[1] !== undefined) {
     return { name: "claim", id: decodeId(claim[1]) };
   }
+  const edit = /^\/edit\/([^/]+)$/.exec(normalized);
+  if (edit?.[1] !== undefined) {
+    return { name: "edit", id: decodeId(edit[1]) };
+  }
   return { name: "list" };
 }
 
@@ -83,4 +89,11 @@ export function detailPath(listingId: string): string {
  * to it post-claim's parent (My Listings) on completion. ADDITIVE — the frozen shapes are untouched. */
 export function claimPath(listingId: string): string {
   return `/claim/${encodeURIComponent(listingId)}`;
+}
+
+/** The path for a listing's owner EDIT screen (`/edit/{id}`, Build D). Reached from the my-listings
+ * card + the detail screen (owner only). ADDITIVE — the frozen shapes are untouched; this is the
+ * mini-app edit surface that replaced edit-by-reply (A3a). */
+export function editPath(listingId: string): string {
+  return `/edit/${encodeURIComponent(listingId)}`;
 }
