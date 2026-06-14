@@ -3,6 +3,7 @@ import type { ConversationRef } from "../../src/core/domain/conversation.js";
 import { CatalogAssistant } from "../../src/core/handlers/catalogAssistant.js";
 import { ACTIONS, encodePostback } from "../../src/core/handlers/commands.js";
 import { CatalogPostbackRouter } from "../../src/core/handlers/postbackRouter.js";
+import type { ReleaseDecider } from "../../src/core/handlers/releaseDecider.js";
 import { FakeCatalog } from "../fixtures/fakeCatalog.js";
 import { textOf } from "../fixtures/outbound.js";
 
@@ -159,5 +160,78 @@ describe("CatalogPostbackRouter", () => {
       data: encodePostback(ACTIONS.listings),
     });
     expect(textOf(out[0])).toContain("couldn't tell who you are");
+  });
+
+  // Stage 6 (D-S6-4) — the three release-prompt decisions delegate to the (optional) ReleaseDecider,
+  // passing the caller's LINE user id + the listing id. A fake decider records the dispatch. The router
+  // only calls the three methods, so the fake is cast through `unknown` to the ReleaseDecider port.
+  describe("release-prompt decisions (Stage 6)", () => {
+    function fakeDecider() {
+      const calls: Array<{ method: string; lineUserId: string; listingId: string }> = [];
+      const mk = (method: string) => async (lineUserId: string, listingId: string) => {
+        calls.push({ method, lineUserId, listingId });
+        return [{ type: "text" as const, text: `${method}-ok` }];
+      };
+      const decider = {
+        releasePublicly: mk("releasePublicly"),
+        releaseToOtherGroups: mk("releaseToOtherGroups"),
+        extend: mk("extend"),
+      } as unknown as ReleaseDecider;
+      return { calls, decider };
+    }
+
+    it("routes each of the three actions to the matching ReleaseDecider method (caller + listing id)", async () => {
+      const { calls, decider } = fakeDecider();
+      const router = new CatalogPostbackRouter(
+        new CatalogAssistant(new FakeCatalog(), clock),
+        decider,
+      );
+
+      expect(
+        textOf(
+          (
+            await router.route({
+              ref: DM,
+              data: encodePostback(ACTIONS.releasePublicly, { id: "L1" }),
+            })
+          )[0],
+        ),
+      ).toBe("releasePublicly-ok");
+      await router.route({
+        ref: DM,
+        data: encodePostback(ACTIONS.releaseToOtherGroups, { id: "L2" }),
+      });
+      await router.route({
+        ref: DM,
+        data: encodePostback(ACTIONS.extendExclusivity, { id: "L3" }),
+      });
+
+      expect(calls).toEqual([
+        { method: "releasePublicly", lineUserId: "U1", listingId: "L1" },
+        { method: "releaseToOtherGroups", lineUserId: "U1", listingId: "L2" },
+        { method: "extend", lineUserId: "U1", listingId: "L3" },
+      ]);
+    });
+
+    it("no-ops a release postback when no ReleaseDecider is wired (Stage-6 flow off)", async () => {
+      // routerWith() builds a router with no decider.
+      expect(
+        await routerWith().route({
+          ref: DM,
+          data: encodePostback(ACTIONS.releasePublicly, { id: "L1" }),
+        }),
+      ).toEqual([]);
+    });
+
+    it("no-ops a release postback with no listing id", async () => {
+      const { decider } = fakeDecider();
+      const router = new CatalogPostbackRouter(
+        new CatalogAssistant(new FakeCatalog(), clock),
+        decider,
+      );
+      expect(
+        await router.route({ ref: DM, data: encodePostback(ACTIONS.releasePublicly) }),
+      ).toEqual([]);
+    });
   });
 });

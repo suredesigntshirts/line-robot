@@ -211,6 +211,71 @@ export function claimInviteCard(listingTitle: string, claimUrl: string): Outboun
   return { type: "flex", altText: "ตรวจสอบและอ้างสิทธิ์ประกาศของคุณ", cards: [card] };
 }
 
+/** The MINI App deep link to a listing's QUOTE screen (`{base}/quote/{id}`), or undefined when no
+ * base URL is configured. The webview's router resolves `/quote/{id}` (the INC-B3 quote-response
+ * screen); the matched-vetted Flex push (Stage 6) leads with this CTA. Additive to the frozen shapes. */
+export function quoteDeepLink(baseUrl: string | undefined, listingId: string): string | undefined {
+  if (baseUrl === undefined || baseUrl === "") {
+    return undefined;
+  }
+  return `${baseUrl.replace(/\/+$/, "")}/quote/${encodeURIComponent(listingId)}`;
+}
+
+/**
+ * The exclusivity-lapse release-prompt DM (Stage 6, D-S6-4). A Flex card pushed ONCE to the poster
+ * when a listing's exclusivity window lapses, offering three decisions as postback buttons:
+ * release-publicly / release-to-other-groups / extend. Tapping fires the matching {@link ACTIONS}
+ * postback the {@link ./postbackRouter}'s Stage-6 handlers resolve. Ignoring the card does nothing —
+ * the listing stays group-private (no silent auto-release). Thai copy (the poster's locale);
+ * provider-agnostic (LINE Flex JSON is built later in the gateway).
+ */
+export function releasePromptCard(listingId: string, listingTitle: string): OutboundMessage {
+  const card: PropertyCard = {
+    title: "⏰ หมดช่วงเวลาเฉพาะกลุ่มแล้ว",
+    headline: listingTitle,
+    rows: [],
+    notes: ["เลือกได้ว่าจะเผยแพร่สู่สาธารณะ เปิดให้กลุ่มอื่น หรือต่อเวลาเฉพาะกลุ่มเดิม"],
+    actions: [
+      {
+        label: "เผยแพร่สู่สาธารณะ",
+        data: encodePostback(ACTIONS.releasePublicly, { id: listingId }),
+      },
+      {
+        label: "เปิดให้กลุ่มอื่น",
+        data: encodePostback(ACTIONS.releaseToOtherGroups, { id: listingId }),
+      },
+      {
+        label: "ต่อเวลาเฉพาะกลุ่มเดิม",
+        data: encodePostback(ACTIONS.extendExclusivity, { id: listingId }),
+      },
+    ],
+  };
+  // EN alt text (notifications + non-Flex clients): the action is clear without the buttons.
+  return {
+    type: "flex",
+    altText: "Your exclusivity window has lapsed — choose how to release",
+    cards: [card],
+  };
+}
+
+/**
+ * The quick-quote Flex push (Stage 6, D10/D-S6-6). Pushed to each matched vetted broker/investor when
+ * a claimant flags a listing as a quick sale. A Flex card: the listing title + a "quick sale" framing,
+ * and a single CTA deep-linking to the MINI App quote-response screen (`{base}/quote/{id}`). The deep
+ * link is required — the sweep only builds this card when a `miniappUrl` is configured, so the CTA
+ * always resolves. Thai copy (the recipient's locale); provider-agnostic.
+ */
+export function quickQuoteCard(listingTitle: string, quoteUrl: string): OutboundMessage {
+  const card: PropertyCard = {
+    title: "⚡ ขายด่วน — เชิญเสนอราคา",
+    headline: listingTitle,
+    rows: [],
+    notes: ["ทรัพย์ขายด่วนที่ตรงกับเกณฑ์ของคุณ · เสนอราคาผ่านแอป"],
+    actions: [{ label: "เสนอราคา", data: "", mode: "uri", uri: quoteUrl }],
+  };
+  return { type: "flex", altText: "ทรัพย์ขายด่วนที่ตรงกับเกณฑ์ของคุณ — เสนอราคา", cards: [card] };
+}
+
 /** Push `{label, value}` only when `value` is a non-empty string (keeps the detail card to fields we
  * actually have — nulls are simply omitted). */
 function pushRow(rows: PropertyCardRow[], label: string, value?: string): void {

@@ -278,6 +278,10 @@ export const listings = pgTable(
     // open-question resolution). Publishing is consent-driven (publish_consent / LEGAL-02), NOT a column
     // here — a claim is "I own this", publish is the separate "make it public" decision.
     claimInvitedAt: timestamp("claim_invited_at", { withTimezone: true }),
+    // Stage 6 (D10/D-S6-6) — the one-shot quick-quote Flex-push guard. Mirrors `claimInvitedAt`:
+    // the dealflow sweep stamps this once it has pushed the matched-vetted Flex card for a
+    // `urgency='quick_sale'` listing, so a re-sweep never re-pushes (`markQuickSalePushed`).
+    quickSalePushedAt: timestamp("quick_sale_pushed_at", { withTimezone: true }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     claimedByUserId: uuid("claimed_by_user_id").references(() => users.id),
     createdAt: createdAt(),

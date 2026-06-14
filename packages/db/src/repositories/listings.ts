@@ -4,6 +4,7 @@ import type {
   DealType,
   FurnishingStatus,
   Listing,
+  ListingMandate,
   ListingType,
   MediaKind,
   PropertyType,
@@ -589,6 +590,109 @@ export async function updateRentalMonthlyRent(
  * the `urgency` enum so a bad value can't be written; bumps `updated_at` like the other field writes. */
 export async function setListingUrgency(db: Db, id: string, urgency: Urgency): Promise<void> {
   await db.update(listings).set({ urgency, updatedAt: sql`now()` }).where(eq(listings.id, id));
+}
+
+/** Stage 6 (D-S6-4 release-to-other-groups): set a listing's `listing_mandate`. The poster's
+ * "release to other groups" decision drops the `group_exclusive` mandate to `open` so the listing is
+ * no longer pinned to its source group (the membership gate still controls visibility — no per-target
+ * plumbing v1). Typed to the `listing_mandate` enum; bumps `updated_at` like the other field writes. */
+export async function setListingMandate(
+  db: Db,
+  id: string,
+  mandate: ListingMandate,
+): Promise<void> {
+  await db
+    .update(listings)
+    .set({ listingMandate: mandate, updatedAt: sql`now()` })
+    .where(eq(listings.id, id));
+}
+
+// ---------------------------------------------------------------------------
+// Stage 6 (D10/D-S6-6) — the quick-quote Flex push (INC-B4, bot sweep side). A claimant flags a
+// listing `urgency='quick_sale'`; the dealflow sweep scans the un-pushed quick-sale set, matches the
+// approved-vetted candidates (matchVettedUsers in @line-robot/domain), and Flex-pushes each match a
+// deep link to the quote screen — exactly once, guarded by `quick_sale_pushed_at` (mirrors the
+// `claim_invited_at` one-shot guard). The matching `amountThb` is the asking price for a sale and the
+// monthly rent for a rent listing — the same column convention as the public search's price bracket.
+// ---------------------------------------------------------------------------
+
+/** A quick-sale listing the dealflow sweep should push: the facts `matchVettedUsers` needs (province,
+ * type, dealType, the matching amount) plus the id + a title for the Flex card. `amountThb` is the
+ * asking price (sale) or the monthly rent (rent). Only rows with a non-null matching amount + province
+ * are returned (a price-less / province-less listing can't be price-band/province matched). */
+export interface QuickSaleCandidate {
+  listingId: string;
+  province: string;
+  propertyType: PropertyType;
+  dealType: DealType;
+  amountThb: number;
+  /** The th headline for the push card, or '' when there's no th content row. */
+  headline: string;
+}
+
+/**
+ * Mark a listing's quick-quote Flex push as sent (the one-shot `quick_sale_pushed_at` guard, mirroring
+ * `markClaimInvited`). Sets the timestamp only while it is still NULL, so a re-sweep can't re-push;
+ * returns true iff THIS call set it (`firstPush`). The conditional UPDATE is the lock — Postgres
+ * serialises it per row, so of two overlapping sweeps exactly one wins the push.
+ */
+export async function markQuickSalePushed(db: Db, listingId: string, at: Date): Promise<boolean> {
+  const updated = await db
+    .update(listings)
+    .set({ quickSalePushedAt: at })
+    .where(and(eq(listings.id, listingId), sql`${listings.quickSalePushedAt} is null`))
+    .returning({ id: listings.id });
+  return updated.length === 1;
+}
+
+/**
+ * The quick-sale listings still awaiting their Flex push: `urgency='quick_sale'`, `quick_sale_pushed_at
+ * IS NULL`, with a non-null province and a non-null matching amount (a price-less listing can't be
+ * price-band matched, so it's excluded — the sweep also defends in code). The matching amount is the
+ * asking price for a sale and the monthly rent (from the `listing_rental` satellite) for a rent listing.
+ */
+export async function listQuickSaleUnpushed(db: Db): Promise<QuickSaleCandidate[]> {
+  // A `bigint` (priceThb / monthlyRent) comes back from pg as a STRING — the `case` expression isn't
+  // covered by drizzle's `mode: "number"` coercion, so it's typed string|null here and Number()-coerced
+  // below (NULL → null preserved). Casting to `::int` would silently overflow a >2.1B THB price.
+  const amountThb = sql<
+    string | null
+  >`case when ${listings.dealType} = 'rent' then ${listingRental.monthlyRent} else ${listings.priceThb} end`;
+  const rows = await db
+    .select({
+      listingId: listings.id,
+      province: listings.province,
+      propertyType: listings.propertyType,
+      dealType: listings.dealType,
+      amountThb,
+      // th headline for the push card; correlated subquery so a content-less listing still surfaces.
+      headline: sql<string | null>`(
+        select c.headline from ${listingContent} c
+        where c.listing_id = ${listings.id} and c.lang = 'th' limit 1)`,
+    })
+    .from(listings)
+    .leftJoin(listingRental, eq(listingRental.listingId, listings.id))
+    .where(
+      and(
+        eq(listings.urgency, "quick_sale"),
+        sql`${listings.quickSalePushedAt} is null`,
+        sql`${listings.province} is not null`,
+      ),
+    );
+  // Keep only rows with a non-null matching amount + province (the price-band/province match needs both).
+  const out: QuickSaleCandidate[] = [];
+  for (const r of rows) {
+    if (r.amountThb === null || r.province === null) continue;
+    out.push({
+      listingId: r.listingId,
+      province: r.province,
+      propertyType: r.propertyType,
+      dealType: r.dealType,
+      amountThb: Number(r.amountThb),
+      headline: r.headline ?? "",
+    });
+  }
+  return out;
 }
 
 /** Delete a listing and every satellite that has a no-cascade FK to it, in one transaction. Scope =
