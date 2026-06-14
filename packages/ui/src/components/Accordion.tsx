@@ -8,35 +8,21 @@ interface AccordionSectionProps {
 }
 
 /**
- * Native <details>/<summary> — collapsible, accessible, zero JS state.
- * (Deviation from D3.1's shadcn/Radix accordion, logged: one native element
- * beats a dependency tree for this shape; revisit if Stage 4/5 need animation.)
+ * Native <details>/<summary> — collapsible, accessible, zero JS state. Direction-a `.desc-block`
+ * treatment: a bordered card with a muted (surface-2) heading bar.
+ * (Deviation from D3.1's shadcn/Radix accordion, logged: one native element beats a dependency tree
+ * for this shape; revisit if Stage 4/5 need animation.)
  */
 export function AccordionSection({ title, defaultOpen = false, children }: AccordionSectionProps) {
   return (
     <details
       open={defaultOpen}
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
-        borderRadius: "var(--radius-md)",
-        padding: "var(--spacing-3)",
-        fontFamily: "var(--font-body-th)",
-        lineHeight: "var(--leading-body)",
-      }}
+      className="overflow-hidden rounded-md border border-border bg-surface font-body-th leading-relaxed"
     >
-      <summary
-        style={{
-          cursor: "pointer",
-          fontWeight: 600,
-          fontSize: "var(--text-md)",
-          fontFamily: "var(--font-heading-th)",
-          color: "var(--color-text)",
-        }}
-      >
+      <summary className="cursor-pointer border-border border-b bg-surface-2 px-4 py-2.5 font-heading-th font-semibold text-text leading-normal">
         {title}
       </summary>
-      <div style={{ paddingTop: "var(--spacing-3)" }}>{children}</div>
+      <div className="px-4 py-3 text-text-2">{children}</div>
     </details>
   );
 }

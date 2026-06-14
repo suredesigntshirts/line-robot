@@ -157,6 +157,19 @@ and any **confirmed** gap is fixed in the skill file(s), re-verified to bite, an
   deterministically; the residual prose-slip is now low-stakes (the deterministic net catches the bug
   regardless of the agent's discipline). Register has no explicit WCAG heuristic → FOUNDER-QUEUE #6.
 
+### 2026-06-14 · p2-pass4-detail · F3b — broaden the TH-07 invariant to the detail page (scope gap)
+- **Audit ref:** `audits/pass4-detail-1.md`. The pass-4 audit (reading the CODE, not pixels) found
+  `assertThaiBodyLineHeight` was scoped to `[data-listing-card]` — so the restyled detail page's Thai
+  body text was UNVERIFIED (compliant by construction via `leading-relaxed`, but unguarded).
+- **Fix:** marked the detail `<main data-th-content>`; broadened the selector to `[data-listing-card] *,
+  [data-th-content] *`; exempted CTA buttons/links/summaries (`button, summary, a[data-cta]` — short
+  labels, not body text; NOT bare `a`, since the card is an `<a>` around body text). Re-verified: passes
+  on detail across 4 projects; the <1.6 flag mechanism is already proven (F3). Suite 76/76.
+- **Note:** alignment-review fully exhibited the **A2** behaviour this pass (cited the assertion NAMES —
+  assertThaiBodyLineHeight / assertThemeApplies / assertCtaContrast — for the measurable styling IDs,
+  not token values). The hardening has converged: the design skills now lean on the deterministic
+  invariants for measurable styling, and those invariants now cover cards + chrome/detail.
+
 ---
 
 ## SUMMARY (written at run end)

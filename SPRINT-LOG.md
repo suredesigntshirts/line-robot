@@ -342,3 +342,14 @@ asserts WCAG ≥4.5 every project incl. dark; re-verified to bite — text-white
 text-surface passes 4/4). e2e 76/76. FOUNDER-QUEUE #6 (no explicit WCAG heuristic in the register;
 enforced via F4). A2 partially bit (alignment marked COPY-02 UNVERIFIED + cited assertion names),
 confirming deterministic nets — not prose — are the reliable backstop.
+
+**Phase 2 pass 4 — detail page → direction-a — DONE + committed.** `DetailPage.astro` + shared
+`FieldList`/`Accordion`/`PriceDisplay`/`LineCtaButton` restyled to the mock (Tailwind utils, retiring
+Astro inline styles): hero + thumbnail strip, badges incl. calm-violet NPA, a TINTED price block,
+bordered spec table, calm provenance card (DIST-02 caveats + LEGAL-07 disclaimer kept), description
+desc-block, green LINE CTA (CONV-06). Content unchanged. Both skills ALIGNED (alignment-review fully
+exhibited A2 — cited assertion NAMES for measurable IDs). The pass-4 audit (reading the code) found a
+real TH-07 SCOPE gap → **F3b**: broadened `assertThaiBodyLineHeight` to cover the detail page
+(`data-th-content`), exempting CTA buttons/summaries; re-verified, suite 76/76. The hardening has
+converged: design skills lean on the deterministic invariants (TH-07, CTA-contrast, theme), now
+covering cards + chrome + detail.

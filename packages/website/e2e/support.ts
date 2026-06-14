@@ -80,7 +80,8 @@ export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
     // uses tight leading — is not mistaken for Thai body text.
     const THAI = /[ก-ฺเ-๎]/;
     const bad: { text: string; ratio: number }[] = [];
-    for (const el of document.querySelectorAll("[data-listing-card] *")) {
+    // Listing cards (anywhere) + the detail-page / chrome body region (`[data-th-content]`).
+    for (const el of document.querySelectorAll("[data-listing-card] *, [data-th-content] *")) {
       // only elements with their OWN direct Thai text node (a leaf line, not a wrapper)
       const hasOwnThai = [...el.childNodes].some(
         (n) => n.nodeType === 3 && THAI.test(n.textContent ?? ""),
@@ -88,7 +89,9 @@ export async function assertThaiBodyLineHeight(page: Page): Promise<void> {
       if (!hasOwnThai) continue;
       const cs = getComputedStyle(el);
       if (cs.position === "absolute") continue; // overlay chips (deal-pill, photo-count)
-      if (el.closest("[data-badge]")) continue; // pill badges (short labels)
+      // pill badges + CTA buttons/links + accordion summaries: short single-line LABELS, not body
+      // text (exempt). NOT a bare `a` — the listing card is an <a> wrapping real body text.
+      if (el.closest("[data-badge], button, summary, a[data-cta]")) continue;
       if (/^["']?Noto Sans Thai/i.test(cs.fontFamily)) continue; // headings (TH-13)
       const fs = Number.parseFloat(cs.fontSize);
       const lh = Number.parseFloat(cs.lineHeight);

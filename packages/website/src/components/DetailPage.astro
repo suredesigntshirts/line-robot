@@ -203,33 +203,32 @@ const jsonLd = safeJsonLdScript(
   ogImage={heroUrl}
 >
   <script is:inline type="application/ld+json" set:html={jsonLd} slot="head" />
-  <main style="max-width: 48rem; margin: 0 auto; padding: var(--spacing-4); display: grid; gap: var(--spacing-4);">
-    <a href={`${basePath}/`} style="color: var(--color-primary-600); font-size: var(--text-sm);">
+  {/* data-th-content: the TH-07 line-height invariant (assertThaiBodyLineHeight) scans Thai body text
+      here too, not just listing cards — closes the detail-page coverage gap. */}
+  <main class="mx-auto grid max-w-3xl gap-4 px-4 py-4" data-th-content>
+
+    <a href={`${basePath}/`} class="font-semibold text-primary-600 text-sm leading-relaxed">
       ← {t("home.title")}
     </a>
     {
       galleryUrls.length > 0 && (
         // CONV-04 photo-first: the hero leads the page. CONV-03: a thumbnail STRIP with a count, never
         // dots-only. Zero client JS (TECH-01/02) — a scrollable strip; the hero is the first photo.
-        <section aria-label={t("listing.photos", { count: galleryUrls.length })} style="display: grid; gap: var(--spacing-2);">
-          <div style="position: relative; aspect-ratio: 4 / 3; background: var(--color-surface-2); border-radius: var(--radius-md); overflow: hidden;">
-            <img
-              src={heroUrl}
-              alt={detail.headline}
-              style="width: 100%; height: 100%; object-fit: cover;"
-            />
-            <span style="position: absolute; right: var(--spacing-2); bottom: var(--spacing-2); background: var(--color-text); color: var(--color-surface); border-radius: var(--radius-sm); padding: 0 var(--spacing-2); font-size: var(--text-xs);">
+        <section aria-label={t("listing.photos", { count: galleryUrls.length })} class="grid gap-2">
+          <div class="relative aspect-[4/3] overflow-hidden rounded-md bg-surface-2">
+            <img src={heroUrl} alt={detail.headline} class="h-full w-full object-cover" />
+            <span class="absolute right-2 bottom-2 inline-flex items-center rounded-sm bg-black/75 px-2 py-px font-latin text-white text-xs">
               {t("listing.photos", { count: detail.photoCount })}
             </span>
           </div>
           {galleryUrls.length > 1 && (
-            <div style="display: flex; gap: var(--spacing-1); overflow-x: auto;">
+            <div class="flex gap-1 overflow-x-auto">
               {galleryUrls.map((url, i) => (
                 <img
                   src={url}
                   alt={`${detail.headline} — ${i + 1}`}
                   loading="lazy"
-                  style="flex: 0 0 80px; height: 60px; object-fit: cover; border-radius: var(--radius-sm); border: 1px solid var(--color-border); background: var(--color-surface-2);"
+                  class="h-[60px] flex-[0_0_80px] rounded-sm border border-border bg-surface-2 object-cover"
                 />
               ))}
             </div>
@@ -237,7 +236,7 @@ const jsonLd = safeJsonLdScript(
         </section>
       )
     }
-    <h1 style="font-size: var(--text-2xl); font-family: var(--font-heading-th); margin: 0;" lang={locale}>
+    <h1 class="m-0 font-bold font-heading-th text-2xl text-text leading-normal" lang={locale}>
       {detail.headline}
     </h1>
     <StatusBadge listing={listing} t={t} />
@@ -247,16 +246,16 @@ const jsonLd = safeJsonLdScript(
     {provenanceNote !== null && (
       <section
         aria-label={t("provenance.heading")}
-        style="background: var(--color-surface-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--spacing-3); display: grid; gap: var(--spacing-2);"
+        class="grid gap-2 rounded-md border border-border bg-surface-2 p-3"
       >
-        <strong style="font-size: var(--text-sm); color: var(--color-text);" lang={locale}>
+        <strong class="text-sm text-text leading-relaxed" lang={locale}>
           {t("provenance.heading")}
         </strong>
-        <p style="margin: 0; font-size: var(--text-sm); color: var(--color-text-2);" lang={locale}>
+        <p class="m-0 text-sm text-text-2 leading-relaxed" lang={locale}>
           {provenanceNote}
         </p>
         {auctionCaveats.length > 0 && (
-          <ul style="margin: 0; padding-inline-start: var(--spacing-5); display: grid; gap: var(--spacing-1); font-size: var(--text-sm); color: var(--color-text-2);">
+          <ul class="m-0 grid gap-1 ps-5 text-sm text-text-2 leading-relaxed">
             {auctionCaveats.map((c) => (
               <li lang={locale}>{c}</li>
             ))}
@@ -264,12 +263,15 @@ const jsonLd = safeJsonLdScript(
         )}
       </section>
     )}
-    <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} t={t} />
+    {/* Direction-a tinted price block — the hero price sits in a primary-tinted card. */}
+    <div class="rounded-md border border-primary-100 bg-primary-50 px-4 py-3">
+      <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} size="detail" t={t} />
+    </div>
     {/* TH-08: place names are verbatim Thai on both locales (like land units, TH-03) — tag the
         container lang="th" so an /en/ page (html lang="en") still gets Thai line-breaking, not break-all. */}
-    <p lang="th" style="color: var(--color-text-2); margin: 0;">{locationLine}</p>
+    <p lang="th" class="m-0 text-sm text-text-2 leading-relaxed">📍 {locationLine}</p>
     {listing.bedrooms !== null && listing.bathrooms !== null && (
-      <p style="margin: 0;">
+      <p class="m-0 text-base text-text leading-relaxed">
         {t("listing.bedrooms", { count: listing.bedrooms })} ·{" "}
         {t("listing.bathrooms", { count: listing.bathrooms })}
       </p>
@@ -297,11 +299,11 @@ const jsonLd = safeJsonLdScript(
     )}
     {detail.description !== "" && (
       <AccordionSection title={t("detail.description")} defaultOpen>
-        <p lang={locale} style="white-space: pre-wrap; margin: 0;">{detail.description}</p>
+        <p lang={locale} class="m-0 whitespace-pre-wrap text-sm text-text-2 leading-relaxed">{detail.description}</p>
       </AccordionSection>
     )}
     {detail.posterName !== "" && (
-      <p style="color: var(--color-text-2); font-size: var(--text-sm); margin: 0;">
+      <p class="m-0 text-sm text-text-2 leading-relaxed">
         {t("listing.postedBy", { name: detail.posterName })} ·{" "}
         {/* data-testid lets the visual-regression suite mask this per-run date (plan 20). */}
         <span data-testid="listing-updated">
@@ -309,13 +311,13 @@ const jsonLd = safeJsonLdScript(
         </span>
       </p>
     )}
-    <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
+    <p class="m-0 text-sm text-text-2 leading-relaxed">
       {t("legal.posterProvided")}
     </p>
     {/* LEGAL-07: non-dismissible foreign-ownership disclaimer (always shown, not a
         closeable banner). The per-listing foreign-quota figures (FIELD-05) render in the
         condo group above when present; this legal notice is the always-on backstop. */}
-    <p style="color: var(--color-text-2); font-size: var(--text-xs); margin: 0;">
+    <p class="m-0 text-sm text-text-2 leading-relaxed">
       {t("legal.foreignOwnership")}
     </p>
   </main>
