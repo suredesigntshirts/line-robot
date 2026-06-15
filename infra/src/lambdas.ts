@@ -265,10 +265,17 @@ export function createBotLambdas(
       // Per-image vision classification + a two-pass (segment then per-property) extraction ladder
       // that can escalate to Opus; a big multi-photo batch needs well over 60s end to end. Bounded
       // concurrency on classification cuts the bulk of it, but keep generous headroom for the tail.
-      timeout: 180,
+      // 2026-06-15: a 76-message first-ingestion backlog (a user dumping a day's listings in one go)
+      // blew past 180s on every attempt → 3 timeouts → the conversation was abandoned with no
+      // listings. Raised to the 900s Lambda ceiling so a large backlog clears in one pass. The real
+      // fix is per-batch chunking (advance the watermark per chunk so no single run is unbounded) —
+      // tracked as the Stage-6 ingestion-resilience follow-up; this is the immediate mitigation.
+      timeout: 900,
       // Q-SA1: caps the sweep's share of the Postgres connection budget (see naming.ts).
       reservedConcurrentExecutions: SWEEP_RESERVED_CONCURRENCY,
-      memorySize: 512,
+      // The timed-out partials peaked at ~373MB/512; a full large-batch extraction holds more (all
+      // segmented properties + photos in flight), so give headroom to avoid an OOM on success.
+      memorySize: 1024,
       publish: true,
       // The sweep delegates extract-and-apply to the v2 pipeline → Postgres (needs DATABASE_URL).
       environment: {
