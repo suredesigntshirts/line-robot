@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>line-robot · Ingestion Pipeline — How it works today & how Plan 23 changes it</title>
+<style>
+  :root{
+    --bg:#0f1320; --panel:#161b2e; --panel2:#1d2440; --ink:#e7ebf5; --muted:#9aa6c4;
+    --line:#2a3354; --accent:#5b8cff; --bug:#ff6b9a; --bugbg:#2a1622; --smell:#ffb454; --smellbg:#2a2113;
+    --new:#36d399; --newbg:#0f2a22; --chg:#5ab0ff; --chgbg:#0e2236; --code:#0b0f1c;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Thai",Helvetica,Arial,sans-serif;}
+  a{color:var(--accent)}
+  .wrap{max-width:1100px;margin:0 auto;padding:0 22px 120px}
+  header.top{padding:46px 22px 30px;background:linear-gradient(160deg,#1b243f,#0f1320);border-bottom:1px solid var(--line)}
+  header.top .wrap{padding-bottom:0}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:16px;max-width:760px}
+  .tag{display:inline-block;font-size:12px;color:var(--muted);border:1px solid var(--line);
+    border-radius:999px;padding:2px 10px;margin-right:6px}
+  h2{font-size:23px;margin:54px 0 6px;letter-spacing:-.01em;padding-top:10px;border-top:1px solid var(--line)}
+  h3{font-size:18px;margin:30px 0 8px}
+  h4{font-size:15px;margin:18px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  p{margin:10px 0}
+  .lead{color:#cdd6ef}
+  nav.toc{position:sticky;top:0;z-index:5;background:rgba(15,19,32,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 0;margin-bottom:8px}
+  nav.toc .wrap{padding-top:0;padding-bottom:0;display:flex;flex-wrap:wrap;gap:6px}
+  nav.toc a{font-size:13px;color:var(--muted);text-decoration:none;border:1px solid var(--line);
+    border-radius:8px;padding:5px 10px}
+  nav.toc a:hover{color:var(--ink);border-color:var(--accent)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:16px 0}
+  .grid{display:grid;gap:14px}
+  @media(min-width:760px){.cols-2{grid-template-columns:1fr 1fr}}
+  pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;
+    font:13px/1.55 "SF Mono",ui-monospace,Menlo,Consolas,"Noto Sans Thai Mono",monospace;color:#d6def5;white-space:pre-wrap;word-break:break-word}
+  code.inl{background:#0b0f1c;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+  .mermaid{background:#0b0f1c;border:1px solid var(--line);border-radius:14px;padding:18px;margin:14px 0;text-align:center}
+  details{border:1px solid var(--line);border-radius:10px;padding:0 14px;margin:10px 0;background:var(--panel2)}
+  details>summary{cursor:pointer;padding:12px 0;font-weight:600;color:#cdd6ef;list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary:before{content:"▸ ";color:var(--accent)}
+  details[open]>summary:before{content:"▾ "}
+  details .body{padding:0 0 14px}
+  .badge{display:inline-block;font-size:12px;font-weight:600;border-radius:6px;padding:2px 8px;margin:0 4px 4px 0;border:1px solid}
+  .b-haiku{color:#9be7c4;border-color:#2f6f55;background:#10241c}
+  .b-sonnet{color:#aaccff;border-color:#34588f;background:#0e1d31}
+  .b-opus{color:#e0b3ff;border-color:#6a4a8f;background:#1e1330}
+  .b-det{color:#cdd6ef;background:#161b2e;border-color:#3a466e}
+  .callout{border-left:4px solid var(--accent);background:var(--panel2);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0}
+  .callout.bug{border-color:var(--bug);background:var(--bugbg)}
+  .callout.new{border-color:var(--new);background:var(--newbg)}
+  .pill{font-size:11px;font-weight:700;border-radius:6px;padding:2px 7px;vertical-align:middle}
+  .pill.real{background:#0f2a22;color:#5be3a7;border:1px solid #2f6f55}
+  .pill.repr{background:#2a2113;color:#ffcf8b;border:1px solid #6f5320}
+  .pill.verbatim{background:#0e1d31;color:#a9cbff;border:1px solid #34588f}
+  table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:var(--panel2);color:#cdd6ef;font-weight:600}
+  td.num{font-family:ui-monospace,monospace;white-space:nowrap}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:6px 0 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid}
+  .sw.bug{background:var(--bugbg);border-color:var(--bug)}
+  .sw.smell{background:var(--smellbg);border-color:var(--smell)}
+  .sw.new{background:var(--newbg);border-color:var(--new)}
+  .sw.chg{background:var(--chgbg);border-color:var(--chg)}
+  .step-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .step-n{font-size:13px;color:var(--muted)}
+  .muted{color:var(--muted)}
+  .small{font-size:13px}
+  hr{border:none;border-top:1px solid var(--line);margin:30px 0}
+  .foot{color:var(--muted);font-size:13px;margin-top:40px}
+  .kbd{font-family:ui-monospace,monospace;font-size:12px;background:#0b0f1c;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <h1>line-robot — Ingestion pipeline</h1>
+    <p class="sub">How a LINE message dump becomes property listings <strong>today</strong>, every prompt that hits the Anthropic API, a <strong>real worked example</strong> from the 2026-06-15 incident, and how <strong>Plan 23</strong> reshapes the flow.</p>
+    <p style="margin-top:14px">
+      <span class="tag">generated 2026-06-15</span>
+      <span class="tag">source: packages/pipeline + packages/bot</span>
+      <span class="tag">real data: staging (read-only)</span>
+    </p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#today">1 · How it works today</a>
+  <a href="#prompts">2 · The prompts</a>
+  <a href="#example">3 · Real example (incident)</a>
+  <a href="#plan">4 · How Plan 23 changes it</a>
+  <a href="#legend">Legend &amp; sources</a>
+</div></nav>
+
+<div class="wrap">
+
+  <div class="callout">
+    <strong>The 30-second version.</strong> A user dumped <strong>76 messages = 59 photos + 5 distinct listings</strong> into a 1:1 chat. The pipeline split them correctly into 5 — then the dedup step <em>merged 4 of the 5 back into 1</em> because a map pin belonging to one listing was applied to another, making distinct properties look co-located. One row survived; four were silently lost. This report shows exactly where, with the real data.
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 id="today">1 · How the pipeline works today</h2>
+  <p class="lead">Ingestion is a cron-driven <em>sweep</em> that hands a conversation's whole un-ingested backlog to a six-step, per-segment LLM pipeline. Each step is a separate Anthropic call with a strict structured-output schema; each step has a deterministic fallback if the call fails.</p>
+
+  <div class="legend" id="lg1" style="margin-bottom:6px">
+    <span><i class="sw bug"></i> correctness bug (data loss)</span>
+    <span><i class="sw smell"></i> resilience / honesty smell</span>
+  </div>
+
+  <pre class="mermaid">
+flowchart TD
+  U["📱 LINE user dumps listings&lt;br/&gt;76 msgs = 59 images + 17 text"] --> WH["Webhook → processor&lt;br/&gt;stores every message to DynamoDB"]
+  WH --> SW["⏱️ Ingestion sweep — cron every 2 min&lt;br/&gt;claims conversation · ingestAttempts++ at claim time"]
+  SW --> BATCH["findSince = WHOLE un-ingested backlog&lt;br/&gt;ONE v2.run call · no chunking"]:::smell
+  BATCH --> BT["buildTranscript&lt;br/&gt;every line timestamped [D Mon HH:MM:SS]&lt;br/&gt;maps URLs → [MAP n] · images → [IMG n]"]
+  BT --> C1
+
+  subgraph PIPE["runPipeline — one pass over the conversation"]
+    direction TB
+    C1["① classify each photo&lt;br/&gt;Haiku 4.5 vision · ~59 calls&lt;br/&gt;⚠ result discarded after use"]:::smell
+    C1 --> S2["② segment thread → N listings&lt;br/&gt;Sonnet 4.6&lt;br/&gt;⚠ geoHints = the WHOLE conversation"]:::bug
+    S2 --> E3["③ extract one listing — per segment&lt;br/&gt;Sonnet 4.6 → Opus on lowConfidence&lt;br/&gt;⚠ receives ALL geoHints, not its own pin"]:::bug
+    E3 --> D4{"④ dedup&lt;br/&gt;block: geohash cell + radius&lt;br/&gt;then Haiku 4.5 verify"}
+    D4 -->|"merge"| M["fold into the existing row&lt;br/&gt;⚠ 4 of 5 listings lost HERE"]:::bug
+    D4 -->|"new"| NP["persistNewListing&lt;br/&gt;push its coords to the in-batch pool"]
+    M --> T5["⑤ translate th↔en · Haiku 4.5"]
+    NP --> T5
+    T5 --> G6["⑥ quality gate · Sonnet 4.6&lt;br/&gt;+ deterministic deed blocks"]
+    G6 -.->|"next segment"| E3
+  end
+
+  G6 --> WM["watermark advances&lt;br/&gt;⚠ ONLY on full success — a retry repeats everything"]:::smell
+  WM --> CONF["confirm to the user&lt;br/&gt;⚠ counts SEGMENTS, not persisted rows"]:::smell
+
+  classDef bug fill:#2a1622,stroke:#ff6b9a,stroke-width:2px,color:#ffd0e0;
+  classDef smell fill:#2a2113,stroke:#ffb454,stroke-width:1.5px,color:#ffe2b3;
+  </pre>
+
+  <h3>The six steps</h3>
+  <table>
+    <thead><tr><th>#</th><th>Step</th><th>Model (escalation)</th><th>What it produces</th><th>Calls / dump</th><th>Fallback if the call fails</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><strong>classify</strong> + OCR</td><td><span class="badge b-haiku">Haiku 4.5</span><span class="muted small">→ Sonnet on low-conf chanote</span></td><td>per photo: property / chanote / other; deed OCR</td><td class="num">~1 / image (≈59)</td><td>store as a plain photo</td></tr>
+      <tr><td>2</td><td><strong>segment</strong></td><td><span class="badge b-sonnet">Sonnet 4.6</span></td><td>splits the thread into N listing segments + photo attribution</td><td class="num">1</td><td>one segment = whole thread</td></tr>
+      <tr><td>3</td><td><strong>extract</strong></td><td><span class="badge b-sonnet">Sonnet 4.6</span><span class="badge b-opus">→ Opus 4.8</span></td><td>structured fields for one listing (price, type, geo, area…)</td><td class="num">1 / segment (5)</td><td>drop the segment, log it</td></tr>
+      <tr><td>4</td><td><strong>dedup</strong> (block → verify)</td><td><span class="badge b-det">deterministic block</span><span class="badge b-haiku">Haiku 4.5 verify</span></td><td>"new" vs "merge into candidate X"</td><td class="num">≤1 / segment</td><td>default <strong>"new"</strong></td></tr>
+      <tr><td>5</td><td><strong>translate</strong></td><td><span class="badge b-haiku">Haiku 4.5</span></td><td>th↔en of title/description/notes</td><td class="num">1 / persisted</td><td>skip target-lang row</td></tr>
+      <tr><td>6</td><td><strong>gate</strong></td><td><span class="badge b-sonnet">Sonnet 4.6</span><span class="badge b-det">+ deterministic deed blocks</span></td><td>publish? + list of missing/weak fields</td><td class="num">1 / persisted</td><td>fail → moderation queue</td></tr>
+    </tbody>
+  </table>
+  <p class="small muted">Model assignment lives in <code class="inl">packages/pipeline/src/steps/context.ts</code> (<code class="inl">STEP_MODELS</code>). For a 59-image dump, <strong>classify is ~80–85% of all calls</strong> — and it is re-run from scratch on every retry, which is what made the dump time out three times before the mitigation.</p>
+
+  <h3>How every step calls the API</h3>
+  <p>One adapter (<code class="inl">AnthropicStepLlm</code>) makes every call the same way — <code class="inl">messages.parse</code> with a strict Zod output schema, the per-step system prompt carrying a <em>prompt-cache breakpoint</em>, and the user content (text, or an image block for classify):</p>
+  <pre>await client.messages.parse({
+  model,                 // per-step, from STEP_MODELS
+  max_tokens,            // per-step cap
+  system: [{ type: "text", text: SYSTEM_PROMPT,
+             cache_control: { type: "ephemeral" } }],   // ← only the system prefix is cached
+  messages: [{ role: "user", content }],                // text and/or { image } blocks
+  output_config: { format: zodOutputFormat(schema) },   // ← strict structured output
+});
+// any error or schema mismatch → value:null → the step's own fallback runs</pre>
+  <p class="small muted">Because only the <strong>system prefix</strong> is marked cacheable, the per-image tokens in classify are paid in full on every attempt — they are <em>not</em> in the cached prefix. (<code class="inl">adapters/anthropicStepLlm.ts</code>, <code class="inl">adapters/content.ts</code>.)</p>
+
+  <!-- ================================================================ -->
+  <h2 id="prompts">2 · The prompts hitting the API</h2>
+  <p class="lead">Each step sends a <strong>system prompt</strong> (verbatim below, <span class="pill verbatim">verbatim from source</span>) plus a <strong>user message</strong> built from the conversation. Several steps share four cacheable building blocks — shown once here, then referenced per step.</p>
+
+  <details open>
+    <summary>Shared building blocks (appended to the step prompts that use them)</summary>
+    <div class="body">
+      <p class="small muted">These are concatenated onto the step prompts as noted. <code class="inl">PREFIX_PAD</code> is deliberate filler whose only job is to push the system prefix over the prompt-cache minimum (4096 tokens for Haiku/Opus, 2048 for Sonnet) so it stays cacheable.</p>
+      <h4>DEED_TAXONOMY <span class="muted">— used by classify, extract, gate</span></h4>
+      <pre>Thai title deed taxonomy (FIELD-02):
+- chanote (โฉนดที่ดิน / น.ส.4จ): full ownership, GPS-surveyed, freely transferable.
+- ns3g (น.ส.3ก): confirmed possession, aerial survey; transferable.
+- ns3k (น.ส.3ข): confirmed possession, older survey; transferable.
+- ns3 (น.ส.3): possession right; 30-day notice before transfer.
+- spk (ส.ป.ก. 4-01): agricultural reform land — CANNOT be sold; inheritance only.
+- pbt5 (ภ.บ.ท.5): tax receipt only, not a deed — cannot be sold.
+- ns2 (น.ส.2): temporary occupation permit — cannot be sold.
+- stg (ส.ท.ก.): forest-zone residence right — cannot be sold.
+- sk1 (ส.ค.1): possession notification — cannot be sold; rare but circulates in chats.
+- other: a stated document that fits none of the above.
+- unknown: deed type not stated. NEVER guess a deed type that is not stated.</pre>
+      <h4>UNIT_GLOSSARY <span class="muted">— used by classify, segment, extract, dedup, translate</span></h4>
+      <pre>Thai real-estate units and vocabulary:
+- 1 ไร่ (rai) = 4 งาน (ngan) = 400 ตารางวา (square wah). 1 rai = 1600 m²; 1 ngan = 400 m²; 1 wah² = 4 m².
+- ตร.ว. = ตารางวา (square wah). ตร.ม. = ตารางเมตร (m²).
+- ล้าน = million THB; "4.5ล้าน" = 4,500,000 THB. ลบ. = ล้านบาท.
+- นอน = bedrooms (3นอน = 3 bedrooms); น้ำ = bathrooms.
+- ขายด่วน / ด่วน = urgent sale signal → urgency quick_sale.
+- ขายฝาก = sale with right of redemption (khai fak) — a distinct transaction type.
+- เช่า / ให้เช่า = rent; /เดือน = per month.
+- ต. = ตำบล (tambon), อ. = อำเภอ (amphoe), จ. = จังหวัด (province).
+- โอน = ownership transfer; มัดจำ = deposit/reservation; จะซื้อจะขาย = sale-purchase contract.</pre>
+      <h4>EXTRACTION_RULES <span class="muted">— used by segment, extract</span></h4>
+      <pre>Extraction rules (apply to every field):
+- Extract ONLY what the poster stated. Seller assertions map as-claimed (FIELD-11): never
+  re-judge, verify, or substitute your own estimate for a stated direction, shape, price, or
+  quota claim. Provenance is a UI concern, not yours.
+- Absent string fields → "" (empty string). Absent numeric fields → null. Never invent values.
+- Prices: normalize to THB integers (4.5ล้าน → 4500000). For rentals, priceThb is the MONTHLY rent.
+- Phone numbers: keep digits and dashes as written.
+- Set lowConfidence=true when figures conflict, the deed type is ambiguous between stated
+  options, or you had to interpret heavily garbled text.</pre>
+      <h4>PREFIX_PAD <span class="muted">— used by every step</span></h4>
+      <pre>Reference notes (stable, for terminology grounding): Thai property listings in LINE group
+chats mix Thai and English freely, use regional abbreviations, and frequently omit fields.
+[…the same sentence repeated 40× — pure cache-floor padding…]</pre>
+    </div>
+  </details>
+
+  <!-- STEP 1 CLASSIFY -->
+  <div class="card">
+    <div class="step-h"><span class="step-n">STEP 1</span><h3 style="margin:0">classify + OCR</h3><span class="badge b-haiku">Haiku 4.5</span><span class="badge b-sonnet">→ Sonnet on low-conf chanote</span></div>
+    <p class="small muted">Runs once per photo on the 1568px derivative (never the original). Decides property / chanote / other; OCRs deed fields. Output feeds the <code class="inl">[IMG n] kind — label</code> markers in the transcript.</p>
+    <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You classify a single photo from a Thai real-estate LINE chat.
+Decide if it shows a property (exterior/interior/land), a chanote/title-deed document, or other
+(memes, stickers, screenshots, people). For title deeds, OCR the deed number, province, and the
+area figures (rai/ngan/wah) if legible; set lowConfidence=true when the document is blurry or
+partially visible. label is a 2-6 word content description.
++ DEED_TAXONOMY + UNIT_GLOSSARY + PREFIX_PAD</pre></div></details>
+    <h4>User content</h4>
+    <pre>[ image block: the 1568px JPEG, base64 ]
+"Classify this image."</pre>
+    <h4>Output schema</h4>
+    <pre>{ kind: "property" | "chanote" | "other", label: string,
+  deedNo: string, deedProvince: string,
+  landRai: number|null, landNgan: number|null, landWah: number|null,
+  ocrText: string, lowConfidence: boolean }</pre>
+  </div>
+
+  <!-- STEP 2 SEGMENT -->
+  <div class="card">
+    <div class="step-h"><span class="step-n">STEP 2</span><h3 style="margin:0">segment</h3><span class="badge b-sonnet">Sonnet 4.6</span></div>
+    <p class="small muted">Splits the thread into distinct property listings and attributes photos to each. <strong>This is the step that handles a multi-property dump</strong> — and in the incident it worked (5 segments).</p>
+    <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You split a Thai real-estate LINE chat transcript into distinct property listings
+(segments) and attribute photos to them. A thread may contain one listing, several (a multi-property
+dump), corrections, and re-posts. Photo markers appear inline in posting order; imageIndices refers
+to those marker indices. If a segment plausibly matches one of the provided existing candidates,
+set existingPropertyId; if it could match more than one, set ambiguous=true and list ambiguousWith.
+A re-post of the same property within the thread belongs to the SAME segment, with the later
+message treated as an update.
++ UNIT_GLOSSARY + EXTRACTION_RULES + PREFIX_PAD</pre></div></details>
+    <h4>User content</h4>
+    <pre>TRANSCRIPT:
+&lt;the whole timestamped transcript&gt;
+
+PHOTO MARKERS:
+#0: property — house exterior
+#1: chanote — title deed
+…
+
+GEO HINTS: 18.7298,98.9688; 18.8263,99.0564     ← the WHOLE conversation's pins
+
+EXISTING CANDIDATES:
+(none)</pre>
+    <h4>Output schema</h4>
+    <pre>{ segments: [ { label: string, imageIndices: number[],
+                mapIndex: number|null,          ← which [MAP n] belongs to this segment
+                existingPropertyId: string,     ("" = none)
+                ambiguous: boolean, ambiguousWith: string[] } ] }</pre>
+    <div class="callout bug"><strong>Bug seed.</strong> The schema computes <code class="inl">mapIndex</code> (which pin belongs to which listing) — but <code class="inl">run.ts</code> never reads it. So geo is handled at the <em>conversation</em> level, not per segment.</div>
+  </div>
+
+  <!-- STEP 3 EXTRACT -->
+  <div class="card">
+    <div class="step-h"><span class="step-n">STEP 3</span><h3 style="margin:0">extract</h3><span class="badge b-sonnet">Sonnet 4.6</span><span class="badge b-opus">→ Opus 4.8 on lowConfidence</span></div>
+    <p class="small muted">Pulls structured fields for one listing, focused on the named segment.</p>
+    <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You extract one structured property listing from a Thai real-estate LINE chat
+transcript, focusing on the named segment. Later messages in the thread supersede earlier ones
+(price corrections are common — use the corrected figure).
++ DEED_TAXONOMY + UNIT_GLOSSARY + EXTRACTION_RULES + PREFIX_PAD</pre></div></details>
+    <h4>User content</h4>
+    <pre>TRANSCRIPT:
+&lt;the whole timestamped transcript&gt;
+
+FOCUS SEGMENT: &lt;the segment's label&gt;
+
+GEO HINTS: 18.7298,98.9688; 18.8263,99.0564     ← ⚠ ALL pins handed to EVERY segment
+
+EXISTING CANDIDATES:
+(none)</pre>
+    <h4>Output schema <span class="muted small">(24 fields; abbreviated)</span></h4>
+    <pre>{ dealType, propertyType, titleDeedType, priceThb: number|null, urgency,
+  title, description, province, amphoe, tambon, landmark,
+  lat: number|null, lon: number|null,            ← ⚠ the model may grab a foreign pin here
+  landRai|landNgan|landWah|floorAreaSqm|bedrooms|bathrooms: number|null,
+  facingDirection, contactPhone, posterName, lowConfidence: boolean }</pre>
+    <div class="callout bug"><strong>The actual fault.</strong> Every segment's extract is handed the full <code class="inl">geoHints</code> array (<code class="inl">run.ts</code> passes <code class="inl">geoHints: input.geoHints</code>). A listing with no pin of its own can — and did — attach a coordinate belonging to a different listing.</div>
+  </div>
+
+  <!-- STEP 4 DEDUP -->
+  <div class="card">
+    <div class="step-h"><span class="step-n">STEP 4</span><h3 style="margin:0">dedup — block then verify</h3><span class="badge b-det">deterministic block</span><span class="badge b-haiku">Haiku 4.5 verify</span></div>
+    <p class="small muted">First a deterministic blocker finds ≤8 candidate matches (deed-exact → geohash cell + haversine radius → text similarity). Deed-exact auto-merges. Everything else goes to the Haiku verify call. <strong>Any failure defaults to "new."</strong></p>
+    <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You judge whether a newly extracted Thai property listing is the same real-world
+property as one of the provided candidates. Same property = same physical land/unit, even with
+price drift, different phrasing, or different contact formatting. Different unit in the same
+project = NOT the same. If uncertain, decide "new" — a false merge is the user-visible defect; a
+missed merge is recoverable.
++ UNIT_GLOSSARY + PREFIX_PAD</pre></div></details>
+    <h4>User content</h4>
+    <pre>NEW LISTING:
+title: …
+type: sale commercial, deed unknown
+price: 13800000 THB
+where: ใกล้มหาวิทยาลัยแม่โจ้, …
+size: 2800 m² land, ? m² floor
+contact: ? (?)
+
+CANDIDATES:
+&lt;id&gt; (block score 0.85, geo_same_cell+geo_within_radius): commercial … 13800000THB
+…</pre>
+    <h4>Output schema</h4>
+    <pre>{ decision: "new" | "merge", intoId: string ("" when new),
+  confidence: number, reason: string }</pre>
+    <div class="callout bug"><strong>Where the loss happens.</strong> When the geo mis-bind made two distinct listings share a coordinate, the blocker linked them on <code class="inl">geo_within_radius</code> and Haiku returned <code class="inl">"merge"</code> — folding a distinct listing into another instead of <code class="inl">persistNewListing</code>. The prompt already says "if uncertain, decide new," but a wrong-but-shared coordinate doesn't look uncertain to the model.</div>
+  </div>
+
+  <!-- STEP 5 + 6 -->
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="step-h"><span class="step-n">STEP 5</span><h3 style="margin:0">translate</h3><span class="badge b-haiku">Haiku 4.5</span></div>
+      <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You translate Thai property-listing content to English, or English to Thai,
+for a marketplace. Translate title, description, and notes faithfully — no embellishment, no added
+claims, no dropped caveats. Keep numbers, unit names (rai/ngan/wah stay as-is), proper nouns, and
+project names unchanged. Tone: clear marketplace copy, not literary.
++ UNIT_GLOSSARY + PREFIX_PAD</pre></div></details>
+      <h4>User content</h4>
+      <pre>Translate from th to en.
+
+TITLE: …
+DESCRIPTION: …
+NOTES: (none)</pre>
+      <h4>Output</h4>
+      <pre>{ title, description, notes }</pre>
+    </div>
+    <div class="card">
+      <div class="step-h"><span class="step-n">STEP 6</span><h3 style="margin:0">gate</h3><span class="badge b-sonnet">Sonnet 4.6</span><span class="badge b-det">+ deed blocks</span></div>
+      <details><summary>System prompt <span class="pill verbatim">verbatim</span></summary><div class="body"><pre>You are the listing quality gate for a Thai property marketplace. Given an
+extracted listing, list the missing or weak fields a poster should be asked for, ordered by
+importance. severity "required" = the listing cannot publish without it; "important" = should be
+nudged for (CONV-01: photos are nudged, never hard-blocked). promptKey is a stable snake_case key
+naming the field ask (e.g. "ask_price", "ask_deed_type", "ask_photos", "ask_location",
+"ask_land_area", "ask_floor_area", "ask_utility_rate"). Do NOT decide deed-type legality — the
+caller enforces deed blocks deterministically.
++ DEED_TAXONOMY + PREFIX_PAD</pre></div></details>
+      <h4>User content</h4>
+      <pre>LISTING (extracted):
+{ …the extracted JSON… }
+photoCount: 11</pre>
+      <h4>Output</h4>
+      <pre>{ pass: boolean,
+  missing: [ { field, severity:"required"|"important", promptKey } ] }</pre>
+      <p class="small muted">Hard deed blocks (FIELD-03) and the "unknown deed never publishes" rule are enforced in code, <em>under</em> the model's list — the LLM only proposes the asks.</p>
+    </div>
+  </div>
+
+  <!-- ================================================================ -->
+  <h2 id="example">3 · A real example — the 2026-06-15 incident</h2>
+  <p class="lead">Pulled read-only from staging: the actual messages (DynamoDB) and the one row that survived (Postgres). <span class="pill real">real</span> = pulled from the server; <span class="pill repr">representative</span> = reconstructed from the known outcome, because the system <strong>does not persist raw LLM responses</strong> (only the final Postgres row survives — itself a finding behind Plan 23 Group C).</p>
+
+  <h3>3a · The input <span class="pill real">real</span> — what the user actually sent</h3>
+  <p class="small muted">77 stored items; the dump itself is 5 listings = 11 text messages (3 of them map links) interleaved with 59 photos, all within ~2 minutes. The real Thai text, verbatim:</p>
+  <table>
+    <thead><tr><th>#</th><th>Listing (from the text)</th><th>Its own map pin?</th><th>Price</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Mooban Wangtan house</td><td class="num">✅ 18.72989755, 98.96882414</td><td class="num">2.3 M</td><td>❌ merged away</td></tr>
+      <tr><td>2</td><td>ขายฝากบ้าน บ้านหลักชัย, ต.สันนาเม็ง อ.สันทราย</td><td class="num">✅ 18.82638337, 99.05647534</td><td class="num">1.2 M</td><td>❌ merged away</td></tr>
+      <tr><td>3</td><td>หอพัก ใกล้ ม.แม่โจ้, 39 ห้อง, 700 ตร.ว.</td><td class="num">❌ none</td><td class="num">13.8 M</td><td>✅ <strong>the 1 survivor</strong></td></tr>
+      <tr><td>4</td><td>ทาวน์โฮม อรสิริน 6, 31 ตร.ว.</td><td class="num">⚠ short goo.gl link (no coord)</td><td class="num">1.3 M</td><td>❌ merged away</td></tr>
+      <tr><td>5</td><td>ขายหอพัก ย่านบ่อสร้าง, สันกำแพง, 14 ห้อง</td><td class="num">❌ none</td><td class="num">4.8 M</td><td>❌ merged away</td></tr>
+    </tbody>
+  </table>
+
+  <details><summary>The transcript the pipeline built from it <span class="pill real">real text</span> <span class="pill repr">image labels representative</span></summary>
+  <div class="body">
+  <p class="small muted">This is what <code class="inl">buildTranscript</code> produces (every line timestamped; map URLs → <code class="inl">[MAP n]</code>; photos → <code class="inl">[IMG n]</code>). Photo runs collapsed; image classifications shown as <code class="inl">property</code> placeholders since the real classify output isn't persisted.</p>
+  <pre>[15 Jun 10:01:56] [MAP 0]
+[15 Jun 10:01:56] Mooban Wangtan
+[15 Jun 10:01:56] [IMG 0] property
+[15 Jun 10:01:56] 2.3 Mil
+[15 Jun 10:01:57] I already told them 1.7 mil
+[15 Jun 10:01:57] If they accept , will go check tomorrow
+[15 Jun 10:01:57] [IMG 1..9] property        (9 photos)
+[15 Jun 10:02:18] [MAP 1]
+[15 Jun 10:02:18] [IMG 10..11] property
+[15 Jun 10:02:19] ขายฝากบ้าน2 ชั้น ในโครงการบ้านหลักชัย ตรงข้ามกาดแม่กวง
+                  ต.สันนาเม็ง อ.สันทรายจ.เชียงใหม่เนื้อที่ 30 ตรว 3 นอน 2 น้ำ
+                  ยอด 1,200,000 บาท ดอก 1.25% หักล่วงหน้า 3 เดือน
+[15 Jun 10:02:19] [IMG 12..25] property      (14 photos)
+[15 Jun 10:03:06] 🔥 ขายหอพัก 2 ชั้น ใกล้ ม.แม่โจ้ ‼️  จาก 15.8 ล้านบาท เหลือเพียง 13.8 เท่านั้น!!
+                  🏢 มีทั้งหมด 39 ห้อง … 💰 รายได้หลังหักค่าใช้จ่าย 95,000 บาท/เดือน
+                  … ✅ พื้นที่รวมกว่า 700 ตารางวา … 🏡 พร้อมผู้เช่าเต็มทุกห้อง‼️
+[15 Jun 10:03:06] [IMG 26..36] property      (11 photos)  ← these stayed with the survivor
+[15 Jun 10:03:21] [MAP 2]
+[15 Jun 10:03:21] ทาวน์โฮมในโครงการอรสิริน 6  เนื้อที่ 31 ตรว.  ขอยอด 1,300,000
+                  ดอกเบี้ย 1.25% หัก 4 เดือน  ค่าดำเนินการ 5% สัญญา 1 ปี
+[15 Jun 10:03:22] [IMG 37..46] property      (10 photos)
+[15 Jun 10:03:38] ขายหอพักย่านบ่อสร้าง 🏠 14 ห้อง เต็มทุกห้อง … 📐 เนื้อที่ 52 ตร.ว.
+                  💥 ราคาเพียง 4.8 ล้านบาท (รวมโอน) … 📍 ทำเลดี ต้นเปา สันกำแพง
+                  📞 085-0323448  📞 081-9981515
+[15 Jun 10:03:39] [IMG 47..58] property      (12 photos)</pre>
+  </div></details>
+
+  <h3>3b · What the pipeline derived</h3>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>geoHints (fed to <em>every</em> segment) <span class="pill real">real</span></h4>
+      <pre>parseGeoLinks(wholeBatch) →
+[ "18.72989755,98.96882414",   // MAP 0 → listing #1
+  "18.82638337,99.05647534" ]  // MAP 1 → listing #2
+// MAP 2 (goo.gl short link) carries no coordinate → dropped</pre>
+      <p class="small">Two pins, 14 km apart. Handed in full to all 5 segment extractions.</p>
+    </div>
+    <div class="card">
+      <h4>segment output <span class="pill repr">representative</span></h4>
+      <pre>5 segments returned (segmentation worked):
+ #1 Mooban Wangtan   #2 บ้านหลักชัย
+ #3 หอพัก ม.แม่โจ้   #4 อรสิริน 6   #5 บ่อสร้าง
+// run log: listings:5, dropped:0</pre>
+      <p class="small">The split was <strong>correct</strong>. The failure is entirely downstream, at dedup.</p>
+    </div>
+  </div>
+
+  <h3>3c · The output <span class="pill real">real — the Postgres row</span></h3>
+  <p class="small muted">The one row that persisted (<code class="inl">listing</code> id <code class="inl">4b194544…</code>) — the หอพัก ม.แม่โจ้ dorm. Key fields:</p>
+  <pre>id                 4b194544-d4a8-4c45-a229-83fea11d72e8
+property_type      commercial          price_thb   13800000     urgency  price_reduced
+landmark           ใกล้มหาวิทยาลัยแม่โจ้   land_wah    700          land_sqm 2800
+province           เชียงใหม่            deed_no     (null)       title_deed_type unknown
+source_group_id    (null)  ← DM-sourced        claimed_by_user_id (null)  ← unclaimable today
+lat (ST_Y geom)    18.82638337         lon (ST_X geom)  99.05647534
+media rows kept    11                  created_at  15 Jun 10:49 (Asia/Bangkok)</pre>
+
+  <div class="callout bug">
+    <strong>The smoking gun.</strong> The survivor is listing&nbsp;#3 (the แม่โจ้ dorm), which <em>had no map pin of its own</em>. Yet it persisted with <code class="inl">lat/lon = 18.82638337, 99.05647534</code> — which is <strong>exactly map pin&nbsp;#1 (<code class="inl">MAP 1</code>), the pin that belongs to listing&nbsp;#2 (บ้านหลักชัย)</strong>. A conversation-level coordinate was stamped onto a different listing's extraction. With distinct properties now sharing coordinate <code class="inl">18.826…</code>, the dedup blocker linked them and Haiku returned "merge" — collapsing 4 of the 5 into this one row.
+    <br><br>
+    <span class="small muted">(The exact per-segment merge graph — which segment merged into which — isn't reconstructable from stored data because raw step responses aren't persisted; capturing that trace via replay is a Plan 23 Group C deliverable. The geo mis-bind itself is proven by the row above.)</span>
+  </div>
+
+  <p class="small muted">Whole-catalog check: <code class="inl">listing</code> holds <strong>6</strong> DM-sourced rows (NULL group) vs <strong>24</strong> seed/group rows — and this dump of 5 contributed just 1 of those 6.</p>
+
+  <!-- ================================================================ -->
+  <h2 id="plan">4 · How Plan 23 changes the workflow</h2>
+  <p class="lead">The <a href="00-CONSOLIDATED-sequencing.md">consolidated plan</a> sequences four groups of fixes. Diagram below: <span style="color:var(--new)"><strong>green</strong></span> = new, <span style="color:var(--chg)"><strong>blue</strong></span> = changed. Each node is tagged with its phase / owning group.</p>
+
+  <div class="legend" style="margin-bottom:6px">
+    <span><i class="sw new"></i> new step / safeguard</span>
+    <span><i class="sw chg"></i> changed behaviour</span>
+  </div>
+
+  <pre class="mermaid">
+flowchart TD
+  U["📱 LINE user dumps listings"] --> WH["Webhook → DynamoDB"]
+  WH --> SW["⏱️ Ingestion sweep — cron"]
+  SW --> CH["CHUNK the backlog&lt;br/&gt;≤ ~12 images per run · watermark PER CHUNK&lt;br/&gt;then lower Lambda 900s → ~300s&lt;br/&gt;◆ Phase 3 · Group B"]:::new
+  CH --> BT["buildTranscript&lt;br/&gt;+ ordered coord-by-map-index&lt;br/&gt;◆ Phase 2 · Group A"]:::chg
+  BT --> C1
+
+  subgraph PIPE["runPipeline — per chunk"]
+    direction TB
+    C1["① classify each photo&lt;br/&gt;READ-THROUGH CACHE by s3Key&lt;br/&gt;warm run = 0 LLM calls&lt;br/&gt;◆ Phase 3 · Group B"]:::new
+    C1 --> S2["② segment thread → N listings&lt;br/&gt;Sonnet 4.6 (unchanged)"]
+    S2 --> E3["③ extract — per segment&lt;br/&gt;ONLY its own map pin (via mapIndex)&lt;br/&gt;◆ Phase 2 · Group A"]:::chg
+    E3 --> D4{"④ dedup&lt;br/&gt;block + verify"}
+    D4 -->|"strong evidence&lt;br/&gt;deed / tight-geo + text"| M["merge into existing row"]
+    D4 -->|"weak / uncertain"| MR["persist as a NEW row&lt;br/&gt;+ moderation merge_request&lt;br/&gt;✅ no silent loss&lt;br/&gt;◆ Phase 2 · Group A"]:::new
+    D4 -->|"new"| NP["persistNewListing&lt;br/&gt;+ write idempotency key&lt;br/&gt;◆ E10 · Phase 3"]:::new
+    M --> T5["⑤ translate"]
+    MR --> T5
+    NP --> T5
+    T5 --> G6["⑥ gate"]
+    G6 -.->|"next segment"| E3
+  end
+
+  G6 --> DMQ{"source_group_id NULL?&lt;br/&gt;(a 1:1 DM)"}
+  DMQ -->|"yes"| DM["claim invite to the sender&lt;br/&gt;set dm_claimant_user_id&lt;br/&gt;sender can claim + publish&lt;br/&gt;◆ Phase 4 · Group D"]:::new
+  DMQ -->|"no"| GRP["group claim invite (as today)"]
+  DM --> CONF["confirm: N DISTINCT rows persisted&lt;br/&gt;◆ Phase 2 · Group A"]:::chg
+  GRP --> CONF
+
+  G6 --> EV[("🧪 Golden eval set&lt;br/&gt;incident = locked Tier-A case&lt;br/&gt;'N distinct, 0 merges' archetype&lt;br/&gt;◆ Phase 1 · Group C")]:::new
+  EV -.->|"hill-climb prompts vs the real failure"| S2
+
+  classDef new fill:#0f2a22,stroke:#36d399,stroke-width:2px,color:#b6f5dd;
+  classDef chg fill:#0e2236,stroke:#5ab0ff,stroke-width:2px,color:#cfe7ff;
+  </pre>
+
+  <h3>What each phase changes</h3>
+  <table>
+    <thead><tr><th>Phase</th><th>Group</th><th>Change</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><strong>1</strong></td><td>C — eval</td><td>Make the incident a locked <strong>Tier-A regression case</strong> + add the "N distinct → N rows, 0 merges" metric the eval is currently blind to.</td><td>Build the red test <em>before</em> the fix so the improvement is provable and can't regress.</td></tr>
+      <tr><td><strong>2</strong></td><td>A — dedup</td><td><strong>Bind geo per-segment</strong> (use <code class="inl">mapIndex</code>; pass only a segment's own pin) · <strong>conservative-merge guard</strong> (weak/uncertain merges become a new row + a moderation item, never silent loss) · <strong>honest count</strong> (report distinct rows persisted).</td><td>Fixes the proven root cause and makes a false merge structurally impossible to lose data on.</td></tr>
+      <tr><td><strong>3</strong></td><td>B — resilience</td><td><strong>Cache classify by <code class="inl">s3Key</code></strong> (warm runs do zero classify calls) · <strong>chunk the batch</strong>, advance the watermark per chunk, then lower the 900s Lambda back to ~300s · smarter failure signal · <strong>write idempotency</strong> (E10) · a per-step timing hook.</td><td>Kills the retry waste and the timeout cliff without the band-aid; makes re-runs safe.</td></tr>
+      <tr><td><strong>4</strong></td><td>D — DM</td><td>A DM dump becomes <strong>claimable by its sender</strong> (new <code class="inl">dm_claimant_user_id</code> + claim invite + gate admission).</td><td>Today a DM listing is unclaimable by anyone — the "seed my account" user can't use their own data.</td></tr>
+    </tbody>
+  </table>
+  <p class="small muted">Ordering rationale (full detail in <a href="00-CONSOLIDATED-sequencing.md">00-CONSOLIDATED-sequencing.md</a>): silent data loss is the worst defect, so <strong>A precedes B</strong> — shipping chunking first would spread the merge bug across chunk boundaries, whereas A's conservative-merge makes any cross-chunk split a recoverable duplicate.</p>
+
+  <!-- ================================================================ -->
+  <h2 id="legend">Legend &amp; sources</h2>
+  <div class="card">
+    <p><strong>Data provenance.</strong></p>
+    <ul class="small">
+      <li><span class="pill verbatim">verbatim</span> prompts/schemas/models — read directly from <code class="inl">packages/pipeline/src/steps/*</code>, <code class="inl">dedup/verify.ts</code>, <code class="inl">adapters/anthropicStepLlm.ts</code>.</li>
+      <li><span class="pill real">real</span> incident data — read-only from staging DynamoDB <code class="inl">linerobot-staging-messages</code> (the 76-message dump) and Postgres <code class="inl">listing</code> (the survivor row <code class="inl">4b194544…</code>). No writes, no paid LLM calls were made to produce this report.</li>
+      <li><span class="pill repr">representative</span> — reconstructed from the known run outcome, because the system persists only the final Postgres row, not the raw step responses (a gap Plan 23 Group C closes).</li>
+    </ul>
+    <p class="small muted">Pipeline entry: <code class="inl">packages/pipeline/src/run.ts</code> · sweep: <code class="inl">packages/bot/src/app/ingestionSweep.ts</code> + <code class="inl">pipelineV2Sweep.ts</code> · prompts: <code class="inl">packages/pipeline/src/steps/prompts.ts</code> · models: <code class="inl">steps/context.ts</code>. Full audit + plans in this folder (<code class="inl">plans/23-ingestion-pipeline-audit/</code>).</p>
+  </div>
+
+  <p class="foot">Generated 2026-06-15 for the Plan 23 ingestion-pipeline audit. Diagrams render via Mermaid (CDN). Open this file directly in a browser.</p>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'loose',
+    theme: 'dark',
+    flowchart: { htmlLabels: true, curve: 'basis', nodeSpacing: 40, rankSpacing: 50 },
+    themeVariables: { fontSize: '14px', fontFamily: 'ui-sans-serif, system-ui, "Noto Sans Thai", sans-serif' }
+  });
+</script>
+</body>
+</html>
