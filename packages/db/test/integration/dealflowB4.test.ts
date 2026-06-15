@@ -280,7 +280,8 @@ describe("listQuickSaleUnpushed — the quick-quote scan", () => {
 
 describe("the vetted recipient set + matchVettedUsers (no unvetted leak)", () => {
   it("only an approved-vetted broker matching the listing's overlap is selected", async () => {
-    // broker: approved, CNX/house/band-s2 (3M–5M).
+    // broker: approved, CNX/house/band-s2 (3M–5M). `broker` is a distinct pg UUID; its LINE provider
+    // subject is "U-b4-broker" — the recipient's `lineUserId` must be the SUBJECT, not the pg UUID.
     await addRole(db, { userId: broker, kind: "broker", approvalStatus: "approved" });
     await setBrokerPreference(db, broker, {
       provinces: ["เชียงใหม่"],
@@ -296,18 +297,32 @@ describe("the vetted recipient set + matchVettedUsers (no unvetted leak)", () =>
     });
     // poster: a PENDING broker application → never vetted, must never be a recipient.
     await addRole(db, { userId: poster, kind: "broker", approvalStatus: "pending" });
+    // An APPROVED broker with NO LINE identity → not push-targetable → excluded by the inner join.
+    const { rows: noIdRows } = await pool.query<{ id: string }>(
+      "INSERT INTO \"user\" (display_name) VALUES ('No-LINE Broker') RETURNING id",
+    );
+    const noLineBroker = noIdRows[0]?.id as string;
+    await addRole(db, { userId: noLineBroker, kind: "broker", approvalStatus: "approved" });
 
     const candidates = await listApprovedVettedUsers(db);
     const ids = candidates.map((c) => c.userId);
     expect(ids).toContain(broker);
     expect(ids).toContain(investor);
     expect(ids).not.toContain(poster); // pending → unvetted, excluded server-side
+    expect(ids).not.toContain(noLineBroker); // approved but no LINE identity → not push-targetable
 
-    // A CNX house at 4.2M (band s2) matches the broker only.
+    // The push target is the LINE provider subject, NOT the pg user UUID (LINE pushMessage 400s on a
+    // pg id). `broker` is a fresh UUID; its subject is the seed value "U-b4-broker".
+    const brokerCandidate = candidates.find((c) => c.userId === broker);
+    expect(brokerCandidate?.lineUserId).toBe("U-b4-broker");
+    expect(brokerCandidate?.lineUserId).not.toBe(broker); // the subject, not the pg UUID
+
+    // A CNX house at 4.2M (band s2) matches the broker only — and its lineUserId survives the match.
     const matched = matchVettedUsers(
       { province: "เชียงใหม่", propertyType: "house", dealType: "sale", amountThb: 4_200_000 },
       candidates,
     );
     expect(matched.map((c) => c.userId)).toEqual([broker]);
+    expect(matched[0]?.lineUserId).toBe("U-b4-broker");
   });
 });

@@ -709,3 +709,21 @@ green "✓ failed" note + killed retry — the if/else was a no-op) → FIXED (e
 error; the success test now bites), + reuse cleanups (shared BOX/ErrorView/primaryButtonClass; dedup; dead
 exports/i18n). Gates GREEN: typecheck, lint, miniapp unit 131 / ui 26, **e2e static 86 + realapi 16**. Queued
 S6-16 (no in-app discovery for /apply or the admin screens — deep-link-only). **Stage-6 mini-app UI COMPLETE.**
+
+**INC-B4 merged + Stage-6 STAGE GATE — PASS-WITH-CONDITIONS → CONDITION-1 FIXED.** Merged the INC-B4 bot
+worktree branch (lapse-DM + 3 postbacks + quick-quote Flex push + migration 0010) into main (`e7f0db7`, clean —
+disjoint files). **Merged-tree verification GREEN:** typecheck 0, lint, workspace unit all-pass, db integration
+**78** (0009+0010), miniapp e2e **static 86 + realapi 16**, bot integration **38**. Stage gate (high-effort
+full-diff arch+integration review over `cf3ba60..e7f0db7`): **architecture CLEAN** (hexagonal — no @line/liff in
+api, SPA HTTP-only, NO @line in pipeline [biting test], domain pure, bot dealflow in the bot app layer, no rogue
+infra), **integration coherent** B1→B4, **DoD HOLDS** (exclusivity state machine — every transition tested with
+deterministic clocks across domain+bot+db; quick-quote-vetted invariant server-side via `listApprovedVettedUsers`
+SOLE source; every UI feature mapped to a biting e2e). Eval (oracle) **1.00**, baseline delta ~0 — unregressed
+(pipeline untouched). **The gate caught a REAL cross-increment SEAM BUG (CONDITION 1, HIGH):** the quick-quote
+Flex push pushed a Postgres user UUID as the LINE `to` (`listApprovedVettedUsers` returned `roles.userId` with NO
+`user_identities` join; the LAPSE path got it right) → it would NEVER reach a real broker; every test passed for
+the WRONG reason (LINE-id-shaped pg-id fixtures). **FIXED:** added the `user_identities` (provider='line') inner
+join → carry `lineUserId`; push `c.lineUserId`; tests now use a DISTINCT pg-UUID + LINE-subject so they BITE
+(proven red pushing `c.userId`). Inert today (gated on MINIAPP_URL). CONDITION 2 (>= vs < expiry boundary, picked
+up next 2-min tick) — advisory, no fix. Gates re-GREEN (db integ 78, bot integ 38, bot unit 279). **STAGE 6 CODE
+COMPLETE.**

@@ -152,16 +152,20 @@ describe("DealflowSweep — quick-quote Flex push", () => {
     amountThb: 4_200_000, // band s2
     headline: "ขายด่วน",
   };
-  // An approved broker matching CNX/house/s2, and an unmatched Phuket-only investor.
+  // An approved broker matching CNX/house/s2, and an unmatched Phuket-only investor. `userId` is the
+  // pg UUID (dedup/logging); `lineUserId` is the LINE provider subject — the ONLY valid push target
+  // (pushing the pg UUID would 400 on LINE's pushMessage). They are deliberately distinct.
   const brokerMatch = {
-    userId: "Ubroker",
+    userId: "a1b2c3d4-0000-4000-8000-000000000001", // pg UUID — never the push target
+    lineUserId: "Ubroker0000000000000000000000000",
     kind: "broker" as const,
     provinces: ["เชียงใหม่"],
     propertyTypes: ["house"],
     priceBandIds: ["s2"],
   };
   const investorNoMatch = {
-    userId: "Uinvestor",
+    userId: "a1b2c3d4-0000-4000-8000-000000000002",
+    lineUserId: "Uinvestor000000000000000000000000",
     kind: "investor" as const,
     provinces: ["ภูเก็ต"],
     propertyTypes: [],
@@ -174,9 +178,11 @@ describe("DealflowSweep — quick-quote Flex push", () => {
     const gw = makeGateway();
     const result = await new DealflowSweep(deps({ gateway: gw })).run();
 
-    // Exactly one recipient — the matched broker — never the unmatched investor.
+    // Exactly one recipient — the matched broker — never the unmatched investor. The push `to` MUST
+    // be the broker's LINE provider subject (lineUserId), NOT the pg UUID (which would 400 on LINE).
     expect(gw.pushes).toHaveLength(1);
-    expect(gw.pushes[0]?.to).toBe("Ubroker");
+    expect(gw.pushes[0]?.to).toBe(brokerMatch.lineUserId);
+    expect(gw.pushes[0]?.to).not.toBe(brokerMatch.userId); // never the pg UUID
     expect(uriOf(gw.pushes[0]?.messages[0] as OutboundMessage)).toBe(`${MINIAPP}/quote/L-quick`);
     // The once-guard was stamped with the deterministic clock.
     expect(markQuickSalePushed).toHaveBeenCalledWith({}, "L-quick", new Date(NOW_MS));

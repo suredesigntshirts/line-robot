@@ -172,13 +172,14 @@ export class DealflowSweep {
       const card = quickQuoteCard(title, quoteUrl);
       let reached = 0;
       for (const c of matched) {
+        // Push to the LINE provider subject — c.userId is a pg UUID and would 400 on pushMessage.
         try {
-          await this.deps.gateway.push(c.userId, [card]);
+          await this.deps.gateway.push(c.lineUserId, [card]);
           reached += 1;
         } catch (error) {
           this.deps.logger.warn("dealflow: quick-quote push failed", {
             listingId: listing.listingId,
-            to: c.userId,
+            to: c.lineUserId,
             error: String(error),
           });
         }

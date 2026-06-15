@@ -238,7 +238,10 @@ export async function setRoleApproval(
 /** An approved-vetted user + their stated quick-quote preferences (their `broker_preference` row, or
  * all-empty "any" when they haven't set one). The `matchVettedUsers` candidate set. */
 export interface VettedCandidate {
+  /** The canonical user UUID (dedup key + logging) — NOT a LINE push target. */
   userId: string;
+  /** The user's LINE provider subject — the push `to` target for the quick-quote DM. */
+  lineUserId: string;
   kind: RoleKind;
   provinces: string[];
   propertyTypes: string[];
@@ -258,17 +261,28 @@ export interface VettedCandidate {
  * notify that user twice for one listing. We keep the first row per `user_id`; `kind` is the first
  * approved role we see (the matching logic never reads `kind` — it's informational), and the prefs
  * are identical across the duplicate rows, so which row we keep doesn't change the recipient set.
+ *
+ * The INNER JOIN to `user_identities` (provider 'line') resolves each vetted user's LINE provider
+ * subject (`lineUserId`) — the actual push `to` target. The join is the filter: a vetted user with
+ * no LINE identity is not push-targetable (and in practice every vetted broker has one from LIFF
+ * auth), so they're correctly excluded from the recipient set. `userId` (the pg UUID) is kept ONLY
+ * for dedup/logging — pushing it as the LINE `to` would 400 (it's not a LINE id).
  */
 export async function listApprovedVettedUsers(db: Db): Promise<VettedCandidate[]> {
   const rows = await db
     .select({
       userId: roles.userId,
+      lineUserId: userIdentities.providerSubject,
       kind: roles.kind,
       provinces: brokerPreferences.provinces,
       propertyTypes: brokerPreferences.propertyTypes,
       priceBandIds: brokerPreferences.priceBandIds,
     })
     .from(roles)
+    .innerJoin(
+      userIdentities,
+      and(eq(userIdentities.userId, roles.userId), eq(userIdentities.provider, "line")),
+    )
     .leftJoin(brokerPreferences, eq(brokerPreferences.userId, roles.userId))
     .where(and(eq(roles.approvalStatus, "approved"), inArray(roles.kind, ["broker", "investor"])));
 
@@ -277,6 +291,7 @@ export async function listApprovedVettedUsers(db: Db): Promise<VettedCandidate[]
     if (byUser.has(r.userId)) continue; // a user approved under two roles → keep the first
     byUser.set(r.userId, {
       userId: r.userId,
+      lineUserId: r.lineUserId,
       kind: r.kind,
       provinces: r.provinces ?? [],
       propertyTypes: r.propertyTypes ?? [],
