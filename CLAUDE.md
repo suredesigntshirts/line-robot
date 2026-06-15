@@ -89,13 +89,17 @@ current mode).
 (th `/` + `/en/`). Gated 2026-06-14 (CONDITIONAL-PASS). Reads the catalog via the `@line-robot/db`
 PUBLIC barrel only (repository fns) — never another package's adapters/internals.
 
-- **Design tokens — `@line-robot/ui` ships `theme.css` (Tailwind v4 `@theme {}`) AND `fallbacks.css`
-  (plain `:root {}`). A consumer that does NOT run Tailwind (this website) MUST import BOTH**
-  (`import "@line-robot/ui/theme.css"; import "@line-robot/ui/fallbacks.css";` — see `Base.astro`).
-  A browser discards the unrecognised `@theme {}` block, so theme.css alone → every `var(--token)`
-  empty (serif font, no spacing/colour). `fallbacks.css` is generated from theme.css by
-  `npm run tokens:fallbacks -w @line-robot/ui` (run it after editing tokens): full base `:root` +
-  hex-first colours with an `@supports (color: oklch)` upgrade (TECH-06, old Thai-Android WebViews).
+- **Design tokens & theming (Direction A "Baania-clean" trust-blue — founder-confirmed 2026-06-13).**
+  The website **runs Tailwind v4** (via `@tailwindcss/vite`, registered in `astro.config.mjs`); its CSS
+  entry is `packages/website/src/styles/global.css`, imported by `Base.astro`. `@line-robot/ui/theme.css`
+  is **THE single token source** (`@theme static`) — because the site compiles Tailwind, that `@theme`
+  block becomes `:root` custom properties, so no separate token restatement is needed. `fallbacks.css`
+  (still imported) is now ONLY the oklch→hex fallback for old Thai-Android WebViews
+  (`@supports not (color: oklch())`, TECH-06); regenerate it with `npm run tokens:fallbacks -w @line-robot/ui`
+  after editing tokens. shadcn primitives are **owned code** in `packages/ui/src/components/ui/`, themed via
+  the `@theme inline` alias layer in `global.css` (override via tokens, never rewrite the primitives).
+  Retune the palette by editing the OKLCH values in `theme.css`. (This Tailwind v4 + shadcn + direction-a
+  foundation is plan 21 — `plans/21-frontend-architecture-conformance.md`.)
 - **Photos: SSR-time presign of `derivatives/*` thumbs** (`src/lib/media.ts`; SSR HTML is no-cache so
   presigned URLs never stale-cache; bucket stays private). The SSR role has `s3:GetObject` scoped to
   `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (BACKLOG 4.9 — a

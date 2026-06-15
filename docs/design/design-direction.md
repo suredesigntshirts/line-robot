@@ -1,6 +1,6 @@
 # Design Direction — Candidate Pick
 
-**Status: AWAITING FOUNDER PICK (morning decision).** Synthesized 2026-06-12 from the mood-board collection (`moodboard/thai/NOTES.md`, `moodboard/international/NOTES.md`, `tokens-candidates.md` — each collect→critique→revise audited). The Stage 3 token architecture ships with a placeholder; **your pick swaps in as a single-file change** (`packages/ui/theme.css`).
+**Status: DECIDED — Direction A "Baania-clean" (trust-blue), founder-confirmed 2026-06-13** (after reviewing side-by-side A/B/C HTML mockups; locked in `packages/ui/theme.css`, commit `4b25dc9`). The live palette's source of truth is `packages/ui/theme.css`, **not** this file. This memo is kept as the record of the pre-decision candidate analysis — note the recommendation below was for **B**, but the founder chose **A**. Synthesized 2026-06-12 from the mood-board collection (`moodboard/thai/NOTES.md`, `moodboard/international/NOTES.md`, `tokens-candidates.md` — each collect→critique→revise audited).
 
 ## Founder taste brief (verbatim intent)
 Admires Baania, DDProperty, LINE (Naver): "nice clean aesthetic, feels modern, clean UX, approachable." Dark mode polished at launch.
@@ -15,16 +15,16 @@ Admires Baania, DDProperty, LINE (Naver): "nice clean aesthetic, feels modern, c
 
 ## The three candidates (full token sets in `tokens-candidates.md`)
 
-### A — "Baania-clean" (trust-blue)
+### A — "Baania-clean" (trust-blue) ← ✅ CHOSEN (founder, 2026-06-13)
 Trust-blue primary, warm neutral grays, generous radius. **For**: maximally "professional portal," differentiates from LINE's own green chrome. **Against**: the founder's three admired references are all green-family; blue reads more corporate than "approachable"; inside the LINE mini-app it looks most like a foreign embed.
 
-### B — "LINE-native" (fresh green) ← **my recommendation**
+### B — "LINE-native" (fresh green) ← *was recommended below — NOT chosen (founder picked A)*
 LINE-adjacent (not identical) green primary, rounded-friendly, chat-app warmth. **For**: directly expresses the taste brief; the green convergence means one palette feels native in the mini-app *and* normal on a Thai property card; trust-green satisfies TH-12. **Against**: least distinctive vs LINE itself — mitigated by our own hue (ownable, not #06C755), photography-led cards, and the premium type discipline.
 
 ### C — "Northern-premium" (muted teal + warm paper)
 Editorial, Sansiri-pole made approachable. **For**: most distinctive brand, fits "North-flavored" identity. **Against**: furthest from the stated taste brief; teal primary needed a darker shade to pass AA on light buttons (handled in the token set); risks "Bangkok-luxury" signal at odds with ขายด่วน practicality.
 
-**Recommendation: B**, borrowing A's neutral surface scale for data-dense screens. All three sets pass WCAG AA in both themes (verified in tokens-candidates.md, with the one borderline — C's light-mode primary — already resolved).
+**Original recommendation was B** (borrowing A's neutral surface scale for data-dense screens) — **superseded: the founder chose A** (trust-blue) on 2026-06-13 after reviewing the rendered mockups. All three sets pass WCAG AA in both themes (verified in tokens-candidates.md, with the one borderline — C's light-mode primary — already resolved).
 
-## How to pick (morning, ~2 minutes)
-Reply with A / B / C (or "B with tweaks: …"). The chosen `@theme` block from `tokens-candidates.md` replaces the placeholder in `packages/ui/theme.css`; the component gallery re-renders both themes; `/alignment-review` re-checks TH-12/TH-06/07. No component code changes.
+## Outcome
+Founder picked **A** on 2026-06-13; the Direction-A `@theme` block from `tokens-candidates.md` is now live in `packages/ui/theme.css`. The Tailwind v4 + shadcn foundation and the direction-a redesign across all pages are being implemented under **plan 21** (`plans/21-frontend-architecture-conformance.md`).
