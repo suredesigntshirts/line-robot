@@ -7,23 +7,22 @@ import { runPipeline } from "../../src/run.ts";
 import type { StepContext } from "../../src/steps/context.ts";
 
 // ---------------------------------------------------------------------------
-// A1 REAL-MODEL acceptance — the 2026-06-15 incident replayed through the real
-// models + Postgres. A user dumped 5 distinct listings into one DM; conversation-
-// level geoHints were sprayed onto every segment, so listings inherited each
-// other's coordinates, geo-blocked, and were merged away.
+// A1 REAL-MODEL acceptance — the 2026-06-15 incident, replayed through the real
+// models + Postgres. Reconstructed faithfully from the actual 77-message thread
+// (staging conversation user#U810f7671d201fe7ce3ec2ef49ab8d16a): 5 distinct
+// listings, each = (optional map pin) + text + photo burst. Only #1 and #2 carry
+// a coordinate pin; #4's map is a coordinate-less short link ([MAP 2]); #3 and #5
+// have no pin. Phone numbers anonymized; coordinates are the real pins (already
+// public in plans/23-ingestion-pipeline-audit).
 //
-// WHAT CHANGED post-A2 (the conservative-merge guard, already shipped): the
-// SILENT DATA LOSS no longer reproduces — A2 downgrades the weak geo-merges to
-// new rows + moderation, so the dump now persists as ≥4 distinct rows. What
-// REMAINS — and what A1 fixes — is the geo MIS-BIND: a listing still inherits a
-// coordinate that belongs to a different listing (here, >1 row ends up carrying
-// property #2's pin). That mis-bind is the `it.fails` target below.
+// THE BUG: conversation-level geoHints were sprayed onto every segment, so #3/#4/#5
+// inherited #2's pin → geo-blocked → merged. A1 binds each segment to ITS OWN pin
+// (segmenter mapIndex → coordByMapIndex), so the correct outcome is: #1→pin1,
+// #2→pin2, #3/#4/#5→null, and NO two listings share a coordinate.
 //
-// Two real far-apart pins fed as geoHints; #1 and #2 carry them as [MAP n]
-// markers (mirroring the real sweep, which substitutes URLs → markers and passes
-// coords out-of-band). Skipped unless ANTHROPIC_API_KEY is present; costs a few
-// cents. Run deliberately: `npm run test:integration -w @line-robot/pipeline`.
-// Real-model output varies run-to-run — treat as advisory/diagnostic, not CI.
+// Skipped unless ANTHROPIC_API_KEY is present; costs a few cents. Run deliberately:
+// `npm run test:integration -w @line-robot/pipeline`. Real-model output varies
+// run-to-run — D21-advisory; the no-shared-coordinate invariant is the A1 contract.
 // ---------------------------------------------------------------------------
 
 const HAS_KEY = (() => {
@@ -37,17 +36,34 @@ const HAS_KEY = (() => {
 
 const CONTAINER = "linerobot-incident-e2e";
 
-// Property #2's pin (§2.1). Pre-A1 the survivor wrongly persisted with this coord.
-const PIN_2_LAT = 18.82638337;
-const PIN_2_LON = 99.05647534;
+const PIN_1 = "18.72989755,98.96882414"; // Mooban Wangtan ([MAP 0])
+const PIN_2 = "18.82638337,99.05647534"; // บ้านหลักชัย, สันนาเม็ง ([MAP 1])
 
-// 5 distinct listings; only #1 and #2 carry a pin (as a [MAP n] marker).
+// Faithful reconstruction (timestamps trimmed to minutes; image bursts abbreviated to 2 markers
+// each — the segmenter attributes by marker, not by count). [MAP 2] is the coordinate-less short
+// link for listing #4. Listing #3 (the แม่โจ้ dorm — the real survivor) and #5 have no pin.
 const TRANSCRIPT = [
-  "[0m] U: ขายบ้านเดี่ยว หมู่บ้านวังตาล สันกำแพง เชียงใหม่ 3 นอน 2 น้ำ 50 ตร.ว. ราคา 2.3 ล้าน [MAP 0]",
-  "[2m] U: ขายฝากบ้านหลักชัย ต.สันทราย อ.สันทราย จ.เชียงใหม่ ราคา 1.25 ล้าน [MAP 1]",
-  "[4m] U: ขายหอพักใกล้ ม.แม่โจ้ 39 ห้อง ผู้เช่าเต็มทุกห้อง ทำเลดี ราคา 13.8 ล้าน",
-  "[6m] U: ขายทาวน์โฮม โครงการอรสิริน 6 เชียงใหม่ 2 นอน 2 น้ำ ราคา 1.3 ล้าน",
-  "[8m] U: ขายหอพัก บ่อสร้าง สันกำแพง เชียงใหม่ 14 ห้อง ราคา 4.8 ล้าน",
+  "[10:01:56] [MAP 0]",
+  "[10:01:56] Mooban Wangtan",
+  "[10:01:56] 2.3 Mil",
+  "[10:01:57] I already told them 1.7 mil",
+  "[10:01:57] If they accept, will go check tomorrow",
+  "[10:01:57] [IMG 0] property",
+  "[10:01:58] [IMG 1] property",
+  "[10:02:18] [MAP 1]",
+  "[10:02:19] ขายฝากบ้าน2 ชั้น ในโครงการบ้านหลักชัย ตรงข้ามกาดแม่กวง ต.สันนาเม็ง อ.สันทราย จ.เชียงใหม่ เนื้อที่ 30 ตรว 3 นอน 2 น้ำ ยอด 1,200,000 บาท ดอก 1.25% หักล่วงหน้า 3 เดือน",
+  "[10:02:19] [IMG 2] property",
+  "[10:02:20] [IMG 3] property",
+  "[10:03:06] 🔥 ขายหอพัก 2 ชั้น ใกล้ ม.แม่โจ้ ราคาพิเศษ จาก 15.8 ล้านบาท เหลือเพียง 13.8 มีทั้งหมด 39 ห้อง เฟอร์นิเจอร์ครบทุกห้อง พื้นที่รวมกว่า 700 ตารางวา พร้อมผู้เช่าเต็มทุกห้อง",
+  "[10:03:06] [IMG 4] property",
+  "[10:03:07] [IMG 5] property",
+  "[10:03:21] [MAP 2]",
+  "[10:03:21] ทาวน์โฮมในโครงการอรสิริน 6 เนื้อที่ 31 ตรว. ขอยอด 1,300,000 ดอกเบี้ย 1.25% หัก 4 เดือน ค่าดำเนินการ 5% สัญญา 1 ปี",
+  "[10:03:22] [IMG 6] property",
+  "[10:03:23] [IMG 7] property",
+  "[10:03:38] ขายหอพักย่านบ่อสร้าง 14 ห้อง เต็มทุกห้อง เนื้อที่ 52 ตร.ว. ราคาเพียง 4.8 ล้านบาท (รวมโอน) รายได้ 36,000 บาท/เดือน ทำเลดี ต้นเปา สันกำแพง ใกล้แยกบ่อสร้าง 900 ม. โทร 081-111-1111",
+  "[10:03:39] [IMG 8] property",
+  "[10:03:40] [IMG 9] property",
 ].join("\n");
 
 describe.skipIf(!HAS_KEY)("A1 live: incident dump (real models)", () => {
@@ -74,14 +90,20 @@ describe.skipIf(!HAS_KEY)("A1 live: incident dump (real models)", () => {
       { displayName: "incident-e2e" },
       { provider: "line", providerSubject: "incident-e2e", verifiedAt: new Date() },
     );
-    const outcome = await runPipeline(ctx, db, {
+    await runPipeline(ctx, db, {
       transcript: TRANSCRIPT,
       ownerUserId: owner.id,
       photos: [],
-      geoHints: [`${PIN_2_LAT},${PIN_2_LON}`, "18.72989755,98.96882414"],
+      geoHints: [PIN_1, PIN_2], // conversation-level (segmentation context)
+      coordByMapIndex: [PIN_1, PIN_2, null], // [MAP 0]→#1, [MAP 1]→#2, [MAP 2]=short link→null
       contentLang: "th",
     });
-    console.log("incident replay outcome:", JSON.stringify(outcome, null, 2));
+    const { rows } = await pool.query(
+      `SELECT id, property_type, price_thb::bigint AS price,
+              ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lon
+       FROM listing ORDER BY price_thb`,
+    );
+    console.log("incident replay rows:", JSON.stringify(rows, null, 2));
     console.log("incident replay cost:", ctx.costLog.totalUsd().toFixed(4));
   }, 240_000);
 
@@ -90,20 +112,18 @@ describe.skipIf(!HAS_KEY)("A1 live: incident dump (real models)", () => {
     stopPostgresLocal(CONTAINER);
   });
 
-  it("A2 holds: the dump is NOT silently merged away (≥4 distinct rows persist)", async () => {
+  it("preserves all 5 distinct listings (ground truth = 5; the bug merged them to 1)", async () => {
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM listing");
-    expect(rows[0].n).toBeGreaterThanOrEqual(4);
+    expect(rows[0].n).toBeGreaterThanOrEqual(5);
   });
 
-  // TODO(A1): remove `.fails` once run.ts binds geo per-segment. RED today —
-  // listings inherit the sprayed pin, so >1 row carries property #2's coordinate.
-  // GREEN after A1 (only property #2 keeps it, or — under A1a — none do).
-  it.fails("A1 target: no listing inherits property #2's pin", async () => {
+  it("A1: no listing inherits another's pin — no coordinate is shared across listings", async () => {
     const { rows } = await pool.query(
-      `SELECT count(*)::int AS n FROM listing
-       WHERE abs(ST_Y(geom::geometry) - $1) < 1e-5 AND abs(ST_X(geom::geometry) - $2) < 1e-5`,
-      [PIN_2_LAT, PIN_2_LON],
+      `SELECT count(*)::int AS n FROM (
+         SELECT ST_AsText(geom) FROM listing WHERE geom IS NOT NULL
+         GROUP BY ST_AsText(geom) HAVING count(*) > 1
+       ) shared`,
     );
-    expect(rows[0].n).toBeLessThanOrEqual(1);
+    expect(rows[0].n).toBe(0); // pre-A1: pin #2 lands on ≥2 rows → > 0
   });
 });

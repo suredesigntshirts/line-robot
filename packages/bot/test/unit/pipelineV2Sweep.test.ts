@@ -154,6 +154,18 @@ describe("buildTranscript", () => {
     expect(lines[1]).toContain("again [MAP 0]");
   });
 
+  it("emits coordByMapIndex aligned with [MAP n] — coords for pins, null for short links (A1)", () => {
+    const pin = "https://www.google.com/maps?q=18.72989755,98.96882414"; // [MAP 0] — coordinate pin
+    const short = "https://maps.app.goo.gl/zZ9wMT4nqYnVsEcZA"; // [MAP 1] — no coordinates
+    const { mapLinks, coordByMapIndex } = buildTranscript(
+      [textMsg(1000, `house ${pin}`), textMsg(2000, `townhome ${short}`)],
+      [],
+    );
+    expect(mapLinks).toEqual([pin, short]);
+    // The short link (the index-misalignment trigger) maps to null, NOT to the pin's coordinate.
+    expect(coordByMapIndex).toEqual(["18.72989755,98.96882414", null]);
+  });
+
   it("skips empty-text and attachment-less messages, and an image with no classification", () => {
     const { transcript } = buildTranscript(
       [
@@ -168,7 +180,7 @@ describe("buildTranscript", () => {
   });
 
   it("returns an empty transcript for an empty batch", () => {
-    expect(buildTranscript([], [])).toEqual({ transcript: "", mapLinks: [] });
+    expect(buildTranscript([], [])).toEqual({ transcript: "", mapLinks: [], coordByMapIndex: [] });
   });
 });
 

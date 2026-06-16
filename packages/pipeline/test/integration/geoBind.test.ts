@@ -128,7 +128,8 @@ beforeAll(async () => {
       "[0m] U: listing one [MAP 0]\n[1m] U: listing two [MAP 1]\n[2m] U: listing three (no map)",
     ownerUserId: owner.id,
     photos: [],
-    geoHints: [COORD_A, COORD_B],
+    geoHints: [COORD_A, COORD_B], // conversation-level (segmentation context)
+    coordByMapIndex: [COORD_A, COORD_B], // [MAP 0]→#1, [MAP 1]→#2 (segment 3 has no pin)
     contentLang: "th",
   });
 });
@@ -143,14 +144,15 @@ describe("A1: geo binds per-segment", () => {
     expect(llm.requests.filter((r) => r.step === "extract")).toHaveLength(3);
   });
 
-  // TODO(A1): remove `.fails` once run.ts binds geo per-segment. RED today
-  // (every segment is sprayed both coords); GREEN once no segment gets a foreign pin.
-  it.fails("no segment receives a coordinate that isn't its own pin", () => {
-    // Segment 3 has NO pin of its own → must receive neither coordinate.
+  it("binds each segment to its own pin and no other (A1)", () => {
+    // Segment 3 has NO pin of its own → receives neither coordinate.
     expect(geoHintsLine(2)).not.toContain(COORD_A);
     expect(geoHintsLine(2)).not.toContain(COORD_B);
     // Segment 1 must not receive segment 2's pin, and vice-versa.
     expect(geoHintsLine(0)).not.toContain(COORD_B);
     expect(geoHintsLine(1)).not.toContain(COORD_A);
+    // Positive: each pinned segment DOES receive its own coordinate.
+    expect(geoHintsLine(0)).toContain(COORD_A);
+    expect(geoHintsLine(1)).toContain(COORD_B);
   });
 });

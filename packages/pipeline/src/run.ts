@@ -56,7 +56,13 @@ export interface PipelineInput {
   ownerUserId: string;
   sourceGroupId?: string;
   photos: PipelinePhoto[];
+  /** Conversation-level coordinates, for SEGMENTATION context only (the segmenter sees them all to
+   * decide how many listings exist). Per-segment extraction is bound via `coordByMapIndex` (A1). */
   geoHints: string[];
+  /** Per-`[MAP n]`-marker coordinate ("lat,long") or null (a coordinate-less short link), index-
+   * aligned with the transcript's [MAP n] markers. A segment's `mapIndex` resolves ITS OWN pin
+   * through this, so a listing never inherits another listing's coordinate (A1, plan 23). */
+  coordByMapIndex?: (string | null)[];
   /** Primary language of the source chat (translation targets the other one). */
   contentLang: ContentLang;
 }
@@ -202,12 +208,23 @@ export async function runPipeline(
   const config = dedupConfig();
   const outcome: PipelineOutcome = { listings: [], droppedSegments: [] };
 
+  // A1 — bind each segment to ITS OWN pin, never the whole conversation's. Prefer the segmenter's
+  // per-segment `mapIndex` attribution (resolved through coordByMapIndex); for a single-listing
+  // thread with exactly one pin, bind it deterministically; otherwise bind nothing. This is the fix
+  // for the silent over-merge: a listing with no pin must not inherit another listing's coordinate.
+  const coordByMapIndex = input.coordByMapIndex ?? [];
+  const presentCoords = coordByMapIndex.filter((c) => c !== null);
+  const soleCoord =
+    segmented.segments.length === 1 && presentCoords.length === 1 ? presentCoords[0] : null;
+
   for (const segment of segmented.segments) {
+    const segCoord =
+      segment.mapIndex !== null ? (coordByMapIndex[segment.mapIndex] ?? null) : soleCoord;
     // 3. extract (per segment); failure drops the segment, logged.
     const extracted = await extractListing(ctx, {
       transcript: input.transcript,
       focus: segment.label,
-      geoHints: input.geoHints,
+      geoHints: segCoord ? [segCoord] : [],
       candidates: [],
     });
     if (extracted === null) {

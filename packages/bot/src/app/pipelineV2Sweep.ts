@@ -74,10 +74,15 @@ export interface ClassifiedMedia {
 export function buildTranscript(
   batch: readonly StoredMessage[],
   classified: readonly ClassifiedMedia[],
-): { transcript: string; mapLinks: string[] } {
+): { transcript: string; mapLinks: string[]; coordByMapIndex: (string | null)[] } {
   const indexByKey = new Map(classified.map((c, i) => [c.s3Key, i]));
   const ordered = [...batch].sort((a, b) => a.timestamp - b.timestamp);
   const mapLinks: string[] = [];
+  // Parallel to mapLinks: each [MAP n]'s coordinate ("lat,long"), or null for a coordinate-less
+  // short link. A segment's `mapIndex` resolves its own pin THROUGH this array (A1, plan 23), so
+  // [MAP n] and its coordinate stay index-aligned even when a short link (e.g. maps.app.goo.gl)
+  // carries no coords — the case that mis-binds when geoHints (which drops short links) is indexed.
+  const coordByMapIndex: (string | null)[] = [];
   const lines: string[] = [];
   for (const m of ordered) {
     const stamp = `[${formatShortDateTime(m.timestamp)}]`;
@@ -98,13 +103,15 @@ export function buildTranscript(
         if (idx === -1) {
           idx = mapLinks.length;
           mapLinks.push(url);
+          const geo = parseGeoLinks(url)[0];
+          coordByMapIndex.push(geo ? `${geo.lat},${geo.long}` : null);
         }
         rewritten = rewritten.split(url).join(`[MAP ${idx}]`);
       }
       lines.push(`${stamp} ${rewritten}`);
     }
   }
-  return { transcript: lines.join("\n"), mapLinks };
+  return { transcript: lines.join("\n"), mapLinks, coordByMapIndex };
 }
 
 interface PipelineV2Deps {
@@ -210,7 +217,7 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
         contentType: a.contentType ?? "image/jpeg",
         kind: "property",
       }));
-      const { transcript } = buildTranscript(batch, markers);
+      const { transcript, coordByMapIndex } = buildTranscript(batch, markers);
       if (transcript.trim() === "") {
         deps.logger.info("pipeline v2: nothing to extract", { conversationKey });
         return [];
@@ -245,6 +252,7 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
         sourceGroupId,
         photos,
         geoHints: parseGeoLinks(chatText).map((g) => `${g.lat},${g.long}`),
+        coordByMapIndex,
         contentLang: "th",
       });
 

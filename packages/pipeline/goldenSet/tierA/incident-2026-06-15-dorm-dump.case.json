@@ -1,7 +1,7 @@
 {
-  "_comment": "Plan 23 Tier-A regression: the 2026-06-15 1:1 DM dump (user#U810f7671d201fe7ce3ec2ef49ab8d16a). 5 distinct listings were extracted; dedup over-merged 4 into the survivor (only 1 row persisted). Ground truth = 5 distinct properties, 0 duplicate pairs. Transcript is hand-authored from the audit (not the verbatim 76-message chat); per-field values are founder-confirmable. Scored only under EVAL_LLM=anthropic.",
+  "_comment": "Plan 23 Tier-A regression: the 2026-06-15 1:1 DM dump (user#U810f7671d201fe7ce3ec2ef49ab8d16a). 5 distinct listings were extracted; conversation-level geoHints were sprayed onto every segment, so dedup over-merged 4 into the survivor (only 1 row persisted). Transcript reconstructed faithfully from the real 77-message thread (phone anonymized; coords are the real pins, public in the audit). Ground truth = 5 distinct properties, 0 duplicate pairs. Scored only under EVAL_LLM=anthropic. The end-to-end geo-bind proof is the live integration test (incidentGeoMerge.e2e.test.ts); this case feeds the advisory distinct-listings dedup metric.",
   "id": "incident-2026-06-15-dorm-dump",
-  "transcript": "[0m] U810: ขายบ้านเดี่ยว หมู่บ้านวังตาล สันกำแพง เชียงใหม่ เนื้อที่ 50 ตร.ว. 3 ห้องนอน 2 ห้องน้ำ ราคา 2.3 ล้านบาท\n[0m] U810: https://www.google.com/maps?q=18.72989755,98.96882414\n[1m] U810: [IMG 1]\n[1m] U810: [IMG 2]\n[2m] U810: ขายฝากบ้านหลักชัย ต.สันทราย อ.สันทราย จ.เชียงใหม่ ราคา 1.25 ล้านบาท สนใจติดต่อได้เลย\n[2m] U810: https://www.google.com/maps?q=18.82638337,99.05647534\n[3m] U810: [IMG 3]\n[3m] U810: [IMG 4]\n[4m] U810: ขายหอพักใกล้ ม.แม่โจ้ 39 ห้อง ผู้เช่าเต็มทุกห้อง ทำเลดี ราคา 13.8 ล้านบาท\n[5m] U810: [IMG 5]\n[5m] U810: [IMG 6]\n[6m] U810: ขายทาวน์โฮม โครงการอรสิริน 6 เชียงใหม่ 2 ห้องนอน 2 ห้องน้ำ ราคา 1.3 ล้านบาท\n[7m] U810: [IMG 7]\n[8m] U810: ขายหอพัก บ่อสร้าง สันกำแพง เชียงใหม่ 14 ห้อง ราคา 4.8 ล้านบาท\n[9m] U810: [IMG 8]",
+  "transcript": "[0m] poster: https://www.google.com/maps?q=18.72989755,98.96882414\n[0m] poster: Mooban Wangtan\n[0m] poster: 2.3 Mil\n[0m] poster: I already told them 1.7 mil\n[0m] poster: If they accept, will go check tomorrow\n[1m] poster: https://www.google.com/maps?q=18.82638337,99.05647534\n[1m] poster: ขายฝากบ้าน2 ชั้น ในโครงการบ้านหลักชัย ตรงข้ามกาดแม่กวง ต.สันนาเม็ง อ.สันทราย จ.เชียงใหม่ เนื้อที่ 30 ตรว 3 นอน 2 น้ำ ยอด 1,200,000 บาท ดอก 1.25% หักล่วงหน้า 3 เดือน\n[2m] poster: 🔥 ขายหอพัก 2 ชั้น ใกล้ ม.แม่โจ้ ราคาพิเศษ จาก 15.8 ล้านบาท เหลือเพียง 13.8 มีทั้งหมด 39 ห้อง เฟอร์นิเจอร์ครบทุกห้อง พื้นที่รวมกว่า 700 ตารางวา พร้อมผู้เช่าเต็มทุกห้อง\n[3m] poster: https://maps.app.goo.gl/zZ9wMT4nqYnVsEcZA?g_st=ic\n[3m] poster: ทาวน์โฮมในโครงการอรสิริน 6 เนื้อที่ 31 ตรว. ขอยอด 1,300,000 ดอกเบี้ย 1.25% หัก 4 เดือน ค่าดำเนินการ 5% สัญญา 1 ปี\n[4m] poster: ขายหอพักย่านบ่อสร้าง 14 ห้อง เต็มทุกห้อง เนื้อที่ 52 ตร.ว. ราคาเพียง 4.8 ล้านบาท (รวมโอน) รายได้ 36,000 บาท/เดือน ทำเลดี ต้นเปา สันกำแพง ใกล้แยกบ่อสร้าง 900 ม. โทร 081-111-1111",
   "expected": {
     "properties": [
       {
@@ -10,23 +10,21 @@
         "propertyType": "house",
         "titleDeedType": "",
         "urgency": "normal",
-        "province": "เชียงใหม่",
-        "amphoe": "สันกำแพง",
+        "province": "",
+        "amphoe": "",
         "tambon": "",
-        "priceThb": 2300000,
-        "bedrooms": 3,
-        "bathrooms": 2
+        "priceThb": 2300000
       },
       {
-        "id": "baan-lakchai-santhrai",
+        "id": "baan-lakchai-sannameng",
         "dealType": "sale",
         "propertyType": "house",
         "titleDeedType": "",
         "urgency": "normal",
         "province": "เชียงใหม่",
         "amphoe": "สันทราย",
-        "tambon": "สันทราย",
-        "priceThb": 1250000
+        "tambon": "สันนาเม็ง",
+        "priceThb": 1200000
       },
       {
         "id": "dorm-maejo",
@@ -34,7 +32,7 @@
         "propertyType": "commercial",
         "titleDeedType": "",
         "urgency": "normal",
-        "province": "เชียงใหม่",
+        "province": "",
         "amphoe": "",
         "tambon": "",
         "priceThb": 13800000
@@ -45,12 +43,10 @@
         "propertyType": "townhouse",
         "titleDeedType": "",
         "urgency": "normal",
-        "province": "เชียงใหม่",
+        "province": "",
         "amphoe": "",
         "tambon": "",
-        "priceThb": 1300000,
-        "bedrooms": 2,
-        "bathrooms": 2
+        "priceThb": 1300000
       },
       {
         "id": "dorm-bosang",
@@ -58,9 +54,9 @@
         "propertyType": "commercial",
         "titleDeedType": "",
         "urgency": "normal",
-        "province": "เชียงใหม่",
+        "province": "",
         "amphoe": "สันกำแพง",
-        "tambon": "บ่อสร้าง",
+        "tambon": "ต้นเปา",
         "priceThb": 4800000
       }
     ],

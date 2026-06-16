@@ -65,7 +65,10 @@ ${DEED_TAXONOMY}${UNIT_GLOSSARY}${PREFIX_PAD}`;
 export const SEGMENT_SYSTEM = `You split a Thai real-estate LINE chat transcript into distinct property listings
 (segments) and attribute photos to them. A thread may contain one listing, several (a multi-property
 dump), corrections, and re-posts. Photo markers appear inline in posting order; imageIndices refers
-to those marker indices. If a segment plausibly matches one of the provided existing candidates,
+to those marker indices. Map pins also appear inline as [MAP n] markers — a pin is normally posted
+immediately before the listing it belongs to. Set each segment's mapIndex to the [MAP n] index of
+THAT listing's own pin, or null when the listing has no pin of its own; never borrow another
+listing's pin. If a segment plausibly matches one of the provided existing candidates,
 set existingPropertyId; if it could match more than one, set ambiguous=true and list ambiguousWith.
 A re-post of the same property within the thread belongs to the SAME segment, with the later
 message treated as an update.
