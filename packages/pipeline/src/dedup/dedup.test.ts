@@ -166,8 +166,9 @@ describe("dedupVerify", () => {
   const specs = specCatalog(24);
   const base = specs[1] as ListingSpec;
   const extracted = listingFromSpec(base);
+  // Geo-very-close candidate (same cell, ~0 m → score ≈0.9): the one single-key case that may merge.
   const blocked = [
-    { id: base.id, summary: "condo near Nimman", score: 0.85, reasons: ["geo_same_cell"] },
+    { id: base.id, summary: "condo near Nimman", score: 0.9, reasons: ["geo_same_cell"] },
   ];
 
   it("merges when the verifier confirms a blocked candidate", async () => {
@@ -217,18 +218,33 @@ describe("dedupVerify", () => {
   // --- E1 conservative-merge guard (plan 23, A2) ---------------------------------------
   const merge = { decision: "merge" as const, intoId: base.id, confidence: 0.93, reason: "same" };
 
-  it("downgrades a weak (text-only, below score floor) merge to new + a merge_request", async () => {
-    const weakBlock = [
-      { id: base.id, summary: "s", score: 0.5, reasons: ["text_similar(0.6/0.5)"] },
+  // DEAL-09 / the central guard claim: TEXT ALONE never auto-merges, even at MAXIMUM similarity
+  // (two different units in one project share an identical address string → score 1.0·0.8 = 0.8).
+  // Without this, the score floor is a back door that destroys a real listing. RED before the fix.
+  it("never auto-merges on text alone, even at maximum similarity (score 0.8)", async () => {
+    const textOnly = [
+      { id: base.id, summary: "s", score: 0.8, reasons: ["text_similar(1.00/1.00)"] },
     ];
     const result = await dedupVerify(
       ctx(new FakeStepLlm().enqueue("dedup", merge)),
       extracted,
-      weakBlock,
+      textOnly,
     );
     expect(result.decision).toBe("new");
     expect(result.mergeRequestIntoId).toBe(base.id);
     expect(result.reasons).toContain("uncertain_merge");
+  });
+
+  it("does not auto-merge geo that is too far (block score below the merge floor)", async () => {
+    // geo_within_radius at ~770 m → score ≈0.65 < 0.85; no text → uncertain, not a fold.
+    const farGeo = [{ id: base.id, summary: "s", score: 0.65, reasons: ["geo_within_radius"] }];
+    const result = await dedupVerify(
+      ctx(new FakeStepLlm().enqueue("dedup", merge)),
+      extracted,
+      farGeo,
+    );
+    expect(result.decision).toBe("new");
+    expect(result.mergeRequestIntoId).toBe(base.id);
   });
 
   it("downgrades a low-confidence merge to new + a merge_request even on strong evidence", async () => {
@@ -267,12 +283,12 @@ describe("dedupVerify", () => {
     expect(result).toMatchObject({ decision: "merge", intoId: base.id });
   });
 
-  it("auto-merges on a high single-key block score (≥ floor)", async () => {
+  it("auto-merges on geo-very-close (score ≥ floor) even without text agreement", async () => {
     const result = await dedupVerify(
       ctx(new FakeStepLlm().enqueue("dedup", merge)),
       extracted,
-      blocked,
+      blocked, // geo_same_cell, score 0.9 ≥ 0.85 floor
     );
-    expect(result).toMatchObject({ decision: "merge", intoId: base.id }); // blocked score 0.85 ≥ 0.7
+    expect(result).toMatchObject({ decision: "merge", intoId: base.id });
   });
 });

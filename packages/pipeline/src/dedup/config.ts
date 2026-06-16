@@ -18,11 +18,12 @@ export interface DedupConfig {
   blockCap: number;
   /**
    * E1 conservative-merge guard. A "merge" is irreversible (silent data loss), so an LLM "merge"
-   * verdict is honored only on strong evidence: geo AND text agreeing, OR a single-key block score
-   * ≥ `mergeScoreFloor`, AND LLM confidence ≥ `mergeConfidenceFloor`. Weaker merges persist as a NEW
-   * row + a `merge_request` moderation item (a recoverable duplicate, never a silent fold).
-   * Defaults are deliberately loose/safe — they catch text-only / low-confidence / far-geo merges
-   * without flooding moderation; retune via the eval scorecard, never by hand in prod.
+   * verdict is honored only on strong evidence — which ALWAYS requires geo proximity (text alone
+   * never auto-merges; two units in one project share an address string): geo AND text agreeing, OR
+   * geo-very-close (block score ≥ `mergeScoreFloor` ⇒ ≈≤170 m at the 0.85 default), AND LLM
+   * confidence ≥ `mergeConfidenceFloor`. Weaker/uncertain merges persist as a NEW row + a
+   * `merge_request` moderation item (a recoverable duplicate, never a silent fold). Retune via the
+   * eval scorecard, never by hand in prod. (Geo score = 0.6+0.3·(1−d/radius): 0.85 ⇒ d≈167 m.)
    */
   mergeScoreFloor: number;
   mergeConfidenceFloor: number;
@@ -41,7 +42,7 @@ export function dedupConfig(): DedupConfig {
     trigramThreshold: envNumber("DEDUP_TRIGRAM_THRESHOLD", 0.55),
     jaccardThreshold: envNumber("DEDUP_JACCARD_THRESHOLD", 0.5),
     blockCap: envNumber("DEDUP_BLOCK_CAP", 8),
-    mergeScoreFloor: envNumber("DEDUP_MERGE_SCORE_FLOOR", 0.7),
+    mergeScoreFloor: envNumber("DEDUP_MERGE_SCORE_FLOOR", 0.85),
     mergeConfidenceFloor: envNumber("DEDUP_MERGE_CONFIDENCE_FLOOR", 0.6),
   };
 }

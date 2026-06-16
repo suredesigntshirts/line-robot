@@ -66,13 +66,16 @@ export async function dedupVerify(
     return { decision: "new", score: verdict?.confidence ?? 0, reasons: ["verify_default_new"] };
   }
 
-  // E1 conservative-merge guard: a merge is irreversible, so honor the LLM verdict only on STRONG
-  // evidence — geo AND text keys agreeing, OR a high single-key block score — AND adequate
-  // confidence. Otherwise persist NEW and queue a merge_request (a recoverable duplicate + a human
-  // review item, never a silent fold). Deed-exact never reaches here (it short-circuits above).
+  // E1 conservative-merge guard: a merge is irreversible (silently destroys the merged-away
+  // listing), so honor the LLM verdict only on STRONG evidence AND adequate confidence; otherwise
+  // persist NEW and queue a merge_request (a recoverable duplicate + a human review item, never a
+  // silent fold). Strong evidence REQUIRES geo proximity — text alone is never enough (DEAL-09: two
+  // different units in one project share an address string and would otherwise auto-merge): a
+  // qualifying merge needs geo + text agreeing, OR geo-very-close (block score ≥ mergeScoreFloor,
+  // i.e. ≈≤170 m at the 0.85 default). Deed-exact never reaches here (it short-circuits above).
   const hasGeo = chosen.reasons.some((r) => r.startsWith("geo_"));
   const hasText = chosen.reasons.some((r) => r.startsWith("text_similar"));
-  const strongEvidence = (hasGeo && hasText) || chosen.score >= config.mergeScoreFloor;
+  const strongEvidence = hasGeo && (hasText || chosen.score >= config.mergeScoreFloor);
   if (!strongEvidence || verdict.confidence < config.mergeConfidenceFloor) {
     return {
       decision: "new",

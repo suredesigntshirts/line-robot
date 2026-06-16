@@ -76,7 +76,8 @@ export const extractSchema = z.object({
 export const dedupVerifySchema = z.object({
   decision: z.enum(["new", "merge"]),
   intoId: z.string(), // "" when decision = new
-  confidence: z.number(),
+  confidence: z.number().min(0).max(1), // 0..1; bounded so the merge-confidence floor can't be
+  // silently defeated by a 0–100-scale value (out-of-range → parse fail → null → "new").
   reason: z.string(),
 });
 // unions: 0

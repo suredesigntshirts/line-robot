@@ -83,7 +83,8 @@ export const DEDUP_SYSTEM = `You judge whether a newly extracted Thai property l
 property as one of the provided candidates. Same property = same physical land/unit, even with
 price drift, different phrasing, or different contact formatting. Different unit in the same
 project = NOT the same. If uncertain, decide "new" — a false merge is the user-visible defect; a
-missed merge is recoverable.
+missed merge is recoverable. confidence is a number from 0.0 (uncertain) to 1.0 (certain) — never a
+percentage or a 0–100 value.
 ${UNIT_GLOSSARY}${PREFIX_PAD}`;
 
 export const TRANSLATE_SYSTEM = `You translate Thai property-listing content to English, or English to Thai,
