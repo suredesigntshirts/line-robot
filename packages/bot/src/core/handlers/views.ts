@@ -572,16 +572,24 @@ export interface AppliedProperty {
  * property's offer; any others stay flagged in the text (the safe create-new default).
  */
 export function buildConfirmation(applied: AppliedProperty[]): OutboundMessage {
-  const noun = applied.length === 1 ? "property" : "properties";
-  const items = applied
+  // E5 (plan 23): count + list DISTINCT persisted rows, not segments. A dedup merge folds several
+  // segments onto one listing id, so the raw array over-reports — the 2026-06-15 incident would
+  // have said "Saved 5" while only 1 row persisted. Keep the FIRST entry per id: a newly-created
+  // row appears first as `new`; a later segment merged into it is the duplicate and is dropped here.
+  const byId = new Map<string, AppliedProperty>();
+  for (const a of applied) if (!byId.has(a.propertyId)) byId.set(a.propertyId, a);
+  const distinct = [...byId.values()];
+
+  const noun = distinct.length === 1 ? "property" : "properties";
+  const items = distinct
     .map((a) => {
       const tag = a.ambiguous ? "new — please confirm" : a.isNew ? "new" : "updated";
       return `${a.label} (${tag})`;
     })
     .join(", ");
-  const text = `✅ Saved ${applied.length} ${noun}: ${items}`;
+  const text = `✅ Saved ${distinct.length} ${noun}: ${items}`;
 
-  const toConfirm = applied.find((a) => a.mergeTargets !== undefined && a.mergeTargets.length > 0);
+  const toConfirm = distinct.find((a) => a.mergeTargets !== undefined && a.mergeTargets.length > 0);
   if (toConfirm?.mergeTargets !== undefined) {
     return {
       type: "text",

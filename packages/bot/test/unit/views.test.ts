@@ -422,4 +422,16 @@ describe("buildConfirmation", () => {
     ]);
     expect(msg).toEqual({ type: "text", text: "✅ Saved 2 properties: A (new), B (updated)" });
   });
+
+  it("counts DISTINCT persisted rows, not segments (E5): merged segments collapse to one", () => {
+    // 5 segments, but dedup merged 4 of them into the first row → 1 distinct id persisted.
+    const msg = buildConfirmation([
+      { propertyId: "p1", isNew: true, ambiguous: false, label: "Dorm" },
+      { propertyId: "p1", isNew: false, ambiguous: false, label: "Dorm" },
+      { propertyId: "p1", isNew: false, ambiguous: false, label: "Dorm" },
+      { propertyId: "p1", isNew: false, ambiguous: false, label: "Dorm" },
+      { propertyId: "p1", isNew: false, ambiguous: false, label: "Dorm" },
+    ]);
+    expect(msg).toEqual({ type: "text", text: "✅ Saved 1 property: Dorm (new)" });
+  });
 });
