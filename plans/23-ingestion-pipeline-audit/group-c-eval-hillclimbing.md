@@ -422,8 +422,12 @@ Executed in a LATER phase. Scoped to **Option A** (the first deliverable); Optio
 - **Eval cases (the deliverable itself):** the E7 Tier-B archetype (runs under `npm run eval` oracle AND real) +
   the incident Tier-A case (runs under `EVAL_LLM=anthropic` only; n/a under oracle). After **Group A** ships its
   dedup fix, `EVAL_LLM=anthropic npm run eval` should show the incident case's distinct-listings/dedup score
-  improve — the hill-climb signal. **Do NOT run `EVAL_LLM=anthropic` casually** (it costs money; the audit ran
-  the incident at est $0.46); the oracle smoke + unit tests are the free CI gate, real runs are founder-initiated.
+  improve — the hill-climb signal. **Run `EVAL_LLM=anthropic` (and the real-model integration tests) enough to
+  confirm the new behavior is actually correct, and iterate until it works** — it costs cents (the audit ran the
+  incident at est $0.46), far cheaper than a silent correctness regression the oracle/fakes pass clean. The oracle
+  smoke + unit tests stay the always-on free CI gate; the live run is the required validation layer for any
+  change to what the model sees or returns (prompts, extraction/dedup/segmentation/gate logic, schemas) — not a
+  rare founder-only event. See root `CLAUDE.md` §"Quality system" → "For model-facing changes".
 
 ### Migrations
 
