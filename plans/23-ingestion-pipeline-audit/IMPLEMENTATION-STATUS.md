@@ -59,7 +59,9 @@ conversation via real-model integration tests.
   or checking model drift (a cache freezes responses at capture time — temp=0, `eval.config.ts:14`). A
   pure-logic change (no prompt edit) then re-runs in seconds; a prompt edit re-calls only that step.
   **(2) bounded-concurrency** over cases/calls (`mapWithConcurrency`) to cut the cold run ~20 min → ~2-3
-  (rate-limit permitting). *(eval-only, ~50-80 LOC, zero production impact; pairs naturally.)*
+  (rate-limit permitting). *(eval-only, ~50-80 LOC, zero production impact; pairs naturally.)* **Full
+  plan: `U-EVAL-perf.md`** (the pain, options to explore, and the target: warm re-runs in seconds, cold
+  runs as fast as Anthropic throttling allows, baseline always fresh).
 
 **Phase 4 — Group D, DM-claimable (Option 1)** — self-contained, addresses the founder-critical
 "dumped my listings but can't use them." Spec: `group-d-dm-group-unification.md` §5.
