@@ -395,3 +395,7 @@
 - /home/user/src/line-robot/docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
 - /home/user/src/line-robot/docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
 - docs/tailwindcss.com/docs/installation/using-vite.md: Get started with Tailwind CSS
+
+## platform.claude.com
+
+- docs/platform.claude.com/docs/en/api/rate-limits.md: About rate limits

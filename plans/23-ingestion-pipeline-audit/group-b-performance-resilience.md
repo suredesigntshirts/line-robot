@@ -1,5 +1,14 @@
 # Plan 23 — Group B: Performance & resilience (timeouts, chunking, image caching, failure-flagging) — Research + Plan (RPI)
 > Status: R+P COMPLETE · Source: plans/23-ingestion-pipeline-audit.md (Group B) · Phase: Research+Plan ONLY (no implementation)
+>
+> **⚠️ IMAGE STAGE SUPERSEDED (2026-06-15) — see `group-b-image-stage-rewrite.md`.** The image-processing
+> design in §3/§4/§5 below — *Step B as a standalone classify cache* and *Step A chunking as the load-bearing
+> timeout fix* — is reframed by the sibling artifact **`group-b-image-stage-rewrite.md`**, now the governing
+> spec for the image stage. That rewrite makes **bounded-parallel classify (C=8) + reference-based/lazy bytes +
+> the `s3Key` cache short-circuit** the primary fix (parallelism + O(window) memory → shorter runtime + a
+> 1024→512 MB Lambda) and **demotes chunking (Step A) to a time-only *backstop*** (no longer load-bearing for
+> the timeout). The non-image resilience pieces below (failure-signal C, E10, the chunking mechanics *as a
+> backstop*) remain valid. §4 is updated accordingly; read the rewrite artifact for the image stage.
 
 ## 1. Problem & scope
 
@@ -188,6 +197,17 @@ guessing.
 - **Model fit (cited: claude-api skill → models.md/pricing):** classify=`claude-haiku-4-5`
   ($1/$5/MTok, $0.10 cache-read) is already the cheapest tier — correct for a high-volume per-image
   step; the lever is *call count* (cache) and *transport* (batch), not the model.
+- **Anthropic rate limits (cited: `docs/platform.claude.com/docs/en/api/rate-limits.md` — downloaded
+  2026-06-15 via `/documentation-downloader`, indexed in `docs/llms.txt`; upstream
+  `https://platform.claude.com/docs/en/api/rate-limits.md`).** Limits are **per-model-class** token buckets
+  (RPM / ITPM / OTPM), continuously replenished, enforced sub-minute (`rate-limits.md:32,34,145`); crucially
+  **only *uncached* input tokens count toward ITPM** (`:102,123`), and there is **no concurrent-request cap**.
+  Haiku 4.5 (the classify model): tier-1 50 RPM / 50k ITPM / 10k OTPM → tier-4 4,000 / 4M / 800k
+  (`:153-200`). This is what bounds the **bounded-parallel classify** rewrite (see the new sibling artifact
+  `group-b-image-stage-rewrite.md`, which supersedes this doc's serial-classify/unbounded-build image stage):
+  push concurrency high (default **C=8**) and let the SDK's `retry-after` 429 backoff govern (zero data loss);
+  the `s3Key` classify cache makes warm runs cost **0 ITPM**. The only open input is which tier this account
+  holds (Q1 there — read the Console → Limits page or the `x-ratelimit-limit-*` response headers).
 
 ## 3. Solution options
 
@@ -266,27 +286,31 @@ from synchronous to submit-then-collect (or to ingest-time preprocessing, E4(a))
 
 ## 4. Recommended direction
 
-**Ship A + B + C as one sequenced increment; defer D.**
+**SUPERSEDED ordering (see `group-b-image-stage-rewrite.md`): image-stage rewrite (primary) → C
+failure-signal → chunking (Step A) as a *backstop* only if needed; defer D.** The earlier "B then A"
+(cache then chunk) is folded into the rewrite, which fixes the actual bottleneck — serial classify +
+all-bytes-resident — directly.
 
-- **B first (persist classify by `s3Key`, lazy read-through).** It is the highest-leverage, lowest-
-  risk change: it removes ~80–85% of a photo-dump's inference from every *retry* (the evidence: 59 of
-  ~70 calls), which alone breaks the repeat-timeout loop and answers founder note 3. Use **B1 (DynamoDB
-  attribute on the message item)** — it reuses the row the sweep already reads, needs no new table/
-  IAM/seam, and keeps the cache co-located with the `s3Key` it keys on. One store ⇒ no port/interface
-  (anti-over-engineering rule 1).
-- **A next (chunk + watermark-per-chunk).** With B making each photo cheap-on-repeat, A makes each
-  *run* bounded so no single sweep approaches the timeout — the structural fix for RC-1/RC-2 — and
-  lets us **lower `infra/src/lambdas.ts:269` back to ~300 s**, restoring the `naming.ts:31` overlap
-  invariant. A reuses the existing per-chunk release semantics.
-- **C as the thin failure-signal layer on A.** Down-shift the chunk on a no-progress failure; abandon
-  only when a single-item chunk fails. Emit a triage marker for Group C (flag-only).
+- **Image-stage rewrite FIRST (absorbs the old Step B + parallelises classify).** One cache-first,
+  **bounded-parallel** classify pass over photo *references*: cache hit by `s3Key` → done; miss → lazy
+  `MediaStore.getOriginal` → classify (**C=8**, env `CLASSIFY_CONCURRENCY`, SDK 429-backoff governs — limits
+  cited in `docs/platform.claude.com/docs/en/api/rate-limits.md`, §2.4) → **eager** cache write → bytes freed.
+  This delivers founder note 3 (no re-paid classify on warm runs — the cache), founder note 4's *speed*
+  (parallelism: ~71 s → ~10 s classify on 59 images), AND drops peak memory to O(window) so the **Lambda goes
+  1024→512 MB**. Reuses `StepLlm` + `MediaStore` + the (relocated) `mapWithConcurrency` — no new port/dep, net
+  −40 to −60 LOC. **Spec/risks/tests: `group-b-image-stage-rewrite.md`.**
+- **C (failure signal) as the thin layer.** Down-shift on a no-progress failure; abandon only when a
+  single-item chunk fails. Emit a triage marker for Group C (flag-only).
+- **A (chunking) DEMOTED to a time-only backstop.** With parallel classify + O(window) memory + the cache, no
+  single cold run approaches even 300 s, so chunking is **no longer the load-bearing timeout fix** — keep it
+  (or grow the image cap) for watermark-forward-progress + poison-isolation (RC-2/RC-4), but it **can be
+  deferred.** The §3 Option A mechanics still apply *if* built.
+- **D (Batch API) deferred** — a cost lever, not a resilience fix; pairs with ingest-time preprocess (§8).
 
-**Rationale.** This is the minimal combination that makes the *standard* dump robust: B kills the
-waste (note 3), A kills the unbounded run + lets the timeout retract (note 4 structural), C makes the
-failure smart (note 4 explicit). It stays inside the pool budget (shorter runs hold the connection
-less), adds no new infra, and introduces no interface/port without a second implementation. Batch-API
-(D) and full ingest-time preprocessing (E4(a)) are real but larger cost/latency levers — deferred with
-a clear seam.
+**Rationale.** The earlier plan reached for chunking as the primary timeout fix while leaving the expensive
+stage serial and all image bytes resident. The rewrite attacks both directly — which is simpler **and** lowers
+compute (512 MB tier + shorter wall-clock). Chunking becomes insurance, not the fix. Stays inside the pool
+budget, adds no new infra beyond the E8 trace store (CR-5), introduces no premature port.
 
 ## 5. Implementation plan (NOT executed)
 

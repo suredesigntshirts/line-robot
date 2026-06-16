@@ -18,7 +18,8 @@ Scope (this artifact only — no implementation):
   incident a permanent **Tier-A regression case** (truth is known: 5 distinct listings, 0 merges) and add the
   missing **E7 archetype** ("N distinct listings in one conversation, expect N rows, 0 merges").
 - Fold in cross-cutting inputs **E6** (auto-capture failed batches as eval candidates), **E7** (the missing
-  archetype), **E8** (per-step tracing/timing + per-conversation trace view) as options, scored honestly.
+  archetype), **E8** (full per-call I/O **trace store** + per-step timing — promoted to a committed P3 deliverable;
+  see §3 Option D) as options, scored honestly.
 
 Out of band (flagged, never designed here): Group A owns the dedup fix the new case will measure; Group B owns
 image-preprocess/caching that the export path and failure-capture triggers depend on.
@@ -272,27 +273,62 @@ queue. **Why:** the full founder vision — failures become candidates automatic
 (a) Group B defines the failure signals and (b) we've proven the loop on this one case. Build the consumer side
 (loader + export) first; wire the auto-capture trigger when Group B lands its failure-classification.
 
-### Option D — Per-step tracing/observability (E8) + prompt-version tagging
+### Option D — Pipeline trace store (E8): full per-call I/O capture at the chokepoint + per-step metrics (PROMOTED to committed)
 
-**Approach.** Add per-step timing + token + decision capture to `StepContext`/`CostLog` (extend `cost.ts` to
-record `latencyMs` per `CostEntry`; add an optional `traceSink`), surface a per-conversation trace (log line or
-S3 JSON) so "which step ate the budget / why did dedup merge" is answerable from data. Tag eval runs and the
-baseline with a `promptVersion` (a hash of the prompt files or a manual semver) so a score delta is attributable.
+**Approach.** Capture every model call's **real input and output** at the single Anthropic chokepoint, into a
+**two-tier store** so that both observability ("what exactly did we send / get back / how long / how much") and
+the hill-climb loop (replay a real call *losslessly* as an eval case) are served by one substrate. Today there is
+**no** persistence of API I/O at all (confirmed: §2.2 "Per-step tracing → none"; `CostLog` is ephemeral, aggregate $
+only) — so "store all API calls with inputs and outputs" is currently impossible. This builds it:
 
-**Trade-offs.** Effort ~5-8 days. Risk **medium** — touches the pipeline's shared `StepContext` (every step) and
-the cost log used in prod. Alignment **good** long-term but **heaviest**. Anti-over-engineering: tracing is a real
-seam (LLM calls) so a thin trace hook is defensible; a full prompt-registry/experiment-tracker is NOT (rule 1: no
-abstraction until the second consumer — we have one eval consumer). **Why:** this is what makes hill-climbing
-*diagnostic* (you see the failing step) and ties directly to Group B's "why did it time out." **Why-not:** it's a
-separate concern from "lock the failure as a case"; doing it now would delay the founder's item-2 win. The trace
-hook also overlaps Group B (their timeout investigation wants the same per-step timing) — coordinate, don't
-double-build.
+1. **Raw I/O → S3** (cold, verbatim). At `AnthropicStepLlm.run()` (`packages/pipeline/src/adapters/anthropicStepLlm.ts`)
+   — the single place every step's call passes through — write one JSON blob per call:
+   `{ runId, conversationKey, step, model, system, userContent, response (parsed object + raw text), usage, latencyMs }`,
+   keyed `traces/<conversationKey>/<runId>/<step>-<seq>.json` in the archive bucket. This is the **only** place that
+   holds the *exact assembled prompt* and the *exact model response*. The message-store replay (Option B) can only
+   reconstruct the input lossily (`[IMG n] unknown` markers, geo re-parsed from text) and captures **no output** —
+   so it is not a substitute for capture.
+2. **Metrics → Postgres `pipeline_trace`** (warm, queryable). A thin row per call:
+   `id, run_id, conversation_key, step, model, input_tokens, output_tokens, cache_read_tokens, latency_ms, cost_usd,
+   s3_key (→ the raw blob), created_at`. This answers "which step ate the budget", "are we actually getting cache
+   hits" (the open question from the count_tokens-vs-`cacheHit:true` tension), and "cost per conversation" with a SQL
+   query instead of an S3 scan — and it is what the scorecard and the deferred trace *view* (P5) read.
+3. **The seam.** Add an optional `traceSink` to `StepContext` (`packages/pipeline/src/steps/context.ts`) — a port
+   (real seam = the trace store) with a **no-op default**, so the pipeline core stays infra-free and tests inject a
+   fake. `cost.ts` `CostEntry` gains `latencyMs`; the sink receives the entry + the raw I/O. The bot wires the real
+   S3+PG sink in `pipelineV2Sweep.ts`; the eval runner wires a no-op (or a local-file sink for offline inspection).
+   This is the same `latencyMs`/`traceSink` hook Group B needs for the timeout work — built **once**.
+4. **Flag + retention (PII — load-bearing).** Captured prompts contain **real PII** (phone numbers, addresses, names
+   from Thai LINE chats — confirmed in the incident transcript). So capture is **flag-gated** (`PIPELINE_TRACE=1`,
+   default off in prod until the founder decides), the raw-blob S3 prefix carries a **lifecycle TTL** (recommend
+   30–90 days), and read access is scoped to the deploy/admin role only. The `pipeline_trace` metrics row (counts,
+   timings, keys — **no message content**) may persist longer; only the raw blob expires.
+
+**Why this, not "a log line or S3 JSON".** A log line is unqueryable and unbounded; "S3 JSON" alone can't answer
+aggregate questions without a scan. The two-tier split (raw in S3, metrics in PG pointing at it) is the standard
+observability shape **and** the substrate the deferred pieces need: the **per-conversation trace view** (P5) is a
+reader over `pipeline_trace` + the blobs; **E6 failure-capture → eval case** (P5) becomes *lossless* — "take a
+captured trace, label `expected`, write `tierA/<id>.case.json`" — instead of Option B's lossy reconstruction.
+
+**Trade-offs.** Effort ~3-4 days for the **capture store** (sink port + S3 write + `pipeline_trace` migration + bot
+wiring + flag/TTL), separate from the trace-*view* UI (deferred P5). Risk **medium** — touches `StepContext` (every
+step gains the optional sink, but the no-op default = zero behavior change) and adds a hot-path write (must be
+async/best-effort and **never fail the pipeline**). Anti-over-engineering: tracing IS a real seam (the LLM
+chokepoint), so the `traceSink` port is defensible under **rule 2** (ports only at real seams); the no-op default
+keeps it a one-line change for non-tracing callers. **Why promote it:** it is the *only* design that delivers true
+"store all API calls with inputs and outputs" observability **and** a lossless replay path for the hill-climb loop
+— one store, two consumers, and the founder asked for exactly this capability. **Why it is still not Option A:** it
+does not by itself lock the *current* incident as a case (Option A hand-authors that); it is the infrastructure that
+makes the *next* failure capturable losslessly. **Prompt-version tagging** (a `promptVersion` hash on each trace row
+and the baseline) rides along cheaply once `pipeline_trace` exists, but a full prompt/experiment **registry** stays
+deferred (rule 1 — one eval consumer). Co-built with Group B in P3.
 
 ---
 
 ## 4. Recommended direction (+ rationale)
 
-**Sequenced path: A now → B next → (C, D) deferred to their owning-group coordination.**
+**Sequenced path: A now → B next → D's trace store promoted to committed P3 (co-built w/ Group B) → Option C +
+the trace read-surfaces deferred to P5.**
 
 1. **Ship Option A first** (the recommended core). It is the smallest thing that fully satisfies founder item 2's
    first half: *this* incident becomes a permanent, hand-verified **Tier-A** regression case (truth is already
@@ -308,14 +344,26 @@ double-build.
 2. **Then Option B** (export/replay utility), once we want the loop to scale beyond this one conversation. Emit
    `[IMG n] unknown` markers on export (no Group-B dependency); leave `expected` as a founder-labelled TODO.
 
-3. **Defer C and D** until their cross-group seams are settled: E6 auto-capture consumes **Group B**'s
-   failure-classification signals (don't build the trigger before they exist); E8 per-step tracing should be
-   **co-designed with Group B**'s timeout investigation (they want the same per-step timing) — building it twice
-   is the over-engineering trap.
+3. **Promote Option D's trace store (E8) to a committed P3 deliverable, co-built with Group B** — defer only its
+   *read surfaces*. The trace store (full per-call I/O → S3 + a queryable Postgres `pipeline_trace` row, captured at
+   the `AnthropicStepLlm` chokepoint, flag-gated + TTL'd for PII) is the substrate that both the per-conversation
+   trace *view* and the E6 failure-capture loop sit on, so it must exist before either; and Group B needs the same
+   per-step `latencyMs`/`traceSink` seam for its timeout work — so it is built **once** in P3, not twice. Group C
+   consumes it as scorecard/eval outputs. **Defer to P5** only the trace *view* (the read/query UI) and the **E6
+   auto-capture consumer** (which also waits on Group B's failure-classification signals — don't build the trigger
+   before they exist).
+
+4. **Defer Option C** (E6 failure auto-capture) to P5 — it consumes Group B's failure signals AND, once D's trace
+   store lands, the captured trace makes the export *lossless* (it reads a real trace, not Option B's reconstructed
+   transcript). Fold Option B's exporter + Option C's auto-capture + D's trace store together in P5 as the
+   end-to-end "failure → locked golden case" loop.
 
 Rationale: maximum founder-value per dev-day, smallest blast radius, no premature abstraction, honors D21
-(advisory) and deterministic-first dedup, and explicitly hands the cross-group pieces back to their owners rather
-than designing their fixes here.
+(advisory) and deterministic-first dedup. The one cross-group piece designed here rather than handed off is the
+**E8 trace store** — promoted because it is a shared seam (the LLM chokepoint Group B also needs) and because it is
+the only thing that delivers the founder's "store all API calls with inputs and outputs", which nothing in the
+pipeline does today; it is explicitly co-built with Group B in P3 so it is built once, not twice. The remaining
+cross-group items (E6 signals, the dedup fix) still hand back to their owners.
 
 ---
 
@@ -410,6 +458,43 @@ no `packages/db` change required.
   `packages/pipeline/goldenSet/tierA/<outId>.case.json` with `expected` as a labelled TODO. Unit test on the
   transcript-shape (deterministic given fixed input). The founder labels `expected` and commits.
 
+### Option D sketch (trace store — COMMITTED, P3, co-built with Group B)
+
+The capture store is a P3 deliverable (consolidated plan CR-5/§3) — built once with Group B's timeout work and
+consumed by Group C. Implementation outline (file:line grounded):
+
+1. **`traceSink` port + `latencyMs`.** `packages/pipeline/src/steps/context.ts` — add `traceSink?: TraceSink` to
+   `StepContext` (`{ llm, costLog, mode }` today). `TraceSink` is one method:
+   `record(entry: { runId, conversationKey, step, model, system, userContent, response, rawText, usage, latencyMs }): void`
+   (fire-and-forget; implementations MUST swallow their own errors — a trace write never fails the pipeline). Default
+   is undefined ⇒ no-op (every existing caller unchanged). `packages/pipeline/src/cost.ts` `CostEntry` gains
+   `latencyMs` (measured around the SDK call in `anthropicStepLlm.ts`).
+2. **Capture at the chokepoint.** `packages/pipeline/src/adapters/anthropicStepLlm.ts:run()` — already the single
+   call site and already reads `response.usage.cache_read_input_tokens` (~line 37). Wrap the `messages.parse` call
+   with a monotonic timer; after it returns, call `ctx.traceSink?.record({...})` with the assembled `system`/
+   `userContent`, the parsed `response` + raw text, `usage`, and `latencyMs`. No prompt content touches the pipeline
+   core — the sink is the only thing that sees it.
+3. **The real sink (bot layer).** `packages/bot` owns an `S3PgTraceSink`: writes the raw JSON blob to
+   `traces/<conversationKey>/<runId>/<step>-<seq>.json` in the archive bucket and inserts the thin `pipeline_trace`
+   row via `@line-robot/db`. Wired in `pipelineV2Sweep.ts` when `PIPELINE_TRACE=1`. The eval runner wires a no-op
+   (or a `LocalFileTraceSink` for offline inspection) — keeps `packages/pipeline` LINE/AWS-free.
+4. **Migration `pipeline_trace`** (Postgres). New table — `id, run_id, conversation_key, step, model, input_tokens,
+   output_tokens, cache_read_tokens, latency_ms, cost_usd, s3_key, created_at` (+ optional `prompt_version`). No
+   domain enum is touched, so per `packages/db/CLAUDE.md` this is a `schema.ts` add + `npm run generate` (hand-fix
+   only if a geography/extension quirk appears — none expected for a plain metrics table). This is the migration
+   that §5's Option A "Migrations: None" deferred to here.
+5. **IAM + lifecycle (infra).** The sweep role gains `s3:PutObject` on `${archive}/traces/*`; an S3 lifecycle rule
+   expires that prefix after the founder-chosen TTL (§6). Read access (the P5 trace view) is scoped to the
+   deploy/admin role. Flag default **off in prod** until the founder green-lights PII capture.
+6. **Group C consumption (now).** The scorecard reads `pipeline_trace` aggregates (per-step latency, cache-hit rate,
+   cost/conversation) as advisory outputs. The **per-conversation trace view** and the **lossless E6 exporter** are
+   the P5 readers over this store (see §7, consolidated §5).
+
+**Tests:** a fake `TraceSink` asserts the chokepoint calls `record` once per step with the right `step`/`model` and a
+non-zero `latencyMs`; a sink-throws test asserts the pipeline still completes (best-effort contract); a DB
+integration test (Docker-PG) asserts a `pipeline_trace` row round-trips. **No `EVAL_LLM=anthropic` needed** — the
+fake LLM drives capture in CI.
+
 ---
 
 ## 6. Open questions / founder decisions
@@ -432,6 +517,13 @@ no `packages/db` change required.
    yet; deterministic floor + invariants suffice). Founder confirm.
 5. **Prompt-version tagging (Option D slice).** Do we want a `promptVersion` stamped on eval runs/baseline now, or
    rely on git commit identity? Recommendation: git for now; revisit when A/B-ing prompt changes becomes routine.
+   (Once `pipeline_trace` exists it can carry a `prompt_version` column for cheap — but a full registry stays deferred.)
+6. **Trace-store PII & retention (E8/Option D — now a committed P3 deliverable).** Full per-call I/O capture stores
+   **real PII** (phone numbers, addresses, names, from the Thai LINE chats — present in the incident transcript).
+   Decisions needed: (a) capture is flag-gated (`PIPELINE_TRACE`, default **off** in prod) — turn it on in **prod**
+   or **staging-only** at first? (b) raw-blob S3 **TTL** length (recommend 30–90 days; the `pipeline_trace` metrics
+   row — no content — may persist longer); (c) confirm read access scoped to the deploy/admin role. Recommendation:
+   staging-only + 30-day TTL to start; widen once the trace view (P5) proves its value.
 
 ---
 
@@ -446,9 +538,12 @@ no `packages/db` change required.
   but if Group B lands an **ingest-time classification cache keyed by `s3Key`**, the exporter could read cached
   classifications for richer markers (a future enhancement, not a v1 dependency). (ii) The **E6 auto-capture
   triggers** (timeout/abandoned/oversized/low-confidence) are **Group B's signals to define**
-  (`ingestionSweep.ts:158-167` + their new "too big" path); Group C only consumes them. (iii) The **E8 per-step
-  tracing** overlaps Group B's "which step ate the timeout budget" — co-design the per-step timing hook once,
-  don't double-build. Do NOT design any of Group B's fixes here.
+  (`ingestionSweep.ts:158-167` + their new "too big" path); Group C only consumes them. (iii) The **E8 trace store**
+  — now a **committed P3 deliverable** (full per-call I/O → S3 + a queryable `pipeline_trace` row, captured at the
+  `AnthropicStepLlm` chokepoint via a `traceSink` port; §3 Option D, §5 Option-D sketch) — is **co-built with
+  Group B**: they need the same `latencyMs`/`traceSink` seam for "which step ate the timeout budget", so it is built
+  **once** in P3 and Group C consumes it (scorecard outputs now; the trace *view* + lossless eval-case capture in
+  P5). Don't double-build the timing hook. Beyond that seam, do NOT design Group B's fixes here.
 
 ---
 
@@ -457,9 +552,13 @@ no `packages/db` change required.
 - **LLM-as-judge / `scoreFuzzy` implementation** — declared-but-throwing slot stays deferred (no second consumer).
 - **Prompt/version registry + experiment tracking** — git is the v1 versioning; a real registry is aspirational
   for our scale (anti-over-engineering rule 1).
-- **Per-step tracing/observability (E8)** + per-conversation trace view — deferred to co-design with Group B.
-- **Failure auto-capture triage queue (E6)** — deferred until Group B defines failure signals and the consumer
-  side (loader/export) is proven.
+- **Per-call I/O trace store (E8/Option D) — NO LONGER DEFERRED.** Promoted to a committed **P3** deliverable
+  (full prompt+response capture → S3 + a queryable `pipeline_trace` Postgres row at the `AnthropicStepLlm`
+  chokepoint, flag-gated + TTL'd for PII), co-built with Group B. See §3 Option D, §5 Option-D sketch, consolidated
+  CR-5. **Deferred to P5** are only its *read surfaces*: the **per-conversation trace view** (read/query UI over the
+  store) and the **lossless E6 exporter** (capture a trace → label → `tierA/`).
+- **Failure auto-capture triage queue (E6 consumer)** — deferred (P5) until Group B defines failure signals; once
+  the P3 trace store exists, the captured trace makes that capture *lossless* (no message reconstruction).
 - **Export/replay utility (Option B)** — sketched, not the first deliverable; build when scaling beyond the one
   incident.
 - **classify-step eval coverage** — stays `n/a` (needs image fixtures + Group B's image path); not addressed here.
