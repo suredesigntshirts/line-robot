@@ -13,6 +13,7 @@ import { segmentTranscript, singleSegmentFallback } from "../steps/segment.ts";
 import { translateContent } from "../steps/translate.ts";
 import type { ExtractedListing } from "../steps.ts";
 import { type EvalCase, loadCases } from "./cases.ts";
+import { scoreDistinctListings } from "./distinctListings.ts";
 import { OracleStepLlm } from "./oracle.ts";
 import { emptyScorecard, renderScorecard } from "./scorecard.ts";
 import {
@@ -212,7 +213,11 @@ function buildLlm(evalCase: EvalCase): { llm: StepLlm; real: boolean } {
   return { llm: new OracleStepLlm(evalCase.specs), real: false };
 }
 
-const cases = loadCases();
+// Tier-A cases (no synthetic specs) are scored ONLY under the real model: the oracle answers from a
+// case's specs, so a specs-less case would falsely score ~0 (plan 23 group-c §2.1, the "4th gap").
+// Synthetic Tier-B cases always carry specs, so under oracle this filter is a no-op for them and
+// keeps the harness smoke meaningful.
+const cases = loadCases().filter((c) => EVAL_MODE === "anthropic" || c.specs.length > 0);
 const card = emptyScorecard();
 card.caseCount = cases.length;
 const costLog = new CostLog();
@@ -302,7 +307,18 @@ for (const evalCase of cases) {
     }
 
     const dedup = scoreDedupCase(evalCase);
-    if (dedup) dedupScores.push((dedup.pairPrecision + dedup.pairRecall) / 2);
+    if (dedup) {
+      dedupScores.push((dedup.pairPrecision + dedup.pairRecall) / 2);
+    } else if (
+      (evalCase.tier === "A" || evalCase.id.startsWith("distinct-")) &&
+      evalCase.expected.duplicatePairs.length === 0 &&
+      evalCase.expected.properties.length > 1
+    ) {
+      // "N distinct listings, 0 merges" archetype (E7 + the incident Tier-A): the extracted
+      // listings must not block against each other. Scoped to the purpose-built archetypes (the
+      // existing synthetic dumps aren't authored as spatially-distinct ground truth).
+      dedupScores.push(scoreDistinctListings(extracted));
+    }
   } catch (error) {
     card.failures += 1;
     console.error(`case ${evalCase.id} failed:`, error);
