@@ -45,3 +45,7 @@ playwright-report/
 .astro/
 dist-lambda/
 packages/ui/gallery/dist
+
+# Eval response cache (U-EVAL-perf, plan 23) — opt-in EVAL_CACHE=1; frozen model
+# responses keyed by prompt+input. Local-only, never committed (staleness + repo bloat).
+packages/pipeline/.eval-cache/

@@ -12,6 +12,7 @@ import { runGate } from "../steps/gate.ts";
 import { segmentTranscript, singleSegmentFallback } from "../steps/segment.ts";
 import { translateContent } from "../steps/translate.ts";
 import type { ExtractedListing } from "../steps.ts";
+import { CachingStepLlm } from "./cachingStepLlm.ts";
 import { type EvalCase, loadCases } from "./cases.ts";
 import { scoreDistinctListings } from "./distinctListings.ts";
 import { OracleStepLlm } from "./oracle.ts";
@@ -31,6 +32,30 @@ import {
 // EVAL_LLM=oracle (default, no API): harness smoke, perfect pipeline = 1.0.
 // EVAL_LLM=anthropic (needs ANTHROPIC_API_KEY): the real model baseline.
 // ---------------------------------------------------------------------------
+
+/**
+ * Bounded-concurrency map preserving input order (workers pull a shared cursor).
+ * Local tiny copy of the bot's util — `@line-robot/pipeline` may not depend on
+ * `@line-robot/bot`; the Group B image-stage rewrite (R-2b) relocates a shared
+ * one into pipeline, at which point this can import it instead.
+ */
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+  const worker = async (): Promise<void> => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      results[i] = await fn(items[i] as T);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 
 const SCORED_FIELDS = [
   "dealType",
@@ -195,8 +220,13 @@ try {
 
 const EVAL_MODE = process.env.EVAL_LLM ?? "oracle";
 
+// U-EVAL-perf (plan 23): a warm response cache makes iteration on model-facing code
+// free (0 API calls, 0 rate-limit pressure). Opt-in, and FORCE-OFF when regenerating
+// the baseline — that path must measure a fresh model, never a frozen capture.
+const CACHE_ENABLED = process.env.EVAL_CACHE === "1" && process.env.EVAL_WRITE_BASELINE !== "1";
+
 /** One shared real adapter so the per-step cached prefixes actually get reused. */
-const realLlm: StepLlm | null = await (async () => {
+const baseLlm: StepLlm | null = await (async () => {
   if (EVAL_MODE !== "anthropic") return null;
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error("EVAL_LLM=anthropic requires ANTHROPIC_API_KEY");
@@ -207,6 +237,20 @@ const realLlm: StepLlm | null = await (async () => {
   ]);
   return new AnthropicStepLlm(new Anthropic());
 })();
+// Wrap in the response cache at top-level scope (a closure-assigned `let` would
+// leave TS narrowing the var to its `null` initializer at the report site below).
+const cachingLlm =
+  baseLlm && CACHE_ENABLED
+    ? new CachingStepLlm(baseLlm, new URL("../../.eval-cache/", import.meta.url).pathname)
+    : null;
+const realLlm: StepLlm | null = cachingLlm ?? baseLlm;
+
+// Bounded concurrency over cases (the eval touches no Postgres — pure API I/O).
+// Cuts a cold real-model run from ~20 min toward the rate-limit ceiling; serial
+// (=1) for oracle so the harness smoke stays deterministic.
+const CONCURRENCY = Math.max(1, Number(process.env.EVAL_CONCURRENCY ?? (realLlm ? "6" : "1")));
+// Progress line per case so a 20-min real run isn't a black box.
+const PROGRESS = EVAL_MODE === "anthropic" || process.env.EVAL_PROGRESS === "1";
 
 function buildLlm(evalCase: EvalCase): { llm: StepLlm; real: boolean } {
   if (realLlm) return { llm: realLlm, real: true };
@@ -229,7 +273,34 @@ const translateScores: number[] = [];
 const gateScores: number[] = [];
 const fieldAggregate = new Map<string, { total: number; count: number }>();
 
-for (const evalCase of cases) {
+/**
+ * One case's contribution to the scorecard. Each runs independently (concurrent
+ * cases share only the stateless `realLlm` + the synchronous `costLog`); the
+ * results are merged back in input order afterwards, so the aggregate is identical
+ * to a serial run regardless of `CONCURRENCY`.
+ */
+interface CaseOutcome {
+  failed: boolean;
+  segment: number | null;
+  extract: number | null;
+  dedup: number | null;
+  translate: number | null;
+  gate: number | null;
+  fieldScores: FieldScore[];
+}
+
+let done = 0;
+async function runCase(evalCase: EvalCase): Promise<CaseOutcome> {
+  const started = Date.now();
+  const outcome: CaseOutcome = {
+    failed: false,
+    segment: null,
+    extract: null,
+    dedup: null,
+    translate: null,
+    gate: null,
+    fieldScores: [],
+  };
   try {
     const { llm } = buildLlm(evalCase);
     const ctx: StepContext = { llm, costLog, mode: "sync" };
@@ -242,9 +313,10 @@ for (const evalCase of cases) {
     };
     const segmented =
       (await segmentTranscript(ctx, segmentInput)) ?? singleSegmentFallback(segmentInput);
-    segmentScores.push(
-      scoreSegmentation(evalCase.expected.properties.length, segmented.segments.length).score,
-    );
+    outcome.segment = scoreSegmentation(
+      evalCase.expected.properties.length,
+      segmented.segments.length,
+    ).score;
 
     const extracted: ExtractedListing[] = [];
     for (const segment of segmented.segments) {
@@ -256,24 +328,18 @@ for (const evalCase of cases) {
       });
       if (listing) extracted.push(listing);
     }
-    if (extracted.length === 0 && evalCase.expected.properties.length > 0) {
-      // Total extraction miss scores 0 — silently skipping it would inflate the mean.
-      extractScores.push(0);
-    }
     const fieldScores = scoreCase(evalCase.expected.properties, extracted);
+    outcome.fieldScores = fieldScores;
     if (process.env.EVAL_VERBOSE === "1") {
       for (const f of fieldScores.filter((s) => s.score < 1)) {
         console.error(`MISS ${evalCase.id} ${f.field}: ${f.detail}`);
       }
     }
-    if (fieldScores.length > 0) {
-      extractScores.push(fieldScores.reduce((s, f) => s + f.score, 0) / fieldScores.length);
-      for (const f of fieldScores) {
-        const agg = fieldAggregate.get(f.field) ?? { total: 0, count: 0 };
-        agg.total += f.score;
-        agg.count += 1;
-        fieldAggregate.set(f.field, agg);
-      }
+    if (extracted.length === 0 && evalCase.expected.properties.length > 0) {
+      // Total extraction miss scores 0 — silently skipping it would inflate the mean.
+      outcome.extract = 0;
+    } else if (fieldScores.length > 0) {
+      outcome.extract = fieldScores.reduce((s, f) => s + f.score, 0) / fieldScores.length;
     }
 
     // Translate + gate on the FIRST extracted listing per case (cost cap — the
@@ -288,7 +354,7 @@ for (const evalCase of cases) {
         notes: "",
       });
       const t = scoreTranslate(fromLang, translated);
-      translateScores.push(t.score);
+      outcome.translate = t.score;
       if (t.score < 1 && process.env.EVAL_VERBOSE === "1") {
         console.error(`MISS ${evalCase.id} translate(${fromLang}): ${t.detail}`);
       }
@@ -300,7 +366,7 @@ for (const evalCase of cases) {
         listingType: first.dealType,
       });
       const g = scoreGateResult(first, gate);
-      gateScores.push(g.score);
+      outcome.gate = g.score;
       if (g.score < 1 && process.env.EVAL_VERBOSE === "1") {
         console.error(`MISS ${evalCase.id} gate: ${g.detail}`);
       }
@@ -308,7 +374,7 @@ for (const evalCase of cases) {
 
     const dedup = scoreDedupCase(evalCase);
     if (dedup) {
-      dedupScores.push((dedup.pairPrecision + dedup.pairRecall) / 2);
+      outcome.dedup = (dedup.pairPrecision + dedup.pairRecall) / 2;
     } else if (
       (evalCase.tier === "A" || evalCase.id.startsWith("distinct-")) &&
       evalCase.expected.duplicatePairs.length === 0 &&
@@ -317,11 +383,34 @@ for (const evalCase of cases) {
       // "N distinct listings, 0 merges" archetype (E7 + the incident Tier-A): the extracted
       // listings must not block against each other. Scoped to the purpose-built archetypes (the
       // existing synthetic dumps aren't authored as spatially-distinct ground truth).
-      dedupScores.push(scoreDistinctListings(extracted));
+      outcome.dedup = scoreDistinctListings(extracted);
     }
   } catch (error) {
-    card.failures += 1;
+    outcome.failed = true;
     console.error(`case ${evalCase.id} failed:`, error);
+  }
+  done += 1;
+  if (PROGRESS) {
+    console.error(
+      `  [${done}/${cases.length}] ${evalCase.id} (${Date.now() - started} ms)${outcome.failed ? " FAILED" : ""}`,
+    );
+  }
+  return outcome;
+}
+
+const outcomes = await mapWithConcurrency(cases, CONCURRENCY, runCase);
+for (const o of outcomes) {
+  if (o.failed) card.failures += 1;
+  if (o.segment !== null) segmentScores.push(o.segment);
+  if (o.extract !== null) extractScores.push(o.extract);
+  if (o.dedup !== null) dedupScores.push(o.dedup);
+  if (o.translate !== null) translateScores.push(o.translate);
+  if (o.gate !== null) gateScores.push(o.gate);
+  for (const f of o.fieldScores) {
+    const agg = fieldAggregate.get(f.field) ?? { total: 0, count: 0 };
+    agg.total += f.score;
+    agg.count += 1;
+    fieldAggregate.set(f.field, agg);
   }
 }
 
@@ -373,5 +462,12 @@ if (process.env.EVAL_WRITE_BASELINE === "1" && realLlm) {
 }
 
 console.log(`mode: EVAL_LLM=${EVAL_MODE} (oracle = harness smoke, not a model baseline)`);
+if (cachingLlm) {
+  // Warm runs serve responses from disk → `cost` above is NOTIONAL (stored usage),
+  // not a real spend. Bypass the cache (EVAL_CACHE unset) to measure the live model.
+  console.log(
+    `cache: ${cachingLlm.hits} hits / ${cachingLlm.misses} misses (EVAL_CACHE=1 — cost is notional on hits)`,
+  );
+}
 console.log(renderScorecard(card, evalConfig));
 process.exit(0); // D21: advisory — never a failing exit, even on regression.
