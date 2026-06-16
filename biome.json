@@ -21,7 +21,8 @@
       "!packages/website/src/styles/global.css",
       "!packages/miniapp/src/global.css",
       "!**/dist-e2e",
-      "!**/*.astro"
+      "!**/*.astro",
+      "!plans/**/*.html"
     ]
   },
   "formatter": {
