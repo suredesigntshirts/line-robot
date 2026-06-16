@@ -21,6 +21,7 @@ real-model Docker integration tests; oracle eval stays PASS 1.0.
 | A1 acceptance harness | `geoBind.test.ts` (deterministic, asserts persisted geom) + `incidentGeoMerge.e2e.test.ts` (real-model, 5 distinct rows, 0 shared coords) | `c486e6a`, `841b2e4` |
 | Real-API validation policy | CLAUDE.md "For model-facing changes" rule; D21 reframed "advisory = run-and-judge, not skip" | `6170b0c` |
 | **U1 — baseline regen (real model)** | 64 cases, $1.21, PASS; segment/extract/dedup/gate held ~1.00 (SEGMENT_SYSTEM change did NOT regress segmentation); dedup scores the 2 new distinct archetypes (0 false blocks); translate −0.02 = jitter + harder real cases, not a regression | `2024e1b` |
+| **U-D1 — DM-claimant column** | `listing.dm_claimant_user_id` nullable FK + migration `0011_thankful_may_parker` (clean ADD COLUMN+FK, no hand-fix). Validated on real PG (db integration 78). Staging at 0010, zero drift → applies cleanly. Additive/non-breaking (nothing reads it until U-D2). **Not yet applied to staging (gated).** | `dd4574b` |
 | **U-EVAL-perf — fast real-model eval** | `CachingStepLlm` decorator at the `StepLlm` seam (`EVAL_CACHE=1`, gitignored `.eval-cache/`) + bounded case-level concurrency (`EVAL_CONCURRENCY`, dflt 6 real/1 oracle) via a local `mapWithConcurrency` + per-case progress. Warm re-run = 0 API calls; real cold→warm proof **5485 ms → 0 ms**, byte-identical extraction. Cache bypassed on `EVAL_WRITE_BASELINE=1` (baseline always fresh). Oracle eval unchanged (PASS 1.0). Adversarial audit's one real finding (usage not re-validated on read → could NaN `costUsd`) fixed + tested. **Eval-only, zero production impact.** | `9161271` (+ lint hygiene `8a5613a`) |
 
 **Net effect:** the 2026-06-15 incident path now works — A2 stops the silent data loss (≥5 rows
@@ -55,12 +56,23 @@ conversation via real-model integration tests.
   model-facing image work with `EVAL_CACHE=1` (and BYPASS via `EVAL_WRITE_BASELINE=1` for the baseline).
 
 **Phase 4 — Group D, DM-claimable (Option 1)** — self-contained, addresses the founder-critical
-"dumped my listings but can't use them." Spec: `group-d-dm-group-unification.md` §5.
-- **U-D1 — migration:** new nullable `listing.dm_claimant_user_id` FK (domain-enum N/A; `schema.ts` add →
-  `npm run generate` → hand-fix per `packages/db/CLAUDE.md`).
-- **U-D2 — sweep + gate + backfill:** set `dm_claimant_user_id` on the DM branch (the REAL bare-id peer,
-  not the pseudo-owner); relax `sendClaimInvites` DM-skip; admit the DM claimant at `handler.ts:331-334`
-  + `:220-233`; backfill ~6 NULL-group rows; flip the 2 DM-no-group tests + add `api`/`db`/`e2e-api` tests.
+"dumped my listings but can't use them." Spec: `group-d-dm-group-unification.md` §5. **Blast-radius
+audit done 2026-06-16 — plan validated WITH corrections (the spec's line numbers drifted under A1 + the
+membership change; see audit corrections below).**
+- ~~U-D1 — migration~~ **DONE (`dd4574b`)** — `listing.dm_claimant_user_id` nullable FK + migration
+  `0011_thankful_may_parker` (clean ADD COLUMN+FK, no hand-fix). Validated on real PG (db integration 78).
+  Staging at 0010, zero drift → 0011 applies cleanly. **NOT yet applied to staging (gated go-live step).**
+- **U-D2 — sweep + gate + backfill** (audit-corrected map): (a) **new** `resolveDmClaimant` in the DM path
+  — do NOT reuse `populateGroupMembership`, it `return undefined`s at `pipelineV2Sweep.ts:155` BEFORE the
+  bare-sender resolve at `:164`; (b) thread `dmClaimantUserId` through `PipelineInput` (`run.ts:54-68`) →
+  `persistNewListing` (`:105-179`) → `createListing` listing-obj (`:139-177`) — set the **new** column,
+  NOT `claimedByUserId` (no auto-claim), set-once for E10; (c) relax `sendClaimInvites` guard at
+  `pipelineV2Sweep.ts:311`; (d) admit the DM claimant at BOTH gate sites — `handleClaim` `handler.ts:331-334`
+  + `authorizedListing` `:220-233` (the latter is one fn → covers detail/notes/viewings/flagInterest/quickSale);
+  fix the stale `handler.ts:324-330` comment; (e) flip the 2 sweep tests (now at `pipelineV2Sweep.test.ts:387-395`
+  & `:509-525`) + add `api`/`db`/`e2e-api` tests; (f) re-verify staging NULL-group count (6 now) then backfill.
+  **Eval-case step DROPPED** — the incident DM fixture already exists from Phase 1 (CR-8). Correctness-critical
+  (authz gate) → run the adversarial code-only audit + `/increment-review` + `/alignment-review`. NOT model-facing.
 
 **Phase 3 — Group B, performance & resilience.** Spec: `group-b-image-stage-rewrite.md` (image stage,
 governs) + `group-b-performance-resilience.md` (Steps A/C). Sharp tuning + the timeout comment already shipped.
