@@ -22,6 +22,7 @@ real-model Docker integration tests; oracle eval stays PASS 1.0.
 | Real-API validation policy | CLAUDE.md "For model-facing changes" rule; D21 reframed "advisory = run-and-judge, not skip" | `6170b0c` |
 | **U1 — baseline regen (real model)** | 64 cases, $1.21, PASS; segment/extract/dedup/gate held ~1.00 (SEGMENT_SYSTEM change did NOT regress segmentation); dedup scores the 2 new distinct archetypes (0 false blocks); translate −0.02 = jitter + harder real cases, not a regression | `2024e1b` |
 | **U-D1 — DM-claimant column** | `listing.dm_claimant_user_id` nullable FK + migration `0011_thankful_may_parker` (clean ADD COLUMN+FK, no hand-fix). Validated on real PG (db integration 78). Staging at 0010, zero drift → applies cleanly. Additive/non-breaking (nothing reads it until U-D2). **Not yet applied to staging (gated).** | `dd4574b` |
+| **U-D2 — DM-claimable behavior** | Sweep `resolveDmClaimant` (real bare-id poster, NOT pseudo-owner) → threads `dmClaimantUserId` set-once on the create path; relaxed `sendClaimInvites` so a DM gets its claim DM; self-guarding `isDmClaimant` admits `sourceGroupId IS NULL && dmClaimantUserId==caller` at both gate sites (claim + read); `requireClaimant` (publish/edit) still needs a real claim. Flipped 2 sweep tests + guard; +4 api gate tests; +1 db round-trip; **+1 e2e-api real-backend DM claim→publish (admitted via dm_claimant, NOT membership)**. Adversarial authz audit: no live exploit; its MEDIUM (self-guard the primitive) applied. Oracle eval unchanged. | `103eae9` |
 | **U-EVAL-perf — fast real-model eval** | `CachingStepLlm` decorator at the `StepLlm` seam (`EVAL_CACHE=1`, gitignored `.eval-cache/`) + bounded case-level concurrency (`EVAL_CONCURRENCY`, dflt 6 real/1 oracle) via a local `mapWithConcurrency` + per-case progress. Warm re-run = 0 API calls; real cold→warm proof **5485 ms → 0 ms**, byte-identical extraction. Cache bypassed on `EVAL_WRITE_BASELINE=1` (baseline always fresh). Oracle eval unchanged (PASS 1.0). Adversarial audit's one real finding (usage not re-validated on read → could NaN `costUsd`) fixed + tested. **Eval-only, zero production impact.** | `9161271` (+ lint hygiene `8a5613a`) |
 
 **Net effect:** the 2026-06-15 incident path now works — A2 stops the silent data loss (≥5 rows
@@ -62,7 +63,13 @@ membership change; see audit corrections below).**
 - ~~U-D1 — migration~~ **DONE (`dd4574b`)** — `listing.dm_claimant_user_id` nullable FK + migration
   `0011_thankful_may_parker` (clean ADD COLUMN+FK, no hand-fix). Validated on real PG (db integration 78).
   Staging at 0010, zero drift → 0011 applies cleanly. **NOT yet applied to staging (gated go-live step).**
-- **U-D2 — sweep + gate + backfill** (audit-corrected map): (a) **new** `resolveDmClaimant` in the DM path
+- ~~U-D2 — sweep + gate~~ **DONE (`103eae9`)** — see §1. **Code complete; NOT yet on staging.** Remaining
+  for Group D = **Phase 3 go-live (gated on founder sign-off):** (1) apply migration `0011` to staging RDS
+  (`DATABASE_URL=<staging> npm run db:migrate -w @line-robot/db`); (2) re-verify the NULL-group count
+  (6 now) + run the idempotent backfill (strip `user#` from each NULL-group listing's pseudo-owner subject
+  → bare-id user → set `dm_claimant_user_id`) — this is what makes the *incident survivor* claimable;
+  (3) `npm run build && pulumi up` (bot sweep + api Lambdas); (4) confirm a DM listing is claimable live.
+- **(superseded build notes for U-D2)** (audit-corrected map): (a) **new** `resolveDmClaimant` in the DM path
   — do NOT reuse `populateGroupMembership`, it `return undefined`s at `pipelineV2Sweep.ts:155` BEFORE the
   bare-sender resolve at `:164`; (b) thread `dmClaimantUserId` through `PipelineInput` (`run.ts:54-68`) →
   `persistNewListing` (`:105-179`) → `createListing` listing-obj (`:139-177`) — set the **new** column,
