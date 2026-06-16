@@ -221,6 +221,24 @@ describe("group-membership authz", () => {
     expect(detail?.media.map((m) => m.s3Key)).toEqual(["conv/x/0.jpg", "conv/x/1.jpg"]);
     expect(detail?.media[1]?.thumbKey).toBe("derivatives/x-1-thumb.jpg");
   });
+
+  it("dm_claimant_user_id round-trips on a group-less listing and is exposed for the gate (Group D)", async () => {
+    const created = await createListing(db, {
+      listing: {
+        ...baseListing,
+        ownerUserId: alice, // the conversation pseudo-owner — NOT the claimant
+        priceThb: 1_900_000,
+        dmClaimantUserId: bob, // the REAL DM poster, recorded at ingest
+      },
+      content: [{ lang: "th", headline: "บ้าน DM", description: "x", generatedBy: "human" }],
+    });
+    const detail = await getPortalListingDetail(db, created.id, bob);
+    expect(detail?.listing.sourceGroupId).toBeNull();
+    expect(detail?.listing.dmClaimantUserId).toBe(bob);
+    expect(detail?.listing.claimedByUserId).toBeNull(); // eligibility only — not yet claimed
+    // A NULL group is never a member, so the gate must admit via dm_claimant, not membership.
+    expect(await isGroupMember(db, null, bob)).toBe(false);
+  });
 });
 
 // Stage 5, Build C — the live-ingest population repos that make a real poster claimable. The sweep

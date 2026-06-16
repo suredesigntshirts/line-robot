@@ -42,7 +42,9 @@ import type { Logger } from "../core/ports/runtime.js";
 //     `sourceGroupId` to the pipeline (so `listing.source_group_id` is non-NULL — the mini-app claim
 //     gate can't admit anyone for a NULL group). For EVERY distinct real message sender we upsert a
 //     `group_membership` edge, so the claim gate (`isGroupMember`) admits the real poster (today only
-//     the seed wrote memberships — this is the launch blocker the build fixes).
+//     the seed wrote memberships — this is the launch blocker the build fixes). A 1:1 DM has no group,
+//     so instead we record the real poster as `dm_claimant_user_id` (plan 23 Group D) and the same
+//     claim gate admits them — see `resolveDmClaimant`.
 //  2. GATE-PASS CLAIM DM. For each listing that PASSES the quality gate we stamp `claim_invited_at`
 //     once (`markClaimInvited` guards re-sends), and on the first stamp DM the batch's primary sender
 //     a Flex claim card deep-linking to `{miniappUrl}/claim/{id}`. The membership gate is the real
@@ -172,6 +174,25 @@ async function populateGroupMembership(
   return group.id;
 }
 
+/**
+ * For a 1:1 DM (no source group), resolve the REAL poster's pg user so the listing can record who may
+ * claim it (plan 23 Group D). The DM peer's BARE LINE id — NOT the conversation pseudo-`owner_user_id`
+ * (subject `user#…`) — is what the mini-app's LIFF id-token resolves to, so this is the exact identity
+ * the claim gate checks (`dm_claimant_user_id == caller`). It is also the same id `sendClaimInvites`
+ * DMs the claim card to, so the person nudged is the person admitted. Returns undefined when there is
+ * no real sender (e.g. LINE omitted the id) — the listing then stays group-less and unclaimable, as
+ * before (no regression). NOT called for group conversations (those claim via membership).
+ */
+async function resolveDmClaimant(
+  db: Db,
+  batch: readonly StoredMessage[],
+): Promise<string | undefined> {
+  const lineUserId = senderUserId(batch[0]?.ref ?? { kind: "user", userId: "" });
+  if (lineUserId === undefined || lineUserId === "") return undefined;
+  const user = await findOrCreateUserByIdentity(db, "line", lineUserId, "LINE user");
+  return user.id;
+}
+
 export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
   return {
     async run(conversationKey, batch) {
@@ -246,10 +267,16 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
         batch,
         deps.logger,
       );
+      // A 1:1 DM has no source group, so the membership claim gate admits no one. Record the REAL DM
+      // poster as the listings' claim-eligible user instead (plan 23 Group D); group batches don't use
+      // this (they claim via membership).
+      const dmClaimantUserId =
+        sourceGroupId === undefined ? await resolveDmClaimant(deps.db, batch) : undefined;
       const outcome = await runPipeline(ctx, deps.db, {
         transcript,
         ownerUserId: owner.id,
         sourceGroupId,
+        dmClaimantUserId,
         photos,
         geoHints: parseGeoLinks(chatText).map((g) => `${g.lat},${g.long}`),
         coordByMapIndex,
@@ -266,9 +293,17 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
 
       // Claim DM (best-effort): for each listing that PASSED the gate, stamp claim_invited_at ONCE
       // (the guard), and on the first stamp DM the batch's primary sender a deep-linked claim card.
-      // Only for a group-sourced batch — a 1:1 listing has no source group, so its claim screen would
-      // dead-end in the gate's 404 (passing sourceGroupId lets sendClaimInvites skip it).
-      await sendClaimInvites(deps, conversationKey, batch, outcome.listings, sourceGroupId);
+      // Sent for a group-sourced batch (claim via membership) OR a 1:1 DM with a resolved claimant
+      // (claim via dm_claimant) — a group-less listing with no claimant still dead-ends the gate, so
+      // those are skipped.
+      await sendClaimInvites(
+        deps,
+        conversationKey,
+        batch,
+        outcome.listings,
+        sourceGroupId,
+        dmClaimantUserId,
+      );
 
       return outcome.listings.map((l) => ({
         propertyId: l.listingId,
@@ -289,13 +324,15 @@ export function createPipelineV2Port(deps: PipelineV2Deps): PipelineV2Port {
  * imperfect per-listing→sender mapping is acceptable (the precise mapping is queued — see the header).
  *
  * Skipped entirely (no stamp, no DM) when:
- *  - there's no `sourceGroupId` (a 1:1-sourced listing — its claim screen would dead-end in the claim
- *    gate's 404, since a NULL source group can't be group-claimed), OR
+ *  - the listing is unclaimable — NEITHER group-sourced NOR a DM with a resolved claimant (a group-less
+ *    listing with no `dmClaimantUserId` would dead-end in the claim gate's 404), OR
  *  - the gateway / `miniappUrl` is absent (the deep link can't resolve). Because `markClaimInvited` is
  *    NOT called in these skips, once the MINI App URL is set the first sweep that re-sees a still-
  *    unstamped gate-passed listing sends its DM (no listing is silently burned).
  *
- * Every push is wrapped: a failed DM never fails the sweep (the watermark already advanced).
+ * For a DM the target IS the DM claimant (both derive from `senderUserId(batch[0].ref)`), so the
+ * person nudged is exactly the person the gate admits. Every push is wrapped: a failed DM never fails
+ * the sweep (the watermark already advanced).
  */
 async function sendClaimInvites(
   deps: PipelineV2Deps,
@@ -303,12 +340,14 @@ async function sendClaimInvites(
   batch: readonly StoredMessage[],
   listings: readonly PipelineListingOutcome[],
   sourceGroupId: string | undefined,
+  dmClaimantUserId: string | undefined,
 ): Promise<void> {
   const gateway = deps.gateway;
   const miniappUrl = deps.miniappUrl;
-  // No source group → the claim gate can't admit anyone for these listings; no gateway/URL → the deep
-  // link can't resolve. Either way there's nothing to send (and no stamp to burn).
-  if (sourceGroupId === undefined || gateway === undefined || miniappUrl === undefined) return;
+  // Nothing claimable (no group AND no DM claimant) → the gate can't admit anyone; no gateway/URL → the
+  // deep link can't resolve. Either way there's nothing to send (and no stamp to burn).
+  if (sourceGroupId === undefined && dmClaimantUserId === undefined) return;
+  if (gateway === undefined || miniappUrl === undefined) return;
 
   const target = senderUserId(batch[0]?.ref ?? { kind: "user", userId: "" });
   if (target === undefined || target === "") {

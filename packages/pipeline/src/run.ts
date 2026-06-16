@@ -55,6 +55,11 @@ export interface PipelineInput {
   transcript: string;
   ownerUserId: string;
   sourceGroupId?: string;
+  /** The REAL bare-id poster of a 1:1 DM (no source group), recorded so the listing knows who may
+   * claim it (plan 23 Group D). Written set-once on the create path only — a dedup merge into an
+   * existing listing never touches it. Undefined for group-sourced listings (claim is gated by group
+   * membership there) and for DMs with no resolvable sender. */
+  dmClaimantUserId?: string;
   photos: PipelinePhoto[];
   /** Conversation-level coordinates, for SEGMENTATION context only (the segmenter sees them all to
    * decide how many listings exist). Per-segment extraction is bound via `coordByMapIndex` (A1). */
@@ -140,6 +145,9 @@ async function persistNewListing(
     listing: {
       ownerUserId: input.ownerUserId,
       sourceGroupId: input.sourceGroupId,
+      // Only written here (the create path) → set-once: a re-sweep that dedup-MERGES into an existing
+      // listing keeps that listing's original claimant (E10). Undefined for group/sender-less listings.
+      dmClaimantUserId: input.dmClaimantUserId,
       dealType: extracted.dealType,
       saleStage: isRent ? null : "available",
       rentalStatus: isRent ? "available" : null,

@@ -370,6 +370,33 @@ describe("GET /properties/{id} (detail authz)", () => {
     const r = await handleApi(deps(repo), req("GET", `/properties/${LISTING_ID}`));
     expect(r.statusCode).toBe(404);
   });
+
+  it("the DM claimant of a group-less listing can read its detail pre-claim (200)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () =>
+        portalDetail({ sourceGroupId: null, claimedByUserId: null, dmClaimantUserId: DB_USER_ID }),
+      ),
+      isGroupMember: vi.fn(async (groupId) => groupId !== null),
+    });
+    const r = await handleApi(deps(repo), req("GET", `/properties/${LISTING_ID}`));
+    expect(r.statusCode).toBe(200);
+    expect(bodyOf(r).isClaimedByMe).toBe(false);
+  });
+
+  it("a user who is NOT the DM claimant of a group-less listing gets 404 (id non-enumerable)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () =>
+        portalDetail({
+          sourceGroupId: null,
+          claimedByUserId: null,
+          dmClaimantUserId: OTHER_USER_ID,
+        }),
+      ),
+      isGroupMember: vi.fn(async (groupId) => groupId !== null),
+    });
+    const r = await handleApi(deps(repo), req("GET", `/properties/${LISTING_ID}`));
+    expect(r.statusCode).toBe(404);
+  });
 });
 
 // --- claim (source-group authz gate + optimistic lock) ----------------------
@@ -400,10 +427,37 @@ describe("POST /properties/{id}/claim", () => {
     expect(repo.claimListing).not.toHaveBeenCalled();
   });
 
-  it("a listing with NO source group cannot be group-claimed (404)", async () => {
+  it("a group-less listing with no matching dm_claimant cannot be claimed (404)", async () => {
     const repo = makeRepo({
       getPortalListingDetail: vi.fn(async () => portalDetail({ sourceGroupId: null })),
       // isGroupMember(null, …) returns false in the real repo; the fake honours that contract.
+      isGroupMember: vi.fn(async (groupId) => groupId !== null),
+      claimListing: vi.fn(async () => "claimed" as ClaimResult),
+    });
+    const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
+    expect(r.statusCode).toBe(404);
+    expect(repo.claimListing).not.toHaveBeenCalled();
+  });
+
+  it("the recorded DM claimant of a group-less listing CAN claim it (200, plan 23 Group D)", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () =>
+        portalDetail({ sourceGroupId: null, dmClaimantUserId: DB_USER_ID }),
+      ),
+      isGroupMember: vi.fn(async (groupId) => groupId !== null),
+      claimListing: vi.fn(async () => "claimed" as ClaimResult),
+    });
+    const r = await handleApi(deps(repo), req("POST", `/properties/${LISTING_ID}/claim`));
+    expect(r.statusCode).toBe(200);
+    expect(bodyOf(r)).toEqual({ status: "claimed" });
+    expect(repo.claimListing).toHaveBeenCalledWith(LISTING_ID, DB_USER_ID);
+  });
+
+  it("a user who is NOT the DM claimant of a group-less listing is denied (404), never reaching the lock", async () => {
+    const repo = makeRepo({
+      getPortalListingDetail: vi.fn(async () =>
+        portalDetail({ sourceGroupId: null, dmClaimantUserId: OTHER_USER_ID }),
+      ),
       isGroupMember: vi.fn(async (groupId) => groupId !== null),
       claimListing: vi.fn(async () => "claimed" as ClaimResult),
     });

@@ -37,6 +37,8 @@ export interface SeedIds {
     toToggle: string;
     /** Stage 6 (INC-B3b): a gate-failed listing the seeded moderation item targets. */
     flagged: string;
+    /** Plan 23 Group D: a group-less (1:1-DM-sourced) listing whose dm_claimant is the test user. */
+    dmClaimable: string;
   };
 }
 

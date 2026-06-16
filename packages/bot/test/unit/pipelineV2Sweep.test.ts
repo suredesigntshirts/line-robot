@@ -384,14 +384,21 @@ describe("createPipelineV2Port.run — group/membership population (the launch b
     expect(findOrCreateUserByIdentity).toHaveBeenCalledWith(d.db, "line", "Ubob", "LINE user");
   });
 
-  it("does NOT touch groups/memberships for a 1:1 (user#) conversation — no source group", async () => {
+  it("creates NO group/membership for a 1:1 (user#) conversation, but records the DM poster as the claimant", async () => {
     const d = deps();
     await createPipelineV2Port(d).run("user#Upeer", [textMsg(1000, "house for sale")]);
 
+    // Still no group/membership for a DM — it has no source group.
     expect(findOrCreateGroupByLineGroupId).not.toHaveBeenCalled();
     expect(upsertMembership).not.toHaveBeenCalled();
-    // A DM's listings carry no source group.
-    expect(runPipeline.mock.calls[0]?.[2]?.sourceGroupId).toBeUndefined();
+    const input = runPipeline.mock.calls[0]?.[2];
+    expect(input?.sourceGroupId).toBeUndefined();
+    // …but the REAL DM poster (the bare message sender "U", NOT the pseudo-owner "user#Upeer") is
+    // resolved and threaded as the claim-eligible user (plan 23 Group D) — this is the identity the
+    // claim gate checks. The two are distinct pg users, which is the whole point.
+    expect(findOrCreateUserByIdentity).toHaveBeenCalledWith(d.db, "line", "U", "LINE user");
+    expect(input?.dmClaimantUserId).toBe("pg-U");
+    expect(input?.ownerUserId).toBe("pg-user#Upeer");
   });
 });
 
@@ -506,7 +513,31 @@ describe("createPipelineV2Port.run — gate-pass claim DM (once, prospective)", 
     expect(markClaimInvited).not.toHaveBeenCalled();
   });
 
-  it("skips the DM (no stamp) for a 1:1-sourced listing — no source group → the claim screen would 404", async () => {
+  it("sends the claim DM for a 1:1-sourced listing to the DM poster (claimable via dm_claimant)", async () => {
+    markClaimInvited.mockResolvedValue(true);
+    runPipeline.mockResolvedValue({
+      listings: [listing("L-pass", passGate, "Condo near Nimman")],
+      droppedSegments: [],
+    });
+    const gw = makeGateway();
+    const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
+
+    // A 1:1 (`user#…`) conversation: no source group, but the DM poster is recorded as dm_claimant, so
+    // the claim gate WILL admit them and the deep link resolves. Send exactly one DM, to the peer.
+    await createPipelineV2Port(d).run("user#Upeer", [textMsg(1000, "house for sale")]);
+
+    expect(runPipeline.mock.calls[0]?.[2]?.sourceGroupId).toBeUndefined();
+    expect(runPipeline.mock.calls[0]?.[2]?.dmClaimantUserId).toBe("owner-1");
+    expect(markClaimInvited).toHaveBeenCalledWith(d.db, "L-pass", expect.any(Date));
+    expect(gw.pushes).toHaveLength(1);
+    expect(gw.pushes[0]?.to).toBe("U"); // the DM peer (bare sender id), not the pseudo-owner
+    const msg = gw.pushes[0]?.messages[0] as unknown as {
+      cards: Array<{ actions: Array<{ uri?: string }> }>;
+    };
+    expect(msg.cards[0]?.actions[0]?.uri).toBe("https://miniapp.line.me/123-abc/claim/L-pass");
+  });
+
+  it("still skips the DM for a group-less listing with NO resolvable sender (stays unclaimable)", async () => {
     markClaimInvited.mockResolvedValue(true);
     runPipeline.mockResolvedValue({
       listings: [listing("L-pass", passGate)],
@@ -515,11 +546,19 @@ describe("createPipelineV2Port.run — gate-pass claim DM (once, prospective)", 
     const gw = makeGateway();
     const d = deps({ gateway: gw, miniappUrl: "https://miniapp.line.me/123-abc" });
 
-    // A 1:1 (`user#…`) conversation: the listing has no source group, so the claim gate can't admit
-    // anyone — DMing a deep link that dead-ends in 404 would just confuse. Skip it (and don't stamp).
-    await createPipelineV2Port(d).run("user#Upeer", [textMsg(1000, "house for sale")]);
+    // A DM whose sender id LINE omitted → no claimant can be resolved → the listing stays unclaimable,
+    // so no DM and no stamp (no regression from the pre-Group-D skip).
+    const senderless: StoredMessage = {
+      ref: { kind: "user", userId: "" },
+      messageId: "m1",
+      direction: "in",
+      contentType: "text",
+      text: "house for sale",
+      timestamp: 1000,
+    };
+    await createPipelineV2Port(d).run("user#Upeer", [senderless]);
 
-    expect(runPipeline.mock.calls[0]?.[2]?.sourceGroupId).toBeUndefined();
+    expect(runPipeline.mock.calls[0]?.[2]?.dmClaimantUserId).toBeUndefined();
     expect(gw.pushes).toHaveLength(0);
     expect(markClaimInvited).not.toHaveBeenCalled();
   });

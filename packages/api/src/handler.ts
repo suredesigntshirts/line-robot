@@ -214,9 +214,27 @@ async function resolveUser(repo: Repo, lineUserId: string): Promise<string> {
 
 // --- authorization ----------------------------------------------------------
 
-/** A caller may read/act on a listing iff they CLAIMED it OR are a member of its source group. Returns
- * the detail when authorized, or null (the handler maps null to 404 — same for unauthorized + missing,
- * so ids stay non-enumerable). `requireClaimant` tightens it to owner-only (edit/publish). */
+/** A group-less (1:1-DM-sourced) listing is claimable/readable by the real DM poster recorded at
+ * ingest (plan 23 Group D). `dm_claimant_user_id` holds the bare-id LIFF identity, the SAME `userId`
+ * the group-member check compares — so this only ever WIDENS admission to the legitimate poster, and
+ * is never true for a group-sourced listing (`sourceGroupId` non-null). Shared by both gate sites
+ * (`authorizedListing` + `handleClaim`) so they can't drift. */
+function isDmClaimant(listing: PortalListingDetail["listing"], userId: string): boolean {
+  // Self-guarding: require a concrete caller id AND a concrete stored claimant before matching, so a
+  // runtime-undefined column or an empty caller id can never make `x === x` admit. Unreachable today
+  // (resolveUser returns a real uuid; the column is uuid-or-NULL) — defense-in-depth for a security gate.
+  return (
+    userId !== "" &&
+    listing.sourceGroupId === null &&
+    typeof listing.dmClaimantUserId === "string" &&
+    listing.dmClaimantUserId === userId
+  );
+}
+
+/** A caller may read/act on a listing iff they CLAIMED it, are a member of its source group, OR are
+ * the DM poster of a group-less listing. Returns the detail when authorized, or null (the handler maps
+ * null to 404 — same for unauthorized + missing, so ids stay non-enumerable). `requireClaimant`
+ * tightens it to owner-only (edit/publish): a DM poster must actually CLAIM before they can edit. */
 async function authorizedListing(
   deps: ApiDeps,
   listingId: string,
@@ -229,7 +247,8 @@ async function authorizedListing(
   if (requireClaimant) return isClaimant ? detail : null;
   if (isClaimant) return detail;
   const member = await deps.repo.isGroupMember(detail.listing.sourceGroupId, userId);
-  return member ? detail : null;
+  if (member) return detail;
+  return isDmClaimant(detail.listing, userId) ? detail : null;
 }
 
 // --- Stage-6 server-side role gates (D-S6-5/6 — NEVER UI-gated) --------------
@@ -321,17 +340,17 @@ async function handleDetail(deps: ApiDeps, userId: string, id: string): Promise<
 }
 
 async function handleClaim(deps: ApiDeps, userId: string, id: string): Promise<HttpResponse> {
-  // AUTHZ GATE (security): only a member of the listing's source group may claim it — otherwise any
-  // authed user who learns a listing UUID (e.g. by viewing the detail as a group member) could claim
-  // someone else's property and inherit the claimant-gated publish/keep-private/edit rights. A
-  // non-member (or a listing with NO source group — it can't be group-claimed in Stage 5) → 404, the
+  // AUTHZ GATE (security): a caller may claim only if they are a member of the listing's source group,
+  // OR are the recorded DM poster of a group-less listing (plan 23 Group D). Otherwise any authed user
+  // who learns a listing UUID (e.g. by viewing the detail as a group member) could claim someone else's
+  // property and inherit the claimant-gated publish/keep-private/edit rights. Anyone else → 404, the
   // same response as a missing listing so existence isn't revealed. The optimistic lock below still
-  // resolves WITHIN-group races. (Build C must ensure source-group memberships are populated by the
-  // live ingest path before this endpoint is reachable in prod — see the build report.)
+  // resolves races. (Build C / Group D ensure the live ingest path populates source-group memberships
+  // OR `dm_claimant_user_id` before this endpoint is reachable in prod.)
   const detail = await deps.repo.getPortalListingDetail(id, userId);
   if (!detail) return json(404, { error: "not_found" });
   const member = await deps.repo.isGroupMember(detail.listing.sourceGroupId, userId);
-  if (!member) return json(404, { error: "not_found" });
+  if (!member && !isDmClaimant(detail.listing, userId)) return json(404, { error: "not_found" });
 
   const result = await deps.repo.claimListing(id, userId);
   switch (result) {

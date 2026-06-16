@@ -345,6 +345,33 @@ export async function seed(db) {
     ],
     media: photos("flagged", 3),
   });
+
+  // (h) A group-less (1:1-DM-sourced) listing whose dm_claimant is the test user — proves the DM poster
+  //     can claim → publish via the dm_claimant gate with NO group membership behind it (sourceGroupId
+  //     is NULL, so isGroupMember can't admit; admission comes purely from dm_claimant — plan 23 Group D).
+  const dmClaimable = await createListing(db, {
+    listing: {
+      ...base,
+      sourceGroupId: null, // DM dump → no source group
+      ownerUserId: user.id, // conversation pseudo-owner stand-in
+      dmClaimantUserId: user.id, // the REAL DM poster, eligible to claim
+      dealType: "sale",
+      saleStage: "available",
+      propertyType: "house",
+      priceThb: 2_650_000,
+      bedrooms: 2,
+      bathrooms: 1,
+    },
+    content: [
+      {
+        lang: "th",
+        headline: "บ้านจากแชทส่วนตัว รอผู้ส่งอ้างสิทธิ์",
+        description: "ประกาศที่ส่งเข้ามาทางแชทส่วนตัว ผู้ส่งสามารถอ้างสิทธิ์และเผยแพร่ได้",
+        generatedBy: "human",
+      },
+    ],
+    media: photos("dm-claimable", 4),
+  });
   const [moderation] = await db
     .insert(moderationItems)
     .values({
@@ -376,6 +403,7 @@ export async function seed(db) {
       quickSale: quickSale.id,
       toToggle: toToggle.id,
       flagged: flagged.id,
+      dmClaimable: dmClaimable.id,
     },
   };
 }

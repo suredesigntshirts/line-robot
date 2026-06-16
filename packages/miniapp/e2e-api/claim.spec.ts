@@ -87,4 +87,31 @@ test.describe("real-backend claim flow", () => {
     await expect(page.getByRole("heading", { name: "ประกาศนี้ถูกอ้างสิทธิ์แล้ว" })).toBeVisible();
     await expect(page.getByText("เลือกการมองเห็น")).toHaveCount(0);
   });
+
+  test("DM claimant: the DM poster claims their GROUP-LESS listing → publish (real dm_claimant gate)", async ({
+    page,
+  }) => {
+    const problems = watchForErrors(page);
+    await forwardApi(page);
+    const ids = await seedIds(page);
+    const id = ids.listings.dmClaimable; // sourceGroupId NULL, dm_claimant = the test user
+
+    // This listing has NO source group, so `isGroupMember` can't admit anyone — the claim succeeds
+    // ONLY via the dm_claimant gate (plan 23 Group D). The claim biting here is the end-to-end proof.
+    await page.goto(`/claim/${id}`);
+    await expect(page.getByRole("heading", { name: "ตรวจสอบประกาศ" })).toBeVisible();
+    await page.getByText("อ้างสิทธิ์ประกาศนี้ →").click();
+    await expect(page.getByText("เลือกการมองเห็น")).toBeVisible(); // claim admitted by dm_claimant (not membership)
+    await page.getByRole("button", { name: /เผยแพร่สาธารณะเลย/ }).click();
+    await expect(page.getByRole("heading", { name: "เผยแพร่สาธารณะแล้ว" })).toBeVisible();
+
+    // RE-FETCH: the DM-sourced listing is now MY claimed + published listing.
+    await page.goto("/");
+    const card = page.locator(`[data-listing-card='${id}']`);
+    await expect(card).toBeVisible();
+    await expect(card.locator("[data-lifecycle]")).toHaveAttribute("data-lifecycle", "active");
+
+    await settle(page);
+    expect(problems(), `console/network problems: ${problems().join("\n")}`).toEqual([]);
+  });
 });
