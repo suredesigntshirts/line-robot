@@ -16,6 +16,16 @@ export interface DedupConfig {
   jaccardThreshold: number;
   /** Max candidates forwarded to LLM verify. */
   blockCap: number;
+  /**
+   * E1 conservative-merge guard. A "merge" is irreversible (silent data loss), so an LLM "merge"
+   * verdict is honored only on strong evidence: geo AND text agreeing, OR a single-key block score
+   * ≥ `mergeScoreFloor`, AND LLM confidence ≥ `mergeConfidenceFloor`. Weaker merges persist as a NEW
+   * row + a `merge_request` moderation item (a recoverable duplicate, never a silent fold).
+   * Defaults are deliberately loose/safe — they catch text-only / low-confidence / far-geo merges
+   * without flooding moderation; retune via the eval scorecard, never by hand in prod.
+   */
+  mergeScoreFloor: number;
+  mergeConfidenceFloor: number;
 }
 
 function envNumber(name: string, fallback: number): number {
@@ -31,5 +41,7 @@ export function dedupConfig(): DedupConfig {
     trigramThreshold: envNumber("DEDUP_TRIGRAM_THRESHOLD", 0.55),
     jaccardThreshold: envNumber("DEDUP_JACCARD_THRESHOLD", 0.5),
     blockCap: envNumber("DEDUP_BLOCK_CAP", 8),
+    mergeScoreFloor: envNumber("DEDUP_MERGE_SCORE_FLOOR", 0.7),
+    mergeConfidenceFloor: envNumber("DEDUP_MERGE_CONFIDENCE_FLOOR", 0.6),
   };
 }

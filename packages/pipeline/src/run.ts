@@ -227,9 +227,10 @@ export async function runPipeline(
       kind: classifyToMediaKind(classifications[e.slot] ?? null),
     }));
 
-    // 4. dedup: deterministic block → LLM verify; default new.
+    // 4. dedup: deterministic block → LLM verify; default new. A weak/uncertain "merge" is
+    // downgraded to new + a merge_request (E1 conservative-merge guard) — see below.
     const blocked = blockCandidates({ ...extracted, deedNo }, pool, config);
-    const decision = await dedupVerify(ctx, extracted, blocked);
+    const decision = await dedupVerify(ctx, extracted, blocked, config);
 
     // 5+6. persist + translate + gate.
     let listingId: string;
@@ -259,6 +260,16 @@ export async function runPipeline(
           .join(" "),
         summary: `${extracted.propertyType} ${extracted.landmark ?? ""} ${extracted.priceThb ?? "?"}THB`,
       });
+      // E1: an uncertain "merge" was persisted as new to avoid silent data loss — queue the
+      // candidate for human merge/keep-separate review instead of folding it away.
+      if (decision.mergeRequestIntoId !== undefined) {
+        await createModerationItem(
+          db,
+          "merge_request",
+          listingId,
+          `uncertain_dedup:${decision.mergeRequestIntoId}`,
+        );
+      }
     }
 
     const gate = await runGate(ctx, {

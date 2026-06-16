@@ -3,6 +3,7 @@ import { DEDUP_SYSTEM } from "../steps/prompts.ts";
 import { dedupVerifySchema } from "../steps/schemas.ts";
 import type { DedupResult, ExtractedListing } from "../steps.ts";
 import type { BlockedCandidate } from "./candidateFinder.ts";
+import { type DedupConfig, dedupConfig } from "./config.ts";
 
 function renderListing(extracted: ExtractedListing): string {
   return [
@@ -24,6 +25,7 @@ export async function dedupVerify(
   ctx: StepContext,
   extracted: ExtractedListing,
   blocked: BlockedCandidate[],
+  config: DedupConfig = dedupConfig(),
 ): Promise<DedupResult> {
   if (blocked.length === 0) {
     return { decision: "new", score: 0, reasons: ["no_candidates"] };
@@ -54,13 +56,30 @@ export async function dedupVerify(
   ctx.costLog.record("dedup", STEP_MODELS.dedup, response.usage, ctx.mode);
 
   const verdict = response.value;
+  const chosen = blocked.find((c) => c.id === verdict?.intoId);
   if (
     verdict === null ||
     verdict.decision === "new" ||
     verdict.intoId === "" ||
-    !blocked.some((c) => c.id === verdict.intoId)
+    chosen === undefined
   ) {
     return { decision: "new", score: verdict?.confidence ?? 0, reasons: ["verify_default_new"] };
+  }
+
+  // E1 conservative-merge guard: a merge is irreversible, so honor the LLM verdict only on STRONG
+  // evidence — geo AND text keys agreeing, OR a high single-key block score — AND adequate
+  // confidence. Otherwise persist NEW and queue a merge_request (a recoverable duplicate + a human
+  // review item, never a silent fold). Deed-exact never reaches here (it short-circuits above).
+  const hasGeo = chosen.reasons.some((r) => r.startsWith("geo_"));
+  const hasText = chosen.reasons.some((r) => r.startsWith("text_similar"));
+  const strongEvidence = (hasGeo && hasText) || chosen.score >= config.mergeScoreFloor;
+  if (!strongEvidence || verdict.confidence < config.mergeConfidenceFloor) {
+    return {
+      decision: "new",
+      score: verdict.confidence,
+      reasons: ["uncertain_merge", ...chosen.reasons],
+      mergeRequestIntoId: verdict.intoId,
+    };
   }
   return {
     decision: "merge",

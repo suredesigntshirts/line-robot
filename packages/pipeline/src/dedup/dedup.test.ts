@@ -213,4 +213,66 @@ describe("dedupVerify", () => {
     const result = await dedupVerify(ctx(llm), extracted, []);
     expect(result).toMatchObject({ decision: "new", reasons: ["no_candidates"] });
   });
+
+  // --- E1 conservative-merge guard (plan 23, A2) ---------------------------------------
+  const merge = { decision: "merge" as const, intoId: base.id, confidence: 0.93, reason: "same" };
+
+  it("downgrades a weak (text-only, below score floor) merge to new + a merge_request", async () => {
+    const weakBlock = [
+      { id: base.id, summary: "s", score: 0.5, reasons: ["text_similar(0.6/0.5)"] },
+    ];
+    const result = await dedupVerify(
+      ctx(new FakeStepLlm().enqueue("dedup", merge)),
+      extracted,
+      weakBlock,
+    );
+    expect(result.decision).toBe("new");
+    expect(result.mergeRequestIntoId).toBe(base.id);
+    expect(result.reasons).toContain("uncertain_merge");
+  });
+
+  it("downgrades a low-confidence merge to new + a merge_request even on strong evidence", async () => {
+    const strongBlock = [
+      {
+        id: base.id,
+        summary: "s",
+        score: 0.88,
+        reasons: ["geo_same_cell", "text_similar(0.7/0.6)"],
+      },
+    ];
+    const lowConf = { ...merge, confidence: 0.4 };
+    const result = await dedupVerify(
+      ctx(new FakeStepLlm().enqueue("dedup", lowConf)),
+      extracted,
+      strongBlock,
+    );
+    expect(result.decision).toBe("new");
+    expect(result.mergeRequestIntoId).toBe(base.id);
+  });
+
+  it("auto-merges on geo+text agreement with adequate confidence", async () => {
+    const strongBlock = [
+      {
+        id: base.id,
+        summary: "s",
+        score: 0.62,
+        reasons: ["geo_within_radius", "text_similar(0.7/0.6)"],
+      },
+    ];
+    const result = await dedupVerify(
+      ctx(new FakeStepLlm().enqueue("dedup", merge)),
+      extracted,
+      strongBlock,
+    );
+    expect(result).toMatchObject({ decision: "merge", intoId: base.id });
+  });
+
+  it("auto-merges on a high single-key block score (≥ floor)", async () => {
+    const result = await dedupVerify(
+      ctx(new FakeStepLlm().enqueue("dedup", merge)),
+      extracted,
+      blocked,
+    );
+    expect(result).toMatchObject({ decision: "merge", intoId: base.id }); // blocked score 0.85 ≥ 0.7
+  });
 });

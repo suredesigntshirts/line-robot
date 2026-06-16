@@ -119,6 +119,9 @@ export interface DedupResult {
   intoId?: string;
   score: number;
   reasons: string[];
+  /** E1: set when an LLM "merge" was DOWNGRADED to new for weak evidence — persist new + queue a
+   * `merge_request` against this candidate id for human review (recoverable dup, no silent fold). */
+  mergeRequestIntoId?: string;
 }
 
 // --- 5. translate -----------------------------------------------------------------
