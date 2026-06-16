@@ -59,6 +59,7 @@ function row(overrides: Partial<ListingRow> = {}): ListingRow {
     quickSalePushedAt: null,
     claimedAt: null,
     claimedByUserId: null,
+    dmClaimantUserId: null,
     createdAt: new Date("2026-06-01T00:00:00Z"),
     updatedAt: new Date("2026-06-10T00:00:00Z"),
     ...overrides,

@@ -284,6 +284,13 @@ export const listings = pgTable(
     quickSalePushedAt: timestamp("quick_sale_pushed_at", { withTimezone: true }),
     claimedAt: timestamp("claimed_at", { withTimezone: true }),
     claimedByUserId: uuid("claimed_by_user_id").references(() => users.id),
+    // DM-claim admission (plan 23 Group D). A 1:1-DM dump has `sourceGroupId` NULL, so the
+    // group-membership claim gate admits no one and the dump is unclaimable. The sweep stamps the
+    // REAL DM poster here at ingest (the bare LINE id — NOT the pseudo-`ownerUserId`, which is the
+    // conversation key); the claim/authz gate then also admits `sourceGroupId IS NULL AND
+    // dmClaimantUserId == caller`. Eligibility only — the actual claim still flips `claimedByUserId`
+    // via the explicit human act. Written set-once on the create path (E10), never on a dedup merge.
+    dmClaimantUserId: uuid("dm_claimant_user_id").references(() => users.id),
     createdAt: createdAt(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

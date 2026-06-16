@@ -1,0 +1,2 @@
+ALTER TABLE "listing" ADD COLUMN "dm_claimant_user_id" uuid;--> statement-breakpoint
+ALTER TABLE "listing" ADD CONSTRAINT "listing_dm_claimant_user_id_user_id_fk" FOREIGN KEY ("dm_claimant_user_id") REFERENCES "public"."user"("id") ON DELETE no action ON UPDATE no action;
