@@ -35,7 +35,7 @@ export const segmentSchema = z.object({
     z.object({
       label: z.string(),
       imageIndices: z.array(z.number()),
-      mapIndex: z.number().nullable(),
+      mapIndex: z.number().int().nonnegative().nullable(), // a [MAP n] index, or null = no pin
       existingPropertyId: z.string(), // "" = none
       ambiguous: z.boolean(),
       ambiguousWith: z.array(z.string()),

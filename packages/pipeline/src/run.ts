@@ -208,18 +208,30 @@ export async function runPipeline(
   const config = dedupConfig();
   const outcome: PipelineOutcome = { listings: [], droppedSegments: [] };
 
-  // A1 — bind each segment to ITS OWN pin, never the whole conversation's. Prefer the segmenter's
-  // per-segment `mapIndex` attribution (resolved through coordByMapIndex); for a single-listing
-  // thread with exactly one pin, bind it deterministically; otherwise bind nothing. This is the fix
-  // for the silent over-merge: a listing with no pin must not inherit another listing's coordinate.
+  // A1 — bind each segment to ITS OWN map pin, never the whole conversation's. Resolve the pin from
+  // the segmenter's per-segment `mapIndex` (through coordByMapIndex); for a single-listing thread
+  // with exactly one pin, bind it deterministically; otherwise none. A pin claimed by MORE THAN ONE
+  // segment signals mis-attribution → bind it to none (don't stamp one coordinate on two listings,
+  // which would geo-block and re-merge them). The pin is then applied AUTHORITATIVELY below (the
+  // extract prompt doesn't read GEO HINTS, so the model's lat/lon can't be trusted to honor it).
   const coordByMapIndex = input.coordByMapIndex ?? [];
   const presentCoords = coordByMapIndex.filter((c) => c !== null);
-  const soleCoord =
-    segmented.segments.length === 1 && presentCoords.length === 1 ? presentCoords[0] : null;
+  const soleCoord: string | null =
+    segmented.segments.length === 1 && presentCoords.length === 1
+      ? (presentCoords[0] ?? null)
+      : null;
+  const mapIndexUses = new Map<number, number>();
+  for (const s of segmented.segments) {
+    if (s.mapIndex !== null) mapIndexUses.set(s.mapIndex, (mapIndexUses.get(s.mapIndex) ?? 0) + 1);
+  }
 
   for (const segment of segmented.segments) {
     const segCoord =
-      segment.mapIndex !== null ? (coordByMapIndex[segment.mapIndex] ?? null) : soleCoord;
+      segment.mapIndex !== null
+        ? mapIndexUses.get(segment.mapIndex) === 1
+          ? (coordByMapIndex[segment.mapIndex] ?? null)
+          : null // collision: ≥2 segments claim this pin → bind none
+        : soleCoord;
     // 3. extract (per segment); failure drops the segment, logged.
     const extracted = await extractListing(ctx, {
       transcript: input.transcript,
@@ -230,6 +242,19 @@ export async function runPipeline(
     if (extracted === null) {
       outcome.droppedSegments.push(segment.label);
       continue;
+    }
+    // Apply the segment's own pin AUTHORITATIVELY: the shared Google-Maps pin is the location the
+    // poster attached to THIS listing, and the extract prompt never instructs geo-from-hint — so
+    // overwrite the model's lat/lon (which may be null or prose-guessed). A pinless segment keeps
+    // whatever the model extracted from prose. This is what actually guarantees pin isolation.
+    if (segCoord !== null) {
+      const [latStr, lonStr] = segCoord.split(",");
+      const lat = Number(latStr);
+      const lon = Number(lonStr);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        extracted.lat = lat;
+        extracted.lon = lon;
+      }
     }
 
     // Indices come from the model — tolerate hallucinated markers by lookup, never by position.

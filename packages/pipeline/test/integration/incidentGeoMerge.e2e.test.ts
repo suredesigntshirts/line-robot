@@ -126,4 +126,19 @@ describe.skipIf(!HAS_KEY)("A1 live: incident dump (real models)", () => {
     );
     expect(rows[0].n).toBe(0); // pre-A1: pin #2 lands on ≥2 rows → > 0
   });
+
+  // Non-vacuous: with the authoritative bind, each pinned listing must carry EXACTLY its own pin
+  // (proves the model attributed [MAP 0]→#1, [MAP 1]→#2, and the bind applied — not "all null").
+  it("A1: each pinned listing persists exactly its own pin (#1→pin1, #2→pin2)", async () => {
+    const countAt = async (lat: number, lon: number) => {
+      const { rows } = await pool.query(
+        `SELECT count(*)::int AS n FROM listing
+         WHERE abs(ST_Y(geom::geometry) - $1) < 1e-5 AND abs(ST_X(geom::geometry) - $2) < 1e-5`,
+        [lat, lon],
+      );
+      return rows[0].n;
+    };
+    expect(await countAt(18.72989755, 98.96882414)).toBe(1); // PIN_1 on exactly one row
+    expect(await countAt(18.82638337, 99.05647534)).toBe(1); // PIN_2 on exactly one row
+  });
 });

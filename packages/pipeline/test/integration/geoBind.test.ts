@@ -10,20 +10,18 @@ import { FakeStepLlm } from "../../src/steps/fakeLlm.ts";
 // ---------------------------------------------------------------------------
 // A1 acceptance harness — "geo binds per-segment" (plan 23, group A).
 //
-// THE BUG (data loss): run.ts's per-segment extract loop passes the FULL
-// conversation-level `input.geoHints` to EVERY segment, so a coordinate that
-// belongs to listing A is stamped onto listing B/C/… → they geo-block → the
-// verifier merges them → distinct listings collapse into one row.
+// THE BUG (data loss): the per-segment extract loop used to pass the FULL
+// conversation-level geoHints to EVERY segment, so a coordinate belonging to
+// listing A was stamped onto B/C/… → they geo-blocked → the verifier merged
+// them → distinct listings collapsed into one row.
 //
-// This test drives the REAL runPipeline with a FakeStepLlm and inspects the
-// geoHints that each segment's `extract` call actually received (they are
-// rendered into the request as a `GEO HINTS:` line — extract.ts:13). The
-// load-bearing invariant — true under BOTH planned fixes (A1a "bind only when
-// unambiguous", A1b "bind via mapIndex") — is: **no segment receives a
-// coordinate that isn't its own pin.** It is RED against current code.
-//
-// `it.fails` keeps the suite runnable while documenting the bug; when A1 lands,
-// remove `.fails` and this becomes the standing acceptance test.
+// THE FIX: each segment is bound to its OWN map pin (segmenter mapIndex →
+// coordByMapIndex), and that pin is applied AUTHORITATIVELY (the model's lat/lon
+// is overwritten — the extract prompt never reads GEO HINTS, so it can't be
+// trusted to honor it). This test drives the REAL runPipeline with a FakeStepLlm
+// and asserts BOTH layers: (1) each segment's extract prompt receives only its
+// own pin; (2) the PERSISTED geom is each listing's own pin (overriding the
+// model's deliberately-wrong coords), or null for a pinless listing.
 // Runs under `npm run test:integration -w @line-robot/pipeline` (needs Docker;
 // no API key — uses FakeStepLlm).
 // ---------------------------------------------------------------------------
@@ -103,17 +101,44 @@ beforeAll(async () => {
     .enqueue("segment", {
       segments: [segment("seg-1", 0), segment("seg-2", 1), segment("seg-3", null)],
     })
+    // Extracted coords are DELIBERATELY WRONG (1,1)/(2,2): the authoritative bind must overwrite
+    // them with each segment's own pin. Segment 3 has no pin → model returns null → stays null.
+    // Fully distinct admin text per segment so none text-block against another (no dedup calls).
     .enqueue(
       "extract",
-      extractFixture({ title: "บ้าน A", landmark: "A-place", tambon: "tA", lat: 18.0, lon: 98.0 }),
+      extractFixture({
+        title: "A",
+        landmark: "A-place",
+        tambon: "tA",
+        amphoe: "aA",
+        province: "pA",
+        lat: 1.0,
+        lon: 1.0,
+      }),
     )
     .enqueue(
       "extract",
-      extractFixture({ title: "บ้าน B", landmark: "B-place", tambon: "tB", lat: 15.0, lon: 100.0 }),
+      extractFixture({
+        title: "B",
+        landmark: "B-place",
+        tambon: "tB",
+        amphoe: "aB",
+        province: "pB",
+        lat: 2.0,
+        lon: 2.0,
+      }),
     )
     .enqueue(
       "extract",
-      extractFixture({ title: "บ้าน C", landmark: "C-place", tambon: "tC", lat: 8.0, lon: 99.0 }),
+      extractFixture({
+        title: "C",
+        landmark: "C-place",
+        tambon: "tC",
+        amphoe: "aC",
+        province: "pC",
+        lat: null,
+        lon: null,
+      }),
     )
     .enqueue("translate", { title: "House A", description: "", notes: "" })
     .enqueue("translate", { title: "House B", description: "", notes: "" })
@@ -144,7 +169,7 @@ describe("A1: geo binds per-segment", () => {
     expect(llm.requests.filter((r) => r.step === "extract")).toHaveLength(3);
   });
 
-  it("binds each segment to its own pin and no other (A1)", () => {
+  it("gives each segment's extract only its own pin in the prompt (A1)", () => {
     // Segment 3 has NO pin of its own → receives neither coordinate.
     expect(geoHintsLine(2)).not.toContain(COORD_A);
     expect(geoHintsLine(2)).not.toContain(COORD_B);
@@ -154,5 +179,25 @@ describe("A1: geo binds per-segment", () => {
     // Positive: each pinned segment DOES receive its own coordinate.
     expect(geoHintsLine(0)).toContain(COORD_A);
     expect(geoHintsLine(1)).toContain(COORD_B);
+  });
+
+  it("PERSISTS each listing's own pin authoritatively, overriding the model's lat/lon", async () => {
+    const { rows } = await pool.query(
+      `SELECT ST_Y(geom::geometry) AS lat, ST_X(geom::geometry) AS lon FROM listing`,
+    );
+    expect(rows).toHaveLength(3);
+    const hasCoord = (lat: number, lon: number) =>
+      rows.some(
+        (r) =>
+          r.lat !== null &&
+          Math.abs(Number(r.lat) - lat) < 1e-4 &&
+          Math.abs(Number(r.lon) - lon) < 1e-4,
+      );
+    // #1 and #2 persist THEIR OWN pins (not the model's wrong (1,1)/(2,2)); #3 persists null.
+    expect(hasCoord(18.72989755, 98.96882414)).toBe(true); // segment 1's pin (COORD_A)
+    expect(hasCoord(18.82638337, 99.05647534)).toBe(true); // segment 2's pin (COORD_B)
+    expect(rows.filter((r) => r.lat === null)).toHaveLength(1); // segment 3: no pin → null
+    expect(hasCoord(1, 1)).toBe(false); // the model's wrong coord was overridden
+    expect(hasCoord(2, 2)).toBe(false);
   });
 });
