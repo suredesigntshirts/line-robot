@@ -19,7 +19,8 @@ real-model Docker integration tests; oracle eval stays PASS 1.0.
 | **Phase 2 — A1 geo-bind per-segment** | `coordByMapIndex` parallel to `[MAP n]`; `SEGMENT_SYSTEM` teaches `mapIndex`; per-segment bind | `dcc2bf1` |
 | A1 audit fix | **authoritative bind** (override model lat/lon — extract prompt never reads GEO HINTS); collision guard; `mapIndex` int≥0 | `841b2e4` |
 | A1 acceptance harness | `geoBind.test.ts` (deterministic, asserts persisted geom) + `incidentGeoMerge.e2e.test.ts` (real-model, 5 distinct rows, 0 shared coords) | `c486e6a`, `841b2e4` |
-| Real-API validation policy | CLAUDE.md "For model-facing changes" rule; D21 reframed "advisory = run-and-judge, not skip" | (this change) |
+| Real-API validation policy | CLAUDE.md "For model-facing changes" rule; D21 reframed "advisory = run-and-judge, not skip" | `6170b0c` |
+| **U1 — baseline regen (real model)** | 64 cases, $1.21, PASS; segment/extract/dedup/gate held ~1.00 (SEGMENT_SYSTEM change did NOT regress segmentation); dedup scores the 2 new distinct archetypes (0 false blocks); translate −0.02 = jitter + harder real cases, not a regression | `2024e1b` |
 
 **Net effect:** the 2026-06-15 incident path now works — A2 stops the silent data loss (≥5 rows
 persist, not 1) and A1 gives each listing its own correct pin (no shared coords). Proven on the real
@@ -45,12 +46,20 @@ conversation via real-model integration tests.
 > the first edit; B's rewrite and D's claim-write both rebase on it — no parallel edits to that file).
 
 **Immediate**
-- **U1 — Regenerate `eval-baseline.json` (real model).** Mandated by the new CLAUDE.md rule (A1/A2
-  changed dedup/segmentation behavior; the committed baseline is the pre-fix 62-case one). Run
-  `EVAL_WRITE_BASELINE=1 EVAL_LLM=anthropic npm run eval`; read the delta; commit the json. *(tiny; paid)*
 - **U-A2b — (founder call) tighten A2's geo+text merge radius.** Add a `DEDUP_MERGE_RADIUS_M` gate on
   the geo+text arm so merges need both keys AND close geo (the plan's full conservatism). *(small; needs the
   distance on `BlockedCandidate` — see `candidateFinder.ts:81`.)*
+- **U-EVAL-perf — speed up the real-model eval (caching + concurrency).** A cold `EVAL_LLM=anthropic`
+  run is ~20 min — only **2 s of CPU over 20 min wall**, i.e. fully throttle/serial-bound (the account's
+  rate-limit tier is low; the runner has zero concurrency). Two complementary fixes: **(1) a
+  `CachingStepLlm` decorator** wrapping the adapter at `runner.ts:204`, keyed on
+  `sha256(step+model+system+content+maxOutputTokens)` → a gitignored `packages/pipeline/.eval-cache/`;
+  re-validate the cached value against the current zod schema on read (a schema/prompt change auto-misses
+  → real call). Gate behind `EVAL_CACHE=1` (opt-in) and BYPASS it when regenerating the official baseline
+  or checking model drift (a cache freezes responses at capture time — temp=0, `eval.config.ts:14`). A
+  pure-logic change (no prompt edit) then re-runs in seconds; a prompt edit re-calls only that step.
+  **(2) bounded-concurrency** over cases/calls (`mapWithConcurrency`) to cut the cold run ~20 min → ~2-3
+  (rate-limit permitting). *(eval-only, ~50-80 LOC, zero production impact; pairs naturally.)*
 
 **Phase 4 — Group D, DM-claimable (Option 1)** — self-contained, addresses the founder-critical
 "dumped my listings but can't use them." Spec: `group-d-dm-group-unification.md` §5.
@@ -94,6 +103,12 @@ preprocess, DM/group unification Option 2, LLM-as-judge, verify-level dedup metr
    0.6–0.9, text max 0.8) vs the 0.7 floor is what exposed the text-only hole — the logic "looked" right.
 6. **Test-first red harness, reviewed before the fix** (the `it.fails` → green flow) gives a "green-able
    target" and surfaces design gaps (the advisory binding) before you build on them.
+7. **The baseline-regen delta is the broad-regression net the integration tests can't give.** It confirmed
+   the `SEGMENT_SYSTEM` change held segmentation at 1.00 and the new dedup metric works on the real model —
+   the one thing the incident-only integration test couldn't tell us. Run it after any model-facing change.
+8. **The real-model eval is throttle/serial-bound (~20 min, 2 s CPU).** The account's rate-limit tier is
+   low and the runner has no concurrency. Don't idle-wait on it without progress visibility; and build
+   `U-EVAL-perf` (cache + concurrency) so iteration isn't 20-min-per-run.
 
 ## 5. How to resume (one small unit per iteration)
 
