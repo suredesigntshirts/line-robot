@@ -2,6 +2,13 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import type { MediaStore } from "../ports.ts";
 
+// Each archived photo is processed once per run and never repeats within a process, so sharp's
+// operation cache (~50 MB default) has ~0 hit rate here — pure peak-memory cost; turn it off.
+// concurrency(1) serializes the two per-photo encodes to cap concurrent decoded-bitmap memory on
+// the sub-1-vCPU sweep Lambda (libuv-threadpool-bound anyway, so the throughput cost is ~nil).
+sharp.cache(false);
+sharp.concurrency(1);
+
 // ---------------------------------------------------------------------------
 // D2.7: exactly two derivatives per photo, produced BEFORE any vision call.
 // - vision: long edge 1568px JPEG q80 (caps image tokens ~1600 vs ~4784)

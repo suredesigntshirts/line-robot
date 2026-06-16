@@ -28,7 +28,8 @@ export const PROCESSOR_TIMEOUT_SECONDS = 30;
 // ---------------------------------------------------------------------------
 export const PG_CONNECTION_BUDGET = 60;
 export const POOL_PER_LAMBDA = 2; // packages/db/src/pool.ts max:2 (D-S1-4)
-/** Sweep: rate(2 min) cron × 180s timeout ⇒ ≤2 natural overlaps; 3 = headroom. */
+/** Sweep: rate(2 min) cron × 900s timeout (raised 2026-06-15) ⇒ a long run can span ~7-8 ticks;
+ * reserved=3 caps concurrent sweep executions within the Q-SA1 Postgres budget below. */
 export const SWEEP_RESERVED_CONCURRENCY = 3;
 /** Website SSR: 20 concurrent renders is ample for staging and caps DB pressure. */
 export const WEBSITE_RESERVED_CONCURRENCY = 20;
