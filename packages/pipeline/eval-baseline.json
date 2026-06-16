@@ -1,7 +1,7 @@
 {
-  "writtenAt": "2026-06-12T21:55:10.587Z",
+  "writtenAt": "2026-06-16T06:20:08.780Z",
   "mode": "anthropic",
-  "caseCount": 62,
+  "caseCount": 64,
   "perStep": {
     "classify": {
       "score": null,
@@ -9,76 +9,76 @@
     },
     "segment": {
       "score": 1,
-      "casesScored": 62
+      "casesScored": 64
     },
     "extract": {
-      "score": 1,
-      "casesScored": 62
+      "score": 0.998125,
+      "casesScored": 64
     },
     "dedup": {
       "score": 1,
-      "casesScored": 8
+      "casesScored": 10
     },
     "translate": {
-      "score": 0.9838709677419355,
-      "casesScored": 62
+      "score": 0.96875,
+      "casesScored": 64
     },
     "gate": {
       "score": 1,
-      "casesScored": 62
+      "casesScored": 64
     }
   },
   "perField": [
     {
       "field": "dealType",
       "score": 1,
-      "casesScored": 74
+      "casesScored": 82
     },
     {
       "field": "propertyType",
-      "score": 1,
-      "casesScored": 74
+      "score": 0.975609756097561,
+      "casesScored": 82
     },
     {
       "field": "titleDeedType",
       "score": 1,
-      "casesScored": 60
+      "casesScored": 63
     },
     {
       "field": "urgency",
-      "score": 1,
-      "casesScored": 66
+      "score": 0.9863013698630136,
+      "casesScored": 73
     },
     {
       "field": "province",
       "score": 1,
-      "casesScored": 74
+      "casesScored": 78
     },
     {
       "field": "amphoe",
       "score": 1,
-      "casesScored": 74
+      "casesScored": 79
     },
     {
       "field": "tambon",
       "score": 1,
-      "casesScored": 74
+      "casesScored": 79
     },
     {
       "field": "priceThb",
       "score": 1,
-      "casesScored": 66
+      "casesScored": 74
     },
     {
       "field": "bedrooms",
       "score": 1,
-      "casesScored": 64
+      "casesScored": 66
     },
     {
       "field": "bathrooms",
       "score": 1,
-      "casesScored": 64
+      "casesScored": 66
     }
   ],
-  "costUsd": 1.1194442000000002
+  "costUsd": 1.2134129999999992
 }
