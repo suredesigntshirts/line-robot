@@ -1,7 +1,15 @@
 # Plan 23 — U-EVAL-perf: fast real-model eval (response cache + bounded concurrency)
-> Status: PLAN (not built) · Owner: eval harness (`packages/pipeline/src/eval`) · Phase: dev-experience,
-> do BEFORE the Group B image work (which is model-facing and will need many real-API validation runs).
+> Status: **BUILT (`9161271`, 2026-06-16)** · Owner: eval harness (`packages/pipeline/src/eval`) · Phase: dev-experience,
+> done BEFORE the Group B image work (which is model-facing and will need many real-API validation runs).
 > Eval-harness only — **zero production / ingestion hot-path impact.**
+>
+> **Shipped:** `cachingStepLlm.ts` (decorator at the `StepLlm` seam, `EVAL_CACHE=1`, gitignored `.eval-cache/`,
+> key = `sha256(step+model+system+content+maxOutputTokens)`, value+usage re-validated on read, null never
+> frozen, bypassed on `EVAL_WRITE_BASELINE=1`) + bounded case-level concurrency (`EVAL_CONCURRENCY`, dflt 6
+> real/1 oracle) via a local `mapWithConcurrency` + per-case progress. Proof: warm = 0 API calls, real
+> cold→warm **5485 ms → 0 ms** byte-identical; oracle eval unchanged (PASS 1.0). Options C (confirm/raise the
+> rate-limit tier), F (committed CI cache), G (`--quick` subset) remain available but were not needed.
+> The sketch below is the as-built record.
 
 ## 1. The pain (what we ran into)
 

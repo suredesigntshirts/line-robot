@@ -21,6 +21,7 @@ real-model Docker integration tests; oracle eval stays PASS 1.0.
 | A1 acceptance harness | `geoBind.test.ts` (deterministic, asserts persisted geom) + `incidentGeoMerge.e2e.test.ts` (real-model, 5 distinct rows, 0 shared coords) | `c486e6a`, `841b2e4` |
 | Real-API validation policy | CLAUDE.md "For model-facing changes" rule; D21 reframed "advisory = run-and-judge, not skip" | `6170b0c` |
 | **U1 — baseline regen (real model)** | 64 cases, $1.21, PASS; segment/extract/dedup/gate held ~1.00 (SEGMENT_SYSTEM change did NOT regress segmentation); dedup scores the 2 new distinct archetypes (0 false blocks); translate −0.02 = jitter + harder real cases, not a regression | `2024e1b` |
+| **U-EVAL-perf — fast real-model eval** | `CachingStepLlm` decorator at the `StepLlm` seam (`EVAL_CACHE=1`, gitignored `.eval-cache/`) + bounded case-level concurrency (`EVAL_CONCURRENCY`, dflt 6 real/1 oracle) via a local `mapWithConcurrency` + per-case progress. Warm re-run = 0 API calls; real cold→warm proof **5485 ms → 0 ms**, byte-identical extraction. Cache bypassed on `EVAL_WRITE_BASELINE=1` (baseline always fresh). Oracle eval unchanged (PASS 1.0). Adversarial audit's one real finding (usage not re-validated on read → could NaN `costUsd`) fixed + tested. **Eval-only, zero production impact.** | `9161271` (+ lint hygiene `8a5613a`) |
 
 **Net effect:** the 2026-06-15 incident path now works — A2 stops the silent data loss (≥5 rows
 persist, not 1) and A1 gives each listing its own correct pin (no shared coords). Proven on the real
@@ -48,20 +49,10 @@ conversation via real-model integration tests.
 **Immediate**
 - **U-A2b — (founder call) tighten A2's geo+text merge radius.** Add a `DEDUP_MERGE_RADIUS_M` gate on
   the geo+text arm so merges need both keys AND close geo (the plan's full conservatism). *(small; needs the
-  distance on `BlockedCandidate` — see `candidateFinder.ts:81`.)*
-- **U-EVAL-perf — speed up the real-model eval (caching + concurrency).** A cold `EVAL_LLM=anthropic`
-  run is ~20 min — only **2 s of CPU over 20 min wall**, i.e. fully throttle/serial-bound (the account's
-  rate-limit tier is low; the runner has zero concurrency). Two complementary fixes: **(1) a
-  `CachingStepLlm` decorator** wrapping the adapter at `runner.ts:204`, keyed on
-  `sha256(step+model+system+content+maxOutputTokens)` → a gitignored `packages/pipeline/.eval-cache/`;
-  re-validate the cached value against the current zod schema on read (a schema/prompt change auto-misses
-  → real call). Gate behind `EVAL_CACHE=1` (opt-in) and BYPASS it when regenerating the official baseline
-  or checking model drift (a cache freezes responses at capture time — temp=0, `eval.config.ts:14`). A
-  pure-logic change (no prompt edit) then re-runs in seconds; a prompt edit re-calls only that step.
-  **(2) bounded-concurrency** over cases/calls (`mapWithConcurrency`) to cut the cold run ~20 min → ~2-3
-  (rate-limit permitting). *(eval-only, ~50-80 LOC, zero production impact; pairs naturally.)* **Full
-  plan: `U-EVAL-perf.md`** (the pain, options to explore, and the target: warm re-runs in seconds, cold
-  runs as fast as Anthropic throttling allows, baseline always fresh).
+  distance on `BlockedCandidate` — see `candidateFinder.ts:81`.)* **Blocked on a founder yes/no** (tighten
+  already-safe behavior).
+- ~~U-EVAL-perf~~ **DONE** (`9161271`) — see §1. Warm re-runs are now seconds; iterate on Group B's
+  model-facing image work with `EVAL_CACHE=1` (and BYPASS via `EVAL_WRITE_BASELINE=1` for the baseline).
 
 **Phase 4 — Group D, DM-claimable (Option 1)** — self-contained, addresses the founder-critical
 "dumped my listings but can't use them." Spec: `group-d-dm-group-unification.md` §5.
@@ -110,7 +101,11 @@ preprocess, DM/group unification Option 2, LLM-as-judge, verify-level dedup metr
    the one thing the incident-only integration test couldn't tell us. Run it after any model-facing change.
 8. **The real-model eval is throttle/serial-bound (~20 min, 2 s CPU).** The account's rate-limit tier is
    low and the runner has no concurrency. Don't idle-wait on it without progress visibility; and build
-   `U-EVAL-perf` (cache + concurrency) so iteration isn't 20-min-per-run.
+   `U-EVAL-perf` (cache + concurrency) so iteration isn't 20-min-per-run. **(BUILT — `9161271`.)**
+9. **A bounded ONE-CALL real cold→warm check verifies an eval-infra seam cheaply** — for U-EVAL-perf we
+   proved the cache round-trips a LIVE Anthropic response (5485 ms → 0 ms, byte-identical extraction)
+   with a throwaway 1-call script, not a 20-min full run. The fake unit test proves the decorator logic;
+   the one real call proves the real seam (JSON round-trip + zod re-validation against the real schema).
 
 ## 5. How to resume (one small unit per iteration)
 
