@@ -4,7 +4,8 @@
  *
  *   ?ui=b               → variant "b" on every page that has one (others fall back to their default)
  *   ?ui=browse:b        → variant "b" on the browse page only
- *   ?ui=browse:b,home:c → several page-scoped picks, comma-separated
+ *   ?ui=browse:b,home:c → several page-scoped picks, comma-separated (only `browse` has variants
+ *                         registered today; picks for unregistered pages are dropped)
  *   ?ui=reset           → forget the choice
  *
  * The middleware persists the raw spec in the `ui` cookie so plain links keep the variant; each page

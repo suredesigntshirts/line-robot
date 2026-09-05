@@ -1,6 +1,6 @@
 # B3: Bilingual (Thai/English) Copy Canon for a Real-Estate Marketplace UI
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/; see 00-product-principles.md §6).**
 
 This artifact gates every Thai and English string in our i18n catalogs: button labels, listing titles, error messages, empty states, filter chips, badge text, CTA copy, and the starter glossary of ~40 core marketplace terms. It also gates decisions about text-length budgeting in UI layouts (Thai runs ~15% longer than English), romanization consistency for Northern Thailand place names, and register/tone policy (when politeness particles belong in UI copy vs. when they make the UI feel chatty and mismatched against top Thai consumer apps).
 

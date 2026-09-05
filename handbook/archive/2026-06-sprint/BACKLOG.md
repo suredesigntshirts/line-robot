@@ -1,5 +1,7 @@
 # v2 Rebuild — Consolidated Backlog (what's left, Stages 0–4)
 
+*Archived 2026-09-05 — historical. The next line is no longer true: surviving items live in `STATUS.md` → Deferred.*
+
 **The single source of truth for outstanding work.** Until now there was none — remaining items
 lived scattered across each stage spec's iteration-log deviation rows, the stage-gate checklists,
 `BLOCKERS.md`, and `MORNING.md`. That fragmentation is why work like website image rendering could

@@ -33,7 +33,8 @@ npm run test:e2e -w @line-robot/website        # frontend changes (website, ui):
   - `capture.spec` — the review-capture gallery into `test-results/gallery/` for a design review.
 - **Deployed** (`test:e2e:deployed` with `E2E_BASE_URL`): the same specs against the live site — the
   post-deploy check in `deploy.md`.
-- **Ad-hoc**: drop a throwaway spec in `e2e/adhoc/` (gitignored, excluded from the gate) or shoot
+- **Ad-hoc**: drop a throwaway `*.spec.ts` in `e2e/adhoc/` (those specs are gitignored and excluded from the
+  gate; the helper scripts + README there are tracked) or shoot
   specific states with `node e2e/adhoc/shoot.mjs` — see `packages/website/e2e/adhoc/README.md`.
 - **Design review pass** (opt-in): `/frontend-review [url]` renders the real artifact and reviews it
   against `handbook/design/mockups/` and the heuristic register.

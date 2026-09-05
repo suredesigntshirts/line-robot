@@ -1,6 +1,6 @@
 # A4: Thai Listing Field Canon — Definitive Property Field Matrix
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/; see 00-product-principles.md §6).**
 
 **Scope note.** This artifact defines the canonical set of data fields our platform must store, extract, display, and validate for Thai property listings. It directly gates: database schema design (DynamoDB attribute names and types), LLM extraction prompt structure (what fields the bot attempts to pull from broker chat), listing card UI (what to render and in what order), search/filter facets, and the quality-gate rules that score whether an extracted listing is publishable. Every decision about "what data do we collect?" flows from this document. Northern Thailand (Chiang Mai region) is the primary market; Bangkok conventions are noted where they differ materially.
 

@@ -73,3 +73,5 @@ Deploy: `handbook/runbooks/deploy.md` (Pulumi, passphrase file, website-only rul
 
 - `packages/website/CLAUDE.md` — pages, UI variants (`?ui=`), theme/tokens, photos, SEO, tests.
 - `packages/db/CLAUDE.md` — migration hand-fixes, the single pool, TLS rules.
+- `packages/pipeline/CLAUDE.md` — the six steps, ports, real-API validation, the 16-param cap, eval, seed.
+- `packages/ui/CLAUDE.md` — tokens, fallbacks regen, owned shadcn, i18n catalogs.

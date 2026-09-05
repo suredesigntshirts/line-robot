@@ -1,6 +1,6 @@
 # A3: Distressed Assets in Thai Real Estate — NPA Portals, LED Auctions, Quick-Sale Flows, and Data Ingestion
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/; see 00-product-principles.md §6).**
 
 This artifact gates two product decisions: (1) the design of our **quick-sale / quote flow** — how urgency is signalled, what discount ranges to set expectations for, and what makes a listing a "quick-sale" candidate — and (2) whether NPA / LED auction data is a viable **Stage-7 data source** that can be ingested to enrich our corpus and AVM pricing layer. Secondary gate: which distressed-asset sourcing channels investors actually use today, so our broker/investor membership value proposition can address real workflow pain.
 

@@ -1,5 +1,7 @@
 # Founder decision queue — plan-21 design run
 
+*Archived 2026-09-05. Rows marked OPEN are not live tracking: the brand call is D29 in `DECISIONS.md`, S6-11 is in `STATUS.md` → Deferred, everything else was handled by later work or parked with the bot.*
+
 Genuinely-ambiguous TASTE calls the known rulings don't settle, surfaced during the autonomous
 run. For each: the most mock-faithful default was chosen and the build PROCEEDED (never blocked);
 the founder reviews these later. Known rulings already applied (NOT queued): NPA = calm violet

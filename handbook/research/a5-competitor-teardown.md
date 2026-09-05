@@ -1,6 +1,6 @@
 # A5: Competitor Teardown — Thai Property Portals
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/; see 00-product-principles.md §6).**
 
 **Scope note:** This artifact audits the six primary Thai real estate portal incumbents (DDProperty, LivingInsider, FazWaz, Baania, Kaidee, Hipflat) plus the real incumbent — LINE/Facebook group deal flow — through live browser sessions, app-store sentiment mining, Thai-language Pantip/forum analysis, and DDProperty's own consumer surveys. It gates decisions about: listing schema field choices, search/filter UX, contact CTA hierarchy, agent-vs-owner labeling, monetization model selection, and the core positioning argument for why broker-networked LINE-first discovery beats portal browse.
 

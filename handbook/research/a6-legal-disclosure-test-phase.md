@@ -1,6 +1,6 @@
 # A6: Legal / Disclosure — Test-Phase Checklist
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/; see 00-product-principles.md §6).**
 
 **NOT LEGAL ADVICE.** This document is an engineering checklist and product decision guide produced from desk research. It does not constitute legal advice and does not substitute for consultation with a qualified Thai lawyer. Laws and PDPC guidance change; verify currency before acting.
 

@@ -1,6 +1,6 @@
 # 00 — Product Principles & Heuristic Register
 
-**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+**Status: §4 (heuristic register) is LIVE — the design checklist root `CLAUDE.md` rule 9 points at; §1–3 and §5 are FROZEN 2026-09 evidence. Paths in the body predate the 2026-09 reorg (spikes/, plans/, docs/ → handbook/) — see the addenda in §6.**
 
 **How to use:** Reviewers judging a screen, flow, copy, schema, or pipeline change load §4 (the register), pick the contexts that apply, and verify each heuristic by ID — pass / violation / not-applicable. Full rationale and citations live in the source artifact for each prefix. §3 lists conflicts that need founder decisions before the affected stage is fleshed. §5 is the field-validation backlog.
 

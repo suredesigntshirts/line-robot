@@ -1,8 +1,11 @@
 # Runbook — AWS identities (shared account 259543826733, region ap-southeast-1)
 
 - **`line-robot`** profile — the scoped deploy + runtime identity (`linerobot-*` ARNs only). Also
-  granted staging-only data-plane **read** (DynamoDB GetItem/Query/Scan, S3, CloudWatch Logs) for
-  verifying deploys/tests. Every `pulumi` and `aws` command for this project uses this profile.
+  granted staging-only data-plane **read** (DynamoDB GetItem/Query/Scan, S3, CloudWatch **Logs**) for
+  verifying deploys/tests. It has **no** CloudWatch metrics read (`GetMetricStatistics` is denied) and its
+  EventBridge rights are scoped to `linerobot-*` rule ARNs (`events:ListRules` is denied). "Is the parked
+  stack still invoking?" is answered from log streams: `aws logs describe-log-streams --log-group-name
+  /aws/lambda/linerobot-staging-sweep --order-by LastEventTime --descending --max-items 1`. Every `pulumi` and `aws` command for this project uses this profile.
 - **`default`** profile = `tea-admin` (account admin, belongs to the founder's other project) — only
   needed to edit the deploy policy itself: `infra/deploy-user-policy.json` →
   `aws iam create-policy-version --profile default` (IAM caps a policy at 5 versions; prune the

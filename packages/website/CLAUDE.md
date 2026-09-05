@@ -12,14 +12,16 @@ never another package's adapters/internals.
   `ResultsMap`); `/properties/{id}` detail (`DetailPage.astro` + `detail/Gallery.astro` lightbox, sticky
   contact panel / phone CTA bar, map, similar listings); `/about` `/how-it-works` `/privacy` `/terms`
   from the markdown **content collection** (`src/content/pages/{th,en}/*.md`, rendered by
-  `StaticPage.astro` via `[page].astro`); `/contact`; designed 404; `robots.txt` + `sitemap.xml`.
+  `StaticPage.astro` via `[page].astro`); `/contact`; designed 404; `robots.txt` + `sitemap.xml`; `/healthz` (`pages/healthz.ts`); `favicon.ico.ts`. Route files in
+  `src/pages/` (+ `en/`) pick the locale and delegate to page components that live flat in `src/components/`
+  (`HomePage.astro`, `BrowsePage.astro`, `DetailPage.astro`, `StaticPage.astro`, `ContactPage.astro`).
   Site chrome lives in `components/site/` (Header with mobile sheet, Footer, ThemeToggle, Icon set,
   SectionHeading); brand/locale/nav constants in `lib/site.ts`; card mapping in `lib/cards.ts`.
 - **Brand.** The working wordmark is "ทรัพย์ดี" / "Sapdee" (DECISIONS.md D29 — no final name). It is
   read from the i18n catalog (`site.name`) everywhere, so a rename is one edit in
   `packages/ui/src/i18n/{th,en}.ts`.
 - **UI template variants (A/B + design exploration).** `?ui=b` (site-wide) or `?ui=browse:b,home:c`
-  (page-scoped) picks an alternative template; the middleware stores the spec in the sticky `ui`
+  (page-scoped — only `browse` has variants registered today) picks an alternative template; the middleware stores the spec in the sticky `ui`
   cookie, pages resolve theirs with `variantFor(page, Astro.locals.ui)` (`lib/variants.ts` is the
   registry of what exists), `<html data-ui>` carries it, `?ui=reset` clears. An explicit `?ui=`
   request shows a switcher chip; cookie-assigned visitors never see it. Browse variants: `a` sidebar
