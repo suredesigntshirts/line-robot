@@ -204,8 +204,16 @@ export interface PriceBandFilter {
   max: number | null;
 }
 
+/** Result order for the public browse. `newest` (default) or asking-price / monthly-rent order —
+ * the price column follows the deal context like the price bracket does. A radius search stays
+ * nearest-first unless a sort is given explicitly. */
+export type PublicSort = "newest" | "price_asc" | "price_desc";
+
 export interface PublicSearch {
   lang: "th" | "en";
+  sort?: PublicSort;
+  /** Minimum bedrooms (COMP: the bedrooms facet every Thai portal ships). */
+  minBedrooms?: number;
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
@@ -298,6 +306,9 @@ export async function searchPublicListings(
   if (q.propertyType) conditions.push(eq(listings.propertyType, q.propertyType));
   if (q.province) conditions.push(eq(listings.province, q.province));
   if (q.amphoe) conditions.push(eq(listings.amphoe, q.amphoe));
+  if (q.minBedrooms !== undefined && q.minBedrooms > 0) {
+    conditions.push(sql`${listings.bedrooms} >= ${q.minBedrooms}`);
+  }
   if (q.listingType) conditions.push(eq(listings.listingType, q.listingType));
   if (q.saleCondition) conditions.push(eq(listings.saleCondition, q.saleCondition));
   if (q.text && q.text.trim() !== "") {
@@ -342,10 +353,18 @@ export async function searchPublicListings(
   const page = Math.min(Math.max(q.page ?? 1, 1), lastPage);
   const offset = (page - 1) * pageSize;
 
-  // Nearest-first on a radius search (the natural order for "near me"); newest-first otherwise.
-  const order = q.near
-    ? [sql`${distanceSql} asc`, desc(listings.id)]
-    : [desc(listings.createdAt), desc(listings.id)];
+  // Explicit price sort wins; else nearest-first on a radius search (the natural order for "near
+  // me"); else newest-first. Unpriced rows sink to the end of a price sort. The price expression
+  // follows the deal context (monthly rent for rent searches), like the bracket filter above.
+  const sortPriceExpr = q.dealType === "rent" ? monthlyRentSql : sql`${listings.priceThb}`;
+  const order =
+    q.sort === "price_asc"
+      ? [sql`${sortPriceExpr} asc nulls last`, desc(listings.id)]
+      : q.sort === "price_desc"
+        ? [sql`${sortPriceExpr} desc nulls last`, desc(listings.id)]
+        : q.near
+          ? [sql`${distanceSql} asc`, desc(listings.id)]
+          : [desc(listings.createdAt), desc(listings.id)];
 
   const rows = await db
     .select({

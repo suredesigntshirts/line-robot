@@ -317,6 +317,27 @@ describe("public search (LEGAL-02 consent gate)", () => {
     expect(rows).toEqual([]);
   });
 
+  it("sorts by asking price (nulls last) and filters by minimum bedrooms", async () => {
+    const asc = await searchPublicListings(db, { lang: "th", dealType: "sale", sort: "price_asc" });
+    const prices = asc.rows.map((r) => r.listing.priceThb);
+    const priced = prices.filter((p): p is number => p !== null);
+    expect(priced).toEqual([...priced].sort((a, b) => a - b));
+    expect(prices.indexOf(null) === -1 || prices.indexOf(null) >= priced.length).toBe(true);
+    const desc = await searchPublicListings(db, {
+      lang: "th",
+      dealType: "sale",
+      sort: "price_desc",
+    });
+    const pricedDesc = desc.rows
+      .map((r) => r.listing.priceThb)
+      .filter((p): p is number => p !== null);
+    expect(pricedDesc).toEqual([...priced].reverse());
+    const beds = await searchPublicListings(db, { lang: "th", minBedrooms: 2 });
+    for (const r of beds.rows) expect((r.listing.bedrooms ?? 0) >= 2).toBe(true);
+    const all = await searchPublicListings(db, { lang: "th" });
+    expect(beds.total).toBeLessThanOrEqual(all.total);
+  });
+
   it("carries headline (th fallback), photo count and monthly rent", async () => {
     const { rows } = await searchPublicListings(db, { lang: "en" });
     const sale = rows.find((r) => r.listing.id === consentedId);
