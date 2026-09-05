@@ -185,7 +185,8 @@ describe("ListingCard (CONV-03/04/05/11)", () => {
     expect(screen.getByText(/฿4,500,000/)).toBeDefined();
     expect(screen.getByText("ขายด่วน")).toBeDefined();
     expect(screen.getByText(/ลงประกาศโดย คุณสมชาย/)).toBeDefined();
-    expect(screen.getByText(/อัปเดต 2026-06-12/)).toBeDefined();
+    // CONV-11 freshness renders as a localized short date (th-TH → Buddhist-era year).
+    expect(screen.getByText(/อัปเดต 12 มิ\.ย\. 2569/)).toBeDefined();
     expect(screen.getByText("8 รูป")).toBeDefined();
   });
 

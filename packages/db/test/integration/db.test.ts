@@ -18,6 +18,7 @@ import {
   grantPublishConsent,
   listListings,
   listPublicProvinces,
+  publicListingFacets,
   searchPublicListings,
 } from "../../src/index.ts";
 import { migrateDb, startPostgresLocal, stopPostgresLocal } from "../../src/testing/index.ts";
@@ -296,6 +297,24 @@ describe("public search (LEGAL-02 consent gate)", () => {
     expect(ids).toContain(rentId);
     expect(ids).not.toContain(unconsentedId);
     expect(total).toBe(rows.length);
+  });
+
+  it("facets: counts consented stock by property type + district, and filters by amphoe", async () => {
+    const facets = await publicListingFacets(db);
+    const { total } = await searchPublicListings(db, { lang: "th" });
+    expect(facets.total).toBe(total); // same LEGAL-02 gate as search
+    expect(facets.byPropertyType.reduce((n, r) => n + r.count, 0)).toBe(total);
+    for (const area of facets.byArea) {
+      expect(area.province).toBeTruthy();
+      const { total: inArea } = await searchPublicListings(db, {
+        lang: "th",
+        province: area.province,
+        ...(area.amphoe ? { amphoe: area.amphoe } : {}),
+      });
+      expect(inArea).toBe(area.count); // a chip's count = what clicking it returns
+    }
+    const { rows } = await searchPublicListings(db, { lang: "th", amphoe: "no-such-amphoe" });
+    expect(rows).toEqual([]);
   });
 
   it("carries headline (th fallback), photo count and monthly rent", async () => {

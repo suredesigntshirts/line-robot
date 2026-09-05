@@ -57,6 +57,13 @@ export function ListingCard({
 }: ListingCardProps) {
   const isRent = listing.dealType === "rent";
   const dealLabel = isRent ? t("badge.forRent") : t("badge.forSale");
+  // CONV-11 freshness as a short localized date (Thai readers see the Buddhist-era year via th-TH).
+  const updatedLabel = new Intl.DateTimeFormat(lang === "th" ? "th-TH" : "en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Bangkok", // listing timestamps are Thai-market dates; never drift with server TZ
+  }).format(new Date(view.updatedAtIso));
   return (
     <a
       href={href}
@@ -93,7 +100,7 @@ export function ListingCard({
           </span>
         )}
       </div>
-      <div className="grid gap-1.5 px-3 pt-2.5 pb-3">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5 px-3 pt-2.5 pb-3">
         <StatusBadge listing={listing} verified={verified} t={t} />
         {/* Heading (loopless Noto, TH-13) — leading-normal (1.5) keeps Thai upper/lower vowels clear. */}
         <div className="line-clamp-2 font-heading-th font-semibold text-sm text-text leading-normal">
@@ -114,14 +121,17 @@ export function ListingCard({
             {view.locationLine}
           </div>
         )}
-        <div className="flex justify-between gap-2 text-text-disabled text-sm leading-relaxed">
-          {/* CONV-11: a named human, not an anonymous listing. */}
+        <div className="mt-0.5 flex min-w-0 items-center justify-between gap-2 border-border border-t pt-2 text-text-disabled text-sm leading-relaxed">
+          {/* CONV-11: a named human, not an anonymous listing. min-w-0 lets the name truncate
+              instead of pushing the date out of the card. */}
           {postedByName && (
-            <span className="truncate">{t("listing.postedBy", { name: postedByName })}</span>
+            <span className="min-w-0 truncate">
+              {t("listing.postedBy", { name: postedByName })}
+            </span>
           )}
           {/* CONV-03: freshness is visible, stale listings can't hide. */}
-          <span data-freshness className="whitespace-nowrap">
-            {t("listing.updated", { date: view.updatedAtIso.slice(0, 10) })}
+          <span data-freshness className="shrink-0 whitespace-nowrap">
+            {t("listing.updated", { date: updatedLabel })}
           </span>
         </div>
       </div>

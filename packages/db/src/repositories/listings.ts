@@ -209,6 +209,8 @@ export interface PublicSearch {
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
+  /** MKT-04 district-level filter (composes with `province`). */
+  amphoe?: string;
   /** DIST-01/COMP-05: provenance facet (e.g. `npa` = bank-owned stock). */
   listingType?: ListingType;
   /** COMP-06: new-vs-resale facet. */
@@ -295,6 +297,7 @@ export async function searchPublicListings(
   if (q.dealType) conditions.push(eq(listings.dealType, q.dealType));
   if (q.propertyType) conditions.push(eq(listings.propertyType, q.propertyType));
   if (q.province) conditions.push(eq(listings.province, q.province));
+  if (q.amphoe) conditions.push(eq(listings.amphoe, q.amphoe));
   if (q.listingType) conditions.push(eq(listings.listingType, q.listingType));
   if (q.saleCondition) conditions.push(eq(listings.saleCondition, q.saleCondition));
   if (q.text && q.text.trim() !== "") {
@@ -483,6 +486,45 @@ export async function listPublicListingIds(
       // sitemap index when the catalog approaches it (newest listings win meanwhile).
       .limit(10_000)
   );
+}
+
+/** Public-catalog facets for the home page: total stock, per-property-type counts (the "browse by
+ * type" tiles) and the busiest districts (the "popular areas" chips). One LEGAL-02-gated pass each —
+ * consented listings only, so the numbers match what a visitor can actually open. */
+export interface PublicFacets {
+  total: number;
+  byPropertyType: Array<{ propertyType: PropertyType; count: number }>;
+  /** Busiest province+amphoe pairs, most listings first (capped — chips, not a directory). */
+  byArea: Array<{ province: string; amphoe: string | null; count: number }>;
+}
+
+export async function publicListingFacets(db: Db, areaLimit = 12): Promise<PublicFacets> {
+  const countSql = sql<number>`count(*)::int`;
+  const [byPropertyType, areas] = await Promise.all([
+    db
+      .select({ propertyType: listings.propertyType, count: countSql })
+      .from(listings)
+      .where(publiclyVisible)
+      .groupBy(listings.propertyType)
+      .orderBy(sql`count(*) desc`, listings.propertyType),
+    db
+      .select({ province: listings.province, amphoe: listings.amphoe, count: countSql })
+      .from(listings)
+      .where(and(publiclyVisible, sql`${listings.province} is not null`))
+      .groupBy(listings.province, listings.amphoe)
+      .orderBy(sql`count(*) desc`, listings.province, listings.amphoe)
+      .limit(areaLimit),
+  ]);
+  const total = byPropertyType.reduce((n, row) => n + row.count, 0);
+  return {
+    total,
+    byPropertyType,
+    byArea: areas.map((a) => ({
+      province: a.province as string,
+      amphoe: a.amphoe,
+      count: a.count,
+    })),
+  };
 }
 
 /** Distinct provinces with publicly visible stock — feeds the browse filter chips. */
