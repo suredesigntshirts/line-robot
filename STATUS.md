@@ -35,6 +35,7 @@ website (decision D27 in `DECISIONS.md`).
 4. Brand name (placeholder "ทรัพย์ดี / Sapdee").
 5. Legal copy review (privacy/terms are model-drafted; entity name/address blank).
 6. Larger photo derivatives for the lightbox (thumbs are 640px).
+7. Deferred website items: LINE Login / accounts (needs the real domain, D19), Thai-slug URLs.
 
 ## Open decisions
 
