@@ -18,7 +18,7 @@ Catches classes that source review + SSR-string smokes are structurally blind to
    Use **Mode A.5 (parity)** for these. Picking the wrong lens (judging a foundation increment against
    the mock) yields a meaningless verdict; match the mode to the increment's contract.
 
-NOT correctness (`/code-review`), semantics-vs-research (`/alignment-review`), or simplicity.
+NOT correctness (`/code-review`), semantics-vs-research (check the heuristic register in `handbook/research/00-product-principles.md` §4 yourself), or simplicity.
 
 ## Targets
 
@@ -154,7 +154,7 @@ individually managed. It's just files + Playwright. **All commands below run fro
   facets aren't exercisable against the local seed — see the README's seed/facet note.)
 
 ## When it runs
-- **Every frontend / design-bearing increment** (invoked by `/increment-review`): A + B on **local**.
+- **Any frontend / design-bearing change (opt-in, run it yourself):** A + B on **local**.
 - **After a meaningful deploy** (CLAUDE.md deploy cadence): A + B on **deployed** (the live URL).
 - **On demand:** run B (design review) or C (ad-hoc probe) any time the founder or an agent wants eyes
   on the site.
