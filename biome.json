@@ -11,7 +11,6 @@
       "**",
       "!docs",
       "!handbook",
-      "!spikes",
       "!**/dist",
       "!**/coverage",
       "!**/test-results",
@@ -22,8 +21,7 @@
       "!packages/website/src/styles/global.css",
       "!packages/miniapp/src/global.css",
       "!**/dist-e2e",
-      "!**/*.astro",
-      "!plans/**/*.html"
+      "!**/*.astro"
     ]
   },
   "formatter": {
