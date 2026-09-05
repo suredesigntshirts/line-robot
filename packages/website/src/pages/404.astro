@@ -1,42 +1,46 @@
 ---
 import { createTranslator } from "@line-robot/ui";
+import Icon from "../components/site/Icon.astro";
 import Base from "../layouts/Base.astro";
+import { localeFromPath, localePath } from "../lib/site.ts";
 
 // COPY-07: what happened + why + what to do next — never a bare "Not Found".
 // Under a rewrite Astro.url is the target ("/404") — originPathname keeps the requested path.
 const requested = Astro.originPathname ?? Astro.url.pathname;
-const isEn = requested.startsWith("/en/") || requested === "/en";
-const locale = isEn ? ("en" as const) : ("th" as const);
+const locale = localeFromPath(requested);
 const t = createTranslator(locale);
 Astro.response.status = 404;
 ---
 
 <Base
-  title={locale === "th" ? "ไม่พบหน้านี้" : "Page not found"}
-  description={t("empty.why")}
-  canonicalPath={isEn ? "/en/" : "/"}
+  title={t("notFound.title")}
+  description={t("notFound.body")}
+  canonicalPath={localePath(locale, "/")}
+  noindex
 >
-  {/* Direction-a calm not-found state (COPY-07 register): centred, muted icon, what/why/next.
-      data-th-content so the TH-07 line-height invariant covers this page too. */}
-  <main
-    class="mx-auto grid max-w-lg justify-items-center gap-3 px-4 py-12 text-center"
-    data-th-content
-  >
-    <span class="text-primary-300" aria-hidden="true">
-      <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+  <main id="main" data-th-content class="container-site grid justify-items-center gap-5 py-20 text-center md:py-28">
+    <span class="flex size-20 items-center justify-center rounded-full bg-primary-50 text-primary-500">
+      <Icon name="search" size={40} strokeWidth={1.5} />
     </span>
-    <h1 class="m-0 font-bold font-heading-th text-xl text-text leading-normal">
-      {locale === "th" ? "ไม่พบหน้านี้" : "Page not found"}
-    </h1>
-    <p class="m-0 text-base text-text-2 leading-relaxed">
-      {
-        locale === "th"
-          ? "ประกาศอาจถูกปิดการเผยแพร่หรือลิงก์ไม่ถูกต้อง"
-          : "The listing may have been unpublished, or the link is incorrect"
-      }
-    </p>
-    <a href={isEn ? "/en/" : "/"} class="font-semibold text-primary-600 leading-relaxed">
-      ← {t("home.title")}
-    </a>
+    <p class="font-latin font-semibold text-primary-500 text-sm tracking-widest">404</p>
+    <h1 class="font-bold font-heading-th text-3xl text-text leading-tight md:text-4xl">{t("notFound.title")}</h1>
+    <p class="max-w-md text-base text-text-2 leading-relaxed">{t("notFound.body")}</p>
+    <div class="mt-2 flex flex-wrap justify-center gap-3">
+      <a
+        href={localePath(locale, "/properties")}
+        data-cta-solid
+        class="inline-flex h-11 items-center gap-2 rounded-xl bg-primary-500 px-5 font-semibold text-base text-surface no-underline leading-relaxed shadow-sm transition-opacity hover:opacity-90"
+      >
+        <Icon name="search" size={18} />
+        {t("notFound.browse")}
+      </a>
+      <a
+        href={localePath(locale, "/")}
+        class="inline-flex h-11 items-center gap-2 rounded-xl border border-border bg-surface px-5 font-semibold text-base text-text no-underline leading-relaxed transition-colors hover:border-primary-300 hover:text-primary-600"
+      >
+        <Icon name="arrow-left" size={18} />
+        {t("notFound.home")}
+      </a>
+    </div>
   </main>
 </Base>

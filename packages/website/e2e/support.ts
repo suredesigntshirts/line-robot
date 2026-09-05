@@ -12,22 +12,44 @@ import { expect, type Page, type TestInfo } from "@playwright/test";
  * review is reading (and vice-versa). */
 export const GALLERY_DIR = `test-results/gallery/${process.env.E2E_BASE_URL ? "deployed" : "local"}`;
 
-/** Wait for fonts + every image to finish, so invariants/screenshots aren't measured mid-load. */
+/** Wait for fonts + every RENDERED image to finish, so invariants/screenshots aren't measured
+ * mid-load. Scrolls through the page first so `loading="lazy"` images below the fold actually start
+ * (a fullPage screenshot doesn't scroll, and a lazy image that never enters the viewport never
+ * loads — waiting on it would hang). Images that aren't laid out (display:none breakpoints) are
+ * skipped for the same reason. */
 export async function settle(page: Page): Promise<void> {
   await page.evaluate(async () => {
+    const step = Math.max(window.innerHeight, 400);
+    for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+      window.scrollTo(0, y);
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    window.scrollTo(0, 0);
     await document.fonts.ready;
+    const rendered = [...document.images].filter((img) => img.getClientRects().length > 0);
     await Promise.all(
-      [...document.images]
+      rendered
         .filter((img) => !img.complete)
         .map(
           (img) =>
             new Promise((r) => {
               img.addEventListener("load", r, { once: true });
               img.addEventListener("error", r, { once: true });
+              setTimeout(r, 8000); // never hang a test on one slow image
             }),
         ),
     );
   });
+}
+
+/** Browse filters live in a collapsible panel on phones — open it if the toggle is showing. */
+export async function openFilters(page: Page): Promise<void> {
+  const toggle = page.locator("[data-filters-toggle]");
+  if ((await toggle.count()) > 0 && (await toggle.isVisible())) {
+    const expanded = await toggle.getAttribute("aria-expanded");
+    if (expanded !== "true") await toggle.click();
+  }
+  await expect(page.locator("[data-filter-panel]")).toBeVisible();
 }
 
 /** Discover listing detail paths from the rendered home page (deduped). Empty = nothing published. */
@@ -164,6 +186,7 @@ export async function assertNoBrokenImages(page: Page): Promise<void> {
   await settle(page);
   const broken = await page.evaluate(() =>
     [...document.images]
+      .filter((i) => i.getClientRects().length > 0) // laid out — a display:none breakpoint image never loads
       .filter((i) => !i.complete || i.naturalWidth === 0)
       .map((i) => i.currentSrc || i.src),
   );

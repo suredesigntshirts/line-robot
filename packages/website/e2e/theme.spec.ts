@@ -74,7 +74,7 @@ test.describe("theme applies (TECH-06 net)", () => {
   // The state pages carry data-th-content; visit them so the invariant actually runs there (a marker
   // that no test exercises is inert — that gap is exactly what this closes).
   test("Thai body text in the empty state renders line-height >= 1.6 (TH-07)", async ({ page }) => {
-    await page.goto("/?q=zzqqx-no-such-listing-12345");
+    await page.goto("/properties?q=zzqqx-no-such-listing-12345");
     await assertThaiBodyLineHeight(page);
   });
 

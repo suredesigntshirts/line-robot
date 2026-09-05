@@ -10,8 +10,8 @@
     "test": "vitest run",
     "test:ssr": "npm run build && node test/ssr.smoke.mjs",
     "test:browse": "npm run build && node test/browse.smoke.mjs",
-    "test:e2e": "npm run build && playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/journeys e2e/capture.spec.ts",
-    "test:e2e:deployed": "playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/journeys e2e/capture.spec.ts",
+    "test:e2e": "npm run build && playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/site-chrome.spec.ts e2e/detail.spec.ts e2e/pages.spec.ts e2e/journeys e2e/capture.spec.ts",
+    "test:e2e:deployed": "playwright test e2e/theme.spec.ts e2e/flows.spec.ts e2e/site-chrome.spec.ts e2e/detail.spec.ts e2e/pages.spec.ts e2e/journeys e2e/capture.spec.ts",
     "test:e2e:server": "node test/e2e-server.mjs"
   },
   "dependencies": {

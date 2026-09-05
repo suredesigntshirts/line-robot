@@ -1,0 +1,70 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import Icon from "./site/Icon.astro";
+
+/** Link pagination (SSR, zero JS): prev/next + a window of numbered pages. `hrefFor(page)` is the
+ * page's own query-string builder so every filter survives the page change. */
+interface Props {
+  page: number;
+  lastPage: number;
+  hrefFor: (page: number) => string;
+  locale: UiLocale;
+}
+const { page, lastPage, hrefFor, locale } = Astro.props;
+const t = createTranslator(locale);
+
+const window = 2;
+const pages: number[] = [];
+for (let p = Math.max(1, page - window); p <= Math.min(lastPage, page + window); p++) pages.push(p);
+const showFirst = pages[0] > 1;
+const showLast = pages[pages.length - 1] < lastPage;
+const numClass = (active: boolean) =>
+  `inline-flex size-10 items-center justify-center rounded-full font-latin text-sm no-underline transition-colors ${
+    active
+      ? "bg-primary-500 font-semibold text-surface"
+      : "border border-border bg-surface text-text-2 hover:border-primary-300 hover:text-primary-600"
+  }`;
+const arrowClass =
+  "inline-flex h-10 items-center gap-1 rounded-full border border-border bg-surface px-3 text-sm text-text-2 no-underline transition-colors hover:border-primary-300 hover:text-primary-600";
+---
+
+{
+  lastPage > 1 && (
+    <nav aria-label={t("browse.pageOf", { page, total: lastPage })} class="flex flex-wrap items-center justify-center gap-2">
+      {page > 1 && (
+        <a href={hrefFor(page - 1)} rel="prev" class={arrowClass}>
+          <Icon name="chevron-left" size={16} />
+          <span class="leading-relaxed">{t("pager.prev")}</span>
+        </a>
+      )}
+      {showFirst && (
+        <>
+          <a href={hrefFor(1)} class={numClass(false)}>1</a>
+          {pages[0] > 2 && <span class="px-1 text-text-disabled">…</span>}
+        </>
+      )}
+      {pages.map((p) => (
+        <a
+          href={hrefFor(p)}
+          aria-current={p === page ? "page" : undefined}
+          data-cta-solid={p === page || undefined}
+          class={numClass(p === page)}
+        >
+          {p}
+        </a>
+      ))}
+      {showLast && (
+        <>
+          {pages[pages.length - 1] < lastPage - 1 && <span class="px-1 text-text-disabled">…</span>}
+          <a href={hrefFor(lastPage)} class={numClass(false)}>{lastPage}</a>
+        </>
+      )}
+      {page < lastPage && (
+        <a href={hrefFor(page + 1)} rel="next" class={arrowClass}>
+          <span class="leading-relaxed">{t("pager.next")}</span>
+          <Icon name="chevron-right" size={16} />
+        </a>
+      )}
+    </nav>
+  )
+}

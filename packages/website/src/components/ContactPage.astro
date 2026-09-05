@@ -1,0 +1,73 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import Base from "../layouts/Base.astro";
+import { lineOaUrl, localePath } from "../lib/site.ts";
+import Icon, { type IconName } from "./site/Icon.astro";
+
+interface Props {
+  locale: UiLocale;
+}
+const { locale } = Astro.props;
+const t = createTranslator(locale);
+const oa = lineOaUrl();
+
+const cards: Array<{ icon: IconName; title: string; body: string }> = [
+  { icon: "message-circle", title: t("contact.lineHead"), body: t("contact.lineBody") },
+  { icon: "shield-check", title: t("contact.pdpaHead"), body: t("contact.pdpaBody") },
+  { icon: "users", title: t("contact.brokerHead"), body: t("contact.brokerBody") },
+];
+---
+
+<Base
+  title={t("pages.contact.title")}
+  description={t("contact.lineBody")}
+  canonicalPath={localePath(locale, "/contact")}
+>
+  <main id="main" data-th-content class="container-site grid gap-8 py-8 md:py-12">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm text-text-2 leading-relaxed">
+      <a href={localePath(locale, "/")} class="no-underline hover:text-primary-600">{t("nav.home")}</a>
+      <Icon name="chevron-right" size={14} class="text-text-disabled" />
+      <span class="text-text">{t("pages.contact.title")}</span>
+    </nav>
+    <header class="grid max-w-3xl gap-3">
+      <h1 class="font-bold font-heading-th text-3xl text-text leading-tight md:text-4xl">
+        {t("pages.contact.title")}
+      </h1>
+      <p class="text-lg text-text-2 leading-relaxed">{t("contact.intro")}</p>
+    </header>
+
+    <div class="grid gap-4 md:grid-cols-3">
+      {
+        cards.map((c, i) => (
+          <section class="grid content-start gap-3 rounded-xl border border-border bg-surface p-5 shadow-sm">
+            <span class="flex size-11 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+              <Icon name={c.icon} size={22} />
+            </span>
+            <h2 class="font-heading-th font-semibold text-md text-text leading-normal">{c.title}</h2>
+            <p class="text-sm text-text-2 leading-relaxed">{c.body}</p>
+            {i === 0 && oa !== "" && (
+              <a
+                href={oa}
+                data-cta="line"
+                class="mt-1 inline-flex h-11 w-fit items-center gap-2 rounded-lg bg-line px-5 font-semibold text-base text-line-text no-underline leading-relaxed transition-opacity hover:opacity-90"
+              >
+                <Icon name="message-circle" size={18} />
+                {t("contact.lineCta")}
+              </a>
+            )}
+            {i === 1 && (
+              <a
+                href={localePath(locale, "/privacy")}
+                class="mt-1 inline-flex items-center gap-1 font-semibold text-primary-600 text-sm no-underline leading-relaxed hover:underline"
+              >
+                {t("nav.privacy")}
+                <Icon name="arrow-right" size={14} />
+              </a>
+            )}
+          </section>
+        ))
+      }
+    </div>
+    <p class="text-sm text-text-disabled leading-relaxed">{t("footer.hosting")}</p>
+  </main>
+</Base>

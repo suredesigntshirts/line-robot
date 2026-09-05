@@ -1,0 +1,12 @@
+---
+import { getEntry } from "astro:content";
+import StaticPage from "../components/StaticPage.astro";
+
+// Thai long-form pages from the content collection. Anything not in the collection is a 404
+// (rewrite keeps the requested URL so the 404 page localises itself).
+const slug = Astro.params.page ?? "";
+const entry = /^[a-z-]+$/.test(slug) ? await getEntry("pages", `th/${slug}`) : undefined;
+if (!entry) return Astro.rewrite("/404");
+---
+
+<StaticPage locale="th" slug={slug} entry={entry} />

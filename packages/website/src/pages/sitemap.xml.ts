@@ -26,8 +26,10 @@ export const GET: APIRoute = async ({ site }) => {
     <xhtml:link rel="alternate" hreflang="en" href="${escapeXml(`${origin}${enPath}`)}"/>
   </url>`;
 
+  const staticPaths = ["/properties", "/how-it-works", "/about", "/contact", "/privacy", "/terms"];
   const entries = [
     urlEntry("/", "/en/"),
+    ...staticPaths.map((p) => urlEntry(p, `/en${p}`)),
     ...rows.map((r) => urlEntry(`/properties/${r.id}`, `/en/properties/${r.id}`, r.updatedAt)),
   ];
 

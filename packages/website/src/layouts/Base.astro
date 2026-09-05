@@ -1,8 +1,6 @@
 ---
-// Self-hosted brand fonts (plan 20 — closes the "fonts named but never delivered" gap). @fontsource
-// ships @font-face + woff2 for the Thai + Latin subsets (lazy by unicode-range); the family names
-// match the --font-*-th stacks in theme.css. Served from /_astro/* (S3+CloudFront in prod, sirv in
-// the e2e harness) — no external CDN. Weights match usage: body 400/700, headings 600/700.
+// Self-hosted brand fonts (@fontsource ships @font-face + woff2, lazy by unicode-range; served from
+// /_astro/* — no external CDN). Weights match usage: body 400/700, headings 600/700.
 import "@fontsource/sarabun/thai-400.css";
 import "@fontsource/sarabun/thai-700.css";
 import "@fontsource/sarabun/latin-400.css";
@@ -11,13 +9,15 @@ import "@fontsource/noto-sans-thai/thai-600.css";
 import "@fontsource/noto-sans-thai/thai-700.css";
 import "@fontsource/noto-sans-thai/latin-600.css";
 import "@fontsource/noto-sans-thai/latin-700.css";
-// The website's Tailwind v4 entry (plan 21): @import "tailwindcss" (theme + utilities layers, no
-// Preflight) → the shared @theme tokens (@line-robot/ui/theme.css, compiled by Tailwind to :root
-// vars + utilities) → the TECH-06 oklch/old-Android fallback. One stylesheet, the single token
-// source. (Was: raw theme.css + a hand-restated fallbacks.css, because the site didn't run Tailwind.)
+// The website's Tailwind v4 entry: theme layer → Preflight → base rules → the shared @theme tokens
+// (@line-robot/ui/theme.css, THE single token source) → the TECH-06 oklch/old-Android fallback.
 import "../styles/global.css";
 import { createTranslator } from "@line-robot/ui";
 import ogDefault from "../assets/og-default.png";
+import Footer from "../components/site/Footer.astro";
+import Header from "../components/site/Header.astro";
+import { safeJsonLdScript } from "../lib/jsonLd.ts";
+import { localePath } from "../lib/site.ts";
 
 interface Props {
   title: string;
@@ -26,54 +26,107 @@ interface Props {
   canonicalPath: string;
   /** Absolute og:image URL (a presigned listing hero on detail pages). Omit → site default. */
   ogImage?: string;
+  /** "website" (default) or "article". */
+  ogType?: "website" | "article";
+  /** Keep utility/error pages out of the index. */
+  noindex?: boolean;
+  /** Let a page own the <title> verbatim (default appends " · Brand"). */
+  rawTitle?: boolean;
 }
 
-const { title, description, canonicalPath, ogImage } = Astro.props;
+const { title, description, canonicalPath, ogImage, ogType = "website", noindex = false, rawTitle = false } =
+  Astro.props;
 const locale = Astro.currentLocale === "en" ? "en" : "th";
 const t = createTranslator(locale);
-// astro.config.mjs always sets `site` (SITE_URL or its placeholder default).
 const site = Astro.site;
 if (!site) throw new Error("Astro.site missing — set `site` in astro.config.mjs");
 const canonical = new URL(canonicalPath, site);
-// hreflang pair: default locale lives at "/", English under "/en/".
-const thUrl = new URL(canonicalPath.replace(/^\/en(\/|$)/, "/"), site);
-const enPath = canonicalPath.startsWith("/en/") ? canonicalPath : `/en${canonicalPath}`;
-const enUrl = new URL(enPath, site);
-// og:image: the page's hero (presigned, already absolute) or the branded site default. `ogDefault.src`
-// is the build-hashed /_astro/* path (CloudFront-served); make it absolute on the origin for sharing.
+// hreflang pair: default locale lives at "/", English under "/en/". x-default = Thai (DF-3).
+const thPath = canonicalPath.replace(/^\/en(\/|$)/, "/");
+const thUrl = new URL(thPath, site);
+const enUrl = new URL(canonicalPath.startsWith("/en/") ? canonicalPath : `/en${canonicalPath}`, site);
 const usingDefaultOg = !ogImage;
 const ogImageUrl = ogImage ?? new URL(ogDefault.src, site).href;
+const siteName = t("site.name");
+const documentTitle = rawTitle ? title : `${title} · ${siteName}`;
+
+// Site-wide structured data: the organisation + a WebSite with its search action (site-links search).
+const orgJsonLd = safeJsonLdScript({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${site.origin}/#organization`,
+      name: siteName,
+      url: site.origin,
+      logo: new URL(ogDefault.src, site).href,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${site.origin}/#website`,
+      url: site.origin,
+      name: siteName,
+      inLanguage: locale,
+      publisher: { "@id": `${site.origin}/#organization` },
+      potentialAction: {
+        "@type": "SearchAction",
+        target: {
+          "@type": "EntryPoint",
+          urlTemplate: `${site.origin}${localePath(locale, "/properties")}?q={search_term_string}`,
+        },
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ],
+});
 ---
 
 <!doctype html>
 <html lang={locale}>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{documentTitle}</title>
     <meta name="description" content={description} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
     <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
     <link rel="canonical" href={canonical} />
     <link rel="alternate" hreflang="th" href={thUrl} />
     <link rel="alternate" hreflang="en" href={enUrl} />
+    <link rel="alternate" hreflang="x-default" href={thUrl} />
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1e26" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content={locale === "en" ? "en_US" : "th_TH"} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content={ogType} />
     <meta property="og:image" content={ogImageUrl} />
     {usingDefaultOg && <meta property="og:image:width" content="1200" />}
     {usingDefaultOg && <meta property="og:image:height" content="630" />}
     <meta name="twitter:card" content="summary_large_image" />
+    {/* Theme bootstrap — runs before first paint so an explicit choice never flashes the other mode.
+        No stored choice → no attribute → theme.css follows the OS via prefers-color-scheme. */}
+    <script is:inline>
+      (function () {
+        try {
+          var t = localStorage.getItem("theme");
+          if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
+    <script is:inline type="application/ld+json" set:html={orgJsonLd} />
     <slot name="head" />
   </head>
-  <body class="flex min-h-dvh flex-col bg-bg font-body-th text-text leading-relaxed">
-    <div class="flex-1"><slot /></div>
-    {/* Direction-a footer chrome (all pages): muted brand + tagline. */}
-    <footer class="mt-8 border-border border-t bg-surface">
-      <div class="mx-auto max-w-5xl px-4 py-6 text-center font-body-th text-sm text-text-2 leading-relaxed">
-        <div class="font-heading-th font-semibold text-text">{t("home.title")}</div>
-        <p class="mt-1 mb-0">{t("home.description")}</p>
-      </div>
-    </footer>
+  <body class="flex min-h-dvh flex-col bg-bg font-body-th text-text leading-relaxed antialiased">
+    <a href="#main" class="skip-link">{t("nav.skipToContent")}</a>
+    <Header locale={locale} />
+    <div class="flex-1">
+      <slot />
+    </div>
+    <Footer locale={locale} />
   </body>
 </html>

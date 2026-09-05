@@ -14,3 +14,19 @@ E2E_BASE_URL=https://<cloudfront> npx playwright test e2e/adhoc/<name>.spec.ts  
 These are **gitignored** (`*.spec.ts`) and **excluded from the gate** — the `test:e2e` scripts list the
 gate dirs explicitly, so an ad-hoc spec never runs in a normal gate run. Delete yours when done, or
 **promote** it: move it to `../journeys/<slug>.spec.ts` and add the metadata header.
+
+## Review screenshots (`shoot.mjs`)
+
+`shoot.mjs` is a committed helper for design review: it shoots specific states (mobile viewport,
+lightbox open, filters open, dark mode) against a running e2e server into `test-results/review/`
+(gitignored). Start the server once, then pass a JSON list of shots:
+
+```bash
+node test/e2e-server.mjs &                      # seeded Docker PG + the real build on :4321
+SHOTS='[{"name":"detail-mobile","path":"/properties/<id>","mobile":true},
+        {"name":"lightbox","path":"/properties/<id>","click":"[data-lightbox-open=\"0\"]"},
+        {"name":"browse-dark","path":"/properties","dark":true,"full":true}]' node e2e/adhoc/shoot.mjs
+```
+
+Shot fields: `path` (required), `name`, `mobile` (Pixel 7), `dark`, `full` (fullPage), `click`
+(selector or list, clicked in order), `scroll` (y px), `wait` (ms after load).

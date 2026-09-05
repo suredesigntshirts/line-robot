@@ -1,0 +1,165 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import { alternateLocalePath, lineOaUrl, localePath, NAV } from "../../lib/site.ts";
+import Icon from "./Icon.astro";
+import ThemeToggle from "./ThemeToggle.astro";
+
+/**
+ * Site header (direction-a): white surface bar, brand mark left, primary nav centre (desktop),
+ * locale switch + theme toggle + the LINE "list for free" CTA right. On mobile the nav collapses
+ * into a sheet toggled by the menu button (a few lines of vanilla JS — no framework island for chrome).
+ */
+interface Props {
+  locale: UiLocale;
+}
+const { locale } = Astro.props;
+const t = createTranslator(locale);
+const oa = lineOaUrl();
+const altHref = alternateLocalePath(locale, Astro.url.pathname, Astro.url.search);
+const path = Astro.url.pathname;
+const isActive = (navPath: string) => {
+  const [p, q] = navPath.split("?");
+  const full = localePath(locale, p);
+  if (path !== full && !(p !== "/" && path.startsWith(`${full}/`))) return false;
+  // Items that carry a query (ซื้อ / เช่า) are active only when that exact facet is set.
+  if (!q) return true;
+  const want = new URLSearchParams(q);
+  return [...want].every(([k, v]) => Astro.url.searchParams.get(k) === v);
+};
+---
+
+<header
+  class="sticky top-0 z-40 border-border border-b bg-surface/90 backdrop-blur supports-[backdrop-filter]:bg-surface/80"
+  data-site-header
+>
+  <div class="container-site flex h-16 items-center gap-3">
+    {/* Brand */}
+    <a
+      href={localePath(locale, "/")}
+      class="flex shrink-0 items-center gap-2 font-bold font-heading-th text-primary-600 text-xl no-underline"
+      aria-label={t("site.name")}
+    >
+      <span class="flex size-9 items-center justify-center rounded-lg bg-primary-500 text-white shadow-sm">
+        <Icon name="house" size={20} strokeWidth={2.2} />
+      </span>
+      <span lang="th">{t("site.name")}</span>
+    </a>
+
+    {/* Desktop nav */}
+    <nav class="ml-4 hidden items-center gap-1 md:flex" aria-label={t("nav.menu")}>
+      {
+        NAV.map((item) => (
+          <a
+            href={localePath(locale, item.path)}
+            aria-current={isActive(item.path) ? "page" : undefined}
+            class="rounded-full px-3 py-1.5 font-medium text-sm text-text-2 leading-relaxed no-underline transition-colors hover:bg-surface-2 hover:text-text aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-700"
+          >
+            {t(item.key)}
+          </a>
+        ))
+      }
+    </nav>
+
+    <div class="ml-auto flex items-center gap-2">
+      <a
+        href={altHref}
+        hreflang={locale === "en" ? "th" : "en"}
+        aria-label={t("locale.switchLabel")}
+        class="hidden h-10 items-center gap-1.5 rounded-full border border-border bg-surface px-3 font-medium text-sm text-text-2 no-underline transition-colors hover:border-primary-300 hover:text-primary-600 sm:inline-flex"
+      >
+        <Icon name="languages" size={16} />
+        <span>{t("locale.other")}</span>
+      </a>
+      <ThemeToggle t={t} />
+      {
+        oa !== "" && (
+          <a
+            href={oa}
+            data-cta-solid
+            class="hidden h-10 items-center gap-2 rounded-full bg-primary-500 px-4 font-semibold text-sm text-surface no-underline shadow-sm transition-opacity hover:opacity-90 md:inline-flex"
+          >
+            <Icon name="plus-circle" size={16} />
+            <span>{t("nav.postListing")}</span>
+          </a>
+        )
+      }
+      <button
+        type="button"
+        data-nav-toggle
+        aria-controls="site-mobile-nav"
+        aria-expanded="false"
+        aria-label={t("nav.menu")}
+        class="group inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text-2 md:hidden"
+      >
+        <Icon name="menu" size={20} class="group-aria-expanded:hidden" />
+        <Icon name="x" size={20} class="hidden group-aria-expanded:block" />
+      </button>
+    </div>
+  </div>
+
+  {/* Mobile sheet */}
+  <div id="site-mobile-nav" hidden class="border-border border-t bg-surface md:hidden">
+    <nav class="container-site grid gap-1 py-3" aria-label={t("nav.menu")}>
+      {
+        NAV.map((item) => (
+          <a
+            href={localePath(locale, item.path)}
+            aria-current={isActive(item.path) ? "page" : undefined}
+            class="flex items-center justify-between rounded-lg px-3 py-2.5 font-medium text-base text-text leading-relaxed no-underline hover:bg-surface-2 aria-[current=page]:bg-primary-50 aria-[current=page]:text-primary-700"
+          >
+            {t(item.key)}
+            <Icon name="chevron-right" size={18} class="text-text-disabled" />
+          </a>
+        ))
+      }
+      <a
+        href={localePath(locale, "/contact")}
+        class="flex items-center justify-between rounded-lg px-3 py-2.5 font-medium text-base text-text leading-relaxed no-underline hover:bg-surface-2"
+      >
+        {t("nav.contact")}
+        <Icon name="chevron-right" size={18} class="text-text-disabled" />
+      </a>
+      <div class="mt-2 flex items-center gap-2 border-border border-t pt-3">
+        <a
+          href={altHref}
+          hreflang={locale === "en" ? "th" : "en"}
+          class="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-surface px-3 font-medium text-sm text-text-2 no-underline"
+        >
+          <Icon name="languages" size={16} />
+          <span>{t("locale.other")}</span>
+        </a>
+        {
+          oa !== "" && (
+            <a
+              href={oa}
+              data-cta-solid
+              class="ml-auto inline-flex h-10 items-center gap-2 rounded-full bg-primary-500 px-4 font-semibold text-sm text-surface no-underline shadow-sm"
+            >
+              <Icon name="plus-circle" size={16} />
+              <span>{t("nav.postListing")}</span>
+            </a>
+          )
+        }
+      </div>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>("[data-nav-toggle]");
+  const sheet = document.getElementById("site-mobile-nav");
+  if (btn && sheet) {
+    const setOpen = (open: boolean) => {
+      btn.setAttribute("aria-expanded", String(open));
+      sheet.hidden = !open;
+    };
+    btn.addEventListener("click", () => setOpen(sheet.hasAttribute("hidden")));
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !sheet.hidden) setOpen(false);
+    });
+    // Close when the viewport grows into the desktop layout.
+    window.matchMedia("(min-width: 768px)").addEventListener("change", (e) => {
+      if (e.matches) setOpen(false);
+    });
+  }
+</script>

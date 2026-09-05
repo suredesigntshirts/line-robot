@@ -1,15 +1,15 @@
 /**
  * Journey: filter bar — property-type chip narrows the result set
- * Covers:  filter-bar island hydration + the property-type facet — selecting a type chip
- *          (1) updates the URL (?type=<value>), (2) marks the chip active (aria-pressed),
+ * Covers:  the SSR filter panel + the property-type facet — selecting a type chip
+ *          (1) updates the URL (?type=<value>), (2) marks the chip active (aria-current),
  *          (3) re-renders the result grid to the matching subset (the "Listings: N" count
- *          drops to the filtered total). Exercises the SearchFilters chip → navigate path.
+ *          drops to the filtered total).
  * Target:  both (data-driven — discovers the type chips + result counts from the page; asserts
  *          narrowing rather than an absolute count, so it adapts to whatever stock is published)
  * Added:   2026-06-14
  */
 import { expect, test } from "@playwright/test";
-import { capture, watchForErrors } from "../support.ts";
+import { capture, openFilters, watchForErrors } from "../support.ts";
 
 /** Read the rendered total from the "Listings: N" count line (null when the empty state shows). */
 async function listingTotal(page: import("@playwright/test").Page): Promise<number | null> {
@@ -20,9 +20,9 @@ async function listingTotal(page: import("@playwright/test").Page): Promise<numb
   return m ? Number(m[1]) : null;
 }
 
-/** The property-type group is the div holding the "Property type" label span + its chip row. */
+/** The property-type filter group (SSR link chips). */
 function typeGroup(page: import("@playwright/test").Page) {
-  return page.locator("div", { has: page.getByText("Property type", { exact: true }) }).last();
+  return page.locator('[data-filter-group="type"]');
 }
 
 test(
@@ -32,16 +32,17 @@ test(
     const problems = watchForErrors(page);
 
     // Unfiltered baseline.
-    await page.goto("/en/");
+    await page.goto("/en/properties");
+    await openFilters(page);
     const group = typeGroup(page);
-    await expect(group.getByRole("button").first()).toBeVisible(); // island hydrated
+    await expect(group.getByRole("link").first()).toBeVisible();
     const unfilteredTotal = await listingTotal(page);
-    expect(unfilteredTotal, "home should show a non-empty result count").not.toBeNull();
+    expect(unfilteredTotal, "browse should show a non-empty result count").not.toBeNull();
 
     // Pick a property type that has published stock so the filtered set is non-empty and we can
     // assert a real narrowing. "House" is the seed's most-stocked type; on live data it's the
     // dominant residential category, so this stays meaningful against staging too.
-    const chip = group.getByRole("button", { name: "House", exact: true });
+    const chip = group.getByRole("link", { name: "House", exact: true });
     test.skip((await chip.count()) === 0, "no House property-type chip");
     await chip.click();
 
@@ -49,9 +50,11 @@ test(
     await page.waitForURL(/type=house/);
 
     // 2. The chip is now active (selection reflected after the SSR reload).
-    await expect(
-      typeGroup(page).getByRole("button", { name: "House", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await openFilters(page);
+    await expect(typeGroup(page).getByRole("link", { name: "House", exact: true })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
 
     // 3. Results updated: the grid still renders a count and it is a subset of the unfiltered total.
     const filteredTotal = await listingTotal(page);

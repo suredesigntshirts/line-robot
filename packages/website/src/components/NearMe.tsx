@@ -1,4 +1,4 @@
-import { createTranslator, primaryButtonClass, type UiLocale } from "@line-robot/ui";
+import { createTranslator, type UiLocale } from "@line-robot/ui";
 import { useState } from "react";
 import {
   type BrowseQuery,
@@ -11,6 +11,7 @@ interface NearMeProps {
   /** The current browse query — preserved so "near me" composes with the active filters (CONV-08). */
   query: BrowseQuery;
   locale: UiLocale;
+  /** The locale-prefixed browse path the island navigates to. */
   basePath: string;
 }
 
@@ -26,17 +27,14 @@ const RADIUS_LABEL_KEY = {
 
 /**
  * CONV-08 "search near me" — a thin geolocation island (TECH-02: islands are for genuine browser
- * APIs; Geolocation qualifies). The button asks the browser for the user's position (privacy:
- * ask, don't demand — it's opt-in and the page works fully without it), then navigates to the SSR
- * radius search (?lat&lng&radius), which does the actual work. A full-page nav mirrors FilterBar.
+ * APIs). The button asks for the user's position (opt-in — the page works fully without it), then
+ * navigates to the SSR radius search (?lat&lng&radius), which does the actual work.
  * Permission-denied / unsupported / timeout all degrade to a clear message, never a broken state.
  */
 export function NearMe({ query, locale, basePath }: NearMeProps) {
   const t = createTranslator(locale);
   const [status, setStatus] = useState<Status>("idle");
-  // Keep an already-active radius selected, else default to 3 km (a neighbourhood; MKT-04).
   const [radiusM, setRadiusM] = useState<number>(query.near?.radiusM ?? DEFAULT_RADIUS_M);
-
   const active = query.near !== undefined;
 
   const locate = () => {
@@ -52,11 +50,10 @@ export function NearMe({ query, locale, basePath }: NearMeProps) {
           near: { lat: pos.coords.latitude, lng: pos.coords.longitude, radiusM },
           page: 1,
         };
-        // Navigate to the shareable SSR radius URL; the server runs the radius search there.
-        window.location.assign(`${basePath}/${browseQueryString(target)}`);
+        window.location.assign(`${basePath}${browseQueryString(target)}`);
       },
       (err) => {
-        // GeolocationPositionError: 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT.
+        // 1 = PERMISSION_DENIED, 2 = POSITION_UNAVAILABLE, 3 = TIMEOUT.
         setStatus(err.code === 1 ? "denied" : err.code === 3 ? "timeout" : "unavailable");
       },
       { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
@@ -65,7 +62,7 @@ export function NearMe({ query, locale, basePath }: NearMeProps) {
 
   const clear = () => {
     const { near: _near, ...rest } = query;
-    window.location.assign(`${basePath}/${browseQueryString({ ...rest, page: 1 })}`);
+    window.location.assign(`${basePath}${browseQueryString({ ...rest, page: 1 })}`);
   };
 
   const message =
@@ -78,40 +75,40 @@ export function NearMe({ query, locale, basePath }: NearMeProps) {
           : "";
 
   return (
-    <div style={{ display: "grid", gap: "var(--spacing-2)", fontFamily: "var(--font-body-th)" }}>
-      <div
-        style={{ display: "flex", gap: "var(--spacing-2)", alignItems: "center", flexWrap: "wrap" }}
-      >
+    <div className="grid gap-2 font-body-th" data-near-me>
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
           onClick={locate}
           disabled={status === "locating"}
-          className={`${primaryButtonClass}${status === "locating" ? " opacity-60" : ""}`}
+          className="inline-flex h-10 items-center gap-2 rounded-full border border-primary-200 bg-primary-50 px-4 font-semibold text-primary-700 text-sm leading-relaxed transition-colors hover:bg-primary-100 disabled:opacity-60"
         >
-          {status === "locating" ? t("near.locating") : `\u{1F4CD} ${t("near.button")}`}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="2" x2="5" y1="12" y2="12" />
+            <line x1="19" x2="22" y1="12" y2="12" />
+            <line x1="12" x2="12" y1="2" y2="5" />
+            <line x1="12" x2="12" y1="19" y2="22" />
+            <circle cx="12" cy="12" r="7" />
+          </svg>
+          {status === "locating" ? t("near.locating") : t("near.button")}
         </button>
-        <label
-          style={{
-            display: "flex",
-            gap: "var(--spacing-1)",
-            alignItems: "center",
-            fontSize: "var(--text-sm)",
-            color: "var(--color-text-2)",
-          }}
-        >
+        <label className="flex items-center gap-1.5 text-sm text-text-2 leading-relaxed">
           {t("near.radius")}
           <select
             value={radiusM}
             onChange={(e) => setRadiusM(Number(e.target.value))}
-            style={{
-              padding: "var(--spacing-1) var(--spacing-2)",
-              borderRadius: "var(--radius-md)",
-              border: "1px solid var(--color-border-2)",
-              background: "var(--color-surface)",
-              color: "var(--color-text)",
-              fontSize: "var(--text-sm)",
-              fontFamily: "var(--font-body-th)",
-            }}
+            className="rounded-md border border-border-2 bg-surface px-2 py-1 text-sm text-text leading-relaxed"
           >
             {RADIUS_OPTIONS_M.map((m) => (
               <option key={m} value={m}>
@@ -120,33 +117,22 @@ export function NearMe({ query, locale, basePath }: NearMeProps) {
             ))}
           </select>
         </label>
-        {active && (
-          <button
-            type="button"
-            onClick={clear}
-            style={{
-              padding: "var(--spacing-1) var(--spacing-3)",
-              borderRadius: "var(--radius-full)",
-              border: "1px dashed var(--color-border-2)",
-              background: "var(--color-surface)",
-              color: "var(--color-text-2)",
-              fontSize: "var(--text-sm)",
-              fontFamily: "var(--font-body-th)",
-              cursor: "pointer",
-            }}
-          >
-            {t("near.clear")}
-          </button>
-        )}
       </div>
+      {active && (
+        <button
+          type="button"
+          onClick={clear}
+          className="inline-flex w-fit items-center rounded-full border border-border-2 border-dashed px-3 py-1 text-sm text-text-2 leading-relaxed transition-colors hover:text-text"
+        >
+          {t("near.clear")}
+        </button>
+      )}
       {active && !message && (
-        <span style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>
-          {t("near.active")}
-        </span>
+        <span className="text-sm text-text-2 leading-relaxed">{t("near.active")}</span>
       )}
       {message && (
         // COPY-07 graceful failure: what + why + next; the page still works without location.
-        <span role="status" style={{ fontSize: "var(--text-sm)", color: "var(--color-text-2)" }}>
+        <span role="status" className="text-sm text-text-2 leading-relaxed">
           {message}
         </span>
       )}

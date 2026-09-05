@@ -1,69 +1,105 @@
 ---
-import type { PublicListingDetail } from "@line-robot/db";
+import {
+  getDb,
+  type PublicCardRow,
+  type PublicListingDetail,
+  searchPublicListings,
+} from "@line-robot/db";
 import { NO_SALE_DEED_TYPES } from "@line-robot/domain";
 import {
   AccordionSection,
   Badge,
   createTranslator,
   FieldList,
-  LineCtaButton,
   PriceDisplay,
   StatusBadge,
   type UiLocale,
 } from "@line-robot/ui";
 import Base from "../layouts/Base.astro";
+import { type CardRow, withHeroUrls } from "../lib/cards.ts";
 import { listingJsonLd, safeJsonLdScript } from "../lib/jsonLd.ts";
 import { presignThumbs } from "../lib/media.ts";
+import { lineOaUrl, localePath } from "../lib/site.ts";
+import Gallery from "./detail/Gallery.astro";
+import ListingGrid from "./ListingGrid.astro";
+import { ResultsMap } from "./ResultsMap.tsx";
+import Icon, { type IconName } from "./site/Icon.astro";
 
-// S4-I3: listing detail with the SEO deliverables (JSON-LD RealEstateListing,
-// OG, canonical, hreflang). Pure renderer — the routes own loading + status codes.
+/**
+ * Listing detail. Photo-first (CONV-04): gallery → title + badges → key facts → the asking price and
+ * LINE CTA in a sticky side panel (desktop) / a sticky bottom bar (phones) → spec table, lease/condo
+ * groups, description, provenance disclosure, map, poster + legal → similar listings. SEO: JSON-LD
+ * RealEstateListing + BreadcrumbList, OG image = the hero. Pure renderer — the route owns loading.
+ */
 interface Props {
   locale: UiLocale;
   detail: PublicListingDetail;
 }
 const { locale, detail } = Astro.props;
-
 const t = createTranslator(locale);
 const { listing } = detail;
-const basePath = locale === "en" ? "/en" : "";
-const canonicalPath = `${basePath}/properties/${listing.id}`;
+const canonicalPath = localePath(locale, `/properties/${listing.id}`);
+const browseHref = localePath(locale, "/properties");
+const oa = lineOaUrl();
 
 // 4.1 gallery: presign the hero-ordered photo thumbs; drop any that fail to sign (degrade, never 500).
-// The hero (first) feeds og:image + the JSON-LD image so shared links preview the listing's photo.
 const galleryUrls = (await presignThumbs(detail.photos.map((p) => p.thumbKey))).filter(
   (u): u is string => u !== null,
 );
 const heroUrl = galleryUrls[0];
 
-// TH-03 ruling (logged): land units stay Thai on both locales — they are the market's units.
+// Similar listings: same type in the same province (fallback: same province), newest first, minus self.
+let similar: CardRow[] = [];
+try {
+  const pick = async (propertyType: boolean) =>
+    (
+      await searchPublicListings(getDb(), {
+        lang: locale,
+        ...(propertyType ? { propertyType: listing.propertyType } : {}),
+        ...(listing.province ? { province: listing.province } : {}),
+        pageSize: 5,
+      })
+    ).rows.filter((r: PublicCardRow) => r.listing.id !== listing.id);
+  let rows = await pick(true);
+  if (rows.length < 2) rows = await pick(false);
+  similar = await withHeroUrls(rows.slice(0, 4));
+} catch (error) {
+  console.error("similar listings query failed:", error);
+}
+
+// TH-03 ruling: land units stay Thai on both locales — they are the market's units.
 const landParts: string[] = [];
 if (listing.landRai) landParts.push(`${listing.landRai} ไร่`);
 if (listing.landNgan) landParts.push(`${listing.landNgan} งาน`);
 if (listing.landWah) landParts.push(`${listing.landWah} ตร.ว.`);
+const landLabel = landParts.length > 0 ? landParts.join(" ") : listing.landSqm !== null ? `${listing.landSqm} ตร.ม.` : null;
+
+// Key-facts strip (CONV-04 above the fold): only the facts this listing has.
+const facts: Array<{ icon: IconName; label: string; value: string }> = [];
+if (listing.bedrooms !== null) facts.push({ icon: "bed", label: t("field.bedrooms"), value: String(listing.bedrooms) });
+if (listing.bathrooms !== null) facts.push({ icon: "bath", label: t("field.bathrooms"), value: String(listing.bathrooms) });
+if (listing.floorAreaSqm !== null) facts.push({ icon: "ruler", label: t("listing.floorArea"), value: `${listing.floorAreaSqm} ตร.ม.` });
+if (landLabel) facts.push({ icon: "land-plot", label: t("listing.landArea"), value: landLabel });
+facts.push({ icon: "house", label: t("filter.propertyType"), value: t(`ptype.${listing.propertyType}`) });
 
 // COPY-04: restricted-transfer deed types carry their warning right in the deed row.
-const deedValue = NO_SALE_DEED_TYPES.has(listing.titleDeedType)
+const deedRestricted = NO_SALE_DEED_TYPES.has(listing.titleDeedType);
+const deedValue = deedRestricted
   ? `${t(`deed.${listing.titleDeedType}`)} — ${t("deed.restricted")}`
   : t(`deed.${listing.titleDeedType}`);
 
-// F-10 road frontage: combine the access type and the width (เมตร) into one row; either may be absent.
 const roadParts: string[] = [];
 if (listing.roadType !== null) roadParts.push(t(`road.${listing.roadType}`));
 if (listing.roadAccessM !== null) roadParts.push(t("field.roadWidth", { m: listing.roadAccessM }));
-const roadValue = roadParts.length > 0 ? roadParts.join(" · ") : null;
 
 const fieldRows = [
   { label: t("filter.propertyType"), value: t(`ptype.${listing.propertyType}`) },
-  // COMP-06 new-vs-resale: a first-class buyer signal, shown as subtle meta (omit when unstated).
   ...(listing.saleCondition !== "unknown"
     ? [{ label: t("filter.newVsResale"), value: t(`condition.${listing.saleCondition}`) }]
     : []),
   { label: t("listing.deedSection"), value: deedValue },
-  ...(landParts.length > 0 ? [{ label: t("listing.landArea"), value: landParts.join(" ") }] : []),
-  ...(listing.floorAreaSqm !== null
-    ? [{ label: t("listing.floorArea"), value: `${listing.floorAreaSqm} ตร.ม.` }]
-    : []),
-  // FIELD-07: seller-disclosed flood history — shown whenever disclosed, never re-judged.
+  ...(landLabel ? [{ label: t("listing.landArea"), value: landLabel }] : []),
+  ...(listing.floorAreaSqm !== null ? [{ label: t("listing.floorArea"), value: `${listing.floorAreaSqm} ตร.ม.` }] : []),
   ...(listing.floodHistory !== null
     ? [{ label: t("field.flood"), value: t(listing.floodHistory ? "field.floodYes" : "field.floodNo") }]
     : []),
@@ -71,254 +107,311 @@ const fieldRows = [
     ? [
         {
           label: t("field.tenure"),
-          value:
-            listing.leaseYears !== null
-              ? `${listing.tenure} (${t("field.leaseYears", { count: listing.leaseYears })})`
-              : listing.tenure,
+          value: listing.leaseYears !== null ? `${listing.tenure} (${t("field.leaseYears", { count: listing.leaseYears })})` : listing.tenure,
         },
       ]
     : []),
-  ...(listing.projectName !== null
-    ? [{ label: t("field.project"), value: listing.projectName }]
-    : []),
-  // 4.8 plot/orientation fields — secondary "subtle meta" rows, omitted when absent.
-  // FIELD-11: seller-asserted facing is shown as-is, never re-judged.
-  ...(listing.facingDirection !== null
-    ? [{ label: t("field.facing"), value: t(`facing.${listing.facingDirection}`) }]
-    : []),
-  // F-10: road frontage = width (m) and/or access type; road_type=none carries its own warning copy.
-  ...(roadValue !== null ? [{ label: t("field.road"), value: roadValue }] : []),
-  // F-11: city-plan colour zone (free-text, e.g. "เหลือง"/"yellow") — shown verbatim.
+  ...(listing.projectName !== null ? [{ label: t("field.project"), value: listing.projectName }] : []),
+  ...(listing.facingDirection !== null ? [{ label: t("field.facing"), value: t(`facing.${listing.facingDirection}`) }] : []),
+  ...(roadParts.length > 0 ? [{ label: t("field.road"), value: roadParts.join(" · ") }] : []),
   ...(listing.cityPlanZoneColor !== null && listing.cityPlanZoneColor !== ""
     ? [{ label: t("field.zone"), value: listing.cityPlanZoneColor }]
     : []),
 ];
 
-// Condo detail group (FIELD-04/05): fees + foreign-quota, omit-when-absent. Floor/building/unit are
-// a 4.7 schema gap (no column on listing_condo) — not rendered here.
+// Condo group (FIELD-04/05), omit-when-absent.
 const condo = detail.condo;
-// FIELD-05 foreign quota: the project % and the availability flag are one concept — render a single
-// row, joining whichever are present ("49% ของโครงการ · มีโควตาต่างชาติว่าง").
 const foreignQuotaParts: string[] = [];
-if (condo?.projectForeignQuotaPct != null) {
-  foreignQuotaParts.push(t("field.foreignQuotaPct", { pct: condo.projectForeignQuotaPct }));
-}
-if (condo?.foreignQuotaAvailable != null) {
-  foreignQuotaParts.push(
-    t(condo.foreignQuotaAvailable ? "field.foreignQuotaAvailable" : "field.foreignQuotaFull"),
-  );
-}
+if (condo?.projectForeignQuotaPct != null) foreignQuotaParts.push(t("field.foreignQuotaPct", { pct: condo.projectForeignQuotaPct }));
+if (condo?.foreignQuotaAvailable != null)
+  foreignQuotaParts.push(t(condo.foreignQuotaAvailable ? "field.foreignQuotaAvailable" : "field.foreignQuotaFull"));
 const condoRows = condo
   ? [
-      ...(condo.camFeePerSqmMonth !== null
-        ? [{ label: t("field.camFee"), value: t("field.camFeeValue", { thb: condo.camFeePerSqmMonth }) }]
-        : []),
-      ...(condo.sinkingFundPerSqm !== null
-        ? [
-            {
-              label: t("field.sinkingFund"),
-              value: t("field.sinkingFundValue", { thb: condo.sinkingFundPerSqm }),
-            },
-          ]
-        : []),
-      ...(foreignQuotaParts.length > 0
-        ? [{ label: t("field.foreignQuota"), value: foreignQuotaParts.join(" · ") }]
-        : []),
-      ...(condo.quotaBucket !== null
-        ? [{ label: t("field.quotaBucket"), value: t(`quota.${condo.quotaBucket}`) }]
-        : []),
+      ...(condo.camFeePerSqmMonth !== null ? [{ label: t("field.camFee"), value: t("field.camFeeValue", { thb: condo.camFeePerSqmMonth }) }] : []),
+      ...(condo.sinkingFundPerSqm !== null ? [{ label: t("field.sinkingFund"), value: t("field.sinkingFundValue", { thb: condo.sinkingFundPerSqm }) }] : []),
+      ...(foreignQuotaParts.length > 0 ? [{ label: t("field.foreignQuota"), value: foreignQuotaParts.join(" · ") }] : []),
+      ...(condo.quotaBucket !== null ? [{ label: t("field.quotaBucket"), value: t(`quota.${condo.quotaBucket}`) }] : []),
     ]
   : [];
 
-// Rental lease-terms group (DEAL-11/FIELD-08/12), shown only for rentals. The monthly rent itself is
-// framed by PriceDisplay (MKT-03 "ค่าเช่า/เดือน"); this is the rest of the lease. utility=unknown is a
-// non-answer → omitted, like the other null rows.
+// Rental lease terms (DEAL-11/FIELD-08/12), rentals only.
 const rental = listing.dealType === "rent" ? detail.rental : null;
-// FIELD-12 furnishing: the status enum and the free-text notes are one concept — one row, joined.
 const furnishingParts: string[] = [];
 if (rental?.furnishingStatus != null) furnishingParts.push(t(`furnishing.${rental.furnishingStatus}`));
-if (rental?.furnishingNotes != null && rental.furnishingNotes !== "") {
-  furnishingParts.push(rental.furnishingNotes);
-}
+if (rental?.furnishingNotes != null && rental.furnishingNotes !== "") furnishingParts.push(rental.furnishingNotes);
 const rentalRows = rental
   ? [
-      ...(rental.depositMonths !== null
-        ? [{ label: t("field.deposit"), value: t("field.monthsValue", { count: rental.depositMonths }) }]
-        : []),
-      ...(rental.advanceMonths !== null
-        ? [{ label: t("field.advance"), value: t("field.monthsValue", { count: rental.advanceMonths }) }]
-        : []),
-      ...(rental.minLeaseMonths !== null
-        ? [{ label: t("field.minLease"), value: t("field.monthsValue", { count: rental.minLeaseMonths }) }]
-        : []),
-      ...(furnishingParts.length > 0
-        ? [{ label: t("field.furnishing"), value: furnishingParts.join(" — ") }]
-        : []),
-      ...(rental.petsAllowed !== null
-        ? [{ label: t("field.pets"), value: t(rental.petsAllowed ? "field.petsYes" : "field.petsNo") }]
-        : []),
+      ...(rental.depositMonths !== null ? [{ label: t("field.deposit"), value: t("field.monthsValue", { count: rental.depositMonths }) }] : []),
+      ...(rental.advanceMonths !== null ? [{ label: t("field.advance"), value: t("field.monthsValue", { count: rental.advanceMonths }) }] : []),
+      ...(rental.minLeaseMonths !== null ? [{ label: t("field.minLease"), value: t("field.monthsValue", { count: rental.minLeaseMonths }) }] : []),
+      ...(furnishingParts.length > 0 ? [{ label: t("field.furnishing"), value: furnishingParts.join(" — ") }] : []),
+      ...(rental.petsAllowed !== null ? [{ label: t("field.pets"), value: t(rental.petsAllowed ? "field.petsYes" : "field.petsNo") }] : []),
       ...(rental.utilityRateType !== null && rental.utilityRateType !== "unknown"
         ? [{ label: t("field.utilities"), value: t(`utility.${rental.utilityRateType}`) }]
         : []),
     ]
   : [];
 
-// DIST-01/02/P8 provenance disclosure (NPA / LED auction). Delivered CALMLY — a category note in
-// muted text, with the DIST-02 caveats as visible (non-collapsed) lines for auctions — NOT a red
-// alert banner (founder tone direction). `normal` listings get nothing. The calm NPA category badge
-// itself rides on StatusBadge above; this is the honest contextual text the register's P8 requires.
+// DIST-01/02/P8 provenance disclosure — calm, but the DIST-02 caveats stay visible for auctions.
 const provenanceNote =
-  listing.listingType === "npa"
-    ? t("provenance.npa")
-    : listing.listingType === "auction"
-      ? t("provenance.auction")
-      : null;
-// DIST-02: LED auction listings carry three mandatory caveats (as-is / may be occupied / verify title).
+  listing.listingType === "npa" ? t("provenance.npa") : listing.listingType === "auction" ? t("provenance.auction") : null;
 const auctionCaveats =
   listing.listingType === "auction"
-    ? [
-        t("provenance.auctionAsIs"),
-        t("provenance.auctionOccupied"),
-        t("provenance.auctionVerifyTitle"),
-      ]
+    ? [t("provenance.auctionAsIs"), t("provenance.auctionOccupied"), t("provenance.auctionVerifyTitle")]
     : [];
 
 const locationLine = [listing.landmark, listing.tambon, listing.amphoe, listing.province]
   .filter((p): p is string => p !== null && p !== "")
   .join(" · ");
+const updatedLabel = new Intl.DateTimeFormat(locale === "th" ? "th-TH" : "en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Bangkok",
+}).format(listing.updatedAt);
+const hasMap = detail.lat !== null && detail.lon !== null;
+const pins = hasMap
+  ? [{ id: listing.id, lat: detail.lat as number, lng: detail.lon as number, title: detail.headline, href: canonicalPath }]
+  : [];
 
-// CONV-06: the LINE chat CTA is wired when the founder configures the OA link
-// (Pulumi config → LINE_OA_URL env). Phone is never shown — not public data here.
-const lineOaUrl = import.meta.env.LINE_OA_URL ?? process.env.LINE_OA_URL ?? "";
+const pageUrl = new URL(canonicalPath, Astro.site).href;
+const jsonLd = safeJsonLdScript({
+  "@context": "https://schema.org",
+  "@graph": [
+    listingJsonLd(detail, pageUrl, galleryUrls),
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: t("nav.home"), item: new URL(localePath(locale, "/"), Astro.site).href },
+        { "@type": "ListItem", position: 2, name: t("nav.browse"), item: new URL(browseHref, Astro.site).href },
+        { "@type": "ListItem", position: 3, name: detail.headline, item: pageUrl },
+      ],
+    },
+  ],
+});
 
-const jsonLd = safeJsonLdScript(
-  listingJsonLd(detail, new URL(canonicalPath, Astro.site).href, galleryUrls),
-);
+const ctaClass =
+  "inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-line px-5 font-semibold text-base text-line-text no-underline leading-relaxed shadow-sm transition-opacity hover:opacity-90";
+const ghostClass =
+  "inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface px-3 font-medium text-sm text-text leading-relaxed transition-colors hover:border-primary-300 hover:text-primary-600";
 ---
 
-<Base
-  title={detail.headline}
-  description={locationLine}
-  canonicalPath={canonicalPath}
-  ogImage={heroUrl}
->
+<Base title={detail.headline} description={locationLine || detail.description.slice(0, 160)} canonicalPath={canonicalPath} ogImage={heroUrl} ogType="article">
   <script is:inline type="application/ld+json" set:html={jsonLd} slot="head" />
-  {/* data-th-content: the TH-07 line-height invariant (assertThaiBodyLineHeight) scans Thai body text
-      here too, not just listing cards — closes the detail-page coverage gap. */}
-  <main class="mx-auto grid max-w-3xl gap-4 px-4 py-4" data-th-content>
+  <main id="main" data-th-content class="container-site grid gap-6 pt-5 pb-28 md:gap-8 md:py-8" data-listing-id={listing.id}>
+    <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-1 text-sm text-text-2 leading-relaxed">
+      <a href={localePath(locale, "/")} class="shrink-0 no-underline hover:text-primary-600">{t("nav.home")}</a>
+      <Icon name="chevron-right" size={14} class="shrink-0 text-text-disabled" />
+      <a href={browseHref} class="shrink-0 no-underline hover:text-primary-600">{t("nav.browse")}</a>
+      <Icon name="chevron-right" size={14} class="shrink-0 text-text-disabled" />
+      <span class="truncate text-text" lang={locale}>{detail.headline}</span>
+    </nav>
 
-    <a href={`${basePath}/`} class="font-semibold text-primary-600 text-sm leading-relaxed">
-      ← {t("home.title")}
-    </a>
     {
-      galleryUrls.length > 0 && (
-        // CONV-04 photo-first: the hero leads the page. CONV-03: a thumbnail STRIP with a count, never
-        // dots-only. Zero client JS (TECH-01/02) — a scrollable strip; the hero is the first photo.
-        <section aria-label={t("listing.photos", { count: galleryUrls.length })} class="grid gap-2">
-          <div class="relative aspect-[4/3] overflow-hidden rounded-md bg-surface-2">
-            <img src={heroUrl} alt={detail.headline} class="h-full w-full object-cover" />
-            <span class="absolute right-2 bottom-2 inline-flex items-center rounded-sm bg-black/75 px-2 py-px font-latin text-white text-xs">
-              {t("listing.photos", { count: detail.photoCount })}
+      galleryUrls.length > 0 ? (
+        <Gallery urls={galleryUrls} photoCount={detail.photoCount} alt={detail.headline} locale={locale} />
+      ) : (
+        <div class="grid aspect-[16/7] place-items-center rounded-xl border border-border bg-gradient-to-br from-primary-50 to-primary-100 text-primary-400">
+          <div class="grid justify-items-center gap-2">
+            <Icon name="camera" size={40} strokeWidth={1.5} />
+            <span class="text-sm leading-relaxed">
+              {detail.photoCount > 0 ? t("listing.photos", { count: detail.photoCount }) : t("detail.noPhotos")}
             </span>
           </div>
-          {galleryUrls.length > 1 && (
-            <div class="flex gap-1 overflow-x-auto">
-              {galleryUrls.map((url, i) => (
-                <img
-                  src={url}
-                  alt={`${detail.headline} — ${i + 1}`}
-                  loading="lazy"
-                  class="h-[60px] flex-[0_0_80px] rounded-sm border border-border bg-surface-2 object-cover"
-                />
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
       )
     }
-    <h1 class="m-0 font-bold font-heading-th text-2xl text-text leading-normal" lang={locale}>
-      {detail.headline}
-    </h1>
-    <StatusBadge listing={listing} t={t} />
-    {/* DIST-01/02/P8: calm provenance disclosure for NPA / LED auction stock. A muted surface card
-        (NOT a danger banner — founder tone direction), but the DIST-02 caveats are visible text, not
-        collapsed. `normal` listings render nothing (omit-when-absent). */}
-    {provenanceNote !== null && (
-      <section
-        aria-label={t("provenance.heading")}
-        class="grid gap-2 rounded-md border border-border bg-surface-2 p-3"
-      >
-        <strong class="text-sm text-text leading-relaxed" lang={locale}>
-          {t("provenance.heading")}
-        </strong>
-        <p class="m-0 text-sm text-text-2 leading-relaxed" lang={locale}>
-          {provenanceNote}
-        </p>
-        {auctionCaveats.length > 0 && (
-          <ul class="m-0 grid gap-1 ps-5 text-sm text-text-2 leading-relaxed">
-            {auctionCaveats.map((c) => (
-              <li lang={locale}>{c}</li>
-            ))}
-          </ul>
+
+    <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
+      {/* ---------- main column ---------- */}
+      <article class="grid gap-6">
+        <header class="grid gap-3">
+          <StatusBadge listing={listing} t={t} />
+          <h1 class="font-bold font-heading-th text-2xl text-text leading-tight md:text-3xl" lang={locale}>{detail.headline}</h1>
+          {locationLine && (
+            <p lang="th" class="flex items-start gap-1.5 text-base text-text-2 leading-relaxed">
+              <Icon name="map-pin" size={18} class="mt-1 shrink-0 text-primary-500" />
+              <span>{locationLine}</span>
+            </p>
+          )}
+        </header>
+
+        {/* Price block — visible here on phones/tablets; the desktop aside carries it instead. */}
+        <div class="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3 lg:hidden">
+          <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} size="detail" t={t} />
+        </div>
+
+        <ul class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-5" aria-label={t("detail.keyFacts")}>
+          {facts.map((f) => (
+            <li class="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5">
+              <Icon name={f.icon} size={20} class="shrink-0 text-primary-500" />
+              <span class="grid min-w-0">
+                <span class="truncate text-text-2 text-xs leading-relaxed">{f.label}</span>
+                <span class="truncate font-semibold text-sm text-text leading-relaxed">{f.value}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+
+        {deedRestricted && (
+          <p class="flex items-start gap-2 rounded-lg border border-warn/40 bg-warn-bg px-4 py-3 text-sm text-text leading-relaxed">
+            <Icon name="triangle-alert" size={18} class="mt-0.5 shrink-0 text-warn" />
+            <span>{t("deed.restricted")}</span>
+          </p>
         )}
+
+        {provenanceNote !== null && (
+          <section aria-label={t("provenance.heading")} class="grid gap-2 rounded-xl border border-border bg-surface-2 p-4">
+            <strong class="flex items-center gap-2 text-sm text-text leading-relaxed" lang={locale}>
+              <Icon name="info" size={16} class="text-[var(--badge-npa-text)]" />
+              {t("provenance.heading")}
+            </strong>
+            <p class="text-sm text-text-2 leading-relaxed" lang={locale}>{provenanceNote}</p>
+            {auctionCaveats.length > 0 && (
+              <ul class="grid list-disc gap-1 ps-5 text-sm text-text-2 leading-relaxed">
+                {auctionCaveats.map((c) => <li lang={locale}>{c}</li>)}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {detail.description !== "" && (
+          <section class="grid gap-3">
+            <h2 class="font-heading-th font-semibold text-lg text-text leading-normal">{t("detail.description")}</h2>
+            <p lang={locale} class="whitespace-pre-wrap text-base text-text-2 leading-relaxed">{detail.description}</p>
+          </section>
+        )}
+
+        <section class="grid gap-3">
+          <h2 class="font-heading-th font-semibold text-lg text-text leading-normal">{t("detail.specSection")}</h2>
+          <FieldList rows={fieldRows} />
+        </section>
+
+        {rentalRows.length > 0 && (
+          <AccordionSection title={t("detail.rentalSection")} defaultOpen>
+            <FieldList rows={rentalRows} />
+          </AccordionSection>
+        )}
+        {condoRows.length > 0 && (
+          <AccordionSection title={t("detail.condoSection")} defaultOpen>
+            <FieldList rows={condoRows} />
+          </AccordionSection>
+        )}
+
+        {hasMap && (
+          <section class="grid gap-2">
+            <h2 class="font-heading-th font-semibold text-lg text-text leading-normal">{t("detail.location")}</h2>
+            <ResultsMap client:visible pins={pins} locale={locale} showTitle={false} />
+            <p class="text-sm text-text-disabled leading-relaxed">{t("detail.mapApprox")}</p>
+          </section>
+        )}
+
+        <footer class="grid gap-2 border-border border-t pt-4 text-sm text-text-2 leading-relaxed">
+          <p class="flex flex-wrap gap-x-3 gap-y-1">
+            {detail.posterName !== "" && <span>{t("listing.postedBy", { name: detail.posterName })}</span>}
+            <span data-testid="listing-updated">{t("listing.updated", { date: updatedLabel })}</span>
+            <span class="font-latin text-text-disabled">{t("detail.listingId")}: {listing.id.slice(0, 8)}</span>
+          </p>
+          <p>{t("legal.posterProvided")}</p>
+          {/* LEGAL-07: non-dismissible foreign-ownership disclaimer. */}
+          <p>{t("legal.foreignOwnership")}</p>
+        </footer>
+      </article>
+
+      {/* ---------- sticky side panel (desktop) ---------- */}
+      <aside class="hidden lg:sticky lg:top-24 lg:grid lg:gap-4 lg:self-start" aria-label={t("detail.contactHead")}>
+        <div class="grid gap-4 rounded-2xl border border-border bg-surface p-5 shadow-md">
+          <div class="rounded-xl border border-primary-100 bg-primary-50 px-4 py-3">
+            <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} size="detail" t={t} />
+          </div>
+          <div class="grid gap-1">
+            <h2 class="font-heading-th font-semibold text-md text-text leading-normal">{t("detail.contactHead")}</h2>
+            <p class="text-sm text-text-2 leading-relaxed">{t("detail.contactBody")}</p>
+          </div>
+          {oa !== "" && (
+            <a href={oa} data-cta="line" class={ctaClass}>
+              <Icon name="message-circle" size={20} />
+              {t("cta.chatLine")}
+            </a>
+          )}
+          <div class="flex gap-2" data-share>
+            <button type="button" data-share-native class={`${ghostClass} hidden`}>
+              <Icon name="share-2" size={16} />
+              {t("detail.share")}
+            </button>
+            <button type="button" data-copy-link data-copied-label={t("detail.copied")} data-label={t("detail.copyLink")} class={ghostClass}>
+              <Icon name="link" size={16} />
+              <span>{t("detail.copyLink")}</span>
+            </button>
+          </div>
+          {detail.posterName !== "" && (
+            <div class="flex items-center gap-3 border-border border-t pt-4">
+              <span class="flex size-10 items-center justify-center rounded-full bg-primary-50 text-primary-600">
+                <Icon name="user" size={18} />
+              </span>
+              <span class="grid min-w-0">
+                <span class="text-text-2 text-xs leading-relaxed">{t("detail.postedHead")}</span>
+                <span class="truncate font-semibold text-sm text-text leading-relaxed">{detail.posterName}</span>
+              </span>
+            </div>
+          )}
+        </div>
+        <p class="px-1 text-text-disabled text-xs leading-relaxed">{t("legal.posterProvided")}</p>
+      </aside>
+    </div>
+
+    {similar.length > 0 && (
+      <section class="grid gap-5 border-border border-t pt-8" aria-labelledby="similar-heading">
+        <div class="flex items-end justify-between gap-4">
+          <h2 id="similar-heading" class="font-bold font-heading-th text-2xl text-text leading-tight">{t("detail.similar")}</h2>
+          <a href={browseHref} class="inline-flex items-center gap-1 font-semibold text-primary-600 text-sm no-underline leading-relaxed hover:underline">
+            {t("home.viewAll")}
+            <Icon name="arrow-right" size={16} />
+          </a>
+        </div>
+        <ListingGrid rows={similar} locale={locale} columns="home" />
       </section>
     )}
-    {/* Direction-a tinted price block — the hero price sits in a primary-tinted card. */}
-    <div class="rounded-md border border-primary-100 bg-primary-50 px-4 py-3">
-      <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} size="detail" t={t} />
-    </div>
-    {/* TH-08: place names are verbatim Thai on both locales (like land units, TH-03) — tag the
-        container lang="th" so an /en/ page (html lang="en") still gets Thai line-breaking, not break-all. */}
-    <p lang="th" class="m-0 text-sm text-text-2 leading-relaxed">📍 {locationLine}</p>
-    {listing.bedrooms !== null && listing.bathrooms !== null && (
-      <p class="m-0 text-base text-text leading-relaxed">
-        {t("listing.bedrooms", { count: listing.bedrooms })} ·{" "}
-        {t("listing.bathrooms", { count: listing.bathrooms })}
-      </p>
-    )}
-    {lineOaUrl !== "" && <LineCtaButton lineHref={lineOaUrl} t={t} />}
-    {/* No renderable gallery yet (thumbs not derived) but photos exist: surface the count so the
-        listing doesn't look photo-less. When the gallery renders, it already shows the count. */}
-    {galleryUrls.length === 0 && detail.photoCount > 0 && (
-      <Badge kind="available">{t("listing.photos", { count: detail.photoCount })}</Badge>
-    )}
-    <FieldList rows={fieldRows} />
-    {/* 4.8 rental lease terms (MKT-03 monthly framing is on the price above) — its own labeled
-        group for rentals. Collapsed: the rent is above the fold; the lease terms are secondary
-        "subtle meta" (founder direction), so they sit in a closed accordion (P7/CONV-05). */}
-    {rentalRows.length > 0 && (
-      <AccordionSection title={t("detail.rentalSection")}>
-        <FieldList rows={rentalRows} />
-      </AccordionSection>
-    )}
-    {/* 4.8 condo-specific group (fees + foreign quota, FIELD-04/05). */}
-    {condoRows.length > 0 && (
-      <AccordionSection title={t("detail.condoSection")}>
-        <FieldList rows={condoRows} />
-      </AccordionSection>
-    )}
-    {detail.description !== "" && (
-      <AccordionSection title={t("detail.description")} defaultOpen>
-        <p lang={locale} class="m-0 whitespace-pre-wrap text-sm text-text-2 leading-relaxed">{detail.description}</p>
-      </AccordionSection>
-    )}
-    {detail.posterName !== "" && (
-      <p class="m-0 text-sm text-text-2 leading-relaxed">
-        {t("listing.postedBy", { name: detail.posterName })} ·{" "}
-        {/* data-testid lets the visual-regression suite mask this per-run date (plan 20). */}
-        <span data-testid="listing-updated">
-          {t("listing.updated", { date: listing.updatedAt.toISOString().slice(0, 10) })}
-        </span>
-      </p>
-    )}
-    <p class="m-0 text-sm text-text-2 leading-relaxed">
-      {t("legal.posterProvided")}
-    </p>
-    {/* LEGAL-07: non-dismissible foreign-ownership disclaimer (always shown, not a
-        closeable banner). The per-listing foreign-quota figures (FIELD-05) render in the
-        condo group above when present; this legal notice is the always-on backstop. */}
-    <p class="m-0 text-sm text-text-2 leading-relaxed">
-      {t("legal.foreignOwnership")}
-    </p>
   </main>
+
+  {/* ---------- sticky bottom bar (phones/tablets) ---------- */}
+  <div class="fixed inset-x-0 bottom-0 z-30 border-border border-t bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" data-sticky-cta>
+    <div class="container-site flex items-center gap-3 py-3">
+      <div class="min-w-0 flex-1">
+        <PriceDisplay listing={listing} monthlyRent={detail.monthlyRent} size="card" t={t} />
+      </div>
+      {oa !== "" && (
+        <a href={oa} data-cta="line" class="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-line px-5 font-semibold text-base text-line-text no-underline leading-relaxed shadow-sm">
+          <Icon name="message-circle" size={20} />
+          {t("cta.chatLine")}
+        </a>
+      )}
+    </div>
+  </div>
 </Base>
+
+<script>
+  // Share: native share sheet where available (phones), copy-link everywhere.
+  const shareBtn = document.querySelector<HTMLButtonElement>("[data-share-native]");
+  if (shareBtn && typeof navigator.share === "function") {
+    shareBtn.classList.remove("hidden");
+    shareBtn.addEventListener("click", () => {
+      navigator.share({ title: document.title, url: location.href }).catch(() => {});
+    });
+  }
+  const copyBtn = document.querySelector<HTMLButtonElement>("[data-copy-link]");
+  if (copyBtn) {
+    const label = copyBtn.querySelector("span");
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(location.href);
+        if (label) label.textContent = copyBtn.dataset.copiedLabel ?? "";
+        setTimeout(() => {
+          if (label) label.textContent = copyBtn.dataset.label ?? "";
+        }, 2000);
+      } catch {
+        /* clipboard blocked — nothing to do; the URL bar still works */
+      }
+    });
+  }
+</script>

@@ -1,0 +1,214 @@
+---
+import {
+  getDb,
+  listPublicProvinces,
+  type PublicCardRow,
+  searchPublicListings,
+} from "@line-robot/db";
+import { createTranslator, EmptyState, ErrorState, type MessageKey, type UiLocale } from "@line-robot/ui";
+import { createElement } from "react";
+import Base from "../layouts/Base.astro";
+import { type BrowseQuery, browseQueryString, parseBrowseQuery } from "../lib/browse.ts";
+import { type CardRow, withHeroUrls } from "../lib/cards.ts";
+import { localePath } from "../lib/site.ts";
+import FilterPanel from "./browse/FilterPanel.astro";
+import ListingGrid from "./ListingGrid.astro";
+import { NearMe } from "./NearMe.tsx";
+import Pagination from "./Pagination.astro";
+import { ResultsMap } from "./ResultsMap.tsx";
+import Icon from "./site/Icon.astro";
+
+/**
+ * Browse / search results: consented listings (LEGAL-02) filtered by the URL facets, list-first with
+ * a supplementary map on a radius search (CONV-08). Filters are SSR links (FilterPanel); the only
+ * islands are the genuine browser-API ones — geolocation (NearMe) and the Leaflet map.
+ */
+interface Props {
+  locale: UiLocale;
+}
+const { locale } = Astro.props;
+const t = createTranslator(locale);
+const browseHref = localePath(locale, "/properties");
+const PAGE_SIZE = 24;
+
+const query = parseBrowseQuery(Astro.url.searchParams);
+let cards: CardRow[] = [];
+let total = 0;
+let provinces: string[] = [];
+let dbError = false;
+try {
+  const result = await searchPublicListings(getDb(), {
+    lang: locale,
+    dealType: query.dealType,
+    propertyType: query.propertyType,
+    listingType: query.listingType,
+    saleCondition: query.saleCondition,
+    province: query.province,
+    amphoe: query.amphoe,
+    text: query.text,
+    priceBand: query.priceBand && { min: query.priceBand.min, max: query.priceBand.max },
+    near: query.near && { lat: query.near.lat, lon: query.near.lng, radiusM: query.near.radiusM },
+    page: query.page,
+    pageSize: PAGE_SIZE,
+  });
+  cards = await withHeroUrls(result.rows as PublicCardRow[]);
+  total = result.total;
+  query.page = result.page; // the repo clamps out-of-range deep links to the last page
+  try {
+    provinces = await listPublicProvinces(getDb());
+  } catch {
+    /* chips degrade to none; results still render */
+  }
+} catch (error) {
+  console.error("browse query failed:", error);
+  dbError = true;
+}
+const lastPage = Math.max(Math.ceil(total / PAGE_SIZE), 1);
+const hrefFor = (page: number) => `${browseHref}${browseQueryString({ ...query, page })}`;
+
+// Page title: deal context + optional type + optional place ("ประกาศขาย · บ้านเดี่ยว ใน สันทราย").
+const dealTitle =
+  query.dealType === "sale"
+    ? t("browse.titleSale")
+    : query.dealType === "rent"
+      ? t("browse.titleRent")
+      : t("browse.title");
+const place = query.amphoe ?? query.province;
+const titleParts = [dealTitle];
+if (query.propertyType) titleParts.push(t(`ptype.${query.propertyType}` as MessageKey));
+const title = `${titleParts.join(" · ")}${place ? ` ${t("browse.resultsIn", { place })}` : ""}`;
+
+// Active-filter summary chips (each removes itself). Mirrors the panel's semantics.
+const remove = (patch: Partial<BrowseQuery>) =>
+  `${browseHref}${browseQueryString({ ...query, ...patch, page: 1 })}`;
+const active: Array<{ label: string; href: string }> = [];
+if (query.dealType) active.push({ label: dealTitle, href: remove({ dealType: undefined, priceBand: undefined }) });
+if (query.priceBand) active.push({ label: t(query.priceBand.labelKey), href: remove({ priceBand: undefined }) });
+if (query.propertyType) active.push({ label: t(`ptype.${query.propertyType}` as MessageKey), href: remove({ propertyType: undefined }) });
+if (query.saleCondition) active.push({ label: t(`condition.${query.saleCondition}` as MessageKey), href: remove({ saleCondition: undefined }) });
+if (query.listingType) active.push({ label: t(`listingType.${query.listingType}` as MessageKey), href: remove({ listingType: undefined }) });
+if (query.province) active.push({ label: query.province, href: remove({ province: undefined, amphoe: undefined }) });
+if (query.amphoe) active.push({ label: query.amphoe, href: remove({ amphoe: undefined }) });
+if (query.text) active.push({ label: `“${query.text}”`, href: remove({ text: undefined }) });
+
+const showMap = query.near !== undefined && !dbError;
+const pins = showMap
+  ? cards
+      .filter((c) => c.lat !== null && c.lon !== null)
+      .map((c) => ({
+        id: c.listing.id,
+        lat: c.lat as number,
+        lng: c.lon as number,
+        title: c.headline,
+        href: localePath(locale, `/properties/${c.listing.id}`),
+      }))
+  : [];
+
+const retryLink = createElement("a", { href: `${Astro.url.pathname}${Astro.url.search}` }, t("error.retry"));
+const clearLink = createElement(
+  "a",
+  { href: browseHref, className: "font-semibold text-primary-600" },
+  t("browse.clearAll"),
+);
+---
+
+<Base
+  title={title}
+  description={t("site.description")}
+  canonicalPath={browseHref}
+  noindex={active.length > 0 || query.near !== undefined || query.page > 1}
+>
+  <main id="main" data-th-content class="container-site grid gap-6 py-6 md:py-8">
+    <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm text-text-2 leading-relaxed">
+      <a href={localePath(locale, "/")} class="no-underline hover:text-primary-600">{t("nav.home")}</a>
+      <Icon name="chevron-right" size={14} class="text-text-disabled" />
+      <span class="text-text">{t("nav.browse")}</span>
+    </nav>
+
+    <div class="grid gap-3">
+      <div class="flex flex-wrap items-end justify-between gap-3">
+        <h1 class="font-bold font-heading-th text-2xl text-text leading-tight md:text-3xl" lang={locale}>
+          {title}
+        </h1>
+        {
+          !dbError && (
+            <p class="font-medium text-sm text-text-2 leading-relaxed" data-results-count>{t("pager.count", { total })}</p>
+          )
+        }
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          data-filters-toggle
+          aria-controls="browse-filters"
+          aria-expanded="false"
+          class="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-surface px-4 font-medium text-sm text-text leading-relaxed md:hidden"
+        >
+          <Icon name="sliders" size={16} />
+          {t("browse.filters")}
+          {active.length > 0 && (
+            <span class="rounded-full bg-primary-500 px-1.5 font-latin text-surface text-xs">{active.length}</span>
+          )}
+        </button>
+        {
+          active.map((a) => (
+            <a
+              href={a.href}
+              class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-primary-700 text-sm leading-relaxed no-underline transition-colors hover:bg-primary-100"
+            >
+              {a.label}
+              <Icon name="x" size={12} />
+            </a>
+          ))
+        }
+        {
+          active.length > 1 && (
+            <a href={browseHref} class="text-sm text-text-2 leading-relaxed underline-offset-2 hover:underline">
+              {t("browse.clearAll")}
+            </a>
+          )
+        }
+      </div>
+    </div>
+
+    <div class="grid items-start gap-8 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr]">
+      <aside
+        id="browse-filters"
+        class="hidden grid gap-6 rounded-xl border border-border bg-surface p-4 md:sticky md:top-20 md:block md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto"
+        aria-label={t("browse.filters")}
+      >
+        <NearMe client:load query={query} locale={locale} basePath={browseHref} />
+        <hr class="border-border" />
+        <FilterPanel query={query} locale={locale} provinces={provinces} browseHref={browseHref} />
+      </aside>
+
+      <section class="grid gap-6" aria-live="polite">
+        {
+          dbError ? (
+            <ErrorState t={t} action={retryLink} />
+          ) : cards.length === 0 ? (
+            <EmptyState t={t} action={clearLink} />
+          ) : (
+            <ListingGrid rows={cards} locale={locale} columns="browse" />
+          )
+        }
+        {showMap && pins.length > 0 && <ResultsMap client:visible pins={pins} locale={locale} />}
+        {!dbError && <Pagination page={query.page} lastPage={lastPage} hrefFor={hrefFor} locale={locale} />}
+        {!dbError && cards.length > 0 && (
+          <p class="text-sm text-text-disabled leading-relaxed">{t("legal.posterProvided")}</p>
+        )}
+      </section>
+    </div>
+  </main>
+</Base>
+
+<script>
+  const btn = document.querySelector<HTMLButtonElement>("[data-filters-toggle]");
+  const panel = document.getElementById("browse-filters");
+  if (btn && panel) {
+    btn.addEventListener("click", () => {
+      const open = panel.classList.toggle("hidden") === false;
+      btn.setAttribute("aria-expanded", String(open));
+    });
+  }
+</script>

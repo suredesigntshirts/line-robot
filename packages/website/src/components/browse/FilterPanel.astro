@@ -1,0 +1,183 @@
+---
+import { listingType, propertyType, saleCondition } from "@line-robot/domain";
+import { createTranslator, type MessageKey, type UiLocale } from "@line-robot/ui";
+import {
+  type BrowseQuery,
+  browseQueryString,
+  findPriceBand,
+  priceBandsFor,
+} from "../../lib/browse.ts";
+import Icon from "../site/Icon.astro";
+
+/**
+ * Browse filters as plain LINKS (zero client JS — TECH-01/02): every chip is an <a> to the browse
+ * URL with that facet toggled, so filters are shareable, crawlable and work without hydration. The
+ * keyword search is a GET form that carries the active facets as hidden inputs. Single-select per
+ * group; the price bracket set follows the deal context (4.3) and is dropped when the deal changes.
+ */
+interface Props {
+  query: BrowseQuery;
+  locale: UiLocale;
+  provinces: string[];
+  /** The locale-prefixed browse path ("/properties" | "/en/properties"). */
+  browseHref: string;
+}
+const { query, locale, provinces, browseHref } = Astro.props;
+const t = createTranslator(locale);
+
+const href = (q: BrowseQuery) => `${browseHref}${browseQueryString({ ...q, page: 1 })}`;
+
+interface Chip {
+  value: string;
+  label: string;
+  active: boolean;
+  href: string;
+}
+interface Group {
+  id: string;
+  label: string;
+  chips: Chip[];
+}
+
+const group = (
+  id: string,
+  label: string,
+  options: readonly string[],
+  labelFor: (v: string) => string,
+  activeValue: string | undefined,
+  patch: (value: string | undefined) => BrowseQuery,
+): Group => ({
+  id,
+  label,
+  chips: options.map((value) => {
+    const active = activeValue === value;
+    return { value, label: labelFor(value), active, href: href(patch(active ? undefined : value)) };
+  }),
+});
+
+const groups: Group[] = [
+  group(
+    "deal",
+    t("filter.dealType"),
+    ["sale", "rent"],
+    (v) => t(v === "sale" ? "badge.forSale" : "badge.forRent"),
+    query.dealType,
+    // Switching the deal context drops the price bracket (a sale band can't apply to rent).
+    (v) => ({ ...query, dealType: v as BrowseQuery["dealType"], priceBand: undefined }),
+  ),
+  group(
+    "price",
+    query.dealType === "rent" ? t("filter.rentRange") : t("filter.priceRange"),
+    priceBandsFor(query.dealType).map((b) => b.id),
+    (v) => t(findPriceBand(query.dealType, v)?.labelKey as MessageKey),
+    query.priceBand?.id,
+    (v) => ({ ...query, priceBand: findPriceBand(query.dealType, v ?? null) }),
+  ),
+  group(
+    "type",
+    t("filter.propertyType"),
+    propertyType.options,
+    (v) => t(`ptype.${v}` as MessageKey),
+    query.propertyType,
+    (v) => ({ ...query, propertyType: v as BrowseQuery["propertyType"] }),
+  ),
+  group(
+    "cond",
+    t("filter.newVsResale"),
+    saleCondition.options.filter((v) => v !== "unknown"),
+    (v) => t(`condition.${v}` as MessageKey),
+    query.saleCondition,
+    (v) => ({ ...query, saleCondition: v as BrowseQuery["saleCondition"] }),
+  ),
+  group(
+    "ltype",
+    t("filter.npa"),
+    listingType.options.filter((v) => v !== "normal"),
+    (v) => t(`listingType.${v}` as MessageKey),
+    query.listingType,
+    (v) => ({ ...query, listingType: v as BrowseQuery["listingType"] }),
+  ),
+  ...(provinces.length > 1
+    ? [
+        group(
+          "province",
+          t("filter.province"),
+          provinces,
+          (v) => v,
+          query.province,
+          // A province change invalidates a district picked under another province.
+          (v) => ({ ...query, province: v, amphoe: undefined }),
+        ),
+      ]
+    : []),
+];
+
+// Hidden inputs so the keyword form keeps every active facet (everything but q + page).
+const hidden = [...new URLSearchParams(browseQueryString({ ...query, text: undefined, page: 1 }))];
+const anyActive = groups.some((g) => g.chips.some((c) => c.active)) || !!query.text || !!query.amphoe;
+const chipClass = (active: boolean) =>
+  `inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-3 py-1 text-sm leading-relaxed no-underline transition-colors ${
+    active
+      ? "border-primary-500 bg-primary-500 font-semibold text-surface"
+      : "border-border-2 bg-surface text-text-2 hover:border-primary-300 hover:text-text"
+  }`;
+---
+
+<div class="grid gap-5" data-filter-panel>
+  <form action={browseHref} method="get" role="search" class="grid gap-2">
+    {hidden.map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+    <label class="flex items-center gap-2 rounded-full border border-border bg-surface px-3 focus-within:border-primary-400">
+      <Icon name="search" size={16} class="shrink-0 text-text-disabled" />
+      <span class="sr-only">{t("browse.keyword")}</span>
+      <input
+        type="search"
+        name="q"
+        value={query.text ?? ""}
+        maxlength="100"
+        lang={locale}
+        placeholder={t("filter.searchPlaceholder")}
+        class="min-w-0 flex-1 bg-transparent py-2 text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
+      />
+    </label>
+    <button
+      type="submit"
+      data-cta-solid
+      class="inline-flex h-10 items-center justify-center rounded-full bg-primary-500 px-4 font-semibold text-sm text-surface leading-relaxed transition-opacity hover:opacity-90"
+    >
+      {t("filter.search")}
+    </button>
+  </form>
+
+  {
+    groups.map((g) => (
+      <fieldset class="grid gap-2" data-filter-group={g.id}>
+        <legend class="mb-2 font-heading-th font-semibold text-sm text-text leading-normal">{g.label}</legend>
+        <div class="flex flex-wrap gap-1.5">
+          {g.chips.map((c) => (
+            <a
+              href={c.href}
+              aria-current={c.active ? "page" : undefined}
+              data-cta-solid={c.active || undefined}
+              class={chipClass(c.active)}
+            >
+              {c.label}
+              {c.active && <Icon name="x" size={12} />}
+            </a>
+          ))}
+        </div>
+      </fieldset>
+    ))
+  }
+
+  {
+    anyActive && (
+      <a
+        href={href({ page: 1, ...(query.near ? { near: query.near } : {}) })}
+        class="inline-flex w-fit items-center gap-1 rounded-full border border-border-2 border-dashed px-3 py-1 text-sm text-text-2 leading-relaxed no-underline transition-colors hover:text-text"
+      >
+        <Icon name="x" size={12} />
+        {t("browse.clearAll")}
+      </a>
+    )
+  }
+</div>

@@ -1,17 +1,16 @@
 /**
  * Journey: price-band chip narrows the result set (4.3 contextual price filter)
- * Covers:  filter-bar island hydration + the 4.3 ?price= facet AS A FILTER (not just the Buy↔Rent
+ * Covers:  the SSR filter panel + the 4.3 ?price= facet AS A FILTER (not just the Buy↔Rent
  *          relabel that price-filter-relabel.spec.ts already covers). Selecting a sale asking-price
- *          bracket (1) updates the URL (?price=<id>), (2) marks the chip active (aria-pressed),
+ *          bracket (1) updates the URL (?price=<id>), (2) marks the chip active (aria-current),
  *          (3) narrows the result grid to the matching subset (the "Listings: N" count drops but
- *          stays non-empty). Exercises the SearchFilters chip → FilterBar.findPriceBand → navigate
- *          path the teammate's 4.3 change introduced.
+ *          stays non-empty).
  * Target:  both (asserts narrowing, not an absolute count, so it adapts to live stock too — but the
  *          chosen bracket is one the local seed populates: the ฿4.5M sale house lands in ฿3–5M).
  * Added:   2026-06-14
  */
 import { expect, test } from "@playwright/test";
-import { capture, watchForErrors } from "../support.ts";
+import { capture, openFilters, watchForErrors } from "../support.ts";
 
 /** Read the rendered total from the "Listings: N" count line (null when the empty state shows). */
 async function listingTotal(page: import("@playwright/test").Page): Promise<number | null> {
@@ -29,16 +28,18 @@ test(
     const problems = watchForErrors(page);
 
     // Unfiltered baseline — /en/ so the count line + chip labels are in English.
-    await page.goto("/en/");
-    await expect(page.getByText("Price range", { exact: true })).toBeVisible(); // island hydrated
+    await page.goto("/en/properties");
+    await openFilters(page);
+    const panel = page.locator("[data-filter-panel]");
+    await expect(panel.getByText("Price range", { exact: true })).toBeVisible();
     const unfilteredTotal = await listingTotal(page);
-    expect(unfilteredTotal, "home should show a non-empty result count").not.toBeNull();
+    expect(unfilteredTotal, "browse should show a non-empty result count").not.toBeNull();
 
     // The "฿3–5M" sale bracket (price band id s2) — the seed's ฿4.5M sale house lands in it, so the
     // filtered set is non-empty AND smaller than the unfiltered set (the ฿2.9M NPA house is in
     // ฿1–3M, the rent condo has no asking price). This is the README's "filter on a value the seed
     // actually has" rule for a real narrowing assertion.
-    const band = page.getByRole("button", { name: "฿3–5M", exact: true });
+    const band = panel.getByRole("link", { name: "฿3–5M", exact: true });
     test.skip((await band.count()) === 0, "no ฿3–5M price-band chip");
     await band.click();
 
@@ -46,10 +47,10 @@ test(
     await page.waitForURL(/price=s2/);
 
     // 2. The chip is now active after the SSR reload.
-    await expect(page.getByRole("button", { name: "฿3–5M", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await openFilters(page);
+    await expect(
+      page.locator("[data-filter-panel]").getByRole("link", { name: "฿3–5M", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
 
     // 3. Results narrowed: still a count, non-empty, and a subset of the unfiltered total.
     const filteredTotal = await listingTotal(page);

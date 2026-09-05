@@ -7,14 +7,19 @@ import { capture, discoverDetailPaths } from "./support.ts";
 // qualitative design-alignment review, NOT pixel regression (deferred to design lock-in). Runs on
 // every e2e run so the gallery is always fresh for the founder / a reviewing agent.
 
-test("capture: home (browse)", async ({ page }, testInfo) => {
+test("capture: home", async ({ page }, testInfo) => {
   await page.goto("/");
   await capture(page, "home", testInfo);
 });
 
-test("capture: home filtered to rent", async ({ page }, testInfo) => {
-  await page.goto("/?deal=rent");
-  await capture(page, "home-rent", testInfo);
+test("capture: browse", async ({ page }, testInfo) => {
+  await page.goto("/properties");
+  await capture(page, "browse", testInfo);
+});
+
+test("capture: browse filtered to rent", async ({ page }, testInfo) => {
+  await page.goto("/properties?deal=rent");
+  await capture(page, "browse-rent", testInfo);
 });
 
 test("capture: listing detail", async ({ page }, testInfo) => {
@@ -25,6 +30,6 @@ test("capture: listing detail", async ({ page }, testInfo) => {
 });
 
 test("capture: empty state", async ({ page }, testInfo) => {
-  await page.goto("/?q=zzqqx-no-such-listing-12345");
+  await page.goto("/properties?q=zzqqx-no-such-listing-12345");
   await capture(page, "empty", testInfo);
 });

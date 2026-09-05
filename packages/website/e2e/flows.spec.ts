@@ -35,7 +35,7 @@ test.describe("render invariants (data-driven)", () => {
 
   test("empty result set renders a healthy empty state, not a 500", async ({ page }) => {
     const problems = watchForErrors(page);
-    const res = await page.goto("/?q=zzqqx-no-such-listing-12345");
+    const res = await page.goto("/properties?q=zzqqx-no-such-listing-12345");
     expect(res?.status() ?? 0, "empty search must not 5xx").toBeLessThan(500);
     await assertThemeApplies(page);
     expect(problems(), "no errors on the empty state").toEqual([]);

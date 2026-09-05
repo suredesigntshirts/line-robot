@@ -1,0 +1,171 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import Icon from "../site/Icon.astro";
+
+/**
+ * Detail photo gallery (CONV-03/04): a photo-first mosaic — hero + two supporting shots on desktop,
+ * hero + a thumbnail strip on phones — with an explicit count (never dots-only). Any photo opens a
+ * full-screen <dialog> lightbox (native focus trap + Escape) with prev/next, keyboard arrows and a
+ * position counter. Zero framework JS: one small vanilla script.
+ */
+interface Props {
+  urls: string[];
+  /** Total photos the listing has (may exceed `urls` when some lack a web derivative yet). */
+  photoCount: number;
+  alt: string;
+  locale: UiLocale;
+}
+const { urls, photoCount, alt, locale } = Astro.props;
+const t = createTranslator(locale);
+const count = Math.max(photoCount, urls.length);
+const extra = Math.max(count - 3, 0);
+const tileClass =
+  "group relative block h-full w-full overflow-hidden rounded-xl bg-surface-2 text-left focus-visible:ring-2 focus-visible:ring-primary-500";
+const imgClass = "h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]";
+---
+
+<section data-gallery data-photo-count={urls.length} class="grid gap-2" aria-label={t("listing.photos", { count })}>
+  <div class="grid gap-2 md:h-[440px] md:grid-cols-[2fr_1fr] md:grid-rows-2 lg:h-[500px]">
+    <button type="button" data-lightbox-open="0" class={`${tileClass} aspect-[4/3] md:row-span-2 md:aspect-auto`} aria-label={t("detail.galleryOpen")}>
+      <img src={urls[0]} alt={alt} width="640" height="480" fetchpriority="high" decoding="async" class={imgClass} />
+      <span class="absolute bottom-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-3 py-1 font-latin font-semibold text-white text-xs backdrop-blur-sm">
+        <Icon name="camera" size={14} />
+        {t("listing.photos", { count })}
+      </span>
+      <span class="absolute right-3 bottom-3 hidden items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 font-semibold text-text text-xs leading-relaxed shadow-sm md:inline-flex">
+        <Icon name="maximize" size={14} />
+        {t("detail.galleryOpen")}
+      </span>
+    </button>
+    {
+      urls.slice(1, 3).map((url, i) => (
+        <button type="button" data-lightbox-open={i + 1} class={`${tileClass} hidden md:block`} aria-label={`${alt} ${i + 2}`}>
+          <img src={url} alt={`${alt} ${i + 2}`} width="640" height="480" loading="lazy" decoding="async" class={imgClass} />
+          {i === 1 && extra > 0 && (
+            <span class="absolute inset-0 flex items-center justify-center bg-black/45 font-heading-th font-semibold text-white text-xl">
+              +{extra}
+            </span>
+          )}
+        </button>
+      ))
+    }
+  </div>
+
+  {
+    urls.length > 1 && (
+      <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
+        {urls.map((url, i) => (
+          <button
+            type="button"
+            data-lightbox-open={i}
+            class="relative aspect-[4/3] w-20 shrink-0 overflow-hidden rounded-lg border border-border bg-surface-2"
+            aria-label={`${alt} ${i + 1}`}
+          >
+            <img src={url} alt="" width="160" height="120" loading="lazy" decoding="async" class="h-full w-full object-cover" />
+          </button>
+        ))}
+      </div>
+    )
+  }
+
+  <dialog
+    data-lightbox
+    class="m-0 h-dvh max-h-none w-screen max-w-none bg-black/95 p-0 text-white backdrop:bg-black/80"
+    aria-label={t("listing.photos", { count })}
+  >
+    <div class="relative flex h-full flex-col">
+      <div class="flex items-center justify-between px-4 py-3">
+        <span data-lightbox-counter class="font-latin font-semibold text-sm text-white/90">1 / {urls.length}</span>
+        <button
+          type="button"
+          data-lightbox-close
+          aria-label={t("gallery.close")}
+          class="flex size-10 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"
+        >
+          <Icon name="x" size={22} />
+        </button>
+      </div>
+      <div data-lightbox-strip class="flex min-h-0 flex-1 snap-x snap-mandatory items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {
+          urls.map((url, i) => (
+            <figure class="flex h-full w-full shrink-0 snap-center items-center justify-center p-4 [scroll-snap-stop:always]">
+              <img src={url} alt={`${alt} ${i + 1}`} loading="lazy" decoding="async" class="max-h-full max-w-full rounded-lg object-contain" />
+            </figure>
+          ))
+        }
+      </div>
+      {
+        urls.length > 1 && (
+          <>
+            <button
+              type="button"
+              data-lightbox-prev
+              aria-label={t("detail.galleryPrev")}
+              class="-translate-y-1/2 absolute top-1/2 left-3 flex size-11 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"
+            >
+              <Icon name="chevron-left" size={26} />
+            </button>
+            <button
+              type="button"
+              data-lightbox-next
+              aria-label={t("detail.galleryNext")}
+              class="-translate-y-1/2 absolute top-1/2 right-3 flex size-11 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"
+            >
+              <Icon name="chevron-right" size={26} />
+            </button>
+          </>
+        )
+      }
+    </div>
+  </dialog>
+</section>
+
+<script>
+  const gallery = document.querySelector<HTMLElement>("[data-gallery]");
+  const dialog = gallery?.querySelector<HTMLDialogElement>("[data-lightbox]");
+  const strip = gallery?.querySelector<HTMLElement>("[data-lightbox-strip]");
+  if (gallery && dialog && strip) {
+    const slides = () => [...strip.children] as HTMLElement[];
+    const counter = gallery.querySelector<HTMLElement>("[data-lightbox-counter]");
+    const total = slides().length;
+    const current = () => Math.round(strip.scrollLeft / Math.max(strip.clientWidth, 1));
+    const show = (i: number, smooth = true) => {
+      const idx = Math.max(0, Math.min(i, total - 1));
+      strip.scrollTo({ left: idx * strip.clientWidth, behavior: smooth ? "smooth" : "auto" });
+    };
+    const updateCounter = () => {
+      if (counter) counter.textContent = `${current() + 1} / ${total}`;
+    };
+    strip.addEventListener("scroll", updateCounter, { passive: true });
+
+    for (const btn of gallery.querySelectorAll<HTMLButtonElement>("[data-lightbox-open]")) {
+      btn.addEventListener("click", () => {
+        const i = Number(btn.dataset.lightboxOpen ?? 0);
+        dialog.showModal();
+        document.body.style.overflow = "hidden";
+        requestAnimationFrame(() => {
+          show(i, false);
+          updateCounter();
+        });
+      });
+    }
+    const close = () => {
+      dialog.close();
+      document.body.style.overflow = "";
+    };
+    gallery.querySelector("[data-lightbox-close]")?.addEventListener("click", close);
+    gallery.querySelector("[data-lightbox-prev]")?.addEventListener("click", () => show(current() - 1));
+    gallery.querySelector("[data-lightbox-next]")?.addEventListener("click", () => show(current() + 1));
+    dialog.addEventListener("close", () => {
+      document.body.style.overflow = "";
+    });
+    // Click on the dark backdrop (outside any figure/button) closes.
+    dialog.addEventListener("click", (e) => {
+      if (e.target === dialog || e.target === strip) close();
+    });
+    dialog.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") show(current() + 1);
+      if (e.key === "ArrowLeft") show(current() - 1);
+    });
+  }
+</script>

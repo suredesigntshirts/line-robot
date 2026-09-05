@@ -1,0 +1,10 @@
+---
+import { getEntry } from "astro:content";
+import StaticPage from "../../components/StaticPage.astro";
+
+const slug = Astro.params.page ?? "";
+const entry = /^[a-z-]+$/.test(slug) ? await getEntry("pages", `en/${slug}`) : undefined;
+if (!entry) return Astro.rewrite("/404");
+---
+
+<StaticPage locale="en" slug={slug} entry={entry} />

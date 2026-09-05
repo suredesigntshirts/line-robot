@@ -1,0 +1,25 @@
+---
+import { createTranslator, ListingCard, type UiLocale } from "@line-robot/ui";
+import { type CardRow, listingCardProps } from "../lib/cards.ts";
+
+/**
+ * Server-rendered listing card grid (no hydration — the cards are links). Responsive: a single
+ * comfortable column on phones, filling with ~280px cards as width allows (TH-09/TH-11).
+ */
+interface Props {
+  rows: CardRow[];
+  locale: UiLocale;
+  /** Column preset: "browse" (results, denser) or "home" (4-up on desktop). */
+  columns?: "browse" | "home";
+}
+const { rows, locale, columns = "browse" } = Astro.props;
+const t = createTranslator(locale);
+const gridClass =
+  columns === "home"
+    ? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+    : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3";
+---
+
+<div class={gridClass} data-listing-grid>
+  {rows.map((row) => <ListingCard {...listingCardProps(row, locale, t)} />)}
+</div>

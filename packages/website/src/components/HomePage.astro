@@ -1,144 +1,375 @@
 ---
 import {
   getDb,
-  listPublicProvinces,
   type PublicCardRow,
+  type PublicFacets,
+  publicListingFacets,
   searchPublicListings,
 } from "@line-robot/db";
-import { createTranslator, ErrorState, type UiLocale } from "@line-robot/ui";
+import { createTranslator, EmptyState, ErrorState, type UiLocale } from "@line-robot/ui";
 import { createElement } from "react";
-import { BrowseResults, type CardRow } from "../components/BrowseResults.tsx";
-import { FilterBar } from "../components/FilterBar.tsx";
-import { NearMe } from "../components/NearMe.tsx";
-import { ResultsMap } from "../components/ResultsMap.tsx";
 import Base from "../layouts/Base.astro";
-import { parseBrowseQuery } from "../lib/browse.ts";
-import { presignThumbs } from "../lib/media.ts";
+import { type CardRow, withHeroUrls } from "../lib/cards.ts";
+import { lineOaUrl, localePath } from "../lib/site.ts";
+import ListingGrid from "./ListingGrid.astro";
+import Icon, { type IconName } from "./site/Icon.astro";
+import SectionHeading from "./site/SectionHeading.astro";
 
-// S4-I2: the browse page — consented listings (LEGAL-02) from Postgres with
-// filters + pagination. Shared by the th (/) and en (/en/) routes.
+/**
+ * The marketing home: hero + search, browse-by-type, the latest listings, why-us, how-it-works and
+ * popular districts. Everything is server-rendered from the consented catalog (LEGAL-02) — zero
+ * client JS on this page. Shared by the th (/) and en (/en/) routes.
+ */
 interface Props {
   locale: UiLocale;
 }
 const { locale } = Astro.props;
 const t = createTranslator(locale);
-const basePath = locale === "en" ? "/en" : "";
-const PAGE_SIZE = 24;
+const oa = lineOaUrl();
+const browseHref = localePath(locale, "/properties");
 
-// COPY-07 "next" for the SSR error state (a JSX prop can't be written in an Astro template).
-// Keep the query string so a retry after a transient DB error preserves the user's filters.
-const retryLink = createElement(
-  "a",
-  { href: `${Astro.url.pathname}${Astro.url.search}` },
-  t("error.retry"),
-);
-
-const query = parseBrowseQuery(Astro.url.searchParams);
-let cards: CardRow[] = [];
-let total = 0;
-let provinces: string[] = [];
+let latest: CardRow[] = [];
+let facets: PublicFacets = { total: 0, byPropertyType: [], byArea: [] };
 let dbError = false;
 try {
-  const result = await searchPublicListings(getDb(), {
-    lang: locale,
-    dealType: query.dealType,
-    propertyType: query.propertyType,
-    listingType: query.listingType,
-    saleCondition: query.saleCondition,
-    province: query.province,
-    text: query.text,
-    // 4.3: the contextual price bracket — the repo applies it to price_thb (sale/no deal) or
-    // monthly_rent (rent) per query.dealType. Pass only the THB bounds the SQL needs.
-    priceBand: query.priceBand && { min: query.priceBand.min, max: query.priceBand.max },
-    // CONV-08: a radius search (?lat&lng&radius) restricts to listings near the point, nearest first.
-    near: query.near && {
-      lat: query.near.lat,
-      lon: query.near.lng,
-      radiusM: query.near.radiusM,
-    },
-    page: query.page,
-    pageSize: PAGE_SIZE,
-  });
-  // Presign each card's hero thumb (4.1). Done in the page (async) — the card is a sync SSR island.
-  const heroUrls = await presignThumbs(result.rows.map((r: PublicCardRow) => r.heroThumbKey));
-  cards = result.rows.map((r: PublicCardRow, i: number) => ({ ...r, heroUrl: heroUrls[i] ?? null }));
-  total = result.total;
-  query.page = result.page; // repo clamps out-of-range deep links to the last page
-  try {
-    provinces = await listPublicProvinces(getDb());
-  } catch {
-    /* chips degrade to none; results still render */
-  }
+  const [result, f] = await Promise.all([
+    searchPublicListings(getDb(), { lang: locale, page: 1, pageSize: 8 }),
+    publicListingFacets(getDb(), 10),
+  ]);
+  latest = await withHeroUrls(result.rows as PublicCardRow[]);
+  facets = f;
 } catch (error) {
-  // Render degrades to an error state rather than a 500 (DB down / not configured).
-  console.error("browse query failed:", error);
+  console.error("home query failed:", error);
   dbError = true;
 }
 
-// CONV-08: on a radius search, a supplementary map of the result pins (only listings with coords).
-// TECH-01: it's a lazy island, so the static list keeps its zero-JS; the list stays primary.
-const showMap = query.near !== undefined && !dbError;
-const pins = showMap
-  ? cards
-      .filter((c) => c.lat !== null && c.lon !== null)
-      .map((c) => ({
-        id: c.listing.id,
-        lat: c.lat as number,
-        lng: c.lon as number,
-        title: c.headline,
-        href: `${basePath}/properties/${c.listing.id}`,
-      }))
-  : [];
+// Browse-by-type tiles: the main categories, in a fixed order, only those with public stock.
+const TYPE_ICONS: Record<string, IconName> = {
+  house: "house",
+  condo: "building-2",
+  land: "land-plot",
+  townhouse: "building",
+  commercial: "store",
+};
+const typeTiles = ["house", "condo", "land", "townhouse", "commercial"]
+  .map((type) => ({
+    type,
+    icon: TYPE_ICONS[type],
+    count: facets.byPropertyType.find((r) => r.propertyType === type)?.count ?? 0,
+  }))
+  .filter((tile) => tile.count > 0);
+
+const heroPhotos = latest.map((r) => r.heroUrl).filter((u): u is string => u !== null).slice(0, 3);
+
+const why: Array<{ icon: IconName; title: string; body: string }> = [
+  { icon: "shield-check", title: t("home.why1Title"), body: t("home.why1Body") },
+  { icon: "banknote", title: t("home.why2Title"), body: t("home.why2Body") },
+  { icon: "message-circle", title: t("home.why3Title"), body: t("home.why3Body") },
+  { icon: "lock", title: t("home.why4Title"), body: t("home.why4Body") },
+];
+const steps = [
+  { title: t("home.how1Title"), body: t("home.how1Body") },
+  { title: t("home.how2Title"), body: t("home.how2Body") },
+  { title: t("home.how3Title"), body: t("home.how3Body") },
+];
+
+const retryLink = createElement("a", { href: `${Astro.url.pathname}` }, t("error.retry"));
+const browseLink = createElement(
+  "a",
+  { href: browseHref, className: "font-semibold text-primary-600" },
+  t("notFound.browse"),
+);
 ---
 
 <Base
-  title={t("home.title")}
-  description={t("home.description")}
-  canonicalPath={locale === "en" ? "/en/" : "/"}
+  title={t("site.name")}
+  rawTitle={false}
+  description={t("site.description")}
+  canonicalPath={localePath(locale, "/")}
 >
-  {/* Direction-a sticky app-header: trust-blue-tinted surface bar with the brand mark. The brand is a
-      house glyph + the site title (no invented wordmark — see FOUNDER-QUEUE; the mock's search sits
-      INSIDE the header, ours is the FilterBar pill just below to avoid splitting the search island). */}
-  <header class="sticky top-0 z-10 border-border border-b bg-surface shadow-xs">
-    <div class="mx-auto flex max-w-5xl items-center gap-2 px-4 py-2.5">
-      <a
-        href={`${basePath}/`}
-        class="flex items-center gap-1.5 font-bold font-heading-th text-lg text-primary-600 no-underline"
+  <main id="main" data-th-content data-rendered-at={new Date().toISOString()}>
+    {/* ---------------- HERO ---------------- */}
+    <section class="relative isolate overflow-hidden bg-brand-700 text-white" data-hero>
+      <div
+        class="absolute inset-0 -z-20 bg-[linear-gradient(135deg,var(--color-brand-500),var(--color-brand-900))]"
+        aria-hidden="true"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/></svg>
-        <span class="truncate">{t("home.title")}</span>
-      </a>
-    </div>
-  </header>
-  <main
-    data-rendered-at={new Date().toISOString()}
-    class="mx-auto grid max-w-5xl gap-4 px-4 py-4"
-  >
-    <FilterBar client:load query={query} locale={locale} basePath={basePath} provinces={provinces} />
-    <NearMe client:load query={query} locale={locale} basePath={basePath} />
-    {/* Section header with the warm accent underline (mock .section-header). h1 carries the page
-        heading for SEO/a11y; the results count rides on the right as the results bar. */}
-    <div class="flex items-end justify-between gap-3 border-warn border-b-2 pb-1.5">
-      <h1 class="m-0 font-bold font-heading-th text-lg text-text">{t("home.title")}</h1>
-      {!dbError && <span class="font-body-th text-sm text-text-2 leading-relaxed">{t("pager.count", { total })}</span>}
-    </div>
+      </div>
+      <div
+        class="-z-10 absolute -top-40 -right-20 size-[520px] rounded-full bg-white/10 blur-3xl"
+        aria-hidden="true"
+      >
+      </div>
+      <div
+        class="-z-10 absolute -bottom-48 -left-24 size-[420px] rounded-full bg-brand-900/60 blur-3xl"
+        aria-hidden="true"
+      >
+      </div>
+
+      <div class="container-site grid items-center gap-10 py-14 md:grid-cols-[1.15fr_0.85fr] md:py-20 lg:py-24">
+        <div class="grid gap-6">
+          {
+            !dbError && facets.total > 0 && (
+              <p class="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1 font-medium text-sm text-white/90 leading-relaxed ring-1 ring-white/20">
+                <Icon name="map-pin" size={14} />
+                <span>{t("pager.count", { total: facets.total })}</span>
+              </p>
+            )
+          }
+          <h1 class="max-w-2xl font-bold font-heading-th text-3xl leading-tight md:text-4xl lg:text-[44px] lg:leading-[1.2]">
+            {t("home.heroTitle")}
+          </h1>
+          <p class="max-w-xl text-lg text-white/85 leading-relaxed">{t("home.heroSubtitle")}</p>
+
+          <form
+            action={browseHref}
+            method="get"
+            role="search"
+            aria-label={t("filter.search")}
+            class="grid gap-2 rounded-2xl bg-surface p-2 shadow-lg sm:flex sm:items-center"
+          >
+            <fieldset class="flex shrink-0 rounded-xl bg-surface-2 p-1" aria-label={t("filter.dealType")}>
+              <legend class="sr-only">{t("filter.dealType")}</legend>
+              <label class="flex-1 cursor-pointer sm:flex-none">
+                <input type="radio" name="deal" value="sale" checked class="peer sr-only" />
+                <span class="block rounded-lg px-4 py-2 text-center font-semibold text-sm text-text-2 leading-relaxed transition-colors peer-checked:bg-primary-500 peer-checked:text-surface peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300">
+                  {t("nav.buy")}
+                </span>
+              </label>
+              <label class="flex-1 cursor-pointer sm:flex-none">
+                <input type="radio" name="deal" value="rent" class="peer sr-only" />
+                <span class="block rounded-lg px-4 py-2 text-center font-semibold text-sm text-text-2 leading-relaxed transition-colors peer-checked:bg-primary-500 peer-checked:text-surface peer-checked:shadow-sm peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300">
+                  {t("nav.rent")}
+                </span>
+              </label>
+            </fieldset>
+            <label class="flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3">
+              <Icon name="search" size={18} class="shrink-0 text-text-disabled" />
+              <span class="sr-only">{t("browse.keyword")}</span>
+              <input
+                type="search"
+                name="q"
+                maxlength="100"
+                lang={locale}
+                placeholder={t("home.searchPlaceholder")}
+                class="min-w-0 flex-1 bg-transparent py-2.5 text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
+              />
+            </label>
+            <button
+              type="submit"
+              data-cta-solid
+              class="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-primary-500 px-6 font-semibold text-base text-surface leading-relaxed shadow-sm transition-opacity hover:opacity-90"
+            >
+              <Icon name="search" size={18} />
+              {t("filter.search")}
+            </button>
+          </form>
+
+          {
+            typeTiles.length > 0 && (
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <span class="text-white/70 leading-relaxed">{t("home.browseByType")}:</span>
+                {typeTiles.map((tile) => (
+                  <a
+                    href={`${browseHref}?type=${tile.type}`}
+                    class="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-white no-underline leading-relaxed ring-1 ring-white/20 transition-colors hover:bg-white/20"
+                  >
+                    <Icon name={tile.icon} size={14} />
+                    {t(`ptype.${tile.type}` as "ptype.house")}
+                  </a>
+                ))}
+              </div>
+            )
+          }
+        </div>
+
+        {/* Photo collage from real listings (or a calm placeholder when the catalog has no photos). */}
+        <div class="hidden md:block" aria-hidden="true">
+          {
+            heroPhotos.length >= 3 ? (
+              <div class="grid grid-cols-2 gap-3">
+                <img
+                  src={heroPhotos[0]}
+                  alt=""
+                  loading="eager"
+                  fetchpriority="high"
+                  decoding="async"
+                  width="640"
+                  height="480"
+                  class="col-span-2 aspect-[16/10] w-full rounded-2xl object-cover shadow-lg ring-1 ring-white/20"
+                />
+                <img
+                  src={heroPhotos[1]}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width="640"
+                  height="480"
+                  class="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg ring-1 ring-white/20"
+                />
+                <img
+                  src={heroPhotos[2]}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                  width="640"
+                  height="480"
+                  class="aspect-[4/3] w-full rounded-2xl object-cover shadow-lg ring-1 ring-white/20"
+                />
+              </div>
+            ) : (
+              <div class="grid aspect-[4/3] place-items-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+                <Icon name="house" size={72} strokeWidth={1.2} class="text-white/60" />
+              </div>
+            )
+          }
+        </div>
+      </div>
+    </section>
+
+    {/* ---------------- BROWSE BY TYPE ---------------- */}
     {
-      dbError ? (
-        <ErrorState t={t} action={retryLink} />
-      ) : (
-        <BrowseResults
-          rows={cards}
-          total={total}
-          query={query}
-          pageSize={PAGE_SIZE}
-          locale={locale}
-          basePath={basePath}
-        />
+      typeTiles.length > 0 && (
+        <section class="container-site -mt-6 relative z-10 md:-mt-8" aria-labelledby="home-types">
+          <h2 id="home-types" class="sr-only">
+            {t("home.browseByType")}
+          </h2>
+          <ul class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {typeTiles.map((tile) => (
+              <li>
+                <a
+                  href={`${browseHref}?type=${tile.type}`}
+                  class="group flex items-center gap-3 rounded-xl border border-border bg-surface p-4 no-underline shadow-sm transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <span class="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600 transition-colors group-hover:bg-primary-500 group-hover:text-surface">
+                    <Icon name={tile.icon} size={22} />
+                  </span>
+                  <span class="grid">
+                    <span class="font-heading-th font-semibold text-base text-text leading-normal">
+                      {t(`ptype.${tile.type}` as "ptype.house")}
+                    </span>
+                    <span class="text-sm text-text-2 leading-relaxed">
+                      {t("pager.count", { total: tile.count })}
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
       )
     }
+
+    {/* ---------------- LATEST LISTINGS ---------------- */}
+    <section class="container-site grid gap-6 py-14 md:py-16" aria-labelledby="home-latest">
+      <SectionHeading id="home-latest" title={t("home.latest")}>
+        <a
+          slot="action"
+          href={browseHref}
+          class="inline-flex items-center gap-1 font-semibold text-primary-600 text-sm no-underline leading-relaxed hover:underline"
+        >
+          {t("home.viewAll")}
+          <Icon name="arrow-right" size={16} />
+        </a>
+      </SectionHeading>
+      {
+        dbError ? (
+          <ErrorState t={t} action={retryLink} />
+        ) : latest.length === 0 ? (
+          <EmptyState t={t} action={browseLink} />
+        ) : (
+          <ListingGrid rows={latest} locale={locale} columns="home" />
+        )
+      }
+    </section>
+
+    {/* ---------------- WHY ---------------- */}
+    <section class="border-border border-y bg-surface" aria-labelledby="home-why">
+      <div class="container-site grid gap-8 py-14 md:py-16">
+        <SectionHeading id="home-why" title={t("home.whyTitle")} subtitle={t("home.whySubtitle")} />
+        <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {
+            why.map((item) => (
+              <li class="grid content-start gap-3 rounded-xl border border-border bg-bg p-5">
+                <span class="flex size-11 items-center justify-center rounded-lg bg-primary-50 text-primary-600">
+                  <Icon name={item.icon} size={22} />
+                </span>
+                <h3 class="font-heading-th font-semibold text-md text-text leading-normal">{item.title}</h3>
+                <p class="text-sm text-text-2 leading-relaxed">{item.body}</p>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+    </section>
+
+    {/* ---------------- HOW IT WORKS ---------------- */}
+    <section class="container-site grid gap-8 py-14 md:py-16" aria-labelledby="home-how">
+      <SectionHeading id="home-how" title={t("home.howTitle")} subtitle={t("home.howSubtitle")} />
+      <ol class="grid gap-4 md:grid-cols-3">
+        {
+          steps.map((step, i) => (
+            <li class="relative grid content-start gap-3 rounded-xl border border-border bg-surface p-5 pt-6">
+              <span class="absolute -top-4 left-5 flex size-8 items-center justify-center rounded-full bg-primary-500 font-bold font-latin text-surface text-sm shadow-sm">
+                {i + 1}
+              </span>
+              <h3 class="font-heading-th font-semibold text-md text-text leading-normal">{step.title}</h3>
+              <p class="text-sm text-text-2 leading-relaxed">{step.body}</p>
+            </li>
+          ))
+        }
+      </ol>
+      <div class="flex flex-wrap items-center gap-3">
+        {
+          oa !== "" && (
+            <a
+              href={oa}
+              data-cta="line"
+              class="inline-flex h-11 items-center gap-2 rounded-xl bg-line px-5 font-semibold text-base text-line-text no-underline leading-relaxed shadow-sm transition-opacity hover:opacity-90"
+            >
+              <Icon name="message-circle" size={18} />
+              {t("home.howCta")}
+            </a>
+          )
+        }
+        <a
+          href={localePath(locale, "/how-it-works")}
+          class="inline-flex h-11 items-center gap-1 rounded-xl border border-border bg-surface px-5 font-semibold text-base text-text no-underline leading-relaxed transition-colors hover:border-primary-300 hover:text-primary-600"
+        >
+          {t("home.howMore")}
+          <Icon name="arrow-right" size={16} />
+        </a>
+      </div>
+    </section>
+
+    {/* ---------------- POPULAR AREAS ---------------- */}
     {
-      showMap && pins.length > 0 && (
-        <ResultsMap client:visible pins={pins} locale={locale} />
+      facets.byArea.length > 0 && (
+        <section class="border-border border-t bg-surface" aria-labelledby="home-areas">
+          <div class="container-site grid gap-6 py-14 md:py-16">
+            <SectionHeading id="home-areas" title={t("home.areasTitle")} subtitle={t("home.areasSubtitle")} />
+            <ul class="flex flex-wrap gap-2">
+              {facets.byArea.map((area) => {
+                const params = new URLSearchParams({ province: area.province });
+                if (area.amphoe) params.set("area", area.amphoe);
+                const label = area.amphoe ? `${area.amphoe} · ${area.province}` : area.province;
+                return (
+                  <li>
+                    <a
+                      href={`${browseHref}?${params.toString()}`}
+                      lang="th"
+                      class="inline-flex items-center gap-2 rounded-full border border-border bg-bg px-4 py-2 text-sm text-text no-underline leading-relaxed transition-colors hover:border-primary-300 hover:text-primary-600"
+                    >
+                      <Icon name="map-pin" size={14} class="text-primary-500" />
+                      {label}
+                      <span class="font-latin text-text-disabled text-xs">{area.count}</span>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        </section>
       )
     }
   </main>

@@ -1,43 +1,31 @@
 /* ============================================================
    packages/website/src/styles/global.css — the website's Tailwind v4 entry.
-   Plan 21 / canon Finding 10 + TECH-06: the website RUNS Tailwind. This file is
-   processed by @tailwindcss/vite (registered in astro.config.mjs); Base.astro imports it.
+   Processed by @tailwindcss/vite (astro.config.mjs); Base.astro imports it once.
 
-   PHASE-1 CONTRACT — NO VISUAL CHANGE. We therefore OMIT Tailwind's Preflight (its reset
-   re-styles headings/margins/box-sizing and WOULD change the look). We import only the
-   `theme` layer (token vars + the utilities they drive) and the `utilities` layer. The
-   existing components keep their own inline styling and look identical; a redesign
-   (Prompt 2) that wants a base reset adds one explicitly and on purpose.
+   Layers: Tailwind theme → Preflight (base reset) → our base rules → utilities. The design tokens
+   come from @line-robot/ui/theme.css (THE single @theme source — never redefined here); the
+   old-Android oklch fallback rides in @line-robot/ui/fallbacks.css (TECH-06).
    ============================================================ */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
 @import "tailwindcss/utilities.css" layer(utilities);
 
-/* THE single token source (AP-3: one @theme, defined in @line-robot/ui, never redefined here).
-   Tailwind compiles its `@theme {}` into :root custom properties (consumed by utilities AND
-   readable at runtime) and the file's dark-mode override blocks are plain CSS applied as-is. */
 @import "@line-robot/ui/theme.css";
-
-/* TECH-06 oklch/old-Android fallback: Tailwind emits oklch() unconditionally; this sheet supplies
-   hex values ONLY where oklch is unsupported (`@supports not (color: oklch())`), so it is inert on
-   modern browsers and never overrides the oklch. Generated from theme.css — npm run tokens:fallbacks. */
 @import "@line-robot/ui/fallbacks.css";
 
-/* The website's own src is auto-detected from the Vite root; @line-robot/ui lives outside it, so
-   scan it explicitly — Prompt 2 authors the shared cards/badges there in Tailwind utilities. */
+/* @line-robot/ui lives outside the Vite root — scan it so the shared components' utilities compile. */
 @source "../../../ui/src";
 
+/* Explicit dark-mode variant for the rare dark-only utility. The tokens already flip on their own
+   (theme.css), so almost nothing needs `dark:`; when it does, it keys on the SAME switch the theme
+   toggle sets — <html data-theme="dark"> — never on a class of its own. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* ------------------------------------------------------------
-   shadcn/ui semantic-token layer (canon TECH-07). Maps shadcn's design-system token names onto OUR
-   trust-blue palette so the owned shadcn primitives (button/card/badge) render in-brand — "override
-   via tokens only, never rewrite the primitives." These alias our --color-* tokens, which already
-   flip in dark mode (theme.css dark blocks), so the shadcn tokens flip with them. `inline` because
-   each references another variable (Tailwind docs: avoids the var-resolution-context pitfall).
-   New names only — none collide with our scale tokens (--color-border/--color-surface stay ours).
-   NOT an AP-3 violation: AP-3 forbids REDEFINING the shared namespace in a consumer (re-doing
-   `--*: initial` / re-declaring --color-primary-500 → cascade ambiguity). This block declares only
-   NEW shadcn alias names that point at the shared tokens; the single token SOURCE stays in
-   @line-robot/ui/theme.css. (Standard shadcn-in-a-Tailwind-app pattern.)
+   shadcn/ui semantic-token alias layer (TECH-07): shadcn names → our trust-blue tokens. `inline`
+   because each references another variable. The owned primitives (button/card/badge) render
+   in-brand through these; override via tokens only, never by editing the primitives.
    ------------------------------------------------------------ */
 @theme inline {
   --color-background: var(--color-bg);
@@ -58,4 +46,184 @@
   --color-destructive-foreground: var(--color-surface);
   --color-input: var(--color-border);
   --color-ring: var(--color-primary-500);
+}
+
+@layer base {
+  /* Tell the UA which scheme is in effect so native controls, scrollbars and form fields follow the
+     theme. Mirrors the three states theme.css handles: explicit light / explicit dark / OS preference. */
+  :root {
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-body-th);
+    line-height: var(--leading-body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* TH-08: Thai wraps at word boundaries via the UA's ICU breaker; never break-all. Long tokens
+     (URLs, deed numbers) still wrap instead of overflowing. */
+  [lang="th"],
+  :lang(th) {
+    overflow-wrap: anywhere;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-900);
+  }
+
+  /* Preflight (v4) drops the pointer cursor on buttons — restore it for real controls. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+
+  /* Native <details>: our components draw their own chevron. */
+  summary {
+    list-style: none;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* Keyboard focus is always visible and on-brand; mouse focus stays quiet. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+@layer components {
+  /* Shared page gutter: mobile-first 16px, comfortable on desktop. */
+  .container-site {
+    width: 100%;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding-inline: var(--spacing-4);
+  }
+  @media (min-width: 640px) {
+    .container-site {
+      padding-inline: var(--spacing-6);
+    }
+  }
+
+  /* Skip link (a11y): visually hidden until focused. */
+  .skip-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-primary-600);
+    color: var(--color-white);
+    font-weight: 600;
+    transform: translateY(-120%);
+    transition: transform 150ms ease;
+  }
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  /* Long-form copy (about / privacy / terms — markdown content). Thai-tuned: looped body face,
+     line-height ≥1.6 (TH-06/07), loopless headings (TH-13), calm measure. */
+  .prose-site {
+    max-width: 68ch;
+    font-family: var(--font-body-th);
+    font-size: var(--text-base);
+    line-height: var(--leading-body);
+    color: var(--color-text);
+  }
+  .prose-site > * + * {
+    margin-top: var(--spacing-4);
+  }
+  .prose-site h2 {
+    margin-top: var(--spacing-10);
+    font-family: var(--font-heading-th);
+    font-weight: 700;
+    font-size: var(--text-xl);
+    line-height: 1.4;
+  }
+  .prose-site h3 {
+    margin-top: var(--spacing-8);
+    font-family: var(--font-heading-th);
+    font-weight: 600;
+    font-size: var(--text-md);
+    line-height: 1.45;
+  }
+  .prose-site p,
+  .prose-site li {
+    color: var(--color-text-2);
+  }
+  .prose-site strong {
+    color: var(--color-text);
+    font-weight: 700;
+  }
+  .prose-site ul,
+  .prose-site ol {
+    padding-inline-start: var(--spacing-5);
+    display: grid;
+    gap: var(--spacing-2);
+  }
+  .prose-site ul {
+    list-style: disc;
+  }
+  .prose-site ol {
+    list-style: decimal;
+  }
+  .prose-site a {
+    color: var(--color-primary-600);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .prose-site blockquote {
+    border-inline-start: 3px solid var(--color-primary-200);
+    padding-inline-start: var(--spacing-4);
+    color: var(--color-text-2);
+  }
+  .prose-site hr {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin-block: var(--spacing-8);
+  }
+  .prose-site table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+  .prose-site th,
+  .prose-site td {
+    border: 1px solid var(--color-border);
+    padding: var(--spacing-2) var(--spacing-3);
+    text-align: start;
+    vertical-align: top;
+  }
+  .prose-site th {
+    background: var(--color-surface-2);
+    font-weight: 600;
+  }
 }

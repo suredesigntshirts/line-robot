@@ -1,0 +1,74 @@
+---
+import type { Translator } from "@line-robot/ui";
+import Icon from "./Icon.astro";
+
+/**
+ * Light/dark toggle. State model (matches theme.css): no `data-theme` on <html> = follow the OS;
+ * `data-theme="light|dark"` = an explicit choice persisted in localStorage and applied before first
+ * paint by the inline script in Base.astro (no flash). The button shows the EFFECTIVE mode's icon
+ * and flips to the other explicit mode on click. Several instances per page are fine (desktop bar +
+ * mobile sheet) — the script wires every `[data-theme-toggle]`.
+ */
+interface Props {
+  t: Translator;
+  class?: string;
+}
+const { t, class: cls = "" } = Astro.props;
+---
+
+<button
+  type="button"
+  data-theme-toggle
+  data-label-light={t("theme.light")}
+  data-label-dark={t("theme.dark")}
+  aria-label={t("theme.toggle")}
+  title={t("theme.toggle")}
+  class:list={[
+    "group inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-text-2 transition-colors hover:border-primary-300 hover:text-primary-600",
+    cls,
+  ]}
+>
+  <Icon name="sun" size={18} class="hidden group-data-[mode=dark]:block" />
+  <Icon name="moon" size={18} class="block group-data-[mode=dark]:hidden" />
+</button>
+
+<script>
+  const root = document.documentElement;
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const toggles = () => document.querySelectorAll<HTMLButtonElement>("[data-theme-toggle]");
+
+  const effective = (): "light" | "dark" => {
+    const explicit = root.getAttribute("data-theme");
+    if (explicit === "light" || explicit === "dark") return explicit;
+    return mq.matches ? "dark" : "light";
+  };
+
+  const render = () => {
+    const mode = effective();
+    for (const b of toggles()) {
+      b.setAttribute("data-mode", mode);
+      // The label names the mode you'd switch TO.
+      const next = mode === "dark" ? b.dataset.labelLight : b.dataset.labelDark;
+      if (next) {
+        b.setAttribute("aria-label", next);
+        b.setAttribute("title", next);
+      }
+    }
+  };
+
+  const set = (mode: "light" | "dark") => {
+    root.setAttribute("data-theme", mode);
+    try {
+      localStorage.setItem("theme", mode);
+    } catch {
+      /* private mode / storage disabled — the choice just doesn't persist */
+    }
+    render();
+  };
+
+  for (const b of toggles()) {
+    b.addEventListener("click", () => set(effective() === "dark" ? "light" : "dark"));
+  }
+  mq.addEventListener("change", render);
+  render();
+</script>

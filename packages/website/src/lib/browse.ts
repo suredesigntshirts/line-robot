@@ -78,6 +78,8 @@ export interface BrowseQuery {
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
+  /** MKT-04 district filter (`area=` in the URL). */
+  amphoe?: string;
   /** DIST-01/COMP-05: provenance facet (npa | auction). `normal` is not a filter value. */
   listingType?: ListingType;
   /** COMP-06: new-vs-resale facet (new | resale). `unknown` is not a filter value. */
@@ -124,6 +126,7 @@ export function parseBrowseQuery(params: URLSearchParams): BrowseQuery {
   const ltype = listingType.safeParse(params.get("ltype"));
   const cond = saleCondition.safeParse(params.get("cond"));
   const province = (params.get("province") ?? "").trim().slice(0, 60);
+  const amphoe = (params.get("area") ?? "").trim().slice(0, 60);
   const text = (params.get("q") ?? "").trim().slice(0, 100);
   const near = parseNear(params);
   // 4.3: the price bracket is resolved within the deal context — a `price=r1` (rent band) under a
@@ -138,6 +141,7 @@ export function parseBrowseQuery(params: URLSearchParams): BrowseQuery {
     ...(ltype.success && ltype.data !== "normal" ? { listingType: ltype.data } : {}),
     ...(cond.success && cond.data !== "unknown" ? { saleCondition: cond.data } : {}),
     ...(province !== "" ? { province } : {}),
+    ...(amphoe !== "" ? { amphoe } : {}),
     ...(text !== "" ? { text } : {}),
     ...(priceBand ? { priceBand } : {}),
     ...(near ? { near } : {}),
@@ -153,6 +157,7 @@ export function browseQueryString(q: BrowseQuery): string {
   if (q.listingType) params.set("ltype", q.listingType);
   if (q.saleCondition) params.set("cond", q.saleCondition);
   if (q.province) params.set("province", q.province);
+  if (q.amphoe) params.set("area", q.amphoe);
   if (q.text) params.set("q", q.text);
   if (q.priceBand) params.set("price", q.priceBand.id);
   if (q.near) {

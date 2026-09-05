@@ -1,0 +1,96 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import { lineOaUrl, localePath } from "../../lib/site.ts";
+import Icon from "./Icon.astro";
+
+interface Props {
+  locale: UiLocale;
+}
+const { locale } = Astro.props;
+const t = createTranslator(locale);
+const oa = lineOaUrl();
+const year = new Date().getFullYear();
+
+const browseLinks = [
+  { label: t("ptype.house"), href: "/properties?type=house" },
+  { label: t("ptype.condo"), href: "/properties?type=condo" },
+  { label: t("ptype.land"), href: "/properties?type=land" },
+  { label: t("ptype.townhouse"), href: "/properties?type=townhouse" },
+  { label: t("browse.titleRent"), href: "/properties?deal=rent" },
+];
+const companyLinks = [
+  { label: t("nav.howItWorks"), href: "/how-it-works" },
+  { label: t("nav.about"), href: "/about" },
+  { label: t("nav.contact"), href: "/contact" },
+];
+const legalLinks = [
+  { label: t("nav.privacy"), href: "/privacy" },
+  { label: t("nav.terms"), href: "/terms" },
+];
+const linkClass =
+  "text-sm text-text-2 leading-relaxed no-underline transition-colors hover:text-primary-600";
+---
+
+<footer class="mt-16 border-border border-t bg-surface" data-site-footer>
+  <div class="container-site grid gap-10 py-12 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+    <div class="grid content-start gap-4">
+      <a
+        href={localePath(locale, "/")}
+        class="flex items-center gap-2 font-bold font-heading-th text-primary-600 text-xl no-underline"
+      >
+        <span class="flex size-9 items-center justify-center rounded-lg bg-primary-500 text-white">
+          <Icon name="house" size={20} strokeWidth={2.2} />
+        </span>
+        <span lang="th">{t("site.name")}</span>
+      </a>
+      <p class="max-w-xs text-sm text-text-2 leading-relaxed">{t("site.tagline")}</p>
+      {
+        oa !== "" && (
+          <div class="grid gap-2 rounded-lg border border-border bg-bg p-4">
+            <div class="flex items-center gap-2 font-heading-th font-semibold text-sm text-text leading-normal">
+              <Icon name="message-circle" size={16} class="text-line" />
+              {t("footer.lineHead")}
+            </div>
+            <p class="text-sm text-text-2 leading-relaxed">{t("footer.lineBody")}</p>
+            <a
+              href={oa}
+              data-cta="line"
+              class="inline-flex w-fit items-center gap-2 rounded-md bg-line px-4 py-2 font-semibold text-line-text text-sm no-underline transition-opacity hover:opacity-90"
+            >
+              {t("cta.chatLine")}
+            </a>
+          </div>
+        )
+      }
+    </div>
+
+    <nav class="grid content-start gap-2" aria-label={t("footer.browseHead")}>
+      <h2 class="font-heading-th font-semibold text-sm text-text uppercase tracking-wide leading-normal">
+        {t("footer.browseHead")}
+      </h2>
+      {browseLinks.map((l) => <a href={localePath(locale, l.href)} class={linkClass}>{l.label}</a>)}
+    </nav>
+
+    <nav class="grid content-start gap-2" aria-label={t("site.name")}>
+      <h2 class="font-heading-th font-semibold text-sm text-text uppercase tracking-wide leading-normal">
+        {t("site.name")}
+      </h2>
+      {companyLinks.map((l) => <a href={localePath(locale, l.href)} class={linkClass}>{l.label}</a>)}
+    </nav>
+
+    <nav class="grid content-start gap-2" aria-label={t("footer.legalHead")}>
+      <h2 class="font-heading-th font-semibold text-sm text-text uppercase tracking-wide leading-normal">
+        {t("footer.legalHead")}
+      </h2>
+      {legalLinks.map((l) => <a href={localePath(locale, l.href)} class={linkClass}>{l.label}</a>)}
+    </nav>
+  </div>
+
+  <div class="border-border border-t">
+    <div class="container-site grid gap-2 py-6 text-text-disabled text-xs leading-relaxed md:flex md:items-center md:justify-between">
+      <p>{t("footer.copyright", { year })}</p>
+      <p>{t("footer.hosting")}</p>
+      <p>{t("legal.posterProvided")}</p>
+    </div>
+  </div>
+</footer>

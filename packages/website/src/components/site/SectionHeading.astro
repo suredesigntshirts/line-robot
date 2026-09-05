@@ -1,0 +1,22 @@
+---
+/** Section header: warm-accent eyebrow rule + heading, optional subtitle, optional trailing action. */
+interface Props {
+  title: string;
+  subtitle?: string;
+  /** Render as h1 (page title) or h2 (section). */
+  level?: 1 | 2;
+  id?: string;
+}
+const { title, subtitle, level = 2, id } = Astro.props;
+const Tag = level === 1 ? "h1" : "h2";
+---
+
+<div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+  <div class="grid gap-1">
+    <Tag id={id} class="font-bold font-heading-th text-2xl text-text leading-tight md:text-3xl">
+      {title}
+    </Tag>
+    {subtitle && <p class="max-w-2xl text-base text-text-2 leading-relaxed">{subtitle}</p>}
+  </div>
+  <slot name="action" />
+</div>

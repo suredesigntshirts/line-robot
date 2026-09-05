@@ -30,9 +30,11 @@ export interface MapPinData {
 interface ResultsMapProps {
   pins: MapPinData[];
   locale: UiLocale;
+  /** Hide the built-in heading when the host section already titles the map (detail page). */
+  showTitle?: boolean;
 }
 
-export function ResultsMap({ pins, locale }: ResultsMapProps) {
+export function ResultsMap({ pins, locale, showTitle = true }: ResultsMapProps) {
   const t = createTranslator(locale);
   // Hoist the one translated string the effect needs so the effect depends on a stable value, not
   // the fresh-identity translator (which would needlessly tear down + rebuild the map on re-render).
@@ -74,8 +76,7 @@ export function ResultsMap({ pins, locale }: ResultsMapProps) {
         const link = document.createElement("a");
         link.href = pin.href;
         link.textContent = viewLabel;
-        link.style.display = "block";
-        link.style.marginTop = "4px";
+        link.className = "mt-1 block font-semibold text-primary-600";
         wrap.append(strong, link);
         marker.bindPopup(wrap);
       }
@@ -100,27 +101,17 @@ export function ResultsMap({ pins, locale }: ResultsMapProps) {
   if (pins.length === 0) return null;
 
   return (
-    <section style={{ display: "grid", gap: "var(--spacing-2)" }}>
-      <h2
-        style={{
-          fontSize: "var(--text-md)",
-          fontFamily: "var(--font-heading-th)",
-          margin: 0,
-        }}
-      >
-        {t("map.title")}
-      </h2>
+    <section className="grid gap-2" data-results-map>
+      {showTitle && (
+        <h2 className="font-heading-th font-semibold text-md text-text leading-normal">
+          {t("map.title")}
+        </h2>
+      )}
       <div
         ref={containerRef}
         role="application"
         aria-label={t("map.title")}
-        style={{
-          height: "min(60vh, 420px)",
-          width: "100%",
-          borderRadius: "var(--radius-lg)",
-          overflow: "hidden",
-          border: "1px solid var(--color-border)",
-        }}
+        className="h-[min(60vh,420px)] w-full overflow-hidden rounded-xl border border-border"
       />
     </section>
   );
