@@ -126,7 +126,7 @@ try {
 
   const en = await handler(event("/en/properties"));
   check("en route renders the th-fallback headline", en.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
-  check("en count line localized", en.body.includes("Listings: 1"));
+  check("en count line localized (singular)", en.body.includes("1 listing"));
 
   // --- detail page (S4-I3) ---
   const detail = await handler(event(`/properties/${visible.id}`));

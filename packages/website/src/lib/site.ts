@@ -1,4 +1,4 @@
-import type { UiLocale } from "@line-robot/ui";
+import type { Translator, UiLocale } from "@line-robot/ui";
 
 /**
  * Site-level constants shared by every page: brand, locale paths, the LINE OA link, navigation.
@@ -43,3 +43,7 @@ export const NAV = [
   { key: "nav.howItWorks", path: "/how-it-works" },
   { key: "nav.about", path: "/about" },
 ] as const;
+
+/** "3 listings" / "1 listing" / "3 ประกาศ" — English needs the singular, Thai has no plural. */
+export const listingCount = (t: Translator, count: number): string =>
+  count === 1 ? t("count.listingOne") : t("count.listings", { count });

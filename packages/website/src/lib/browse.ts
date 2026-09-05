@@ -1,3 +1,4 @@
+import type { PublicSort } from "@line-robot/db";
 import type { DealType, ListingType, PropertyType, SaleCondition } from "@line-robot/domain";
 import { dealType, listingType, propertyType, saleCondition } from "@line-robot/domain";
 import type { MessageKey } from "@line-robot/ui";
@@ -74,7 +75,16 @@ export function findPriceBand(
   return priceBandsFor(deal).find((b) => b.id === id);
 }
 
+/** Bedroom minimums offered as a facet ("1+" … "4+"). */
+export const BEDROOM_OPTIONS = [1, 2, 3, 4] as const;
+/** Result orders offered in the UI (`sort=` param). Newest is the default and is never serialised. */
+export const SORT_OPTIONS: readonly PublicSort[] = ["newest", "price_asc", "price_desc"];
+
 export interface BrowseQuery {
+  /** Result order; absent = newest (or nearest on a radius search). */
+  sort?: PublicSort;
+  /** Minimum bedrooms (`beds=` param), one of {@link BEDROOM_OPTIONS}. */
+  minBedrooms?: number;
   dealType?: DealType;
   propertyType?: PropertyType;
   province?: string;
@@ -134,7 +144,18 @@ export function parseBrowseQuery(params: URLSearchParams): BrowseQuery {
   // rent bracket to the asking-price column or vice-versa.
   const priceBand = findPriceBand(deal.success ? deal.data : undefined, params.get("price"));
   const rawPage = Number.parseInt(params.get("page") ?? "1", 10);
+  const rawBeds = Number.parseInt(params.get("beds") ?? "", 10);
+  const minBedrooms = (BEDROOM_OPTIONS as readonly number[]).includes(rawBeds)
+    ? rawBeds
+    : undefined;
+  const rawSort = params.get("sort") ?? "";
+  const sort =
+    rawSort !== "newest" && (SORT_OPTIONS as readonly string[]).includes(rawSort)
+      ? (rawSort as PublicSort)
+      : undefined;
   return {
+    ...(sort ? { sort } : {}),
+    ...(minBedrooms !== undefined ? { minBedrooms } : {}),
     ...(deal.success ? { dealType: deal.data } : {}),
     ...(ptype.success ? { propertyType: ptype.data } : {}),
     // `normal`/`unknown` are the non-filtered defaults — never a filter value, so drop them.
@@ -153,6 +174,8 @@ export function parseBrowseQuery(params: URLSearchParams): BrowseQuery {
 export function browseQueryString(q: BrowseQuery): string {
   const params = new URLSearchParams();
   if (q.dealType) params.set("deal", q.dealType);
+  if (q.minBedrooms !== undefined) params.set("beds", String(q.minBedrooms));
+  if (q.sort && q.sort !== "newest") params.set("sort", q.sort);
   if (q.propertyType) params.set("type", q.propertyType);
   if (q.listingType) params.set("ltype", q.listingType);
   if (q.saleCondition) params.set("cond", q.saleCondition);

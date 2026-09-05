@@ -11,7 +11,9 @@ const browser = await chromium.launch();
 const shots = JSON.parse(process.env.SHOTS || "[]");
 for (const s of shots) {
   const ctx = await browser.newContext({
-    ...(s.mobile ? devices["Pixel 7"] : { viewport: { width: 1280, height: 800 } }),
+    ...(s.mobile
+      ? devices["Pixel 7"]
+      : { viewport: { width: s.width ?? 1280, height: s.height ?? 800 } }),
     colorScheme: s.dark ? "dark" : "light",
     locale: "th-TH",
   });
@@ -25,7 +27,7 @@ for (const s of shots) {
   }
   if (s.scroll) await page.evaluate((y) => window.scrollTo(0, y), s.scroll);
   await page.waitForTimeout(s.wait ?? 600);
-  await page.screenshot({ path: out + s.name + ".png", fullPage: !!s.full });
+  await page.screenshot({ path: `${out}${s.name}.png`, fullPage: !!s.full });
   console.log("shot", s.name);
   await ctx.close();
 }

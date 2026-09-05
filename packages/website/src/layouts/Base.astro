@@ -18,6 +18,7 @@ import Footer from "../components/site/Footer.astro";
 import Header from "../components/site/Header.astro";
 import { safeJsonLdScript } from "../lib/jsonLd.ts";
 import { localePath } from "../lib/site.ts";
+import { isEmptySpec, serializeUiSpec, UI_VARIANTS } from "../lib/variants.ts";
 
 interface Props {
   title: string;
@@ -58,6 +59,16 @@ const enUrl = new URL(canonicalPath.startsWith("/en/") ? canonicalPath : `/en${c
 const usingDefaultOg = !ogImage;
 const ogImageUrl = ogImage ?? new URL(ogDefault.src, site).href;
 const siteName = t("site.name");
+// UI template variant (lib/variants.ts): stamped on <html> for analytics/tests; the switcher chip
+// shows only on an explicit `?ui=` preview request, never for a cookie-assigned visitor.
+const uiSpec = Astro.locals.ui ?? { pages: {} };
+const uiSerialized = serializeUiSpec(uiSpec);
+const showUiChip = Astro.locals.uiFromQuery === true && !isEmptySpec(uiSpec);
+const uiHref = (value: string) => {
+  const params = new URLSearchParams(Astro.url.search);
+  params.set("ui", value);
+  return `${Astro.url.pathname}?${params.toString()}`;
+};
 const documentTitle = rawTitle ? title : `${title} · ${siteName}`;
 
 // Site-wide structured data: the organisation + a WebSite with its search action (site-links search).
@@ -92,7 +103,7 @@ const orgJsonLd = safeJsonLdScript({
 ---
 
 <!doctype html>
-<html lang={locale}>
+<html lang={locale} data-ui={uiSerialized || undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -138,5 +149,33 @@ const orgJsonLd = safeJsonLdScript({
       <slot />
     </div>
     <Footer locale={locale} />
+    {
+      showUiChip && (
+        <div
+          data-ui-chip
+          class="fixed bottom-3 left-3 z-50 flex max-w-[calc(100vw-1.5rem)] flex-wrap items-center gap-2 rounded-full border border-border bg-surface/95 px-3 py-1.5 font-latin text-xs shadow-md backdrop-blur"
+        >
+          <span class="font-semibold text-text">{t("ui.variant")}: {uiSerialized}</span>
+          {Object.entries(UI_VARIANTS).map(([page, variants]) => (
+            <span class="flex items-center gap-1">
+              <span class="text-text-disabled">{page}</span>
+              {Object.entries(variants).map(([v, label]) => (
+                <a
+                  href={uiHref(`${page}:${v}`)}
+                  title={label}
+                  aria-current={(uiSpec.pages[page] ?? uiSpec.global) === v ? "true" : undefined}
+                  class="rounded-full border border-border px-2 py-0.5 text-text-2 no-underline hover:text-text aria-[current=true]:border-primary-500 aria-[current=true]:bg-primary-500 aria-[current=true]:text-surface"
+                >
+                  {v}
+                </a>
+              ))}
+            </span>
+          ))}
+          <a href={uiHref("reset")} class="text-primary-600 no-underline hover:underline">
+            {t("ui.reset")}
+          </a>
+        </div>
+      )
+    }
   </body>
 </html>

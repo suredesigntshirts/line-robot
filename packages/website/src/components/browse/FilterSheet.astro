@@ -1,0 +1,216 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import type { BrowseQuery } from "../../lib/browse.ts";
+import {
+  activeFacetCount,
+  facetGroups,
+  hiddenInputs,
+  priceOptionsByDeal,
+} from "../../lib/browseFacets.ts";
+import Icon from "../site/Icon.astro";
+import { NearMe } from "../NearMe.tsx";
+
+/**
+ * Variant B — the full filter sheet: a <dialog> that slides up as a bottom sheet on phones and sits
+ * as a centred modal on desktop (native focus trap + Escape). Inside is ONE GET form: every facet as
+ * radio "chips" (label + sr-only input, so it works with zero JS), the keyword box, and an Apply
+ * bar pinned at the bottom. The price section renders both band sets and shows the one matching
+ * the chosen deal (CSS `:has()` on the deal radios — still no JS). Sections are anchored so a rail
+ * chip can open the sheet scrolled to "price" or "beds".
+ */
+interface Props {
+  query: BrowseQuery;
+  locale: UiLocale;
+  provinces: string[];
+  browseHref: string;
+}
+const { query, locale, provinces, browseHref } = Astro.props;
+const t = createTranslator(locale);
+const groups = facetGroups(query, t, provinces);
+const priceByDeal = priceOptionsByDeal(t);
+const hidden = hiddenInputs(query, groups.map((g) => g.param).concat("q", "area"));
+const count = activeFacetCount(query);
+
+const radioChip =
+  "cursor-pointer select-none rounded-full border border-border-2 bg-surface px-3.5 py-1.5 text-sm text-text leading-relaxed transition-colors peer-checked:border-primary-500 peer-checked:bg-primary-500 peer-checked:font-semibold peer-checked:text-surface peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300 hover:border-primary-300";
+// "Any" = the neutral default: selected reads as a quiet outlined chip, never a filled one, so the
+// filled chips in the sheet are exactly the facets that will narrow the results.
+const anyChip =
+  "cursor-pointer select-none rounded-full border border-border-2 bg-surface px-3.5 py-1.5 text-sm text-text-2 leading-relaxed transition-colors peer-checked:border-text peer-checked:font-semibold peer-checked:text-text peer-focus-visible:ring-2 peer-focus-visible:ring-primary-300 hover:border-primary-300";
+---
+
+<dialog
+  data-filter-sheet
+  aria-label={t("browse.filters")}
+  class="fixed inset-x-0 top-auto bottom-0 m-0 max-h-[92dvh] w-full max-w-none rounded-t-2xl border border-border bg-surface p-0 text-text shadow-lg backdrop:bg-black/50 sm:inset-0 sm:m-auto sm:h-fit sm:max-h-[85dvh] sm:w-[min(92vw,34rem)] sm:rounded-2xl"
+>
+  <form action={browseHref} method="get" class="flex max-h-[inherit] flex-col" data-sheet-form>
+    {hidden.map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+
+    <div class="flex items-center justify-between gap-3 border-border border-b px-5 py-3">
+      <h2 class="font-heading-th font-semibold text-lg text-text leading-normal">{t("browse.filters")}</h2>
+      <button
+        type="button"
+        data-sheet-close
+        aria-label={t("nav.closeMenu")}
+        class="flex size-9 items-center justify-center rounded-full border border-border text-text-2 hover:text-text"
+      >
+        <Icon name="x" size={18} />
+      </button>
+    </div>
+
+    <div class="grid gap-6 overflow-y-auto px-5 py-4" data-sheet-body>
+      <label class="flex items-center gap-2 rounded-full border border-border bg-bg px-3 focus-within:border-primary-400">
+        <Icon name="search" size={16} class="shrink-0 text-text-disabled" />
+        <span class="sr-only">{t("browse.keyword")}</span>
+        <input
+          type="search"
+          name="q"
+          value={query.text ?? ""}
+          maxlength="100"
+          lang={locale}
+          placeholder={t("browse.searchPlaceholder")}
+          class="min-w-0 flex-1 bg-transparent py-2 text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
+        />
+      </label>
+
+      <NearMe client:load query={query} locale={locale} basePath={browseHref} />
+
+      {
+        groups.map((g) =>
+          g.id === "price" ? (
+            <fieldset id="sheet-price" data-sheet-section="price" class="grid gap-2">
+              <legend class="mb-2 font-heading-th font-semibold text-sm text-text leading-normal">{g.label}</legend>
+              {/* Both band sets; the deal radios above decide which is shown (see the <style> below). */}
+              {(["sale", "rent"] as const).map((deal) => (
+                <div class="flex flex-wrap gap-2" data-price-for={deal}>
+                  <label>
+                    <input type="radio" name="price" value="" checked={query.priceBand === undefined} class="peer sr-only" />
+                    <span class={anyChip}>{t("filter.any")}</span>
+                  </label>
+                  {priceByDeal[deal].map((o) => (
+                    <label>
+                      <input
+                        type="radio"
+                        name="price"
+                        value={o.value}
+                        checked={query.priceBand?.id === o.value}
+                        class="peer sr-only"
+                      />
+                      <span class={radioChip}>{o.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ))}
+            </fieldset>
+          ) : (
+            <fieldset id={`sheet-${g.id}`} data-sheet-section={g.id} class="grid gap-2">
+              <legend class="mb-2 font-heading-th font-semibold text-sm text-text leading-normal">{g.label}</legend>
+              <div class="flex flex-wrap gap-2">
+                <label>
+                  <input type="radio" name={g.param} value="" checked={g.value === undefined} class="peer sr-only" />
+                  <span class={anyChip}>{t("filter.any")}</span>
+                </label>
+                {g.options.map((o) => (
+                  <label>
+                    <input type="radio" name={g.param} value={o.value} checked={g.value === o.value} class="peer sr-only" />
+                    <span class={radioChip}>{o.label}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          ),
+        )
+      }
+    </div>
+
+    <div class="flex items-center gap-3 border-border border-t bg-surface px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <a href={browseHref} class="text-sm text-text-2 leading-relaxed underline-offset-2 hover:underline">
+        {t("browse.clearAll")}{count > 0 ? ` (${count})` : ""}
+      </a>
+      <button
+        type="submit"
+        data-cta-solid
+        class="ml-auto inline-flex h-11 items-center justify-center rounded-xl bg-primary-500 px-6 font-semibold text-base text-surface leading-relaxed shadow-sm transition-opacity hover:opacity-90"
+      >
+        {t("browse.showResults")}
+      </button>
+    </div>
+  </form>
+</dialog>
+
+<style>
+  /* Contextual price bands (4.3) without JS: show the rent set only when the rent deal radio is
+     checked; the sale set otherwise (sale is also the "any deal" default — it filters the asking price). */
+  [data-sheet-form] [data-price-for="rent"] {
+    display: none;
+  }
+  [data-sheet-form]:has(input[name="deal"][value="rent"]:checked) [data-price-for="rent"] {
+    display: flex;
+  }
+  [data-sheet-form]:has(input[name="deal"][value="rent"]:checked) [data-price-for="sale"] {
+    display: none;
+  }
+  /* Empty-string radios ("Any") must not reach the URL as `?type=`: disable them at submit (script)
+     — the CSS here only handles display. */
+  dialog[data-filter-sheet] {
+    animation: sheet-in 200ms ease-out;
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(12px);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    dialog[data-filter-sheet] {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  const sheet = document.querySelector<HTMLDialogElement>("dialog[data-filter-sheet]");
+  const form = sheet?.querySelector<HTMLFormElement>("[data-sheet-form]");
+  if (sheet && form) {
+    const body = sheet.querySelector<HTMLElement>("[data-sheet-body]");
+    const open = (section?: string) => {
+      sheet.showModal();
+      document.body.style.overflow = "hidden";
+      // Scroll the sheet's own body (never the document — scrollIntoView could pan the page).
+      if (section && body) {
+        const target = sheet.querySelector<HTMLElement>(`[data-sheet-section="${section}"]`);
+        if (target) body.scrollTop = target.offsetTop - body.offsetTop - 8;
+      } else if (body) {
+        body.scrollTop = 0;
+      }
+    };
+    const close = () => {
+      sheet.close();
+      document.body.style.overflow = "";
+    };
+    for (const btn of document.querySelectorAll<HTMLElement>("[data-sheet-open]")) {
+      btn.addEventListener("click", () => open(btn.dataset.sheetOpen || undefined));
+    }
+    sheet.querySelector("[data-sheet-close]")?.addEventListener("click", close);
+    sheet.addEventListener("close", () => {
+      document.body.style.overflow = "";
+    });
+    sheet.addEventListener("click", (e) => {
+      if (e.target === sheet) close(); // backdrop
+    });
+    // Keep "Any" out of the URL and drop a price that belongs to the hidden band set.
+    form.addEventListener("submit", () => {
+      for (const input of form.querySelectorAll<HTMLInputElement>('input[type="radio"]:checked')) {
+        if (input.value === "") input.disabled = true;
+      }
+      const rent = form.querySelector<HTMLInputElement>('input[name="deal"][value="rent"]')?.checked;
+      const hiddenSet = form.querySelector<HTMLElement>(`[data-price-for="${rent ? "sale" : "rent"}"]`);
+      for (const input of hiddenSet?.querySelectorAll<HTMLInputElement>("input") ?? []) input.disabled = true;
+    });
+  }
+</script>

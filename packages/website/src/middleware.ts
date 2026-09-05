@@ -1,13 +1,14 @@
 import { defineMiddleware } from "astro:middleware";
 import { LOCALE_COOKIE, shouldRedirectToEnglish } from "./lib/localeRedirect.ts";
+import { isEmptySpec, parseUiSpec, serializeUiSpec, UI_COOKIE, UI_PARAM } from "./lib/variants.ts";
 
-// DF-3 Accept-Language soft redirect. Thai stays the default + canonical (TH-14): `/` always *is*
-// the Thai homepage and its canonical/hreflang are unchanged. This only softly sends a first-time
-// visitor whose browser explicitly prefers English to the English mirror once. The decision (and
-// the reasoning for why it can't loop and won't redirect crawlers) lives in lib/localeRedirect.ts;
-// this is the thin glue: read the request, set the guard cookie, 302.
+// Two concerns, both thin glue:
+//  1. DF-3 Accept-Language soft redirect (Thai stays default + canonical; a first-time visitor whose
+//     browser prefers English is sent to /en/ once — the reasoning lives in lib/localeRedirect.ts).
+//  2. UI template variants (lib/variants.ts): `?ui=` sets/clears the sticky `ui` cookie; the parsed
+//     spec is exposed on Astro.locals for pages to pick their template.
 export const onRequest = defineMiddleware((context, next) => {
-  const { request, url, cookies, preferredLocale } = context;
+  const { request, url, cookies, preferredLocale, locals } = context;
 
   if (
     shouldRedirectToEnglish({
@@ -17,14 +18,33 @@ export const onRequest = defineMiddleware((context, next) => {
       preferredLocale,
     })
   ) {
-    // Remember the decision so a return visit to `/` (or a back-nav from `/en/`) isn't re-bounced.
     cookies.set(LOCALE_COOKIE, "en", {
       path: "/",
       maxAge: 60 * 60 * 24 * 365,
       sameSite: "lax",
       httpOnly: true,
     });
-    return context.redirect("/en/", 302);
+    return context.redirect(`/en/${url.search}`, 302);
+  }
+
+  const fromQuery = url.searchParams.get(UI_PARAM);
+  if (fromQuery !== null) {
+    const spec = parseUiSpec(fromQuery);
+    if (isEmptySpec(spec)) {
+      cookies.delete(UI_COOKIE, { path: "/" });
+    } else {
+      cookies.set(UI_COOKIE, serializeUiSpec(spec), {
+        path: "/",
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: "lax",
+        httpOnly: true,
+      });
+    }
+    locals.ui = spec;
+    locals.uiFromQuery = true;
+  } else {
+    locals.ui = parseUiSpec(cookies.get(UI_COOKIE)?.value);
+    locals.uiFromQuery = false;
   }
 
   return next();

@@ -102,6 +102,13 @@ never another package's adapters/internals.
 - **Brand.** The working wordmark is "ทรัพย์ดี" / "Sapdee" (FOUNDER-QUEUE FQ-4 — no final name). It is
   read from the i18n catalog (`site.name`) everywhere, so a rename is one edit in
   `packages/ui/src/i18n/{th,en}.ts`.
+- **UI template variants (A/B + design exploration).** `?ui=b` (site-wide) or `?ui=browse:b,home:c`
+  (page-scoped) picks an alternative template; the middleware stores the spec in the sticky `ui`
+  cookie, pages resolve theirs with `variantFor(page, Astro.locals.ui)` (`lib/variants.ts` is the
+  registry of what exists), `<html data-ui>` carries it, `?ui=reset` clears. An explicit `?ui=`
+  request shows a switcher chip; cookie-assigned visitors never see it. Browse variants: `a` sidebar
+  link-chips (default), `b` quick-filter rail + bottom-sheet form, `c` native-select toolbar — all
+  rendered from ONE facet model (`lib/browseFacets.ts`), all zero-React (links / GET forms).
 - **Theme toggle.** `<html data-theme="light|dark">` = explicit choice (localStorage, applied pre-paint
   by the inline script in `Base.astro`); no attribute = follow the OS (theme.css media block). The
   `dark:` variant in `global.css` keys on the same attribute; prefer flipping tokens over `dark:`.

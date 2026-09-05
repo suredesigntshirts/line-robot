@@ -1,0 +1,95 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import type { BrowseQuery } from "../../lib/browse.ts";
+import { activeFacetCount, facetGroups, hrefFor } from "../../lib/browseFacets.ts";
+import Icon from "../site/Icon.astro";
+
+/**
+ * Variant B — the quick-filter rail (Airbnb / Zillow mobile pattern): one horizontally scrolling row
+ * pinned under the site header. Left: "Filters (n)" opens the full sheet. Then the PRIMARY facets as
+ * tap targets — a segmented Buy/Rent, a Price chip and a Beds chip (each opens the sheet at its
+ * section, showing the active value), and the property-type chips as direct links. Everything else
+ * lives in the sheet. Thumb-reach on phones; on desktop the same rail spans the results width.
+ */
+interface Props {
+  query: BrowseQuery;
+  locale: UiLocale;
+  provinces: string[];
+  browseHref: string;
+}
+const { query, locale, provinces, browseHref } = Astro.props;
+const t = createTranslator(locale);
+const groups = facetGroups(query, t, provinces);
+const byId = Object.fromEntries(groups.map((g) => [g.id, g]));
+const count = activeFacetCount(query);
+const activeLabel = (id: string) => byId[id]?.options.find((o) => o.value === byId[id].value)?.label;
+
+const chip = (active: boolean) =>
+  `inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 text-sm leading-relaxed no-underline transition-colors ${
+    active
+      ? "border-primary-500 bg-primary-500 font-semibold text-surface"
+      : "border-border-2 bg-surface text-text hover:border-primary-300"
+  }`;
+---
+
+{/* min-w-0: as a grid item the rail must NOT take its min-content width (all chips) — that would
+    widen the page past the phone viewport and let the fixed sheet pan off-screen. */}
+<div
+  class="sticky top-16 z-30 -mx-4 min-w-0 border-border border-b bg-bg/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-bg/85 sm:-mx-6 sm:px-6"
+  data-quick-rail
+>
+  <div class="container-site !px-0 flex min-w-0 items-center gap-2 overflow-x-auto py-2.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <button type="button" data-sheet-open class={`${chip(false)} border-text/20 font-semibold`} aria-haspopup="dialog">
+      <Icon name="sliders" size={16} />
+      {t("browse.filters")}
+      {count > 0 && <span class="rounded-full bg-primary-500 px-1.5 font-latin text-surface text-xs">{count}</span>}
+    </button>
+
+    <span class="h-6 w-px shrink-0 bg-border" aria-hidden="true"></span>
+
+    {/* Segmented deal toggle (links; tapping the active one clears it). */}
+    <div class="flex shrink-0 rounded-full border border-border-2 bg-surface p-0.5" role="group" aria-label={byId.deal.label}>
+      {byId.deal.options.map((o) => {
+        const active = byId.deal.value === o.value;
+        return (
+          <a
+            href={hrefFor(browseHref, query, "deal", active ? undefined : o.value)}
+            aria-current={active ? "page" : undefined}
+            data-cta-solid={active || undefined}
+            class={`inline-flex h-8 items-center rounded-full px-3.5 text-sm leading-relaxed no-underline transition-colors ${
+              active ? "bg-primary-500 font-semibold text-surface" : "text-text-2 hover:text-text"
+            }`}
+          >
+            {o.label}
+          </a>
+        );
+      })}
+    </div>
+
+    <button type="button" data-sheet-open="price" class={chip(!!byId.price.value)} data-cta-solid={byId.price.value ? true : undefined}>
+      {activeLabel("price") ?? t("browse.price")}
+      <Icon name="chevron-down" size={14} />
+    </button>
+    <button type="button" data-sheet-open="beds" class={chip(!!byId.beds.value)} data-cta-solid={byId.beds.value ? true : undefined}>
+      {activeLabel("beds") ?? t("browse.beds")}
+      <Icon name="chevron-down" size={14} />
+    </button>
+
+    <span class="h-6 w-px shrink-0 bg-border" aria-hidden="true"></span>
+
+    {byId.type.options.map((o) => {
+      const active = byId.type.value === o.value;
+      return (
+        <a
+          href={hrefFor(browseHref, query, "type", active ? undefined : o.value)}
+          aria-current={active ? "page" : undefined}
+          data-cta-solid={active || undefined}
+          class={chip(active)}
+        >
+          {o.label}
+          {active && <Icon name="x" size={12} />}
+        </a>
+      );
+    })}
+  </div>
+</div>

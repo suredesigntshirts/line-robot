@@ -1,0 +1,115 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import type { BrowseQuery } from "../../lib/browse.ts";
+import { activeFacetCount, facetGroups, hiddenInputs } from "../../lib/browseFacets.ts";
+import Icon from "../site/Icon.astro";
+import { NearMe } from "../NearMe.tsx";
+
+/**
+ * Variant C — a toolbar of NATIVE selects (Rightmove / Baania desktop pattern, and on phones the
+ * OS picker wheel — the most thumb-friendly control there is). One GET form: keyword + deal +
+ * type + price + beds up front; new/resale, asset type and province behind "More filters". Zero JS
+ * needed (Search button); with JS a select change submits immediately.
+ */
+interface Props {
+  query: BrowseQuery;
+  locale: UiLocale;
+  provinces: string[];
+  browseHref: string;
+}
+const { query, locale, provinces, browseHref } = Astro.props;
+const t = createTranslator(locale);
+const groups = facetGroups(query, t, provinces);
+const primary = groups.filter((g) => g.primary);
+const more = groups.filter((g) => !g.primary);
+const hidden = hiddenInputs(query, groups.map((g) => g.param).concat("q", "area"));
+const moreActive = more.filter((g) => g.value !== undefined).length;
+const selectClass =
+  "h-11 w-full rounded-lg border border-border bg-surface pr-8 pl-3 text-base text-text leading-relaxed focus:border-primary-400 focus:outline-none";
+const labelClass = "grid gap-1 text-text-2 text-xs leading-relaxed";
+---
+
+<form action={browseHref} method="get" role="search" class="grid gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm sm:p-4" data-toolbar>
+  {hidden.map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.6fr_repeat(4,minmax(0,1fr))_auto]">
+    <label class={`${labelClass} sm:col-span-2 lg:col-span-1`}>
+      <span>{t("browse.keyword")}</span>
+      <span class="flex h-11 items-center gap-2 rounded-lg border border-border bg-bg px-3 focus-within:border-primary-400">
+        <Icon name="search" size={16} class="shrink-0 text-text-disabled" />
+        <input
+          type="search"
+          name="q"
+          value={query.text ?? ""}
+          maxlength="100"
+          lang={locale}
+          placeholder={t("browse.searchPlaceholder")}
+          class="min-w-0 flex-1 bg-transparent text-base text-text leading-relaxed outline-none placeholder:text-text-disabled"
+        />
+      </span>
+    </label>
+    {
+      primary.map((g) => (
+        <label class={labelClass}>
+          <span>{g.label}</span>
+          <select name={g.param} class={selectClass} data-toolbar-select>
+            <option value="" selected={g.value === undefined}>{t("filter.any")}</option>
+            {g.options.map((o) => (
+              <option value={o.value} selected={g.value === o.value}>{o.label}</option>
+            ))}
+          </select>
+        </label>
+      ))
+    }
+    <button
+      type="submit"
+      data-cta-solid
+      class="inline-flex h-11 items-center justify-center gap-2 self-end rounded-lg bg-primary-500 px-5 font-semibold text-base text-surface leading-relaxed transition-opacity hover:opacity-90 sm:col-span-2 lg:col-span-1"
+    >
+      <Icon name="search" size={18} />
+      {t("filter.search")}
+    </button>
+  </div>
+
+  <details class="group" open={moreActive > 0}>
+    <summary class="inline-flex w-fit items-center gap-1.5 rounded-full px-2 py-1 font-medium text-primary-600 text-sm leading-relaxed hover:bg-primary-50">
+      <Icon name="sliders" size={14} />
+      {t("browse.moreFilters")}
+      {moreActive > 0 && <span class="rounded-full bg-primary-500 px-1.5 font-latin text-surface text-xs">{moreActive}</span>}
+      <Icon name="chevron-down" size={14} class="transition-transform group-open:rotate-180" />
+    </summary>
+    <div class="mt-3 grid gap-3 border-border border-t pt-3 sm:grid-cols-2 lg:grid-cols-4">
+      {
+        more.map((g) => (
+          <label class={labelClass}>
+            <span>{g.label}</span>
+            <select name={g.param} class={selectClass} data-toolbar-select>
+              <option value="" selected={g.value === undefined}>{t("filter.any")}</option>
+              {g.options.map((o) => (
+                <option value={o.value} selected={g.value === o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+        ))
+      }
+      <div class="grid content-end sm:col-span-2 lg:col-span-4">
+        <NearMe client:load query={query} locale={locale} basePath={browseHref} compact />
+      </div>
+    </div>
+  </details>
+</form>
+
+<script>
+  // Progressive enhancement: a select change applies immediately; "Any" never reaches the URL.
+  const form = document.querySelector<HTMLFormElement>("[data-toolbar]");
+  if (form) {
+    form.addEventListener("submit", () => {
+      for (const sel of form.querySelectorAll<HTMLSelectElement>("select")) if (sel.value === "") sel.disabled = true;
+      // A price picked under one deal context is meaningless under the other — the server drops it,
+      // but drop it here too so the URL stays clean.
+    });
+    for (const sel of form.querySelectorAll<HTMLSelectElement>("[data-toolbar-select]")) {
+      sel.addEventListener("change", () => form.requestSubmit());
+    }
+  }
+</script>

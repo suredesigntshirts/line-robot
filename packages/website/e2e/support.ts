@@ -19,12 +19,16 @@ export const GALLERY_DIR = `test-results/gallery/${process.env.E2E_BASE_URL ? "d
  * skipped for the same reason. */
 export async function settle(page: Page): Promise<void> {
   await page.evaluate(async () => {
+    // Instant scrolling: the site sets `scroll-behavior: smooth`, and a smooth scroll-to-top that
+    // hasn't finished when the screenshot is taken leaves sticky bars mid-page in the capture.
     const step = Math.max(window.innerHeight, 400);
     for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
-      window.scrollTo(0, y);
+      window.scrollTo({ top: y, behavior: "instant" });
       await new Promise((r) => setTimeout(r, 40));
     }
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
+    for (let i = 0; i < 20 && window.scrollY !== 0; i++)
+      await new Promise((r) => setTimeout(r, 25));
     await document.fonts.ready;
     const rendered = [...document.images].filter((img) => img.getClientRects().length > 0);
     await Promise.all(
@@ -42,7 +46,7 @@ export async function settle(page: Page): Promise<void> {
   });
 }
 
-/** Browse filters live in a collapsible panel on phones — open it if the toggle is showing. */
+/** Browse filters (variant a) live in a collapsible panel on phones — open it if the toggle is showing. */
 export async function openFilters(page: Page): Promise<void> {
   const toggle = page.locator("[data-filters-toggle]");
   if ((await toggle.count()) > 0 && (await toggle.isVisible())) {
@@ -50,6 +54,25 @@ export async function openFilters(page: Page): Promise<void> {
     if (expanded !== "true") await toggle.click();
   }
   await expect(page.locator("[data-filter-panel]")).toBeVisible();
+}
+
+/** The rendered result total from the browse header (`data-total`), or null on the empty/error state. */
+export async function listingTotal(page: Page): Promise<number | null> {
+  const el = page.locator("[data-results-count]");
+  if ((await el.count()) === 0) return null;
+  const raw = await el.first().getAttribute("data-total");
+  const n = Number(raw);
+  return raw !== null && Number.isFinite(n) ? n : null;
+}
+
+/** Asking prices of the rendered cards, in page order (฿1,234,567 → 1234567). */
+export async function cardPrices(page: Page): Promise<number[]> {
+  return page.locator("[data-listing-card]").evaluateAll((cards) =>
+    cards
+      .map((c) => c.textContent?.match(/฿([\d,]+)/)?.[1])
+      .filter((v): v is string => !!v)
+      .map((v) => Number(v.replace(/,/g, ""))),
+  );
 }
 
 /** Discover listing detail paths from the rendered home page (deduped). Empty = nothing published. */

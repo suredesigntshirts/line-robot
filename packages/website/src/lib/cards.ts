@@ -6,6 +6,15 @@ import { localePath } from "./site.ts";
 /** A public card row with its hero thumb already presigned (SSR is async; the card render isn't). */
 export type CardRow = PublicCardRow & { heroUrl: string | null };
 
+/** The poster's display name for the UI, or null when it is an internal pseudo-owner id. Listings
+ * ingested from a LINE group before their poster claimed them are owned by a placeholder user whose
+ * display name is the raw `group#…` / `user#…` subject — never a human name, so never shown. */
+export function displayPosterName(name: string | null | undefined): string | null {
+  const n = (name ?? "").trim();
+  if (n === "" || /^(group|user|room)#/i.test(n)) return null;
+  return n;
+}
+
 /** Presign every row's hero thumb in parallel (null → the card's placeholder). */
 export async function withHeroUrls(rows: PublicCardRow[]): Promise<CardRow[]> {
   const urls = await presignThumbs(rows.map((r) => r.heroThumbKey));
@@ -41,7 +50,7 @@ export function listingCardProps(row: CardRow, locale: UiLocale, t: Translator) 
       distanceLabel: distanceLabel(t, row.distanceM),
     }),
     monthlyRent: row.monthlyRent,
-    postedByName: row.posterName || undefined,
+    postedByName: displayPosterName(row.posterName) ?? undefined,
     href: localePath(locale, `/properties/${listing.id}`),
     lang: locale,
     t,

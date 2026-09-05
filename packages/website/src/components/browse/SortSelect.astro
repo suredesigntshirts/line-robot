@@ -1,0 +1,45 @@
+---
+import { createTranslator, type UiLocale } from "@line-robot/ui";
+import type { BrowseQuery } from "../../lib/browse.ts";
+import { hiddenInputs, sortOptions } from "../../lib/browseFacets.ts";
+
+/** Result-order control: a native <select> in a GET form that keeps every other facet. Auto-submits
+ * on change (tiny script); the "Apply" button is the no-JS path (hidden once JS runs). */
+interface Props {
+  query: BrowseQuery;
+  locale: UiLocale;
+  browseHref: string;
+}
+const { query, locale, browseHref } = Astro.props;
+const t = createTranslator(locale);
+const hidden = hiddenInputs(query, ["sort"]);
+const current = query.sort ?? "newest";
+---
+
+<form action={browseHref} method="get" class="flex items-center gap-2" data-sort-form>
+  {hidden.map(([name, value]) => <input type="hidden" name={name} value={value} />)}
+  <label class="flex items-center gap-2 text-sm text-text-2 leading-relaxed">
+    <span class="whitespace-nowrap">{t("browse.sort")}</span>
+    <select
+      name="sort"
+      class="h-9 rounded-full border border-border bg-surface pr-8 pl-3 font-medium text-sm text-text leading-relaxed"
+      data-sort-select
+    >
+      {sortOptions(t).map((o) => <option value={o.value} selected={o.value === current}>{o.label}</option>)}
+    </select>
+  </label>
+  <button
+    type="submit"
+    data-sort-apply
+    class="h-9 rounded-full border border-border bg-surface px-3 text-sm text-text leading-relaxed"
+  >
+    {t("browse.showResults")}
+  </button>
+</form>
+
+<script>
+  for (const form of document.querySelectorAll<HTMLFormElement>("[data-sort-form]")) {
+    form.querySelector<HTMLButtonElement>("[data-sort-apply]")?.classList.add("hidden");
+    form.querySelector("[data-sort-select]")?.addEventListener("change", () => form.requestSubmit());
+  }
+</script>

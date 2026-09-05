@@ -10,16 +10,7 @@
  * Added:   2026-06-14
  */
 import { expect, test } from "@playwright/test";
-import { capture, openFilters, watchForErrors } from "../support.ts";
-
-/** Read the rendered total from the "Listings: N" count line (null when the empty state shows). */
-async function listingTotal(page: import("@playwright/test").Page): Promise<number | null> {
-  const line = page.getByText(/^Listings:\s*\d+$/);
-  if ((await line.count()) === 0) return null;
-  const text = (await line.first().textContent()) ?? "";
-  const m = text.match(/(\d+)/);
-  return m ? Number(m[1]) : null;
-}
+import { capture, listingTotal, openFilters, watchForErrors } from "../support.ts";
 
 test(
   "journey: price-band filter narrows results (4.3)",

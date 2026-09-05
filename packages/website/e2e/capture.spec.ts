@@ -33,3 +33,20 @@ test("capture: empty state", async ({ page }, testInfo) => {
   await page.goto("/properties?q=zzqqx-no-such-listing-12345");
   await capture(page, "empty", testInfo);
 });
+
+test("capture: browse variant b (rail + sheet, sheet open)", async ({ page }, testInfo) => {
+  await page.goto("/properties?ui=browse:b&deal=sale");
+  await capture(page, "browse-b", testInfo);
+  await page.locator("[data-sheet-open]").first().click();
+  await page.waitForTimeout(300);
+  await page.screenshot({
+    path: `${testInfo.outputDir}/../../gallery/${process.env.E2E_BASE_URL ? "deployed" : "local"}/${testInfo.project.name}-browse-b-sheet.png`,
+  });
+  await page.goto("/properties?ui=reset");
+});
+
+test("capture: browse variant c (toolbar)", async ({ page }, testInfo) => {
+  await page.goto("/properties?ui=browse:c&deal=sale");
+  await capture(page, "browse-c", testInfo);
+  await page.goto("/properties?ui=reset");
+});

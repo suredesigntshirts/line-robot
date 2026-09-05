@@ -10,7 +10,7 @@ import { createTranslator, EmptyState, ErrorState, type UiLocale } from "@line-r
 import { createElement } from "react";
 import Base from "../layouts/Base.astro";
 import { type CardRow, withHeroUrls } from "../lib/cards.ts";
-import { lineOaUrl, localePath } from "../lib/site.ts";
+import { lineOaUrl, listingCount, localePath } from "../lib/site.ts";
 import ListingGrid from "./ListingGrid.astro";
 import Icon, { type IconName } from "./site/Icon.astro";
 import SectionHeading from "./site/SectionHeading.astro";
@@ -112,7 +112,7 @@ const browseLink = createElement(
             !dbError && facets.total > 0 && (
               <p class="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1 font-medium text-sm text-white/90 leading-relaxed ring-1 ring-white/20">
                 <Icon name="map-pin" size={14} />
-                <span>{t("count.listings", { count: facets.total })}</span>
+                <span>{listingCount(t, facets.total)}</span>
               </p>
             )
           }
@@ -249,7 +249,7 @@ const browseLink = createElement(
                       {t(`ptype.${tile.type}` as "ptype.house")}
                     </span>
                     <span class="text-sm text-text-2 leading-relaxed">
-                      {t("count.listings", { count: tile.count })}
+                      {listingCount(t, tile.count)}
                     </span>
                   </span>
                 </a>

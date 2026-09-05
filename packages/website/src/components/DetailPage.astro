@@ -16,7 +16,7 @@ import {
   type UiLocale,
 } from "@line-robot/ui";
 import Base from "../layouts/Base.astro";
-import { type CardRow, withHeroUrls } from "../lib/cards.ts";
+import { type CardRow, displayPosterName, withHeroUrls } from "../lib/cards.ts";
 import { listingJsonLd, safeJsonLdScript } from "../lib/jsonLd.ts";
 import { presignThumbs } from "../lib/media.ts";
 import { lineOaUrl, localePath } from "../lib/site.ts";
@@ -160,6 +160,8 @@ const auctionCaveats =
     ? [t("provenance.auctionAsIs"), t("provenance.auctionOccupied"), t("provenance.auctionVerifyTitle")]
     : [];
 
+// Never show an internal pseudo-owner id ("group#…") as the poster.
+const posterName = displayPosterName(detail.posterName);
 const locationLine = [listing.landmark, listing.tambon, listing.amphoe, listing.province]
   .filter((p): p is string => p !== null && p !== "")
   .join(" · ");
@@ -198,7 +200,7 @@ const ghostClass =
 
 <Base title={detail.headline} description={locationLine || detail.description.slice(0, 160)} canonicalPath={canonicalPath} ogImage={heroUrl} ogType="article">
   <script is:inline type="application/ld+json" set:html={jsonLd} slot="head" />
-  <main id="main" data-th-content class="container-site grid gap-6 pt-5 pb-28 md:gap-8 md:py-8" data-listing-id={listing.id}>
+  <main id="main" data-th-content class="container-site grid grid-cols-[minmax(0,1fr)] gap-6 pt-5 pb-28 md:gap-8 md:py-8" data-listing-id={listing.id}>
     <nav aria-label="Breadcrumb" class="flex min-w-0 items-center gap-1 text-sm text-text-2 leading-relaxed">
       <a href={localePath(locale, "/")} class="shrink-0 no-underline hover:text-primary-600">{t("nav.home")}</a>
       <Icon name="chevron-right" size={14} class="shrink-0 text-text-disabled" />
@@ -308,7 +310,7 @@ const ghostClass =
 
         <footer class="grid gap-2 border-border border-t pt-4 text-sm text-text-2 leading-relaxed">
           <p class="flex flex-wrap gap-x-3 gap-y-1">
-            {detail.posterName !== "" && <span>{t("listing.postedBy", { name: detail.posterName })}</span>}
+            {posterName !== null && <span>{t("listing.postedBy", { name: posterName })}</span>}
             <span data-testid="listing-updated">{t("listing.updated", { date: updatedLabel })}</span>
             <span class="font-latin text-text-disabled">{t("detail.listingId")}: {listing.id.slice(0, 8)}</span>
           </p>
@@ -344,14 +346,14 @@ const ghostClass =
               <span>{t("detail.copyLink")}</span>
             </button>
           </div>
-          {detail.posterName !== "" && (
+          {posterName !== null && (
             <div class="flex items-center gap-3 border-border border-t pt-4">
               <span class="flex size-10 items-center justify-center rounded-full bg-primary-50 text-primary-600">
                 <Icon name="user" size={18} />
               </span>
               <span class="grid min-w-0">
                 <span class="text-text-2 text-xs leading-relaxed">{t("detail.postedHead")}</span>
-                <span class="truncate font-semibold text-sm text-text leading-relaxed">{detail.posterName}</span>
+                <span class="truncate font-semibold text-sm text-text leading-relaxed">{posterName}</span>
               </span>
             </div>
           )}

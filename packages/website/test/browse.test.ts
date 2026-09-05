@@ -182,3 +182,21 @@ describe("browseQueryString", () => {
     expect(parse(s.slice(1)).near).toEqual({ lat: 18.79612, lng: 98.98765, radiusM: 5000 });
   });
 });
+
+describe("sort + bedrooms facets", () => {
+  it("parses beds (allow-listed minimums) and sort (newest never serialised)", () => {
+    expect(parse("beds=3&sort=price_desc")).toEqual({
+      minBedrooms: 3,
+      sort: "price_desc",
+      page: 1,
+    });
+    expect(parse("beds=9&sort=cheapest")).toEqual({ page: 1 });
+    expect(parse("sort=newest")).toEqual({ page: 1 });
+  });
+
+  it("round-trips beds + sort through browseQueryString", () => {
+    const q: BrowseQuery = { minBedrooms: 2, sort: "price_asc", dealType: "sale", page: 1 };
+    expect(browseQueryString(q)).toBe("?deal=sale&beds=2&sort=price_asc");
+    expect(parse(browseQueryString(q).slice(1))).toEqual(q);
+  });
+});

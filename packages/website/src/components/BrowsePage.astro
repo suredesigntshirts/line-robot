@@ -10,8 +10,13 @@ import { createElement } from "react";
 import Base from "../layouts/Base.astro";
 import { type BrowseQuery, browseQueryString, parseBrowseQuery } from "../lib/browse.ts";
 import { type CardRow, withHeroUrls } from "../lib/cards.ts";
-import { localePath } from "../lib/site.ts";
+import { listingCount, localePath } from "../lib/site.ts";
+import { variantFor } from "../lib/variants.ts";
 import FilterPanel from "./browse/FilterPanel.astro";
+import FilterSheet from "./browse/FilterSheet.astro";
+import QuickRail from "./browse/QuickRail.astro";
+import SortSelect from "./browse/SortSelect.astro";
+import Toolbar from "./browse/Toolbar.astro";
 import ListingGrid from "./ListingGrid.astro";
 import { NearMe } from "./NearMe.tsx";
 import Pagination from "./Pagination.astro";
@@ -20,8 +25,12 @@ import Icon from "./site/Icon.astro";
 
 /**
  * Browse / search results: consented listings (LEGAL-02) filtered by the URL facets, list-first with
- * a supplementary map on a radius search (CONV-08). Filters are SSR links (FilterPanel); the only
- * islands are the genuine browser-API ones — geolocation (NearMe) and the Leaflet map.
+ * a supplementary map on a radius search (CONV-08). Three filter templates share one facet model
+ * (lib/browseFacets.ts) and are picked per request by the UI-variant mechanism (lib/variants.ts):
+ *   a — sidebar of link chips (desktop) / collapsible panel (phones)
+ *   b — quick-filter rail pinned under the header + a bottom-sheet form for everything
+ *   c — toolbar of native selects (OS pickers on phones)
+ * The only islands are the genuine browser-API ones — geolocation (NearMe) and the Leaflet map.
  */
 interface Props {
   locale: UiLocale;
@@ -29,6 +38,7 @@ interface Props {
 const { locale } = Astro.props;
 const t = createTranslator(locale);
 const browseHref = localePath(locale, "/properties");
+const variant = variantFor("browse", Astro.locals.ui);
 const PAGE_SIZE = 24;
 
 const query = parseBrowseQuery(Astro.url.searchParams);
@@ -39,6 +49,8 @@ let dbError = false;
 try {
   const result = await searchPublicListings(getDb(), {
     lang: locale,
+    sort: query.sort,
+    minBedrooms: query.minBedrooms,
     dealType: query.dealType,
     propertyType: query.propertyType,
     listingType: query.listingType,
@@ -78,13 +90,14 @@ const titleParts = [dealTitle];
 if (query.propertyType) titleParts.push(t(`ptype.${query.propertyType}` as MessageKey));
 const title = `${titleParts.join(" · ")}${place ? ` ${t("browse.resultsIn", { place })}` : ""}`;
 
-// Active-filter summary chips (each removes itself). Mirrors the panel's semantics.
+// Active-filter summary chips (each removes itself).
 const remove = (patch: Partial<BrowseQuery>) =>
   `${browseHref}${browseQueryString({ ...query, ...patch, page: 1 })}`;
 const active: Array<{ label: string; href: string }> = [];
 if (query.dealType) active.push({ label: dealTitle, href: remove({ dealType: undefined, priceBand: undefined }) });
 if (query.priceBand) active.push({ label: t(query.priceBand.labelKey), href: remove({ priceBand: undefined }) });
 if (query.propertyType) active.push({ label: t(`ptype.${query.propertyType}` as MessageKey), href: remove({ propertyType: undefined }) });
+if (query.minBedrooms !== undefined) active.push({ label: t("browse.bedsMin", { n: query.minBedrooms }), href: remove({ minBedrooms: undefined }) });
 if (query.saleCondition) active.push({ label: t(`condition.${query.saleCondition}` as MessageKey), href: remove({ saleCondition: undefined }) });
 if (query.listingType) active.push({ label: t(`listingType.${query.listingType}` as MessageKey), href: remove({ listingType: undefined }) });
 if (query.province) active.push({ label: query.province, href: remove({ province: undefined, amphoe: undefined }) });
@@ -110,15 +123,18 @@ const clearLink = createElement(
   { href: browseHref, className: "font-semibold text-primary-600" },
   t("browse.clearAll"),
 );
+const facetProps = { query, locale, provinces, browseHref };
 ---
 
 <Base
   title={title}
   description={t("site.description")}
   canonicalPath={browseHref}
-  noindex={active.length > 0 || query.near !== undefined || query.page > 1}
+  noindex={active.length > 0 || query.near !== undefined || query.page > 1 || query.sort !== undefined}
 >
-  <main id="main" data-th-content class="container-site grid gap-6 py-6 md:py-8">
+  <main id="main" data-th-content data-browse-variant={variant} class="container-site grid grid-cols-[minmax(0,1fr)] gap-6 py-6 md:py-8">
+    {variant === "b" && <QuickRail {...facetProps} />}
+
     <nav aria-label="Breadcrumb" class="flex items-center gap-1 text-sm text-text-2 leading-relaxed">
       <a href={localePath(locale, "/")} class="no-underline hover:text-primary-600">{t("nav.home")}</a>
       <Icon name="chevron-right" size={14} class="text-text-disabled" />
@@ -126,70 +142,82 @@ const clearLink = createElement(
     </nav>
 
     <div class="grid gap-3">
-      <div class="flex flex-wrap items-end justify-between gap-3">
+      <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <h1 class="font-bold font-heading-th text-2xl text-text leading-tight md:text-3xl" lang={locale}>
           {title}
         </h1>
         {
           !dbError && (
-            <p class="font-medium text-sm text-text-2 leading-relaxed" data-results-count>{t("pager.count", { total })}</p>
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p class="font-medium text-sm text-text-2 leading-relaxed" data-results-count data-total={total}>{listingCount(t, total)}</p>
+              <SortSelect query={query} locale={locale} browseHref={browseHref} />
+            </div>
           )
         }
       </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          data-filters-toggle
-          aria-controls="browse-filters"
-          aria-expanded="false"
-          class="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-surface px-4 font-medium text-sm text-text leading-relaxed md:hidden"
-        >
-          <Icon name="sliders" size={16} />
-          {t("browse.filters")}
-          {active.length > 0 && (
-            <span class="rounded-full bg-primary-500 px-1.5 font-latin text-surface text-xs">{active.length}</span>
-          )}
-        </button>
-        {
-          active.map((a) => (
-            <a
-              href={a.href}
-              class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-primary-700 text-sm leading-relaxed no-underline transition-colors hover:bg-primary-100"
-            >
-              {a.label}
-              <Icon name="x" size={12} />
-            </a>
-          ))
-        }
-        {
-          active.length > 1 && (
-            <a href={browseHref} class="text-sm text-text-2 leading-relaxed underline-offset-2 hover:underline">
-              {t("browse.clearAll")}
-            </a>
-          )
-        }
-      </div>
+
+      {variant === "c" && <Toolbar {...facetProps} />}
+
+      {
+        (variant === "a" || active.length > 0) && (
+          <div class="flex flex-wrap items-center gap-2">
+            {variant === "a" && (
+              <button
+                type="button"
+                data-filters-toggle
+                aria-controls="browse-filters"
+                aria-expanded="false"
+                class="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-surface px-4 font-medium text-sm text-text leading-relaxed lg:hidden"
+              >
+                <Icon name="sliders" size={16} />
+                {t("browse.filters")}
+                {active.length > 0 && (
+                  <span class="rounded-full bg-primary-500 px-1.5 font-latin text-surface text-xs">{active.length}</span>
+                )}
+              </button>
+            )}
+            {active.map((a) => (
+              <a
+                href={a.href}
+                class="inline-flex items-center gap-1 rounded-full bg-primary-50 px-3 py-1 text-primary-700 text-sm leading-relaxed no-underline transition-colors hover:bg-primary-100"
+              >
+                {a.label}
+                <Icon name="x" size={12} />
+              </a>
+            ))}
+            {active.length > 1 && (
+              <a href={browseHref} class="text-sm text-text-2 leading-relaxed underline-offset-2 hover:underline">
+                {t("browse.clearAll")}
+              </a>
+            )}
+          </div>
+        )
+      }
     </div>
 
-    <div class="grid items-start gap-8 md:grid-cols-[280px_1fr] lg:grid-cols-[300px_1fr]">
-      <aside
-        id="browse-filters"
-        class="hidden grid gap-6 rounded-xl border border-border bg-surface p-4 md:sticky md:top-20 md:block md:max-h-[calc(100dvh-6rem)] md:overflow-y-auto"
-        aria-label={t("browse.filters")}
-      >
-        <NearMe client:load query={query} locale={locale} basePath={browseHref} />
-        <hr class="border-border" />
-        <FilterPanel query={query} locale={locale} provinces={provinces} browseHref={browseHref} />
-      </aside>
+    <div class:list={["grid items-start gap-8", variant === "a" && "lg:grid-cols-[300px_1fr]"]}>
+      {
+        variant === "a" && (
+          <aside
+            id="browse-filters"
+            class="hidden grid gap-6 rounded-xl border border-border bg-surface p-4 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto"
+            aria-label={t("browse.filters")}
+          >
+            <NearMe client:load query={query} locale={locale} basePath={browseHref} />
+            <hr class="border-border" />
+            <FilterPanel {...facetProps} />
+          </aside>
+        )
+      }
 
-      <section class="grid gap-6" aria-live="polite">
+      <section class="grid gap-6" data-results>
         {
           dbError ? (
             <ErrorState t={t} action={retryLink} />
           ) : cards.length === 0 ? (
             <EmptyState t={t} action={clearLink} />
           ) : (
-            <ListingGrid rows={cards} locale={locale} columns="browse" />
+            <ListingGrid rows={cards} locale={locale} columns={variant === "a" ? "browse" : "home"} />
           )
         }
         {showMap && pins.length > 0 && <ResultsMap client:visible pins={pins} locale={locale} />}
@@ -199,10 +227,13 @@ const clearLink = createElement(
         )}
       </section>
     </div>
+
+    {variant === "b" && <FilterSheet {...facetProps} />}
   </main>
 </Base>
 
 <script>
+  // Variant A phones: the sidebar collapses behind the "Filters" button.
   const btn = document.querySelector<HTMLButtonElement>("[data-filters-toggle]");
   const panel = document.getElementById("browse-filters");
   if (btn && panel) {
