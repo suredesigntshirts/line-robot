@@ -65,14 +65,14 @@ export async function listingTotal(page: Page): Promise<number | null> {
   return raw !== null && Number.isFinite(n) ? n : null;
 }
 
-/** Asking prices of the rendered cards, in page order (฿1,234,567 → 1234567). */
+/** Asking prices (or monthly rents) of the rendered cards, in page order, from the price element's
+ * numeric `data-price` — never parsed from text, where adjacent lines run together. */
 export async function cardPrices(page: Page): Promise<number[]> {
-  return page.locator("[data-listing-card]").evaluateAll((cards) =>
-    cards
-      .map((c) => c.textContent?.match(/฿([\d,]+)/)?.[1])
-      .filter((v): v is string => !!v)
-      .map((v) => Number(v.replace(/,/g, ""))),
-  );
+  return page
+    .locator("[data-listing-card] [data-price]")
+    .evaluateAll((els) =>
+      els.map((el) => Number((el as HTMLElement).dataset.price)).filter((n) => Number.isFinite(n)),
+    );
 }
 
 /** Discover listing detail paths from the rendered home page (deduped). Empty = nothing published. */
@@ -211,7 +211,10 @@ export async function assertNoBrokenImages(page: Page): Promise<void> {
     [...document.images]
       .filter((i) => i.getClientRects().length > 0) // laid out — a display:none breakpoint image never loads
       .filter((i) => !i.complete || i.naturalWidth === 0)
-      .map((i) => i.currentSrc || i.src),
+      .map((i) => i.currentSrc || i.src)
+      // Third-party map tiles (OpenStreetMap) rate-limit a parallel test burst; they are not our
+      // asset/presign path, which is what this invariant guards. Everything else stays strict.
+      .filter((src) => !/\.tile\.openstreetmap\.org\//.test(src)),
   );
   expect(broken, `broken images: ${broken.join(", ")}`).toEqual([]);
 }
