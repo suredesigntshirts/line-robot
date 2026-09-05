@@ -2,7 +2,7 @@ import type { Translator, UiLocale } from "@line-robot/ui";
 
 /**
  * Site-level constants shared by every page: brand, locale paths, the LINE OA link, navigation.
- * The brand name is the working wordmark from the design mockups (FOUNDER-QUEUE FQ-4 — no final
+ * The brand name is the working wordmark from the design mockups (DECISIONS.md D29 — no final
  * brand decided yet); every surface reads it from the i18n catalog (`site.name`) so a rename is one
  * edit in packages/ui/src/i18n.
  */

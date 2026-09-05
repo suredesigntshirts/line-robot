@@ -27,4 +27,4 @@ Editorial, Sansiri-pole made approachable. **For**: most distinctive brand, fits
 **Original recommendation was B** (borrowing A's neutral surface scale for data-dense screens) — **superseded: the founder chose A** (trust-blue) on 2026-06-13 after reviewing the rendered mockups. All three sets pass WCAG AA in both themes (verified in tokens-candidates.md, with the one borderline — C's light-mode primary — already resolved).
 
 ## Outcome
-Founder picked **A** on 2026-06-13; the Direction-A `@theme` block from `tokens-candidates.md` is now live in `packages/ui/theme.css`. The Tailwind v4 + shadcn foundation and the direction-a redesign across all pages are being implemented under **plan 21** (`plans/21-frontend-architecture-conformance.md`).
+Founder picked **A** on 2026-06-13; the Direction-A `@theme` block from `tokens-candidates.md` is now live in `packages/ui/theme.css`. The Tailwind v4 + shadcn foundation and the direction-a redesign across all pages were implemented under **plan 21** (done; archived) (`handbook/archive/plans/21-frontend-architecture-conformance.md`).

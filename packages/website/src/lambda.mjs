@@ -6,7 +6,7 @@
 //
 // We deliberately drive the *public* Node middleware contract rather than reaching into Astro's
 // internal `App` class — so this shim survives adapter upgrades as long as the documented
-// middleware signature holds. Reference + gotchas: spikes/astro-ssr-pulumi/FINDINGS.md.
+// middleware signature holds. Reference + gotchas: handbook/archive/spikes/astro-ssr-pulumi-FINDINGS.md.
 import { IncomingMessage, ServerResponse } from "node:http";
 import { Socket } from "node:net";
 

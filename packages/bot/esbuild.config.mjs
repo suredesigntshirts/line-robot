@@ -61,7 +61,7 @@ console.log(
 // Install in an ISOLATED temp dir outside the monorepo (running `npm install` inside dist/sweep
 // makes npm walk up to the workspace root and re-run its installs — which breaks), then copy the
 // native packages in. Cross-platform fetch (arm64 from an x86 host) is proven in
-// spikes/sharp-lambda-packaging. The wasm fallback is pruned to stay well inside Lambda's 250MB cap.
+// handbook/archive/spikes/sharp-lambda-packaging-FINDINGS.md. The wasm fallback is pruned to stay well inside Lambda's 250MB cap.
 const sweepDir = resolve("dist/sweep");
 const sharpTmp = mkdtempSync(resolve(tmpdir(), "sweep-sharp-"));
 writeFileSync(

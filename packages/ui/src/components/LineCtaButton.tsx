@@ -14,7 +14,7 @@ const BASE =
 
 /**
  * CONV-06: "Chat on LINE" is the primary CTA — this market closes in chat, not in enquiry forms.
- * The LINE button wears the LINE brand (green + white) by design (FOUNDER-QUEUE: LINE's own
+ * The LINE button wears the LINE brand (green + white) by design (founder ruling in handbook/archive/skill-hardening/FOUNDER-QUEUE.md: LINE's own
  * white-on-green is below WCAG-AA but is the brand standard — a deliberate brand exception, so it is
  * NOT held to assertCtaContrast). Phone is the visible secondary (CONV-09), never an email form.
  * Stateless: hrefs only, no fetch (D3.9).

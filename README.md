@@ -10,7 +10,7 @@ website (see `STATUS.md` and decision D27 in `DECISIONS.md`).
 ## Stack
 
 Astro 6 SSR (Lambda + CloudFront) · React 19 islands · Tailwind v4 + owned shadcn primitives ·
-Postgres 16 / PostGIS on RDS (drizzle) · Pulumi → AWS ap-southeast-1 · Anthropic extraction
+Postgres 17 / PostGIS on RDS (drizzle) · Pulumi → AWS ap-southeast-1 · Anthropic extraction
 pipeline · LINE Messaging API / LIFF (parked).
 
 ## Monorepo map

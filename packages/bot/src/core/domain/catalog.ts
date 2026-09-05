@@ -1,7 +1,7 @@
 /**
  * Catalog domain — the real-estate assistant's durable state. These types are provider-agnostic;
  * the DynamoDB adapter ({@link ../adapters/dynamodb/catalogRepository}) maps them onto the
- * single-table layout. See `plans/09-realestate-catalog-assistant.md` for the access model.
+ * single-table layout. See `handbook/archive/plans/09-realestate-catalog-assistant.md` for the access model.
  */
 
 // Chanote lives in the shared kernel (it is part of the read-API contract). Imported for local use

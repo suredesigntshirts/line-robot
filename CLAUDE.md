@@ -19,7 +19,7 @@ parked, in progress and next is in `STATUS.md` (dated; it wins over every other 
 - `handbook/archive/` — history only (2026-06 sprint logs, plans 00–24, skill logs, spikes, old skills).
 - `docs/` — cached VENDOR documentation via `/documentation-downloader`; index `docs/llms.txt`.
 - `plans/` — one active plan at a time (see its README); finished plans move to the archive.
-- `packages/` — website · ui · db · domain · shared · pipeline · bot · api · miniapp (`README.md` map).
+- `packages/` — website · ui · db · domain · shared · pipeline · bot · api · miniapp (map in the root `README.md`).
 - `infra/` — Pulumi program (staging); `infra/deploy-user-policy.json` = the deploy identity's policy.
 
 ## Commands

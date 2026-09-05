@@ -56,7 +56,7 @@ mock. The three `direction-{a,b,c}.html` files are the A/B/C theme comparison th
 
 ## Process
 
-Design-bearing work runs `/alignment-review` (semantic heuristics against the register) AND
+Design-bearing work checks the heuristic register (`handbook/research/00-product-principles.md` §4) AND
 `/frontend-review` (renders the real production artifact, asserts computed styles, runs the e2e /
 visual suite, and diffs the rendered screen against the style reference above). The mockups are the
 *style* bar inside that gate — never a bypass of it.

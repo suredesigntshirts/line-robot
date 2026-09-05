@@ -2,7 +2,7 @@
 # Run the website locally (Astro dev server, hot reload) against the STAGING database + photo
 # bucket, so you see real listings while editing templates. Read-only from the site's point of
 # view (the website only SELECTs). Needs: the `line-robot` AWS profile, the Pulumi passphrase file,
-# and `~/.pulumi/bin` (see CLAUDE.md → Deploying). Usage: npm run dev:staging -w @line-robot/website
+# and `~/.pulumi/bin` (see handbook/runbooks/deploy.md). Usage: npm run dev:staging -w @line-robot/website
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 infra="$here/../../infra"

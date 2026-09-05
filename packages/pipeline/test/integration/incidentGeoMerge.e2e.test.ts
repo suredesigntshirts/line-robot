@@ -13,7 +13,7 @@ import type { StepContext } from "../../src/steps/context.ts";
 // listings, each = (optional map pin) + text + photo burst. Only #1 and #2 carry
 // a coordinate pin; #4's map is a coordinate-less short link ([MAP 2]); #3 and #5
 // have no pin. Phone numbers anonymized; coordinates are the real pins (already
-// public in plans/23-ingestion-pipeline-audit).
+// public in handbook/archive/plans/23-ingestion-pipeline-audit).
 //
 // THE BUG: conversation-level geoHints were sprayed onto every segment, so #3/#4/#5
 // inherited #2's pin → geo-blocked → merged. A1 binds each segment to ITS OWN pin

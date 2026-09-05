@@ -15,7 +15,7 @@ never another package's adapters/internals.
   `StaticPage.astro` via `[page].astro`); `/contact`; designed 404; `robots.txt` + `sitemap.xml`.
   Site chrome lives in `components/site/` (Header with mobile sheet, Footer, ThemeToggle, Icon set,
   SectionHeading); brand/locale/nav constants in `lib/site.ts`; card mapping in `lib/cards.ts`.
-- **Brand.** The working wordmark is "ทรัพย์ดี" / "Sapdee" (FOUNDER-QUEUE FQ-4 — no final name). It is
+- **Brand.** The working wordmark is "ทรัพย์ดี" / "Sapdee" (DECISIONS.md D29 — no final name). It is
   read from the i18n catalog (`site.name`) everywhere, so a rename is one edit in
   `packages/ui/src/i18n/{th,en}.ts`.
 - **UI template variants (A/B + design exploration).** `?ui=b` (site-wide) or `?ui=browse:b,home:c`
@@ -37,7 +37,7 @@ never another package's adapters/internals.
   in `packages/ui/src/components/ui/`, themed via the `@theme inline` alias layer.
 - **Photos: SSR-time presign of `derivatives/*` thumbs** (`src/lib/media.ts`; SSR HTML is no-cache so
   presigned URLs never stale-cache; bucket stays private). The SSR role has `s3:GetObject` scoped to
-  `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (BACKLOG 4.9).
+  `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (known limitation, tracked in STATUS.md).
 - **SEO**: canonical/OG/hreflang(+x-default) in `Base.astro`; JSON-LD `Organization`+`WebSite`
   (site-wide) and `RealEstateListing`+`BreadcrumbList` (detail), XSS-safe via `safeJsonLdScript`;
   sitemap from Postgres + static pages; filtered browse pages are `noindex`. URL scheme is opaque

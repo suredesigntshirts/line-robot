@@ -16,3 +16,5 @@ History only (see `../README.md`). Each plan's lasting output is a row in `DECIS
 | 22 | instruction-surface cleanup | never executed; superseded by 24 |
 | 23 | ingestion pipeline audit | Groups A, C, D built (D not deployed); B not started; parked with the bot |
 | 24 | context cleanup | executed 2026-09-05 (this layout: STATUS/DECISIONS/README + handbook/) |
+
+Code comments that cite "plan N", "Stage N" or a plan-23 unit (U-D2, A1, …) refer to the files in this directory.

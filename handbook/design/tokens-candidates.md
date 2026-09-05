@@ -1,6 +1,6 @@
 # Design Token Candidates — M3
 
-**Status:** DRAFT — 3 named candidates for founder review.
+**Status:** DECIDED — Direction A "Baania-clean" picked 2026-06-13 (`design-direction.md`); the live tokens are `packages/ui/theme.css`. Candidates kept for reference only.
 **Date:** 2026-06-12
 **Context:** Thai real-estate marketplace, Northern Thailand / Chiang Mai, Thai+English,
 mobile-first (360–390 px), LINE-centric. All heuristic IDs below refer to

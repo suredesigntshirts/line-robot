@@ -30,7 +30,7 @@ website (decision D27 in `DECISIONS.md`).
 ## Next
 
 1. D27 listing-supply form for the website (own plan; re-uses the extraction pipeline).
-2. Unpublish the 15 seed listings on staging (a deliberate data change — do it separately).
+2. Unpublish the 15 seed listings on staging (a deliberate data change on staging — the founder triggers it; never do it unprompted).
 3. Pick a browse filter variant (`a`/`b`/`c` via `?ui=`; `a` is the default today).
 4. Brand name (placeholder "ทรัพย์ดี / Sapdee").
 5. Legal copy review (privacy/terms are model-drafted; entity name/address blank).

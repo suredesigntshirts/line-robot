@@ -214,7 +214,7 @@ export const th = {
   // ============================================================
   "app.accountTitle": "บัญชีของฉัน",
   // Brand wordmark on the CRM home header (S5-5 identity chrome). "ทรัพย์ดี" = the working wordmark
-  // the Stage-5 mock carries; surfaced to FOUNDER-QUEUE (no settled brand name yet — FQ-4).
+  // the Stage-5 mock carries; recorded as D29 in DECISIONS.md (no settled brand name yet).
   "app.wordmark": "ทรัพย์ดี",
   "tab.myListings": "ประกาศของฉัน",
   "tab.saved": "บันทึกไว้",
