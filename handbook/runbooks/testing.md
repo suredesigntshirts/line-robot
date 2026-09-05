@@ -36,8 +36,11 @@ npm run test:e2e -w @line-robot/website        # frontend changes (website, ui):
 - **Ad-hoc**: drop a throwaway `*.spec.ts` in `e2e/adhoc/` (those specs are gitignored and excluded from the
   gate; the helper scripts + README there are tracked) or shoot
   specific states with `node e2e/adhoc/shoot.mjs` — see `packages/website/e2e/adhoc/README.md`.
-- **Design review pass** (opt-in): `/frontend-review [url]` renders the real artifact and reviews it
-  against `handbook/design/mockups/` and the heuristic register.
+- **Design review pass** (opt-in, **founder-invoked**): the founder types `/frontend-review [url]`; it renders
+  the real artifact and reviews it against `handbook/design/mockups/` and the heuristic register. The skill
+  has `disable-model-invocation: true`, so a session cannot call it — ask the founder to run it, or do the
+  manual equivalent: `npx playwright test e2e/capture.spec.ts` for the gallery, then compare the PNGs against
+  `handbook/design/mockups/renders/direction-a-baania-clean-{light,dark}.png` by eye.
 
 ## Data layer
 

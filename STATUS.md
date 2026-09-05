@@ -10,7 +10,7 @@ website (decision D27 in `DECISIONS.md`).
 
 ## Live
 
-- Website https://d15dpmhcgtrf1r.cloudfront.net/ (th `/`, en `/en/`) — Astro 6 SSR, Lambda + CloudFront;
+- Website https://d15dpmhcgtrf1r.cloudfront.net/ (th `/`, en `/en/`; browse lives at `/properties`) — Astro 6 SSR, Lambda + CloudFront;
   deployed 2026-09-05, commit `7fda50b`; deployed e2e 184 passed / 4 skipped.
 - Postgres RDS `linerobot-staging-pg` (t4g.micro, public + TLS), migrations 0000–0011 applied.
 - One environment: the Pulumi stack `staging` is the only stack (production was never stood up; the
@@ -73,7 +73,8 @@ Defaults taken in plan 24 §0 (2026-09-05, `handbook/archive/plans/24-context-cl
    form exists.
 3. **History** → archived under `handbook/archive/`; unused vendor caches deleted; session memory
    pruned to preferences + gotchas.
-4. **Review machinery** → free gate + Playwright e2e + `/frontend-review` (opt-in). Multi-agent
+4. **Review machinery** → free gate + Playwright e2e + `/frontend-review` (opt-in, founder-invoked — a
+   session cannot call it). Multi-agent
    review skills and budget protocol archived.
 5. **Brand** stays the placeholder "ทรัพย์ดี / Sapdee"; **legal copy** stays "draft — review before
    real users". Neither is solved.

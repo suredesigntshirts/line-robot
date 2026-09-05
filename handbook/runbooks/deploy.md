@@ -56,7 +56,7 @@ E2E_BASE_URL=https://d15dpmhcgtrf1r.cloudfront.net npm run test:e2e:deployed -w 
 ```
 
 Same data-driven specs as local — they discover whatever is published live. A red invariant here
-means the deploy is broken or behind. Optional visual pass: `/frontend-review <that-url>`.
+means the deploy is broken or behind. Optional visual pass: ask the founder to run `/frontend-review <that-url>` (founder-invoked; see `testing.md`).
 Record the deploy (date, HEAD, e2e result) in `STATUS.md`.
 
 ## Full-stack deploy (bot / mini-app — PARKED)
