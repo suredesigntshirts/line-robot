@@ -16,9 +16,9 @@ The v2 marketplace rebuild is governed by `plans/19-v2-marketplace-rebuild.md` (
 decision register D1–D25) with per-stage specs in `plans/19-v2-marketplace-rebuild/`. **No stage is
 built before its spec is fleshed and the user approves.**
 
-Product/market research artifacts live in `docs/research/` (a1–c1). The **heuristic register** —
+Product/market research artifacts live in `handbook/research/` (a1–c1). The **heuristic register** —
 the numbered, falsifiable rules every design-bearing change is reviewed against — is
-`docs/research/00-product-principles.md`. When reviewing or building UI, copy, schema, or flows,
+`handbook/research/00-product-principles.md`. When reviewing or building UI, copy, schema, or flows,
 load the register and check the applicable heuristic IDs. (A `/alignment-review` skill that does
 this mechanically is a Stage 0 deliverable.)
 
@@ -39,7 +39,7 @@ Review cadence (canonical: master plan §5.3):
 4. No config nobody sets.
 5. The deliverable is code a human developer reads without a guide.
 
-Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `/frontend-review` (`.claude/skills/frontend-review/` — perceptual + e2e gate; runs the plan-20 Playwright suite), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `docs/research/00-product-principles.md`. Frontend e2e/visual: `plans/20-frontend-visual-e2e-testing.md`.
+Tooling: `/increment-review` (`.claude/skills/increment-review/`), `/alignment-review` (`.claude/skills/alignment-review/`), `/frontend-review` (`.claude/skills/frontend-review/` — perceptual + e2e gate; runs the plan-20 Playwright suite), `npm run eval` (scorecard, **advisory only — D21**: regressions are reported, never blocking; the founder judges). Alignment register: `handbook/research/00-product-principles.md`. Frontend e2e/visual: `plans/20-frontend-visual-e2e-testing.md`.
 
 ## Anthropic usage budget (long autonomous runs)
 
@@ -176,7 +176,7 @@ presign). The SPA's `VITE_API_URL` = the api Function URL (Pulumi output `miniAp
   `listing_note` table (migration `0008`); per-caller `isSaved` on the detail DTO. Server-side validation
   (non-negativity, future-time) backs the client guards.
 - **Edit-by-reply RETIRED (A3a); DF-6 descoped.** Founder taste calls queued in
-  `docs/design/skill-hardening/FOUNDER-QUEUE.md` (S5-*).
+  `handbook/design/skill-hardening/FOUNDER-QUEUE.md` (S5-*).
 - **v1 retired/parked:** the Preact SPA is gone (grep-proven); a route-compat unit test
   (`packages/miniapp/test/route-compat.test.ts`) asserts every bot-emitted miniapp path resolves in the new
   router; the v1 read-api parallel-runs (deletion = Stage 6 deliverable #12).

@@ -49,7 +49,7 @@ mock. The three `direction-{a,b,c}.html` files are the A/B/C theme comparison th
 
 1. **Style is the reference; content/fields come from the code.** Don't port mock fields or
    invented data; build from the real schema and feature set.
-2. **Price ranges reflect ACTUAL North-Thailand prices** (`docs/research/a2-market-landscape-north.md`),
+2. **Price ranges reflect ACTUAL North-Thailand prices** (`handbook/research/a2-market-landscape-north.md`),
    not the demo's invented brackets.
 3. **NPA is a calm *category highlight*, not a danger alert.** Keep the required DIST-02 disclosure
    caveats; de-escalate the visual alarm (a restrained accent / label, not aggressive red).

@@ -1,6 +1,6 @@
 # Context map — changed surface → register context groups
 
-The register (`docs/research/00-product-principles.md` §4) groups its heuristics into eight contexts. Pick every group a surface touches; when in doubt, include it (an n-a verdict is cheap; a skipped violation is not). **The register's own §4 headings are the authority for which IDs belong to each group** — this map deliberately does not duplicate the ID lists (a hand-maintained mirror drifts; the first audit of this file already caught misassignments).
+The register (`handbook/research/00-product-principles.md` §4) groups its heuristics into eight contexts. Pick every group a surface touches; when in doubt, include it (an n-a verdict is cheap; a skipped violation is not). **The register's own §4 headings are the authority for which IDs belong to each group** — this map deliberately does not duplicate the ID lists (a hand-maintained mirror drifts; the first audit of this file already caught misassignments).
 
 | Context group (register §4 heading) | Typical surfaces |
 |---|---|

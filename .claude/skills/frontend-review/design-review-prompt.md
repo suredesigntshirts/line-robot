@@ -2,7 +2,7 @@
 
 Spawn a fresh `Explore` agent with the prompt below. Fill `{GALLERY_DIR}` with the target's gallery
 (`packages/website/test-results/gallery/local` or `.../deployed`) and `{MOCK_RENDER_DIR}` with the
-rendered mock screenshots (`docs/design/mockups/renders/` — `direction-a-light.png` /
+rendered mock screenshots (`handbook/design/mockups/renders/` — `direction-a-light.png` /
 `direction-a-dark.png`; regenerate with the recipe in SKILL.md Mode B if the mock changed). Do NOT
 pre-summarise the design — fresh eyes are the point.
 
@@ -23,7 +23,7 @@ two sets of SCREENSHOTS. This is a pixel comparison of images — you have NO ac
   (e.g. `mobile-dark-detail.png`). Open them.
 - **The design target** (where we're going): the rendered mock screenshots in `{MOCK_RENDER_DIR}/` —
   `direction-a-light.png` and `direction-a-dark.png` ("Baania-clean", trust-blue Thai portal). Open them.
-- For context only (prose, no values to copy): `docs/design/design-direction.md` (founder taste brief).
+- For context only (prose, no values to copy): `handbook/design/design-direction.md` (founder taste brief).
 
 **FORBIDDEN — this is the whole point:** do NOT open `theme.css`, `direction-a-baania-clean.html`, any
 `.css`/`.tsx`/`.astro` file, git, or any code. Do NOT cite a token/hex/oklch value (`#1f5fad`,

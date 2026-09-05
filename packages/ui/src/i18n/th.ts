@@ -274,7 +274,7 @@ export const th = {
   "field.tambon": "ตำบล",
   // ============================================================
   // Per-user CRM (Stage 5, Build D — D13): saved / viewings / notes / owner-edit. Bare-verb CTAs
-  // (COPY-02). Style matches docs/design/mockups/explore-stage5-3-viewings.html + direction-a.
+  // (COPY-02). Style matches handbook/design/mockups/explore-stage5-3-viewings.html + direction-a.
   // ============================================================
   // Saved tab (GET /me/saved).
   "saved.loading": "กำลังโหลดรายการที่บันทึกไว้…",
@@ -346,7 +346,7 @@ export const th = {
   // ============================================================
   // Claim / publish flow (Stage 5, Build C — D7 poster opt-in). The LIFF claim screen the bot DM
   // deep-links to: review the bot-extracted listing → claim ownership → choose public vs group-private.
-  // Bare-verb CTAs (COPY-02 / B3-F08). Style matches docs/design/mockups/explore-stage5-1-claim.html.
+  // Bare-verb CTAs (COPY-02 / B3-F08). Style matches handbook/design/mockups/explore-stage5-1-claim.html.
   // ============================================================
   "claim.title": "ตรวจสอบประกาศ",
   "claim.loading": "กำลังโหลดประกาศ…",

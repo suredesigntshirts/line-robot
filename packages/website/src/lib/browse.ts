@@ -32,7 +32,7 @@ export interface PriceBand {
 }
 
 /** SALE asking-price brackets (`listing.price_thb`, THB), keyed to the real North-Thai bands in
- * docs/research/a2-market-landscape-north.md: the §3 Implications tick marks ฿1M/3M/5M/10M/20M
+ * handbook/research/a2-market-landscape-north.md: the §3 Implications tick marks ฿1M/3M/5M/10M/20M
  * (line 129), the ฿2–9M "80% of purchases" corridor + ฿4.5M median (Finding 6), and the MKT-12
  * ฿3–5M sweet spot (line 170). Boundaries are the research tick marks, not invented round numbers. */
 export const SALE_PRICE_BANDS: readonly PriceBand[] = [

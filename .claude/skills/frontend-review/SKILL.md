@@ -54,7 +54,7 @@ hardcoding.
    mode flips), islands hydrate, images load, no JS errors / 5xx. These survive theme churn. Pixel
    baselines are deferred to design lock-in.
 3. **Design review is judgment vs DIRECTION, not vs a prior screenshot.** Compare the captured gallery
-   to `docs/design/mockups/` + the heuristic register + the taste brief — "does this align with where
+   to `handbook/design/mockups/` + the heuristic register + the taste brief — "does this align with where
    we're going." Style only, never content/fields (those come from the code/schema).
 4. **Save the caller's context — run in a sub-agent.** The heavy work (run the suite, open ~16
    screenshots) happens in a spawned agent; it returns a concise verdict + only the 2–3 screens worth
@@ -105,7 +105,7 @@ wrong colour). So pixel-diff the gallery BEFORE vs AFTER the change:
   (local and deployed no longer collide; same-target back-to-back does).
 - **Spawn a fresh `Explore` sub-agent using the ready prompt in `design-review-prompt.md`** (fill in
   the target's gallery dir AND the mock-render dir). **The comparison is IMAGE-vs-IMAGE: the render
-  gallery PNGs vs a *rendered screenshot* of the mock (`docs/design/mockups/renders/direction-a-{light,
+  gallery PNGs vs a *rendered screenshot* of the mock (`handbook/design/mockups/renders/direction-a-{light,
   dark}.png`), and the agent is FORBIDDEN to open any CSS/HTML/theme source or cite any token/hex/oklch
   value.** This is load-bearing: when the agent was instead handed the mock's HTML source, it read the
   source, imagined the mock, and confabulated "ALIGNED" — inventing pills/chips that weren't in the
@@ -116,8 +116,8 @@ wrong colour). So pixel-diff the gallery BEFORE vs AFTER the change:
   image and each render screen BLIND before diffing, so it can't project the mock onto the render.** It
   returns per-screen notes + worst-divergences-as-open-questions + the 2–3 screens worth founder eyes.
   - **Regenerate the mock renders** when `direction-a-baania-clean.html` changes: serve it
-    (`cd docs/design/mockups && python3 -m http.server 8799`) and screenshot it light + dark (set
-    `document.documentElement.dataset.theme`) into `docs/design/mockups/renders/` with a headless
+    (`cd handbook/design/mockups && python3 -m http.server 8799`) and screenshot it light + dark (set
+    `document.documentElement.dataset.theme`) into `handbook/design/mockups/renders/` with a headless
     Chromium (the plan-20 Playwright is already installed). Commit the PNGs — they ARE the design bar.
 - Relay that verdict; do not inline all the images into the main conversation.
 
@@ -169,7 +169,7 @@ individually managed. It's just files + Playwright. **All commands below run fro
 - A failing **invariant** (theme not applying, broken image, JS error, 5xx) is a **BLOCKER**. A
   **design-alignment** note is a judgment the founder rules on.
 - Don't pixel-diff (deferred). Don't grade content/fields against the mockups (content is code/schema
-  driven — see `docs/design/mockups/README.md`: "steal the styling, ignore the data").
+  driven — see `handbook/design/mockups/README.md`: "steal the styling, ignore the data").
 - Deployed needs a reachable URL; if the live site predates local changes, expect invariants like
   font-delivery to fail until it's redeployed — that's the gate correctly flagging the deploy is behind.
 

@@ -39,8 +39,8 @@ diverged screen is a finding — surface to the founder or fix. Don't grade thes
 ## Design review — judgment vs the DIRECTION (no pass/fail on pixels)
 
 A sub-agent opens the captured gallery (`test-results/gallery/{project}-{screen}.png`) and judges
-alignment with `docs/design/mockups/direction-a-baania-clean.html` + the taste brief
-(`docs/design/design-direction.md`) + the applicable heuristic IDs — STYLE ONLY:
+alignment with `handbook/design/mockups/direction-a-baania-clean.html` + the taste brief
+(`handbook/design/design-direction.md`) + the applicable heuristic IDs — STYLE ONLY:
 - type hierarchy & feel (looped Sarabun body / loopless Noto headings, sizes, Thai line-height),
 - palette (trust-blue primary, neutral surfaces, calm badge colours),
 - spacing rhythm & density; card / badge / CTA / price-block treatment; radius/border/shadow;

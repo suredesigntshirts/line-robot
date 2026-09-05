@@ -2,7 +2,7 @@
 
 **Audit date:** 2026-06-12  
 **Auditor:** M1 thai-visual-audit pass  
-**Screenshots:** 33 new captures in this directory + 11 existing A5 assets in `docs/research/assets/a5/`  
+**Screenshots:** 33 new captures in this directory + 11 existing A5 assets in `handbook/research/assets/a5/`  
 **Viewport:** 390×844 (iPhone 14 Pro) throughout, Chrome headless
 
 ---
@@ -465,7 +465,7 @@ The founder admires: Baania, DDProperty, LINE — "nice clean aesthetic, modern,
 | kbank-kplus-homepage.png | kplus.kasikornbank.com | Access denied (server-side block) |
 | krungsri-homepage-mobile.png | krungsri.com | hCaptcha block |
 
-**Also in docs/research/assets/a5/ (prior session, reused):**
+**Also in handbook/research/assets/a5/ (prior session, reused):**
 baania-chiangmai.png, baania-homepage.png, baania-listing-detail.png, baania-search-results.png, ddproperty-homepage.png (Cloudflare), fazwaz-homepage.png, fazwaz-chiangmai.png, hipflat-chiangmai.png, kaidee-chiangmai-homes.png, kaidee-chiangmai.png, kaidee-property-homepage.png
 
 ---

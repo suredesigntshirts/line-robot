@@ -349,7 +349,7 @@ DDProperty, FazWaz, and Hipflat all returned Cloudflare "Just a moment…" block
 
 ## Addendum 2026-06-12 — first-hand DDProperty capture (founder-assisted headed session)
 
-The Cloudflare gap is closed: with the founder clearing the challenge in a headed persistent session, the DDProperty mobile listing detail was observed directly (screenshots: docs/design/moodboard/manual-retry/ddproperty-manual-0[1-8]*.png).
+The Cloudflare gap is closed: with the founder clearing the challenge in a headed persistent session, the DDProperty mobile listing detail was observed directly (screenshots: handbook/design/moodboard/manual-retry/ddproperty-manual-0[1-8]*.png).
 
 - **COMP-01 correction for DDProperty specifically:** the market leader does NOT lead with a LINE button on mobile listing detail. The pattern is: sticky enquiry card (บันทึกประกาศ save / แชร์ share / contact), "ติดต่อเอเจนต์" funnel, mortgage calculator section, section tab-nav (รูปภาพ/ภาพรวม/ทำเลที่ตั้ง/สิ่งอำนวยความสะดวก/สินเชื่อ). This CONFIRMS B2 F16/F17 (DDproperty fronts an enquiry funnel) — our LINE-first CTA is user-behavior-driven differentiation, not portal imitation. Kaidee remains the observed LINE-first portal.
 - **TH-04 validation:** DDProperty shows a "ยืนยันตัวตนแล้ว" (identity verified) badge on the agent block — the market leader trains users to expect verification badges.

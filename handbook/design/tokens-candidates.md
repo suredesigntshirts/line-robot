@@ -4,7 +4,7 @@
 **Date:** 2026-06-12
 **Context:** Thai real-estate marketplace, Northern Thailand / Chiang Mai, Thai+English,
 mobile-first (360–390 px), LINE-centric. All heuristic IDs below refer to
-`docs/research/00-product-principles.md`.
+`handbook/research/00-product-principles.md`.
 
 ---
 
@@ -84,7 +84,7 @@ should emit the hex-first declarations; do not rely on inline comments as runtim
 ## Evidence from moodboard
 
 The following observations ground each candidate's token choices. All moodboard files are in
-`docs/design/moodboard/`.
+`handbook/design/moodboard/`.
 
 ### Thai portals observed
 
@@ -111,7 +111,7 @@ The following observations ground each candidate's token choices. All moodboard 
 - **Section labels:** Orange underline accent ("ยอดนิยม ─────") in `baania-property-cards.png`
   — a warm accent the doc's amber/warn token family echoes.
 
-**DDProperty** (`docs/research/assets/a5/ddproperty-homepage.png`): The screenshot is blocked by
+**DDProperty** (`handbook/research/assets/a5/ddproperty-homepage.png`): The screenshot is blocked by
 Cloudflare and returns a security-verification page — no design data available from this capture.
 Candidate A's "closest to DDProperty" claim cannot be verified from current moodboard assets.
 *Recommendation:* capture a fresh DDProperty screenshot before M4 finalisation. The description
