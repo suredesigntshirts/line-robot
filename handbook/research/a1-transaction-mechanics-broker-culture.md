@@ -1,5 +1,7 @@
 # A1 — Thai Real-Estate Transaction Mechanics & Broker Culture
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 ## 1. Scope
 
 **Scope note.** This artifact gates our group/exclusivity mechanics, the quick-sale matching flow, the opt-in-to-publish design, and the trust/anti-spam gate. It documents how Thai residential/land sales actually close (offer → reservation/deposit → Land Office transfer), who customarily pays which fees, how commission and co-agent splits work in a no-MLS market, and — most importantly for us — exactly how brokers and owners use LINE groups for dealflow today, because our product is a digitization of that existing behavior. Findings are Thailand-wide unless flagged as Bangkok-specific or Northern/Chiang-Mai-specific. Where research contradicts a settled product decision, it is flagged with **[CONTRADICTS SETTLED ASSUMPTION]**.

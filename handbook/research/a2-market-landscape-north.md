@@ -1,5 +1,7 @@
 # A2: Thai Real Estate Market Landscape — Northern Thailand / Chiang Mai Lens
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 **Scope note.** This artifact gates five concrete product decisions: (1) which property segments and price tiers to support at launch (schema fields, filter facets); (2) which buyer personas to design search UX and copy for; (3) whether an Automated Valuation Model (AVM) is feasible with available Thai data sources and what inputs it would use; (4) content and seeding strategy for the public listing catalog; and (5) which languages/formats to prioritize in listing cards and broker-facing flows. Research covers 2024–2026 with a Chiang Mai focus; national data is included where provincial data is unavailable.
 
 ---

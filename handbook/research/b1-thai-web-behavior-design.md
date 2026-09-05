@@ -1,5 +1,7 @@
 # B1 — Thai Web User Behavior & Design Patterns (2026)
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 **Scope note.** This artifact gates our entire design system and auth flows: which login method is primary (LINE Login vs phone-OTP vs email), how contact CTAs are ordered on a listing, which trust signals the listing card and detail page must surface, the typography stack (Thai font choice, line-height, word-breaking strategy), color/cultural defaults, information-density posture, and how Thai listing copy/SEO should be phrased. Decisions here propagate into schema fields (contact channels, verification badges), the Astro/Tailwind/shadcn token system, and bilingual copy rules. It does NOT cover legal/PDPA, payments, or AVM — those are separate artifacts.
 
 ## Thought leaders & sources consulted

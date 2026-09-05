@@ -1,5 +1,7 @@
 # B2 — Real-Estate Browsing Psychology & Conversion
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 **Scope note.** This artifact gates four product surfaces: (1) the **listing detail page** layout on the public Astro site and the LIFF mini-app — photo treatment, what sits above the fold, progressive disclosure of the long tail of fields; (2) **search UX** — map vs. list, filters, result-card hero image; (3) **contact flows** — whether our LINE-first, chat-first contact model is validated or challenged by conversion evidence vs. lead forms; (4) **re-engagement** — saved-search/alert mechanics and the trust-killers (stale/fake/watermark-spam listings) that erode a marketplace's credibility. Findings are global unless explicitly tagged **[THAI]**. Where global evidence challenges our settled stack (LINE-first identity/contact, exclusivity windows, LLM spam/dup gate), I say so in *Implications*.
 
 ---

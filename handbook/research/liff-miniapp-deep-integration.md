@@ -1,5 +1,7 @@
 # Deepening LINE MINI App ↔ Chat Integration — Research Report
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 _Research date: 2026-06-08. For the line-robot real-estate catalog assistant._
 
 This report answers two questions: (1) **how deeply can a LIFF / MINI App integrate into a

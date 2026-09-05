@@ -1,5 +1,7 @@
 # C1: Frontend Stack Canon
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 **Scope:** This artifact establishes the version-pinned frontend technology choices and architectural patterns for the Chiang Mai real-estate marketplace — an SSR-on-Lambda, SEO-critical, bilingual (th/en) listing site with React islands kept minimal. It gates Stage 3 and Stage 4 coding decisions: component scaffolding, Tailwind design-token setup, i18n routing configuration, structured-data markup, island hydration strategy, and adapter/deployment wiring for AWS Lambda.
 
 ---

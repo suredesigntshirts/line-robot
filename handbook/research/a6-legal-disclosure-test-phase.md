@@ -1,5 +1,7 @@
 # A6: Legal / Disclosure — Test-Phase Checklist
 
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
+
 **NOT LEGAL ADVICE.** This document is an engineering checklist and product decision guide produced from desk research. It does not constitute legal advice and does not substitute for consultation with a qualified Thai lawyer. Laws and PDPC guidance change; verify currency before acting.
 
 **Scope.** This artifact gates two concrete decisions: (1) the exact text of the bot's group-join message and the DM opt-in flow — what must be said and when — and (2) which full-compliance items may be parked for the test phase and which cannot. It does not cover unrelated compliance (tax, financial services, land law enforcement). The product collects property listings passively from LINE broker/owner groups, stores names and phone numbers of posters, and publishes listings publicly only after explicit poster opt-in.

@@ -1,6 +1,6 @@
 # 00 — Product Principles & Heuristic Register
 
-**Status: DRAFT — pending founder review.** Synthesized 2026-06-12 by the orchestrator from the 10 research artifacts in this directory (each researched → adversarially critiqued → revised; see each artifact's "Review response" section for the audit trail). After founder review and iteration, this document freezes and becomes the register the `/alignment-review` skill loads.
+**Status: FROZEN 2026-09 — reference material; the heuristic register (§4 of 00-product-principles.md) is the live design checklist.**
 
 **How to use:** Reviewers judging a screen, flow, copy, schema, or pipeline change load §4 (the register), pick the contexts that apply, and verify each heuristic by ID — pass / violation / not-applicable. Full rationale and citations live in the source artifact for each prefix. §3 lists conflicts that need founder decisions before the affected stage is fleshed. §5 is the field-validation backlog.
 
