@@ -43,7 +43,8 @@ npm --prefix packages/bot run build   # bundles dist/scripts/setup-rich-menu.mjs
 node packages/bot/dist/scripts/setup-rich-menu.mjs <menu-image.(png|jpeg)>
 ```
 
-The image is a **2500×843 PNG/JPEG ≤1MB** (`packages/bot/assets/rich-menu.png`); its visuals are cosmetic (the
+The image is a **2500×843 PNG/JPEG ≤1MB** (`packages/bot/assets/rich-menu.png`, drawn by
+`packages/bot/scripts/gen-rich-menu-image.py`); its visuals are cosmetic (the
 tap zones are defined by bounds, not the picture). The script is idempotent — it deletes any prior
 menu named `line-robot-main` before creating + setting the new one as default.
 

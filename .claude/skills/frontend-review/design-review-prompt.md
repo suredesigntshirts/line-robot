@@ -22,7 +22,7 @@ two sets of SCREENSHOTS. This is a pixel comparison of images — you have NO ac
 - **Rendered site** (what we built): the PNGs in `{GALLERY_DIR}/`, named `{viewport-theme}-{screen}.png`
   (e.g. `mobile-dark-detail.png`). Open them.
 - **The design target** (where we're going): the rendered mock screenshots in `{MOCK_RENDER_DIR}/` —
-  `direction-a-light.png` and `direction-a-dark.png` ("Baania-clean", trust-blue Thai portal). Open them.
+  `direction-a-baania-clean-light.png` and `direction-a-baania-clean-dark.png` ("Baania-clean", trust-blue Thai portal). Open them.
 - For context only (prose, no values to copy): `handbook/design/design-direction.md` (founder taste brief).
 
 **FORBIDDEN — this is the whole point:** do NOT open `theme.css`, `direction-a-baania-clean.html`, any
@@ -31,7 +31,7 @@ two sets of SCREENSHOTS. This is a pixel comparison of images — you have NO ac
 catch yourself writing a colour code or "the CSS says…", delete it — that is the failure this guards.
 
 ## Procedure (do the steps in order; do not skip to the verdict)
-1. **Describe the TARGET, blind.** Open `direction-a-light.png` + `direction-a-dark.png` and list the
+1. **Describe the TARGET, blind.** Open `direction-a-baania-clean-light.png` + `direction-a-baania-clean-dark.png` and list the
    concrete visual elements you SEE (e.g. "sticky blue top bar with a wordmark + rounded search pill";
    "pill-shaped filter chips, the active one filled blue"; "each card photo has a small ขาย/เช่า pill
    overlaid top-left and a photo-count chip bottom-right"; "a section title with a short orange

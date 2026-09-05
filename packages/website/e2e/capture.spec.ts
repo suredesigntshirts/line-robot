@@ -2,7 +2,7 @@ import { test } from "@playwright/test";
 import { capture, discoverDetailPaths } from "./support.ts";
 
 // Capture a review GALLERY (no diff, no pass/fail on pixels). For each project (viewport × theme) it
-// shoots the key screens the current data produces, into test-results/gallery/{project}-{screen}.png.
+// shoots the key screens the current data produces, into test-results/gallery/{local|deployed}/{project}-{screen}.png.
 // An LLM/sub-agent then reviews these against handbook/design/mockups + the heuristic register — this is
 // qualitative design-alignment review, NOT pixel regression (deferred to design lock-in). Runs on
 // every e2e run so the gallery is always fresh for the founder / a reviewing agent.

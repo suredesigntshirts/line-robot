@@ -26,7 +26,7 @@ On the home page AND a discovered detail page, via `getComputedStyle`:
   whatever's discovered.
 - **Empty result set** renders a healthy empty state, not a 500.
 - **Click-through journeys** (grow these over time): browse → open a card → detail → back; the 4.3
-  contextual price filter relabels Buy↔Rent (island hydration); `/en/` renders the English document.
+  contextual price filter relabels Buy↔Rent (SSR link chips, no JS); `/en/` renders the English document.
 
 ## Parity — for "no visual change" foundation/refactor increments (SKILL Mode A.5)
 
@@ -38,7 +38,7 @@ diverged screen is a finding — surface to the founder or fix. Don't grade thes
 
 ## Design review — judgment vs the DIRECTION (no pass/fail on pixels)
 
-A sub-agent opens the captured gallery (`test-results/gallery/{project}-{screen}.png`) and judges
+A sub-agent opens the captured gallery (`test-results/gallery/{local|deployed}/{project}-{screen}.png`) and judges
 alignment with `handbook/design/mockups/direction-a-baania-clean.html` + the taste brief
 (`handbook/design/design-direction.md`) + the applicable heuristic IDs — STYLE ONLY:
 - type hierarchy & feel (looped Sarabun body / loopless Noto headings, sizes, Thai line-height),

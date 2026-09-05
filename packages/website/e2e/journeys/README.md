@@ -12,7 +12,7 @@ just files + Playwright, so you can also do it by hand:
 | **list** | `npx playwright test e2e/journeys --list` (+ `grep -A4 "Journey:" e2e/journeys/*.spec.ts` for the descriptions) |
 | **run one** | `npx playwright test e2e/journeys/<slug>.spec.ts` (prefix `E2E_BASE_URL=<url>` for deployed) |
 | **run all journeys** | `npx playwright test --grep @journey` |
-| **see artifacts** | the journey's `capture()` PNGs in `test-results/gallery/journey-<slug>-*.png` + its `results.json` entry (+ on-failure trace) |
+| **see artifacts** | the journey's `capture()` PNGs in `test-results/gallery/{local|deployed}/journey-<slug>-*.png` + its `results.json` entry (+ on-failure trace) |
 | **add (permanent)** | copy the template below to `e2e/journeys/<slug>.spec.ts` |
 | **modify** | edit that file |
 | **delete** | `rm e2e/journeys/<slug>.spec.ts` |
@@ -25,23 +25,28 @@ just files + Playwright, so you can also do it by hand:
 - Every file starts with the metadata header (Journey / Covers / Target / Added) so `list` is useful.
 - Tag the test `@journey` so `--grep @journey` selects the whole library.
 - Prefer **data-driven** steps (use `../support.ts` helpers — `discoverDetailPaths`,
-  `assertNoBrokenImages`, `watchForErrors`, `capture`) so the journey runs against seeded test data
+  `openFilters`, `listingTotal`, `assertNoBrokenImages`, `watchForErrors`, `capture`) so the journey runs against seeded test data
   (local) AND live data (deployed) unchanged. `Target: local` only if it genuinely can't.
 - End with a `capture(page, "journey-<slug>", testInfo)` so each run leaves a reviewable screenshot.
 
 ## The website's DOM, so you don't have to reverse-engineer it
 
-- **Filter chips** are `<button type="button" aria-pressed="true|false">` with the chip label as text
-  (`packages/ui/src/components/SearchFilters.tsx`). Click by role+name:
-  `page.getByRole("button", { name: "House", exact: true }).click()`. Selecting one navigates to a URL
-  param (`?type=house`, `?deal=rent`, `?cond=…`, `?province=…`, `?price=…` — see
-  `src/components/FilterBar.tsx` + `src/lib/browse.ts`).
+- **Filters are SSR links, zero JS.** The browse page (`/properties`, `/en/properties`) renders the
+  filter panel (`src/components/browse/FilterPanel.astro`; facets from `src/lib/browseFacets.ts` +
+  `src/lib/browse.ts`) as `<a>` chips inside `[data-filter-panel]`, grouped by
+  `[data-filter-group="deal|type|price|…"]`. Clicking one is a full navigation to a URL param
+  (`?type=house`, `?deal=rent`, `?price=s2`, …) and the selected chip carries `aria-current="page"`
+  after the reload. Click by role + name inside its group:
+  `page.locator('[data-filter-group="type"]').getByRole("link", { name: "House", exact: true }).click()`.
+  Call `openFilters(page)` (from `../support.ts`) before touching chips — it opens the panel where the
+  layout collapses it and is harmless otherwise. There is no filter island; never wait for hydration.
 - **Chip labels are i18n strings** — the exact text lives in `packages/ui/src/i18n/en.ts` (and `th.ts`).
   Two gotchas: (a) **price-band labels use a typographic en-dash `–` (U+2013), not a hyphen** (e.g.
   `"฿3–5M"`) — a wrong glyph silently matches 0 chips; (b) the **URL carries the band *id*, not the
   label** (`?price=s2`, not `฿3–5M`). Run on `/en/` for stable English labels.
-- **Results count line:** the page shows `Listings: N` (en) / `N ประกาศ` (th). Read it to prove a
-  filter narrowed the set.
+- **Results count line:** the page shows `Listings: N` (en) / `N ประกาศ` (th); `listingTotal(page)`
+  (from `../support.ts`) returns it as a number, or `null` when absent. Use it to prove a filter narrowed
+  the set.
 - **Listing cards** are `<a href="…/properties/{id}">`; **detail photos** render in a `<section>` of
   `<img>` (hero + thumbs).
 
@@ -63,28 +68,39 @@ fixture photos:
   https://playwright.dev/docs/test-assertions · `waitForURL`
   https://playwright.dev/docs/api/class-page#page-wait-for-url
 
-## Template (worked — adapt it)
+## Template (worked — adapt it; mirrors `property-type-filter.spec.ts`, which passes in the gate)
 
 ```ts
 /**
- * Journey: filter by property type narrows the results
- * Covers:  filter-bar island hydration + the ?type= facet — selecting "House" updates the URL and
- *          narrows the result count.
+ * Journey: property-type chip narrows the results
+ * Covers:  the SSR filter panel + the ?type= facet — selecting "House" updates the URL, marks the chip
+ *          aria-current, and the "Listings: N" count does not grow.
  * Target:  both
  * Added:   YYYY-MM-DD
  */
 import { expect, test } from "@playwright/test";
-import { capture, watchForErrors } from "../support.ts";
+import { capture, listingTotal, openFilters, watchForErrors } from "../support.ts";
 
 test("journey: type filter narrows results", { tag: ["@journey"] }, async ({ page }, testInfo) => {
   const problems = watchForErrors(page);
-  await page.goto("/en/"); // /en/ so the count line + chip labels are in English
+  await page.goto("/en/properties"); // /en/ so the count line + chip labels are in English
+  await openFilters(page);
+  const before = await listingTotal(page);
 
-  const houseChip = page.getByRole("button", { name: "House", exact: true });
-  await houseChip.click();
-  await page.waitForURL(/type=house/); // the island hydrated and navigated
-  await expect(houseChip).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByText(/Listings:\s*\d+/)).toBeVisible(); // results re-rendered
+  const chip = page
+    .locator('[data-filter-group="type"]')
+    .getByRole("link", { name: "House", exact: true });
+  test.skip((await chip.count()) === 0, "no House chip in this data set");
+  await chip.click();
+  await page.waitForURL(/type=house/); // plain SSR navigation — nothing to hydrate
+
+  await openFilters(page);
+  await expect(
+    page.locator('[data-filter-group="type"]').getByRole("link", { name: "House", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  const after = await listingTotal(page);
+  expect(after, "filtered result set should be non-empty").not.toBeNull();
+  expect(after ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(before ?? 0);
 
   await capture(page, "journey-type-filter", testInfo);
   expect(problems(), "no console/network errors during the journey").toEqual([]);

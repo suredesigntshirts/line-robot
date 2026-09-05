@@ -11,10 +11,10 @@ website (decision D27 in `DECISIONS.md`).
 ## Live
 
 - Website https://d15dpmhcgtrf1r.cloudfront.net/ (th `/`, en `/en/`) — Astro 6 SSR, Lambda + CloudFront;
-  deployed 2026-09-05, HEAD `7fda50b`; deployed e2e 184 passed / 4 skipped.
+  deployed 2026-09-05, commit `7fda50b`; deployed e2e 184 passed / 4 skipped.
 - Postgres RDS `linerobot-staging-pg` (t4g.micro, public + TLS), migrations 0000–0011 applied.
 - Catalog: 20 public listings = 5 real + 15 seed rows published by `db:seed` (it creates more rows than
-  it publishes; seed still public — see Open decisions).
+  it publishes; seed still public — see Next #2).
 
 ## Parked (deployed, untouched since 2026-06-15)
 
@@ -35,18 +35,20 @@ website (decision D27 in `DECISIONS.md`).
 3. Pick a browse filter variant (`a`/`b`/`c` via `?ui=`; `a` is the default today).
 4. Brand name (placeholder "ทรัพย์ดี / Sapdee").
 5. Legal copy review (privacy/terms are model-drafted; entity name/address blank).
-6. Larger photo derivatives for the lightbox (thumbs are 640px).
+6. Larger photo derivatives for the lightbox (thumbs are 640px); presigned photo URLs live 1h, so a cached
+   `og:image` link can go stale.
 7. Deferred website items: LINE Login / accounts (needs the real domain, D19), Thai-slug URLs.
 
 ## Open decisions
 
-Defaults taken in plan 24 §0 (2026-09-05) — the founder may overturn any of them:
+Defaults taken in plan 24 §0 (2026-09-05, `handbook/archive/plans/24-context-cleanup.md`) — the founder may overturn any of them:
 
 1. **Listing supply** after the bot pivot → website submission form re-using the extraction pipeline
    (D27, *planned*, own plan later).
 2. **Bot / mini-app AWS resources** → stay deployed, declared PARKED here. No teardown until the
    form exists.
-3. **History** → archived under `handbook/archive/`; session memory + unused vendor caches deleted.
+3. **History** → archived under `handbook/archive/`; unused vendor caches deleted; session memory
+   pruned to preferences + gotchas.
 4. **Review machinery** → free gate + Playwright e2e + `/frontend-review` (opt-in). Multi-agent
    review skills and budget protocol archived.
 5. **Brand** stays the placeholder "ทรัพย์ดี / Sapdee"; **legal copy** stays "draft — review before

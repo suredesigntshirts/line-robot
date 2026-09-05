@@ -18,7 +18,7 @@ pipeline · LINE Messaging API / LIFF (parked).
 | path | what |
 |---|---|
 | `packages/website` | Public site — Astro SSR pages, browse/detail, SEO, theme; the live product |
-| `packages/ui` | Shared React components, shadcn primitives, `theme.css` tokens, i18n catalogs (th/en) |
+| `packages/ui` | Shared React components, shadcn primitives, `theme.css` tokens, i18n catalogs (th/en); `npm run gallery -w @line-robot/ui` is a Vite component gallery |
 | `packages/db` | drizzle schema, migrations, `pg` pool, repository functions (the public barrel) |
 | `packages/domain` | zod types and enums — the vocabulary every package imports |
 | `packages/shared` | Small cross-package helpers (datetime, DTOs) |
@@ -27,6 +27,7 @@ pipeline · LINE Messaging API / LIFF (parked).
 | `packages/api` | Mini-app HTTP backend (Lambda Function URL) — parked |
 | `packages/miniapp` | LINE mini-app React SPA (LIFF) — parked |
 | `infra` | Pulumi program for the whole stack (staging) |
+| `scripts` | LINE assertion-key generator for the parked bot (see `handbook/runbooks/line-bot.md`) |
 | `handbook/` | Runbooks, product vision, research, design, archive |
 | `docs/` | Cached vendor documentation (`/documentation-downloader`), indexed by `docs/llms.txt` |
 

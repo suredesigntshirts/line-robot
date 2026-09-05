@@ -1,3 +1,153 @@
+# docs/llms.txt — index of the cached vendor docs (`/documentation-downloader`). Stack docs first;
+# the LINE sections (developers.line.biz … terms2.line.me) belong to the PARKED bot/mini-app, kept for revival.
+
+## docs.astro.build
+
+- docs/docs.astro.build/en/concepts/islands.md: Astro — A brief history
+- docs/docs.astro.build/en/guides/server-islands.md: Astro — Server island components
+- docs/docs.astro.build/en/guides/internationalization.md: Astro — Routing Logic
+- docs/docs.astro.build/en/guides/view-transitions.md: Astro — Differences between browser-native view transitions and Astro's `<ClientRouter />`
+
+## tailwindcss.com
+
+- docs/tailwindcss.com/docs/theme.md: Theme variables
+- docs/tailwindcss.com/docs/installation/using-vite.md: Get started with Tailwind CSS
+
+## ui.shadcn.com
+
+- docs/ui.shadcn.com/docs/installation/astro.md: shadcn/ui — Use shadcn/create
+
+## orm.drizzle.team
+
+- docs/orm.drizzle.team/docs/drizzle-kit-migrate.md: Drizzle ORM — `drizzle-kit migrate`
+- docs/orm.drizzle.team/docs/relations.md: Drizzle ORM — Drizzle soft relations
+- docs/orm.drizzle.team/docs/drizzle-kit-generate.md: Drizzle ORM — `drizzle-kit generate`
+- docs/orm.drizzle.team/docs/column-types/pg.md: Drizzle ORM — PostgreSQL column types
+- docs/orm.drizzle.team/docs/drizzle-config-file.md: Drizzle ORM — Drizzle Kit configuration file
+- docs/orm.drizzle.team/docs/indexes-constraints.md: Drizzle ORM — Indexes & Constraints
+- docs/orm.drizzle.team/docs/drizzle-kit-push.md: Drizzle ORM — `drizzle-kit push`
+- docs/orm.drizzle.team/docs/migrations.md: Drizzle ORM — Drizzle migrations fundamentals
+- docs/orm.drizzle.team.md: New features
+- docs/orm.drizzle.team/docs/batch-api.md: Batch API
+- docs/orm.drizzle.team/docs/connect-overview.md: Database connection with Drizzle
+- docs/orm.drizzle.team/docs/kit-overview.md: Migrations with Drizzle Kit
+- docs/orm.drizzle.team/docs/sql-schema-declaration.md: Drizzle schema
+- docs/orm.drizzle.team/docs/upgrade-v1.md: Upgrading to Drizzle v1 RC
+- docs/orm.drizzle.team/docs/get-started/postgresql-new.md: Get Started with Drizzle and PostgreSQL
+- docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
+- docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
+
+## node-postgres.com
+
+- docs/node-postgres.com/apis/pool.md: node-postgres (pg) — Pool API: constructor options, connect/query/end, event handlers, error handling
+- docs/node-postgres.com/features/pooling.md: node-postgres (pg) — connection pooling: Pool setup, max clients, idleTimeoutMillis, connectionTimeoutMillis
+- docs/node-postgres.com/features/ssl.md: node-postgres (pg) — SSL/TLS config: ssl option, self-signed certs, rejectUnauthorized, pg-tunnel
+- docs/node-postgres.com/apis/client.md: node-postgres (pg) — Client API: constructor, connect/query/end, parameterized queries, TypeScript types
+
+## postgresql.org
+
+- docs/postgresql.org/docs/current/datatype-binary.md: 8.4. Binary Data Types
+- docs/postgresql.org/docs/current/datatype-boolean.md: 8.6. Boolean Type
+- docs/postgresql.org/docs/current/datatype-character.md: 8.3. Character Types
+- docs/postgresql.org/docs/current/datatype-datetime.md: 8.5. Date/Time Types
+- docs/postgresql.org/docs/current/datatype-enum.md: 8.7. Enumerated Types
+- docs/postgresql.org/docs/current/datatype-geometric.md: 8.8. Geometric Types
+- docs/postgresql.org/docs/current/datatype-json.md: 8.14. JSON Types
+- docs/postgresql.org/docs/current/datatype-numeric.md: 8.1. Numeric Types
+- docs/postgresql.org/docs/current/datatype-uuid.md: 8.12. UUID Type
+- docs/postgresql.org/docs/current/sql-createtable.md: PostgreSQL: Documentation: 18: CREATE TABLE
+
+## postgis.net
+
+- docs/postgis.net/docs/ST_DWithin.md: PostGIS — ST_DWithin: radius/distance filter for geometry and geography, GiST index usage
+- docs/postgis.net/docs/AddGeometryColumn.md: PostGIS — AddGeometryColumn: add geometry column with SRID, type, dimension to existing table
+- docs/postgis.net/docs/ST_MakePoint.md: PostGIS — ST_MakePoint: construct 2D/3DZ/4D point geometry from x,y[,z[,m]] coordinates
+- docs/postgis.net/docs/using_postgis_dbmanagement.md: PostGIS — data management: geometry types, SRID, spatial_ref_sys, CreateExtension, GiST index creation
+
+## platform.claude.com
+
+- docs/platform.claude.com/docs/en/api/rate-limits.md: About rate limits
+
+## pulumi.com
+
+- docs/pulumi.com/docs.md: Pulumi — **Pulumi Docs**[](#pulumi-docs)
+- docs/pulumi.com/docs/install.md: Pulumi — Choose an operating system
+- docs/pulumi.com/docs/get-started.md: Pulumi — Additional resources
+- docs/pulumi.com/docs/iac.md: Pulumi — Infrastructure as Code
+- docs/pulumi.com/docs/integrations.md: Pulumi — Clouds[](#clouds)
+- docs/pulumi.com/docs/iac/get-started/aws/create-project.md: Pulumi AWS — Create an AWS resource (S3 Bucket)
+- docs/pulumi.com/docs/iac/get-started/aws.md: Pulumi — Before you begin
+- docs/pulumi.com/docs/iac/get-started/aws/begin.md: Pulumi AWS — Get started with Pulumi and AWS
+- docs/pulumi.com/docs/iac/get-started/aws/destroy-stack.md: Pulumi AWS — Cleanup & destroy the stack
+- docs/pulumi.com/docs/iac/get-started/aws/modify-program.md: Pulumi AWS — Bucket ...
+- docs/pulumi.com/docs/iac/get-started/aws/deploy-stack.md: Pulumi AWS — Deploy to AWS
+- docs/pulumi.com/docs/iac/concepts.md: Pulumi — Supported languages and SDKs
+- docs/pulumi.com/docs/iac/languages-sdks/javascript.md: Pulumi — Installation requirements
+- docs/pulumi.com/docs/iac/concepts/projects.md: Pulumi — The project file (Pulumi.yaml) {#pulumi-yaml}
+- docs/pulumi.com/docs/iac/concepts/secrets.md: Pulumi — Creating secrets programmatically
+- docs/pulumi.com/docs/iac/concepts/config.md: Pulumi — Pulumi.dev.yaml
+- docs/pulumi.com/docs/iac/concepts/stacks.md: Pulumi — Before
+- docs/pulumi.com/docs/iac/concepts/resources.md: Pulumi — Related topics
+- docs/pulumi.com/docs/iac/concepts/inputs-outputs.md: Pulumi — What are inputs and outputs?
+- docs/pulumi.com/docs/integrations/clouds/aws.md: Pulumi — Infrastructure as Code
+- docs/pulumi.com/registry/packages/aws/installation-configuration.md: Pulumi AWS — Installation
+- docs/pulumi.com/registry/packages/aws.md: Pulumi — Example
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda.md: Pulumi AWS — aws.lambda
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2.md: Pulumi AWS — aws.apigatewayv2
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/permission.md: Pulumi AWS — aws.lambda.Permission
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/function.md: Pulumi AWS — aws.lambda.Function
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicyattachment.md: Pulumi AWS — aws.iam.RolePolicyAttachment
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicy.md: Pulumi AWS — aws.iam.RolePolicy
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/role.md: Pulumi AWS — aws.iam.Role
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretversion.md: Pulumi AWS — aws.secretsmanager.SecretVersion
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secret.md: Pulumi AWS — aws.secretsmanager.Secret
+- docs/pulumi.com/registry/packages/aws/api-docs/ssm/parameter.md: Pulumi AWS — aws.ssm.Parameter
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/api.md: Pulumi AWS — aws.apigatewayv2.Api
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/route.md: Pulumi AWS — aws.apigatewayv2.Route
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/stage.md: Pulumi AWS — aws.apigatewayv2.Stage
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/integration.md: Pulumi AWS — aws.apigatewayv2.Integration
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/deployment.md: Pulumi AWS — aws.apigatewayv2.Deployment
+- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/domainname.md: Pulumi AWS — aws.apigatewayv2.DomainName
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/callbackfunction.md: Pulumi AWS — aws.lambda.CallbackFunction
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/functionurl.md: Pulumi AWS — aws.lambda.FunctionUrl
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/eventsourcemapping.md: Pulumi AWS — aws.lambda.EventSourceMapping
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/getpolicydocument.md: Pulumi AWS — aws.iam.getPolicyDocument
+- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretrotation.md: Pulumi AWS — aws.secretsmanager.SecretRotation
+- docs/pulumi.com/registry/packages/aws/api-docs/iam/policy.md: Pulumi AWS — aws.iam.Policy
+- docs/pulumi.com/registry/packages/aws/api-docs/ssm/getparameter.md: Pulumi AWS — aws.ssm.getParameter
+- docs/pulumi.com/docs/iac/concepts/resources/options.md: Pulumi — Resource options and component resources
+- docs/pulumi.com/docs/iac/concepts/components.md: Pulumi — Consuming components
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_up.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/concepts/state-and-backends.md: Pulumi — switch to the backend/stack we want to export
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_stack.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_new.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/commands/pulumi_config.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
+- docs/pulumi.com/docs/iac/cli/exit-codes.md: Pulumi — Error Categories
+- docs/pulumi.com/docs/iac/cli/api.md: Pulumi — Subcommands
+- docs/pulumi.com/registry.md: Pulumi — 1Password
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/loggroup.md: Pulumi AWS — aws.cloudwatch.LogGroup
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/metricalarm.md: Pulumi AWS — aws.cloudwatch.MetricAlarm
+- docs/pulumi.com/registry/packages/aws/api-docs/dynamodb/table.md: Pulumi AWS — aws.dynamodb.Table
+- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/dashboard.md: Pulumi AWS — aws.cloudwatch.Dashboard
+- docs/pulumi.com/registry/packages/aws/api-docs/lambda/alias.md: Pulumi AWS — aws.lambda.Alias
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketpublicaccessblock.md: Pulumi AWS — aws.s3.BucketPublicAccessBlock
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketv2.md: Pulumi AWS — aws.s3.BucketV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketversioningv2.md: Pulumi AWS — aws.s3.BucketVersioningV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketserversideencryptionconfigurationv2.md: Pulumi AWS — aws.s3.BucketServerSideEncryptionConfigurationV2
+- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketlifecycleconfigurationv2.md: Pulumi AWS — aws.s3.BucketLifecycleConfigurationV2
+- docs/pulumi.com/registry/packages/aws/api-docs/sqs/queue.md: Pulumi AWS — aws.sqs.Queue
+- docs/pulumi.com/registry/packages/aws/api-docs/sqs/redriveallowpolicy.md: Pulumi AWS — aws.sqs.RedriveAllowPolicy
+- docs/pulumi.com/registry/packages/aws/api-docs/sns/topic.md: Pulumi AWS — aws.sns.Topic
+- docs/pulumi.com/registry/packages/aws/api-docs/sns/topicsubscription.md: Pulumi AWS — aws.sns.TopicSubscription
+
+## api.pulumi.com
+
+- docs/api.pulumi.com/api/registry/packages/pulumi/pulumi/aws/versions/latest/readme.md: Pulumi AWS provider v7.32.0 — overview, S3/Lambda/IAM/VPC resources, TypeScript/Python/Go/C# SDK
+
+## docs.aws.amazon.com
+
+- docs/docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-rds-data.md: @aws-sdk/client-rds-data
+- docs/docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.md: Using the Amazon RDS Data API
 
 ## developers.line.biz
 
@@ -213,166 +363,18 @@
 - docs/developers.line.biz/en/terms-and-policies.md: LINE Developers — terms of use, privacy policy, developer agreement, and LY Corporation policies
 - docs/developers.line.biz/en/about.md: About LINE Developers site
 
-## account.line.biz
-
-- docs/account.line.biz/login.md: LINEヤフーBusiness ID       LINE Business ID
-
 ## miniapp.line.me
 
 - docs/miniapp.line.me/lineminiapp_playground.md: Open page on your smartphone
 
-## other
+## liff-playground.netlify.app
 
 - docs/liff-playground.netlify.app.md: LIFF Playground
+
+## account.line.biz
+
+- docs/account.line.biz/login.md: LINEヤフーBusiness ID       LINE Business ID
 
 ## terms2.line.me
 
 - docs/terms2.line.me/LINE_MINI_App.md: LINE MINI App Policy — certification review guidelines, operating precautions, compliance requirements
-
-## pulumi.com
-
-- docs/pulumi.com/docs.md: Pulumi — **Pulumi Docs**[](#pulumi-docs)
-- docs/pulumi.com/docs/install.md: Pulumi — Choose an operating system
-- docs/pulumi.com/docs/get-started.md: Pulumi — Additional resources
-- docs/pulumi.com/docs/iac.md: Pulumi — Infrastructure as Code
-- docs/pulumi.com/docs/integrations.md: Pulumi — Clouds[](#clouds)
-
-## api.pulumi.com
-
-- docs/api.pulumi.com/api/registry/packages/pulumi/pulumi/aws/versions/latest/readme.md: Pulumi AWS provider v7.32.0 — overview, S3/Lambda/IAM/VPC resources, TypeScript/Python/Go/C# SDK
-- docs/pulumi.com/docs/iac/get-started/aws/create-project.md: Pulumi AWS — Create an AWS resource (S3 Bucket)
-- docs/pulumi.com/docs/iac/get-started/aws.md: Pulumi — Before you begin
-- docs/pulumi.com/docs/iac/get-started/aws/begin.md: Pulumi AWS — Get started with Pulumi and AWS
-- docs/pulumi.com/docs/iac/get-started/aws/destroy-stack.md: Pulumi AWS — Cleanup & destroy the stack
-- docs/pulumi.com/docs/iac/get-started/aws/modify-program.md: Pulumi AWS — Bucket ...
-- docs/pulumi.com/docs/iac/get-started/aws/deploy-stack.md: Pulumi AWS — Deploy to AWS
-- docs/pulumi.com/docs/iac/concepts.md: Pulumi — Supported languages and SDKs
-- docs/pulumi.com/docs/iac/languages-sdks/javascript.md: Pulumi — Installation requirements
-- docs/pulumi.com/docs/iac/concepts/projects.md: Pulumi — The project file (Pulumi.yaml) {#pulumi-yaml}
-- docs/pulumi.com/docs/iac/concepts/secrets.md: Pulumi — Creating secrets programmatically
-- docs/pulumi.com/docs/iac/concepts/config.md: Pulumi — Pulumi.dev.yaml
-- docs/pulumi.com/docs/iac/concepts/stacks.md: Pulumi — Before
-- docs/pulumi.com/docs/iac/concepts/resources.md: Pulumi — Related topics
-- docs/pulumi.com/docs/iac/concepts/inputs-outputs.md: Pulumi — What are inputs and outputs?
-- docs/pulumi.com/docs/integrations/clouds/aws.md: Pulumi — Infrastructure as Code
-- docs/pulumi.com/registry/packages/aws/installation-configuration.md: Pulumi AWS — Installation
-- docs/pulumi.com/registry/packages/aws.md: Pulumi — Example
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda.md: Pulumi AWS — aws.lambda
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2.md: Pulumi AWS — aws.apigatewayv2
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/permission.md: Pulumi AWS — aws.lambda.Permission
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/function.md: Pulumi AWS — aws.lambda.Function
-- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicyattachment.md: Pulumi AWS — aws.iam.RolePolicyAttachment
-- docs/pulumi.com/registry/packages/aws/api-docs/iam/rolepolicy.md: Pulumi AWS — aws.iam.RolePolicy
-- docs/pulumi.com/registry/packages/aws/api-docs/iam/role.md: Pulumi AWS — aws.iam.Role
-- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretversion.md: Pulumi AWS — aws.secretsmanager.SecretVersion
-- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secret.md: Pulumi AWS — aws.secretsmanager.Secret
-- docs/pulumi.com/registry/packages/aws/api-docs/ssm/parameter.md: Pulumi AWS — aws.ssm.Parameter
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/api.md: Pulumi AWS — aws.apigatewayv2.Api
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/route.md: Pulumi AWS — aws.apigatewayv2.Route
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/stage.md: Pulumi AWS — aws.apigatewayv2.Stage
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/integration.md: Pulumi AWS — aws.apigatewayv2.Integration
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/deployment.md: Pulumi AWS — aws.apigatewayv2.Deployment
-- docs/pulumi.com/registry/packages/aws/api-docs/apigatewayv2/domainname.md: Pulumi AWS — aws.apigatewayv2.DomainName
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/callbackfunction.md: Pulumi AWS — aws.lambda.CallbackFunction
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/functionurl.md: Pulumi AWS — aws.lambda.FunctionUrl
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/eventsourcemapping.md: Pulumi AWS — aws.lambda.EventSourceMapping
-- docs/pulumi.com/registry/packages/aws/api-docs/iam/getpolicydocument.md: Pulumi AWS — aws.iam.getPolicyDocument
-- docs/pulumi.com/registry/packages/aws/api-docs/secretsmanager/secretrotation.md: Pulumi AWS — aws.secretsmanager.SecretRotation
-- docs/pulumi.com/registry/packages/aws/api-docs/iam/policy.md: Pulumi AWS — aws.iam.Policy
-- docs/pulumi.com/registry/packages/aws/api-docs/ssm/getparameter.md: Pulumi AWS — aws.ssm.getParameter
-- docs/pulumi.com/docs/iac/concepts/resources/options.md: Pulumi — Resource options and component resources
-- docs/pulumi.com/docs/iac/concepts/components.md: Pulumi — Consuming components
-- docs/pulumi.com/docs/iac/cli/commands/pulumi_up.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
-- docs/pulumi.com/docs/iac/concepts/state-and-backends.md: Pulumi — switch to the backend/stack we want to export
-- docs/pulumi.com/docs/iac/cli/commands/pulumi_stack.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
-- docs/pulumi.com/docs/iac/cli/commands/pulumi_new.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
-- docs/pulumi.com/docs/iac/cli/commands/pulumi_config.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
-- docs/pulumi.com/docs/iac/cli/exit-codes.md: Pulumi — Error Categories
-- docs/pulumi.com/docs/iac/cli/api.md: Pulumi — Subcommands
-- docs/pulumi.com/registry.md: Pulumi — 1Password
-- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/loggroup.md: Pulumi AWS — aws.cloudwatch.LogGroup
-- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/metricalarm.md: Pulumi AWS — aws.cloudwatch.MetricAlarm
-- docs/pulumi.com/registry/packages/aws/api-docs/dynamodb/table.md: Pulumi AWS — aws.dynamodb.Table
-- docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/dashboard.md: Pulumi AWS — aws.cloudwatch.Dashboard
-- docs/pulumi.com/registry/packages/aws/api-docs/lambda/alias.md: Pulumi AWS — aws.lambda.Alias
-- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketpublicaccessblock.md: Pulumi AWS — aws.s3.BucketPublicAccessBlock
-- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketv2.md: Pulumi AWS — aws.s3.BucketV2
-- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketversioningv2.md: Pulumi AWS — aws.s3.BucketVersioningV2
-- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketserversideencryptionconfigurationv2.md: Pulumi AWS — aws.s3.BucketServerSideEncryptionConfigurationV2
-- docs/pulumi.com/registry/packages/aws/api-docs/s3/bucketlifecycleconfigurationv2.md: Pulumi AWS — aws.s3.BucketLifecycleConfigurationV2
-- docs/pulumi.com/registry/packages/aws/api-docs/sqs/queue.md: Pulumi AWS — aws.sqs.Queue
-- docs/pulumi.com/registry/packages/aws/api-docs/sqs/redriveallowpolicy.md: Pulumi AWS — aws.sqs.RedriveAllowPolicy
-- docs/pulumi.com/registry/packages/aws/api-docs/sns/topic.md: Pulumi AWS — aws.sns.Topic
-- docs/pulumi.com/registry/packages/aws/api-docs/sns/topicsubscription.md: Pulumi AWS — aws.sns.TopicSubscription
-
-## docs.astro.build
-
-- docs/docs.astro.build/en/concepts/islands.md: Astro — A brief history
-- docs/docs.astro.build/en/guides/server-islands.md: Astro — Server island components
-- docs/docs.astro.build/en/guides/internationalization.md: Astro — Routing Logic
-
-## tailwindcss.com
-
-- docs/tailwindcss.com/docs/theme.md: Theme variables
-
-## ui.shadcn.com
-
-- docs/ui.shadcn.com/docs/installation/astro.md: shadcn/ui — Use shadcn/create
-- docs/docs.astro.build/en/guides/view-transitions.md: Astro — Differences between browser-native view transitions and Astro's `<ClientRouter />`
-
-## node-postgres.com
-
-- docs/node-postgres.com/apis/pool.md: node-postgres (pg) — Pool API: constructor options, connect/query/end, event handlers, error handling
-- docs/node-postgres.com/features/pooling.md: node-postgres (pg) — connection pooling: Pool setup, max clients, idleTimeoutMillis, connectionTimeoutMillis
-- docs/node-postgres.com/features/ssl.md: node-postgres (pg) — SSL/TLS config: ssl option, self-signed certs, rejectUnauthorized, pg-tunnel
-- docs/node-postgres.com/apis/client.md: node-postgres (pg) — Client API: constructor, connect/query/end, parameterized queries, TypeScript types
-
-## orm.drizzle.team
-
-- docs/orm.drizzle.team/docs/drizzle-kit-migrate.md: Drizzle ORM — `drizzle-kit migrate`
-- docs/orm.drizzle.team/docs/relations.md: Drizzle ORM — Drizzle soft relations
-- docs/orm.drizzle.team/docs/drizzle-kit-generate.md: Drizzle ORM — `drizzle-kit generate`
-- docs/orm.drizzle.team/docs/column-types/pg.md: Drizzle ORM — PostgreSQL column types
-- docs/orm.drizzle.team/docs/drizzle-config-file.md: Drizzle ORM — Drizzle Kit configuration file
-- docs/orm.drizzle.team/docs/indexes-constraints.md: Drizzle ORM — Indexes & Constraints
-- docs/orm.drizzle.team/docs/drizzle-kit-push.md: Drizzle ORM — `drizzle-kit push`
-- docs/orm.drizzle.team/docs/migrations.md: Drizzle ORM — Drizzle migrations fundamentals
-- docs/orm.drizzle.team.md: New features
-- docs/orm.drizzle.team/docs/batch-api.md: Batch API
-- docs/orm.drizzle.team/docs/connect-overview.md: Database connection with Drizzle
-- docs/orm.drizzle.team/docs/kit-overview.md: Migrations with Drizzle Kit
-- docs/orm.drizzle.team/docs/sql-schema-declaration.md: Drizzle schema
-- docs/orm.drizzle.team/docs/upgrade-v1.md: Upgrading to Drizzle v1 RC
-
-## postgis.net
-
-- docs/postgis.net/docs/ST_DWithin.md: PostGIS — ST_DWithin: radius/distance filter for geometry and geography, GiST index usage
-- docs/postgis.net/docs/AddGeometryColumn.md: PostGIS — AddGeometryColumn: add geometry column with SRID, type, dimension to existing table
-- docs/postgis.net/docs/ST_MakePoint.md: PostGIS — ST_MakePoint: construct 2D/3DZ/4D point geometry from x,y[,z[,m]] coordinates
-- docs/postgis.net/docs/using_postgis_dbmanagement.md: PostGIS — data management: geometry types, SRID, spatial_ref_sys, CreateExtension, GiST index creation
-- docs/orm.drizzle.team/docs/get-started/postgresql-new.md: Get Started with Drizzle and PostgreSQL
-- docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
-- docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
-- docs/tailwindcss.com/docs/installation/using-vite.md: Get started with Tailwind CSS
-
-## platform.claude.com
-
-- docs/platform.claude.com/docs/en/api/rate-limits.md: About rate limits
-
-## docs.aws.amazon.com
-
-- docs/docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-rds-data.md: @aws-sdk/client-rds-data
-- docs/docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.md: Using the Amazon RDS Data API
-
-## postgresql.org
-
-- docs/postgresql.org/docs/current/datatype-binary.md: 8.4. Binary Data Types
-- docs/postgresql.org/docs/current/datatype-boolean.md: 8.6. Boolean Type
-- docs/postgresql.org/docs/current/datatype-character.md: 8.3. Character Types
-- docs/postgresql.org/docs/current/datatype-datetime.md: 8.5. Date/Time Types
-- docs/postgresql.org/docs/current/datatype-enum.md: 8.7. Enumerated Types
-- docs/postgresql.org/docs/current/datatype-geometric.md: 8.8. Geometric Types
-- docs/postgresql.org/docs/current/datatype-json.md: 8.14. JSON Types
-- docs/postgresql.org/docs/current/datatype-numeric.md: 8.1. Numeric Types
-- docs/postgresql.org/docs/current/datatype-uuid.md: 8.12. UUID Type
-- docs/postgresql.org/docs/current/sql-createtable.md: PostgreSQL: Documentation: 18: CREATE TABLE

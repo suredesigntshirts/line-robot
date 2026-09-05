@@ -37,7 +37,7 @@ never another package's adapters/internals.
   in `packages/ui/src/components/ui/`, themed via the `@theme inline` alias layer.
 - **Photos: SSR-time presign of `derivatives/*` thumbs** (`src/lib/media.ts`; SSR HTML is no-cache so
   presigned URLs never stale-cache; bucket stays private). The SSR role has `s3:GetObject` scoped to
-  `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (known limitation, tracked in STATUS.md).
+  `${archive}/derivatives/*` only. `og:image` = the hero thumb; presigns expire 1h (known limitation — `STATUS.md` Next #6).
 - **SEO**: canonical/OG/hreflang(+x-default) in `Base.astro`; JSON-LD `Organization`+`WebSite`
   (site-wide) and `RealEstateListing`+`BreadcrumbList` (detail), XSS-safe via `safeJsonLdScript`;
   sitemap from Postgres + static pages; filtered browse pages are `noindex`. URL scheme is opaque

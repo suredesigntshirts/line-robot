@@ -17,4 +17,4 @@ History only (see `../README.md`). Each plan's lasting output is a row in `DECIS
 | 23 | ingestion pipeline audit | Groups A, C, D built (D not deployed); B not started; parked with the bot |
 | 24 | context cleanup | executed 2026-09-05 (this layout: STATUS/DECISIONS/README + handbook/) |
 
-Code comments that cite "plan N", "Stage N" or a plan-23 unit (U-D2, A1, …) refer to the files in this directory.
+Decoder for identifiers in code comments and live docs: "plan N" / "Stage N" → the plan file or `19-v2-marketplace-rebuild/stage-N-*.md` here; `D-S<stage>-<n>` (e.g. D-S1-4) and `D<stage>.<n>` / `Q<n>` (e.g. D2.1, Q6) → decisions/questions inside that stage spec; `S<stage>-I<n>` and `INC-*` → increments of that stage; plan-23 units (U-D2, A1, A2, CR-*, E5) → `23-ingestion-pipeline-audit/`; "4.x" in browse code → §4.x of `stage-4-public-website.md`. Heuristic IDs (TECH-*, CONV-*, COPY-*, …) resolve in the live register, `handbook/research/00-product-principles.md` §4.

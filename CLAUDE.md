@@ -11,16 +11,18 @@ parked, in progress and next is in `STATUS.md` (dated; it wins over every other 
 
 ## Where things live
 
-- `STATUS.md` — the only live status. `DECISIONS.md` — decision log (D1–D30, founder rulings).
+- `STATUS.md` — the only live status. `DECISIONS.md` — decision log (D1–D30 + DF/P21 rulings).
 - `handbook/runbooks/` — local-dev, deploy, testing, migrations, aws-identities, line-bot (parked).
 - `handbook/product/vision.md` — product vision + the 2026-09 pivot.
 - `handbook/research/` — frozen research; `00-product-principles.md` §4 is the heuristic register.
 - `handbook/design/` — design direction (Direction A trust-blue), mockups (the visual bar), tokens.
-- `handbook/archive/` — history only (2026-06 sprint logs, plans 00–24, skill logs, spikes, old skills).
+- `handbook/archive/` — history only (2026-06 sprint logs, plans 00–24, skill logs, spikes, old skills, the
+  one-shot deploy script, raw moodboard captures, bot-era research).
 - `docs/` — cached VENDOR documentation via `/documentation-downloader`; index `docs/llms.txt`.
 - `plans/` — one active plan at a time (see its README); finished plans move to the archive.
 - `packages/` — website · ui · db · domain · shared · pipeline · bot · api · miniapp (map in the root `README.md`).
 - `infra/` — Pulumi program (staging); `infra/deploy-user-policy.json` = the deploy identity's policy.
+- `scripts/` — one LINE key-generation helper for the parked bot (`handbook/runbooks/line-bot.md`).
 
 ## Commands
 

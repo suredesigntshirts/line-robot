@@ -30,7 +30,7 @@ NOT correctness (`/code-review`), semantics-vs-research (check the heuristic reg
 - **local** (default): builds + serves the REAL artifact on localhost via the plan-20 harness (seeded
   Docker PG, sirv static + SSR, fake-S3 images). For dev iteration + the per-increment gate.
 - **deployed**: hits the live site — **no build/server**. The staging origin is
-  `https://d15dpmhcgtrf1r.cloudfront.net` (also in `CLAUDE.md`; overridable at build via `SITE_URL`).
+  `https://d15dpmhcgtrf1r.cloudfront.net` (also in `STATUS.md` and `packages/website/CLAUDE.md`; overridable at build via `SITE_URL`).
   Catches the infra-boundary bugs local can't model — CloudFront content-types/caching, the scoped
   S3-presign IAM role, the real Lambda env, RDS connectivity, redirects/headers. (Demonstrated: a
   deployed run flags `font-delivery` red when the live site is behind local — "your deploy hasn't

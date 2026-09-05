@@ -30,3 +30,14 @@ SHOTS='[{"name":"detail-mobile","path":"/properties/<id>","mobile":true},
 
 Shot fields: `path` (required), `name`, `mobile` (Pixel 7), `dark`, `full` (fullPage), `click`
 (selector or list, clicked in order), `scroll` (y px), `wait` (ms after load).
+
+## Mock renders (`render-mocks.mjs`)
+
+Renders `handbook/design/mockups/*.html` to `renders/<name>-{light,dark}.png` at 1400px wide — the design
+bar `/frontend-review` diffs the site against. `node e2e/adhoc/render-mocks.mjs [name…] [--out <dir>]`
+(`--out` to render elsewhere and compare first). Commit the PNGs when a mock changes.
+
+## Open Graph card (`og-image.mjs`)
+
+Regenerates `src/assets/og-default.png` (1200×630) from an HTML card using the brand tokens + the
+installed fonts: `node e2e/adhoc/og-image.mjs`.
