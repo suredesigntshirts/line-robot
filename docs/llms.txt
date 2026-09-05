@@ -229,10 +229,6 @@
 
 - docs/account.line.biz/login.md: LINEヤフーBusiness ID       LINE Business ID
 
-## pub.dev
-
-- docs/pub.dev/documentation/flutter_line_sdk/latest/flutter_line_sdk.md: flutter\_line\_sdk library
-
 ## miniapp.line.me
 
 - docs/miniapp.line.me/lineminiapp_playground.md: Open page on your smartphone
@@ -384,6 +380,13 @@
 - docs/orm.drizzle.team/docs/indexes-constraints.md: Drizzle ORM — Indexes & Constraints
 - docs/orm.drizzle.team/docs/drizzle-kit-push.md: Drizzle ORM — `drizzle-kit push`
 - docs/orm.drizzle.team/docs/migrations.md: Drizzle ORM — Drizzle migrations fundamentals
+- docs/orm.drizzle.team.md: New features
+- docs/orm.drizzle.team/docs/batch-api.md: Batch API
+- docs/orm.drizzle.team/docs/column-types/sqlite.md: SQLite column types
+- docs/orm.drizzle.team/docs/connect-overview.md: Database connection with Drizzle
+- docs/orm.drizzle.team/docs/kit-overview.md: Migrations with Drizzle Kit
+- docs/orm.drizzle.team/docs/sql-schema-declaration.md: Drizzle schema
+- docs/orm.drizzle.team/docs/upgrade-v1.md: Upgrading to Drizzle v1 RC
 
 ## postgis.net
 
@@ -391,11 +394,33 @@
 - docs/postgis.net/docs/AddGeometryColumn.md: PostGIS — AddGeometryColumn: add geometry column with SRID, type, dimension to existing table
 - docs/postgis.net/docs/ST_MakePoint.md: PostGIS — ST_MakePoint: construct 2D/3DZ/4D point geometry from x,y[,z[,m]] coordinates
 - docs/postgis.net/docs/using_postgis_dbmanagement.md: PostGIS — data management: geometry types, SRID, spatial_ref_sys, CreateExtension, GiST index creation
-- /home/user/src/line-robot/docs/orm.drizzle.team/docs/get-started/postgresql-new.md: Get Started with Drizzle and PostgreSQL
-- /home/user/src/line-robot/docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
-- /home/user/src/line-robot/docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
+- docs/orm.drizzle.team/docs/get-started/postgresql-new.md: Get Started with Drizzle and PostgreSQL
+- docs/orm.drizzle.team/docs/get-started-postgresql.md: Drizzle <> PostgreSQL
+- docs/orm.drizzle.team/docs/custom-types.md: Common way of defining custom types
 - docs/tailwindcss.com/docs/installation/using-vite.md: Get started with Tailwind CSS
 
 ## platform.claude.com
 
 - docs/platform.claude.com/docs/en/api/rate-limits.md: About rate limits
+
+## docs.aws.amazon.com
+
+- docs/docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-rds-data.md: @aws-sdk/client-rds-data
+- docs/docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.md: Using the Amazon RDS Data API
+
+## nodejs.org
+
+- docs/nodejs.org/api/sqlite.md: SQLite
+
+## postgresql.org
+
+- docs/postgresql.org/docs/current/datatype-binary.md: 8.4. Binary Data Types
+- docs/postgresql.org/docs/current/datatype-boolean.md: 8.6. Boolean Type
+- docs/postgresql.org/docs/current/datatype-character.md: 8.3. Character Types
+- docs/postgresql.org/docs/current/datatype-datetime.md: 8.5. Date/Time Types
+- docs/postgresql.org/docs/current/datatype-enum.md: 8.7. Enumerated Types
+- docs/postgresql.org/docs/current/datatype-geometric.md: 8.8. Geometric Types
+- docs/postgresql.org/docs/current/datatype-json.md: 8.14. JSON Types
+- docs/postgresql.org/docs/current/datatype-numeric.md: 8.1. Numeric Types
+- docs/postgresql.org/docs/current/datatype-uuid.md: 8.12. UUID Type
+- docs/postgresql.org/docs/current/sql-createtable.md: PostgreSQL: Documentation: 18: CREATE TABLE
