@@ -13,7 +13,7 @@ reference**. The rendered *production* site is checked against it for *style*: T
 (looped Sarabun body / loopless Noto headings), the trust-blue palette, the spacing scale, and the
 card / badge / CTA / price-block treatment — the overall "Baania-clean" register. If the live site
 doesn't read like this mockup, that's a defect. (This is exactly the gap that let an unstyled site
-ship through a whole build — see the `quality-loop-perceptually-blind` post-mortem.)
+ship through a whole build — see the rationale in `handbook/archive/plans/20-frontend-visual-e2e-testing.md`, "Why".)
 
 **Content / fields / structure → DRIVEN BY THE CODE, not the mockup.**
 Build *what* is shown — which fields, which data, which sections, which filters — from the **actual
@@ -31,8 +31,8 @@ about content, the code wins.**
   (`packages/ui/theme.css`, founder-confirmed). The palette / typography / radius are the real
   visual direction.
 - `direction-a-baania-clean.html` is the **visual-style acceptance reference** the rendered site is
-  diffed against at every design-bearing increment and user-facing stage gate (via
-  `/frontend-review`).
+  diffed against whenever `/frontend-review` runs (opt-in; recommended after any design-bearing
+  change and after a deploy).
 
 ## Chosen interaction directions (pick the visual treatment; build the behaviour from real requirements)
 
@@ -66,5 +66,5 @@ visual suite, and diffs the rendered screen against the style reference above). 
 Every mockup is rendered to PNG in light and dark mode (`renders/<name>-{light,dark}.png`, 1400px
 wide) so they can be reviewed without opening the HTML. `renders/live-site-*.png` are captures of
 the deployed site taken 2026-09-05 **before** the polish pass, kept as the "before" reference.
-Regenerate the mockup renders with a Playwright script from `packages/website` (see
-`e2e/adhoc/README.md` for the review-shot helper).
+Regenerate them from `packages/website` with `node e2e/adhoc/render-mocks.mjs [name…]` (`--out <dir>` to
+render elsewhere first); see `e2e/adhoc/README.md`.

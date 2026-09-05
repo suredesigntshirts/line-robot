@@ -45,7 +45,7 @@ needs Docker. Details: `handbook/runbooks/local-dev.md`.
 ## Where to read next
 
 - `STATUS.md` — what is live, parked, in progress, next (verified-on date at the top).
-- `DECISIONS.md` — the decision log (D1–D30, founder rulings).
+- `DECISIONS.md` — the decision log (D1–D30 plus the DF-* and P21-* founder rulings).
 - `handbook/runbooks/` — local dev, deploy, testing, migrations, AWS identities, LINE bot.
 - `handbook/product/vision.md` — the product vision and the 2026-09 pivot.
 - `CLAUDE.md` — the map an AI session reads first.

@@ -2,8 +2,8 @@
 
 Spawn a fresh `Explore` agent with the prompt below. Fill `{GALLERY_DIR}` with the target's gallery
 (`packages/website/test-results/gallery/local` or `.../deployed`) and `{MOCK_RENDER_DIR}` with the
-rendered mock screenshots (`handbook/design/mockups/renders/` — `direction-a-light.png` /
-`direction-a-dark.png`; regenerate with the recipe in SKILL.md Mode B if the mock changed). Do NOT
+rendered mock screenshots (`handbook/design/mockups/renders/` — `direction-a-baania-clean-light.png` /
+`direction-a-baania-clean-dark.png`; regenerate with `e2e/adhoc/render-mocks.mjs` if the mock changed). Do NOT
 pre-summarise the design — fresh eyes are the point.
 
 **Why images-only:** a prior version of this prompt handed the agent the mock's *HTML/CSS source*. The

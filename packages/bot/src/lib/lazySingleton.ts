@@ -7,7 +7,7 @@
  * NOTE — rejection is memoised. If `factory()` rejects (e.g. SSM unavailable at cold start), the
  * rejected Promise is cached and every later call rejects with the same error until the container
  * is recycled. This matches the existing per-Lambda behaviour and is INTENTIONALLY preserved (see
- * plans/cleanup/00-master-plan.md line 133: "the underlying `??=` logic is correct and should not
+ * handbook/archive/plans/cleanup/00-master-plan.md line 133: "the underlying `??=` logic is correct and should not
  * be altered"). Do NOT add retry-on-rejection here without a dedicated change-unit — it would
  * alter the processor's observable cold-start failure mode.
  */

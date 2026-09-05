@@ -45,5 +45,5 @@ never another package's adapters/internals.
 - **Tests.** `npm run test:e2e -w @line-robot/website` = real build + seeded Docker PG + fake S3, four
   projects (desktop/mobile × light/dark): style invariants (`theme.spec`), render invariants
   (`flows.spec`), chrome interactions incl. theme-toggle persistence + mobile nav (`site-chrome.spec`),
-  detail lightbox/copy-link/CTA bar (`detail.spec`), static pages + 404 + robots (`pages.spec`),
+  detail lightbox/copy-link/CTA bar (`detail.spec`), static pages + 404 + robots (`pages.spec`), the `?ui=` variants (`browse-variants.spec`),
   journeys, and a review-capture gallery. Ad-hoc review shots: `e2e/adhoc/shoot.mjs` (see its README).

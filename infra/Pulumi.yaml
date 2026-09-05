@@ -1,3 +1,3 @@
 name: line-robot
 runtime: nodejs
-description: LINE real-estate catalog assistant — Lambdas (ingest, processor, sweep, reminder, read-api), SQS, DynamoDB, S3, CloudFront (mini-app), SSM
+description: line-robot — public website (Astro SSR Lambda + CloudFront), RDS Postgres/PostGIS catalog, and the parked LINE bot / mini-app stack (Lambdas, SQS, DynamoDB, S3, CloudFront, SSM)

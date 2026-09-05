@@ -13,7 +13,8 @@ website (decision D27 in `DECISIONS.md`).
 - Website https://d15dpmhcgtrf1r.cloudfront.net/ (th `/`, en `/en/`) — Astro 6 SSR, Lambda + CloudFront;
   deployed 2026-09-05, HEAD `7fda50b`; deployed e2e 184 passed / 4 skipped.
 - Postgres RDS `linerobot-staging-pg` (t4g.micro, public + TLS), migrations 0000–0011 applied.
-- Catalog: 20 public listings = 5 real + 15 seed (seed still published — see Open decisions).
+- Catalog: 20 public listings = 5 real + 15 seed rows published by `db:seed` (it creates more rows than
+  it publishes; seed still public — see Open decisions).
 
 ## Parked (deployed, untouched since 2026-06-15)
 

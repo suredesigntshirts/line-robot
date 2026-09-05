@@ -105,7 +105,7 @@ wrong colour). So pixel-diff the gallery BEFORE vs AFTER the change:
   (local and deployed no longer collide; same-target back-to-back does).
 - **Spawn a fresh `Explore` sub-agent using the ready prompt in `design-review-prompt.md`** (fill in
   the target's gallery dir AND the mock-render dir). **The comparison is IMAGE-vs-IMAGE: the render
-  gallery PNGs vs a *rendered screenshot* of the mock (`handbook/design/mockups/renders/direction-a-{light,
+  gallery PNGs vs a *rendered screenshot* of the mock (`handbook/design/mockups/renders/direction-a-baania-clean-{light,
   dark}.png`), and the agent is FORBIDDEN to open any CSS/HTML/theme source or cite any token/hex/oklch
   value.** This is load-bearing: when the agent was instead handed the mock's HTML source, it read the
   source, imagined the mock, and confabulated "ALIGNED" — inventing pills/chips that weren't in the
@@ -115,10 +115,9 @@ wrong colour). So pixel-diff the gallery BEFORE vs AFTER the change:
   renders calm-violet, mock shows red — intended?" must reach the founder); **(3) describe the target
   image and each render screen BLIND before diffing, so it can't project the mock onto the render.** It
   returns per-screen notes + worst-divergences-as-open-questions + the 2–3 screens worth founder eyes.
-  - **Regenerate the mock renders** when `direction-a-baania-clean.html` changes: serve it
-    (`cd handbook/design/mockups && python3 -m http.server 8799`) and screenshot it light + dark (set
-    `document.documentElement.dataset.theme`) into `handbook/design/mockups/renders/` with a headless
-    Chromium (the plan-20 Playwright is already installed). Commit the PNGs — they ARE the design bar.
+  - **Regenerate the mock renders** when a mock changes: from `packages/website` run
+    `node e2e/adhoc/render-mocks.mjs [name…]` (serves the mockups dir, screenshots light + dark at 1400px
+    into `handbook/design/mockups/renders/<name>-{light,dark}.png`). Commit the PNGs — they ARE the design bar.
 - Relay that verdict; do not inline all the images into the main conversation.
 
 ### C — Click-through journey library (list / run / add / modify / delete / promote)
@@ -155,7 +154,7 @@ individually managed. It's just files + Playwright. **All commands below run fro
 
 ## When it runs
 - **Any frontend / design-bearing change (opt-in, run it yourself):** A + B on **local**.
-- **After a meaningful deploy** (CLAUDE.md deploy cadence): A + B on **deployed** (the live URL).
+- **After a meaningful deploy** (`handbook/runbooks/deploy.md`, post-deploy verification): A + B on **deployed** (the live URL).
 - **On demand:** run B (design review) or C (ad-hoc probe) any time the founder or an agent wants eyes
   on the site.
 

@@ -40,6 +40,9 @@ though the bot code that writes the column stays undeployed. Rule: `npm run db:m
 against staging first whenever `packages/db/migrations` has a file newer than the database (see
 `migrations.md`). Staging is at 0011 as of 2026-09-05.
 
+Nothing enforces these rules mechanically: `.claude/settings.json` lets an agent run `pulumi`, `aws`,
+`psql` and `docker` without a prompt. The rules are prose — read them before deploying.
+
 `SITE_URL` overrides the canonical origin at build time (defaults to the staging CloudFront domain).
 
 ## Post-deploy verification (any deploy that touches the website)

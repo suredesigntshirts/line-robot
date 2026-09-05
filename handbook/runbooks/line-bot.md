@@ -10,6 +10,8 @@ runs; nothing is being developed. Kept so the subsystem can be revived without r
   URL = Pulumi output `miniAppApiUrlOutput`).
 - Mini-app SPA (`packages/miniapp`, React 19 + LIFF) at https://d15tyvvqffrn4a.cloudfront.net/ —
   `VITE_API_URL` (the api Function URL) is baked in at build.
+- `packages/miniapp/.env.production` is tracked on purpose: public build-time config (LIFF id + api
+  Function URL), not secrets — Vite bakes it into the SPA on a clean checkout.
 - LINE channels (Messaging API OA, MINI App developing/preview/published, LINE Login): ids, secrets,
   LIFF URLs and endpoint URLs are in the gitignored `LINE.md` (template: `LINE.example.md`); the
   secrets are also in Pulumi config (`channelSecret`, `channelAccessToken`, …).
