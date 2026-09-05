@@ -54,6 +54,10 @@ const chipClass = (active: boolean) =>
     </button>
   </form>
 
+  {/* The geolocation island (NearMe) slots in here — keyword search first, "near me" as the
+      alternative beneath it, then the facets. */}
+  <slot name="near" />
+
   {
     groups.map((g) => (
       <fieldset class="grid gap-2" data-filter-group={g.id}>

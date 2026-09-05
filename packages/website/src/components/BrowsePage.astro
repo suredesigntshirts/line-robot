@@ -200,12 +200,12 @@ const facetProps = { query, locale, provinces, browseHref };
         variant === "a" && (
           <aside
             id="browse-filters"
-            class="hidden grid gap-6 rounded-xl border border-border bg-surface p-4 lg:sticky lg:top-20 lg:block lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto"
+            class="hidden rounded-xl border border-border bg-surface p-4 lg:sticky lg:top-20 lg:grid lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto"
             aria-label={t("browse.filters")}
           >
-            <NearMe client:load query={query} locale={locale} basePath={browseHref} />
-            <hr class="border-border" />
-            <FilterPanel {...facetProps} />
+            <FilterPanel {...facetProps}>
+              <NearMe slot="near" client:load query={query} locale={locale} basePath={browseHref} />
+            </FilterPanel>
           </aside>
         )
       }
@@ -238,7 +238,9 @@ const facetProps = { query, locale, provinces, browseHref };
   const panel = document.getElementById("browse-filters");
   if (btn && panel) {
     btn.addEventListener("click", () => {
+      // Never both `hidden` and `grid` at once — swap them so the cascade order can't matter.
       const open = panel.classList.toggle("hidden") === false;
+      panel.classList.toggle("grid", open);
       btn.setAttribute("aria-expanded", String(open));
     });
   }
