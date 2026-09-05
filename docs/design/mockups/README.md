@@ -60,3 +60,11 @@ Design-bearing work runs `/alignment-review` (semantic heuristics against the re
 `/frontend-review` (renders the real production artifact, asserts computed styles, runs the e2e /
 visual suite, and diffs the rendered screen against the style reference above). The mockups are the
 *style* bar inside that gate — never a bypass of it.
+
+## Rendered previews (`renders/`)
+
+Every mockup is rendered to PNG in light and dark mode (`renders/<name>-{light,dark}.png`, 1400px
+wide) so they can be reviewed without opening the HTML. `renders/live-site-*.png` are captures of
+the deployed site taken 2026-09-05 **before** the polish pass, kept as the "before" reference.
+Regenerate the mockup renders with a Playwright script from `packages/website` (see
+`e2e/adhoc/README.md` for the review-shot helper).

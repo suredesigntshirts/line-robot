@@ -112,7 +112,7 @@ const browseLink = createElement(
             !dbError && facets.total > 0 && (
               <p class="inline-flex w-fit items-center gap-2 rounded-full bg-white/10 px-3 py-1 font-medium text-sm text-white/90 leading-relaxed ring-1 ring-white/20">
                 <Icon name="map-pin" size={14} />
-                <span>{t("pager.count", { total: facets.total })}</span>
+                <span>{t("count.listings", { count: facets.total })}</span>
               </p>
             )
           }
@@ -249,7 +249,7 @@ const browseLink = createElement(
                       {t(`ptype.${tile.type}` as "ptype.house")}
                     </span>
                     <span class="text-sm text-text-2 leading-relaxed">
-                      {t("pager.count", { total: tile.count })}
+                      {t("count.listings", { count: tile.count })}
                     </span>
                   </span>
                 </a>

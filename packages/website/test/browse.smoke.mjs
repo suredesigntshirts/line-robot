@@ -88,7 +88,7 @@ const check = (name, cond) => {
 };
 
 try {
-  const homeTh = await handler(event("/"));
+  const homeTh = await handler(event("/properties"));
   check("browse 200", homeTh.statusCode === 200);
   check("consented card shown", homeTh.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
   check("unconsented listing hidden (LEGAL-02)", !homeTh.body.includes("คอนโดลับ"));
@@ -97,32 +97,34 @@ try {
   check("card carries the poster name (TH-03)", homeTh.body.includes("smoke-owner"));
   check("poster-provided notice on browse (LEGAL-06)", homeTh.body.includes("ข้อมูลจากผู้ลงประกาศ"));
 
-  const textHit = await handler(event("/", `q=${encodeURIComponent("ดอยสุเทพ")}`));
+  const textHit = await handler(event("/properties", `q=${encodeURIComponent("ดอยสุเทพ")}`));
   check("text search finds the listing (S4-I4)", textHit.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
-  const textMiss = await handler(event("/", `q=${encodeURIComponent("คอนโดลับ")}`));
+  const textMiss = await handler(event("/properties", `q=${encodeURIComponent("คอนโดลับ")}`));
   check("text search cannot see unconsented content", textMiss.body.includes('data-state="empty"'));
 
   // --- radius search (4.2): SSR ?lat&lng&radius runs the PostGIS radius search ---
-  const nearHit = await handler(event("/", `lat=${SUTHEP.lat}&lng=${SUTHEP.lon}&radius=1000`));
+  const nearHit = await handler(
+    event("/properties", `lat=${SUTHEP.lat}&lng=${SUTHEP.lon}&radius=1000`),
+  );
   check("radius search finds the in-radius listing", nearHit.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
   check("radius search shows the distance line", /ห่าง\s+\d+\s+ม\./.test(nearHit.body));
   check("radius search renders the results map section", nearHit.body.includes("แผนที่ประกาศ"));
   // A point ~14 km away (Hang Dong) with a 1 km radius excludes the only listing.
-  const nearMiss = await handler(event("/", "lat=18.6864&lng=98.9192&radius=1000"));
+  const nearMiss = await handler(event("/properties", "lat=18.6864&lng=98.9192&radius=1000"));
   check(
     "radius search excludes out-of-radius listings",
     nearMiss.body.includes('data-state="empty"'),
   );
   // Out-of-WGS84 lat → `near` dropped → plain browse (no map, listing still shown, no 500).
-  const badGeo = await handler(event("/", "lat=999&lng=98.99&radius=3000"));
+  const badGeo = await handler(event("/properties", "lat=999&lng=98.99&radius=3000"));
   check("invalid coords degrade to plain browse", badGeo.statusCode === 200);
   check("invalid coords show no map", !badGeo.body.includes("แผนที่ประกาศ"));
 
-  const rentOnly = await handler(event("/", "deal=rent"));
+  const rentOnly = await handler(event("/properties", "deal=rent"));
   check("rent filter excludes the sale card", !rentOnly.body.includes("บ้านสามนอน"));
   check("rent filter shows empty state", rentOnly.body.includes('data-state="empty"'));
 
-  const en = await handler(event("/en/"));
+  const en = await handler(event("/en/properties"));
   check("en route renders the th-fallback headline", en.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
   check("en count line localized", en.body.includes("Listings: 1"));
 
@@ -130,10 +132,20 @@ try {
   const detail = await handler(event(`/properties/${visible.id}`));
   check("detail 200", detail.statusCode === 200);
   check("detail headline rendered", detail.body.includes("บ้านสามนอนใกล้ดอยสุเทพ"));
-  const ldMatch = detail.body.match(/<script type="application\/ld\+json">(.*?)<\/script>/s);
-  check("JSON-LD block present", ldMatch !== null);
-  const ld = JSON.parse(ldMatch[1]);
-  check("JSON-LD is RealEstateListing", ld["@type"] === "RealEstateListing");
+  // Two ld+json blocks ship: the site-wide Organization/WebSite graph (Base) and the listing graph.
+  const ldBlocks = [
+    ...detail.body.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs),
+  ].map((m) => m[1]);
+  const ldRaw = ldBlocks.find((b) => b.includes("RealEstateListing"));
+  check("JSON-LD listing block present", ldRaw !== undefined);
+  const ldMatch = [null, ldRaw];
+  const graph = JSON.parse(ldRaw)["@graph"];
+  const ld = graph.find((n) => n["@type"] === "RealEstateListing");
+  check("JSON-LD is RealEstateListing", ld?.["@type"] === "RealEstateListing");
+  check(
+    "JSON-LD carries a BreadcrumbList",
+    graph.some((n) => n["@type"] === "BreadcrumbList"),
+  );
   check(
     "JSON-LD carries price + currency",
     ld.offers?.price === 4_500_000 && ld.offers?.priceCurrency === "THB",
@@ -151,7 +163,10 @@ try {
     detail.body.includes("https://line.me/R/ti/p/@smoketest"),
   );
   check("poster-provided notice on detail (LEGAL-06)", detail.body.includes("ข้อมูลจากผู้ลงประกาศ"));
-  check("flood/units field list present", detail.body.includes("3 นอน"));
+  check(
+    "key-facts strip renders bedrooms + bathrooms",
+    detail.body.includes("ห้องนอน") && detail.body.includes("ห้องน้ำ"),
+  );
 
   const enDetail = await handler(event(`/en/properties/${visible.id}`));
   check(

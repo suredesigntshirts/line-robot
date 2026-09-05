@@ -448,6 +448,7 @@ export const en: Record<keyof typeof th, string> = {
   "site.tagline": "Northern Thailand property, straight from real owners and brokers",
   "site.description":
     "Find houses, land and condos in Chiang Mai and Northern Thailand. Listings from owners and brokers, honest asking prices, contact on LINE.",
+  "count.listings": "{count} listings",
   "nav.home": "Home",
   "nav.buy": "Buy",
   "nav.rent": "Rent",

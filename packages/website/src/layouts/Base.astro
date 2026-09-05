@@ -32,11 +32,21 @@ interface Props {
   noindex?: boolean;
   /** Let a page own the <title> verbatim (default appends " · Brand"). */
   rawTitle?: boolean;
+  /** Override the route-derived locale (the 404 page renders under a rewrite to "/404"). */
+  locale?: "th" | "en";
 }
 
-const { title, description, canonicalPath, ogImage, ogType = "website", noindex = false, rawTitle = false } =
-  Astro.props;
-const locale = Astro.currentLocale === "en" ? "en" : "th";
+const {
+  title,
+  description,
+  canonicalPath,
+  ogImage,
+  ogType = "website",
+  noindex = false,
+  rawTitle = false,
+  locale: localeOverride,
+} = Astro.props;
+const locale = localeOverride ?? (Astro.currentLocale === "en" ? "en" : "th");
 const t = createTranslator(locale);
 const site = Astro.site;
 if (!site) throw new Error("Astro.site missing — set `site` in astro.config.mjs");

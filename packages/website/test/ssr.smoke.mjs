@@ -29,7 +29,10 @@ check("GET / returns 200", home.statusCode === 200);
 check("GET / is HTML", /text\/html/.test(home.headers["content-type"] ?? ""));
 check("GET / is Thai by default", home.body.includes('lang="th"'));
 check("DB-less render degrades to ErrorState", home.body.includes('data-state="error"'));
-check("filter island rendered (React SSR)", home.body.includes("astro-island"));
+check("home ships no client island (zero-JS marketing page)", !home.body.includes("astro-island"));
+const browse = await handler(event("/properties"));
+check("GET /properties returns 200", browse.statusCode === 200);
+check("browse renders the geolocation island (React SSR)", browse.body.includes("astro-island"));
 check("canonical present", home.body.includes('rel="canonical"'));
 check("hreflang pair present", home.body.includes('hreflang="en"'));
 
