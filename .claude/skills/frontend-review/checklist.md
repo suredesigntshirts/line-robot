@@ -25,7 +25,7 @@ On the home page AND a discovered detail page, via `getComputedStyle`:
 - Every published listing's **detail page** renders (h1, theme applies, images load) — looped over
   whatever's discovered.
 - **Empty result set** renders a healthy empty state, not a 500.
-- **Click-through journeys** (grow these over time): browse → open a card → detail → back; the 4.3
+- **Click-through journeys** (grow these over time): browse → open a card → detail → back; the
   contextual price filter relabels Buy↔Rent (SSR link chips, no JS); `/en/` renders the English document.
 
 ## Parity — for "no visual change" foundation/refactor increments (SKILL Mode A.5)
