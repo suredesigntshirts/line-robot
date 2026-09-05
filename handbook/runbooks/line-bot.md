@@ -13,6 +13,8 @@ runs; nothing is being developed. Kept so the subsystem can be revived without r
 - LINE channels (Messaging API OA, MINI App developing/preview/published, LINE Login): ids, secrets,
   LIFF URLs and endpoint URLs are in the gitignored `LINE.md` (template: `LINE.example.md`); the
   secrets are also in Pulumi config (`channelSecret`, `channelAccessToken`, …).
+- `scripts/generate-assertion-key.mjs` generates the LINE assertion-signing key pair (public JWK checked in
+  at `infra/assertion-public-key.jwk.json`) — optional token-v2.1 hardening, not wired.
 - **Built but NOT deployed:** plan-23 Group D (U-D2, DM-claimable listings, commit `103eae9`). Go-live
   is founder-gated: migration 0011 is already applied; remaining steps are a full `npm run build`,
   `pulumi up`, then verify a 1:1 DM listing gets its claim invite. Plan-23 Group B (image-stage
@@ -39,7 +41,7 @@ npm --prefix packages/bot run build   # bundles dist/scripts/setup-rich-menu.mjs
 node packages/bot/dist/scripts/setup-rich-menu.mjs <menu-image.(png|jpeg)>
 ```
 
-The image is a **2500×843 PNG/JPEG ≤1MB** (`assets/rich-menu.png`); its visuals are cosmetic (the
+The image is a **2500×843 PNG/JPEG ≤1MB** (`packages/bot/assets/rich-menu.png`); its visuals are cosmetic (the
 tap zones are defined by bounds, not the picture). The script is idempotent — it deletes any prior
 menu named `line-robot-main` before creating + setting the new one as default.
 

@@ -28,8 +28,9 @@ bot code (U-D2, DM-claimable listings, commit `103eae9`) that is built but has n
 next `pulumi up` would silently ship that code. So for a website deploy build **only the website
 workspace** (its deps `@line-robot/ui`, `db`, `domain` are consumed from source and need no build of
 their own), and check `pulumi preview`: if anything other than `website-*` (SSR Lambda, assets bucket
-objects, CloudFront) shows a diff, stop and find out why before `pulumi up`. `scripts/deploy-staging.sh`
-runs `pulumi up --yes` with no preview — do not use it for website-only deploys.
+objects, CloudFront) shows a diff, stop and find out why before `pulumi up`. There is deliberately no
+one-shot deploy script: the old `scripts/deploy-staging.sh` ran `pulumi up --yes` with no preview and is
+archived under `handbook/archive/scripts/`.
 
 **Schema must be at HEAD before deploying anything built from HEAD (2026-09 migration-0011 note).**
 The website bundle imports the drizzle schema, which since plan 23 U-D1 includes

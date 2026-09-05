@@ -70,13 +70,6 @@
 - docs/developers.line.biz/en/docs/messaging-api/beacon-device-spec/index.md: LINE Beacon device specification
 - docs/developers.line.biz/en/docs/messaging-api/secure-message-sample/index.md: Sample code and data for generating secure messages
 - docs/developers.line.biz/en/docs/messaging-api/line-bot-sdk/index.md: LINE Messaging API SDKs
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/skillbox/index.md: SkillBox technical case study: LINE notifications greatly increased usage rate of engagement surveys, even for employ...
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/resortbaito-dive/index.md: A case study on the development of \"Resort Baito Dive\" to enhance temporary staff satisfaction
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/heptagon/index.md: A case study of developing a LINE bot to handle inquiries related to relocation and settlement
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/evolany-ai/index.md: Technical case study of anybot for ChatGPT: achieving smoother communication by fully leveraging ChatGPT
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/playnext-lab/index.md: Technical case study of Smart Public Lab: LINE utilization strategy supporting administrative digital transformation
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/softbank/index.md: Introducing infrastructure as low code for LINE-based service development case study on improving development efficie...
-- docs/developers.line.biz/en/docs/messaging-api/technicalcase/boldly/index.md: A LINE MINI App case study of an on-demand autonomous bus reservation system
 - docs/developers.line.biz/en/docs/line-social-plugins/general/overview.md: LINE Social Plugins overview
 - docs/developers.line.biz/en/docs/line-social-plugins/general/guidelines.md: Usage Guidelines for the LINE Social Plugin
 - docs/developers.line.biz/en/docs/line-social-plugins/install-guide/using-add-friend-buttons.md: [About](#about)
@@ -194,11 +187,6 @@
 - docs/developers.line.biz/en/docs/line-mini-app/demo/traisare-demo/index.md: Mobile experience demo
 - docs/developers.line.biz/en/docs/line-mini-app/demo/smartretail-demo/index.md: Purchase experience demo
 - docs/developers.line.biz/en/docs/line-mini-app/demo/maas-demo/index.md: Travel experience demo
-- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/kirifuda-morikaranotegami/index.md: Nature conservation through play: A technical case study of Letters from the Forest launched on the LINE MINI App
-- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/bravetechnology/index.md: 'How queue management solutions are scaling with the LINE MINI App: The development use case of "matoca" and "yoboca"'
-- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/classmethod/index.md: A case study of mobile order system CX ORDER
-- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/grandream/index.md: Technical case study of the GDL platform: achieving both cost-efficiency and flexibility
-- docs/developers.line.biz/en/docs/line-mini-app/technicalcase/hakuhodo/index.md: A development case study of “PoHUNT,” a digital revitalization initiative for mobility and health promotion in Asahi ...
 - docs/developers.line.biz/en/reference/partner-docs/index.md: Options for corporate customers API reference
 - docs/developers.line.biz/en/reference/line-notification-messages/index.md: LINE notification messages API reference
 - docs/developers.line.biz/en/docs/partner-docs/development-guidelines/index.md: Development guidelines for corporate customers
@@ -243,41 +231,11 @@
 
 ## pulumi.com
 
-- docs/pulumi.com/product.md: Pulumi — The unified platform for infrastructure teams.
-- docs/pulumi.com/pricing.md: Pulumi — Plans for teams of all sizes
-- docs/pulumi.com/product/neo.md: Pulumi — Meet Neo, your new AI infrastructure agent.
-- docs/pulumi.com/blog.md: Pulumi — Pulumi Blog
-- docs/pulumi.com/tutorials.md: Pulumi — Pulumi Tutorials[](#pulumi-tutorials)
-- docs/pulumi.com/what-is.md: Pulumi — Cloud Engineering Concepts Explained
-- docs/pulumi.com/templates.md: Pulumi — Pulumi Templates
-- docs/pulumi.com/case-studies.md: Pulumi — customer case studies showing real-world infrastructure automation at scale
-- docs/pulumi.com/automation.md: Pulumi — Automation API
-- docs/pulumi.com/whitepapers.md: Pulumi — whitepapers on cloud engineering, infrastructure as code, and modern cloud practices
-- docs/pulumi.com/security.md: Pulumi — Pulumi Security
-- docs/pulumi.com/community.md: Pulumi — Need Help?
 - docs/pulumi.com/docs.md: Pulumi — **Pulumi Docs**[](#pulumi-docs)
 - docs/pulumi.com/docs/install.md: Pulumi — Choose an operating system
 - docs/pulumi.com/docs/get-started.md: Pulumi — Additional resources
 - docs/pulumi.com/docs/iac.md: Pulumi — Infrastructure as Code
-- docs/pulumi.com/docs/esc.md: Pulumi — - type: full-width-cards
-- docs/pulumi.com/docs/deployments.md: Pulumi — Deployments & Workflows
-- docs/pulumi.com/docs/insights.md: Pulumi Insights — cloud infrastructure discovery, governance, security visibility, and policy enforcement
-- docs/pulumi.com/docs/ai.md: Pulumi — Infrastructure AI
-- docs/pulumi.com/docs/idp.md: Pulumi — Internal Developer Platform
-- docs/pulumi.com/docs/administration.md: Pulumi — Getting started[](#getting-started)
 - docs/pulumi.com/docs/integrations.md: Pulumi — Clouds[](#clouds)
-- docs/pulumi.com/docs/reference.md: Pulumi — Reference Documentation
-- docs/pulumi.com/docs/support.md: Pulumi — Support & Troubleshooting
-- docs/pulumi.com/blog/trigger-deployments-on-git-tags.md: Pulumi — Why tags?[](#why-tags)
-- docs/pulumi.com/blog/self-host-gemma4-llama-cpp-k8s-tailscale-pulumi.md: Pulumi — Use Your Mac for AI Agents: Self-Host Gemma 4 12 B with Pulumi and Tailscale
-- docs/pulumi.com/blog/eks-vcluster-ephemeral-environments-with-pulumi.md: Pulumi — Build an EKS Environment Factory with Pulumi and vCluster
-- docs/pulumi.com/blog/why-choose-pulumi-over-terraform.md: Pulumi — Why Choose Pulumi Over Terraform?
-- docs/pulumi.com/blog/parallel-coding-playbook-for-pulumi.md: Pulumi — Five Stacks Before Lunch: The Parallel Coding Playbook for Pulumi
-- docs/pulumi.com/blog/generating-a-pulumi-provider-from-an-openapi-spec.md: Pulumi — Why this matters for users[](#why-this-matters-for-users)
-- docs/pulumi.com/blog/stop-tuning-prompts-build-a-harness.md: Pulumi — Stop Tuning Prompts. Build a Harness.
-- docs/pulumi.com/blog/ai-infrastructure-tools.md: Pulumi — Best AI Infrastructure Tools in 2026
-- docs/pulumi.com/blog/neo-github-slack.md: Pulumi — Bringing Neo to GitHub and Slack
-- docs/pulumi.com/blog/pulumi-do-direct-resource-operations.md: Pulumi — Introducing pulumi do: Direct Resource Operations for Any Cloud
 
 ## api.pulumi.com
 
@@ -331,7 +289,6 @@
 - docs/pulumi.com/docs/iac/cli/commands/pulumi_config.md: Pulumi — This file is auto-generated from github.com/pulumi/pulumi/v3/pkg/cmd/pulumi/markdown
 - docs/pulumi.com/docs/iac/cli/exit-codes.md: Pulumi — Error Categories
 - docs/pulumi.com/docs/iac/cli/api.md: Pulumi — Subcommands
-- docs/pulumi.com/docs/reference/cloud-rest-api.md: Pulumi — Calling the API
 - docs/pulumi.com/registry.md: Pulumi — 1Password
 - docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/loggroup.md: Pulumi AWS — aws.cloudwatch.LogGroup
 - docs/pulumi.com/registry/packages/aws/api-docs/cloudwatch/metricalarm.md: Pulumi AWS — aws.cloudwatch.MetricAlarm
@@ -382,7 +339,6 @@
 - docs/orm.drizzle.team/docs/migrations.md: Drizzle ORM — Drizzle migrations fundamentals
 - docs/orm.drizzle.team.md: New features
 - docs/orm.drizzle.team/docs/batch-api.md: Batch API
-- docs/orm.drizzle.team/docs/column-types/sqlite.md: SQLite column types
 - docs/orm.drizzle.team/docs/connect-overview.md: Database connection with Drizzle
 - docs/orm.drizzle.team/docs/kit-overview.md: Migrations with Drizzle Kit
 - docs/orm.drizzle.team/docs/sql-schema-declaration.md: Drizzle schema
@@ -407,10 +363,6 @@
 
 - docs/docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-rds-data.md: @aws-sdk/client-rds-data
 - docs/docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.md: Using the Amazon RDS Data API
-
-## nodejs.org
-
-- docs/nodejs.org/api/sqlite.md: SQLite
 
 ## postgresql.org
 
