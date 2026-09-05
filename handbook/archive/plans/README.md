@@ -15,3 +15,4 @@ History only (see `../README.md`). Each plan's lasting output is a row in `DECIS
 | 21 | Tailwind v4 + shadcn conformance, Direction A | built |
 | 22 | instruction-surface cleanup | never executed; superseded by 24 |
 | 23 | ingestion pipeline audit | Groups A, C, D built (D not deployed); B not started; parked with the bot |
+| 24 | context cleanup | executed 2026-09-05 (this layout: STATUS/DECISIONS/README + handbook/) |
