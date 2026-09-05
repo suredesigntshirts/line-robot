@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
+    "dev:staging": "bash scripts/dev-staging.sh",
     "build": "astro build && node build-lambda.mjs",
     "typecheck": "astro check",
     "test": "vitest run",
