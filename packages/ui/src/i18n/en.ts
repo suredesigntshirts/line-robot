@@ -65,9 +65,6 @@ export const en: Record<keyof typeof th, string> = {
   "error.why": "A temporary connection problem",
   "error.retry": "Retry",
 
-  "home.title": "Property Listings",
-  "home.description": "Browse houses, land and condos directly from owners",
-  "home.preparing": "Listing grid coming online",
   "filter.dealType": "Buy/Rent",
   "filter.province": "Province",
   "filter.search": "Search",

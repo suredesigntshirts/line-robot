@@ -86,9 +86,6 @@ export const th = {
   "error.retry": "ลองใหม่",
 
   // Public website (Stage 4)
-  "home.title": "ประกาศอสังหาริมทรัพย์",
-  "home.description": "ค้นหาบ้าน ที่ดิน คอนโด จากเจ้าของโดยตรง",
-  "home.preparing": "กำลังเตรียมรายการประกาศ",
   "filter.dealType": "ซื้อ/เช่า",
   "filter.province": "จังหวัด",
   "filter.search": "ค้นหา",
