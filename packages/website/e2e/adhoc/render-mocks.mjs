@@ -18,7 +18,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const mocksDir = path.resolve(here, "../../../../handbook/design/mockups");
 const args = process.argv.slice(2);
 const outIdx = args.indexOf("--out");
-const outDir = outIdx >= 0 ? path.resolve(args.splice(outIdx, 2)[1]) : path.join(mocksDir, "renders");
+const outDir =
+  outIdx >= 0 ? path.resolve(args.splice(outIdx, 2)[1]) : path.join(mocksDir, "renders");
 const names = args.length
   ? args
   : readdirSync(mocksDir)
@@ -33,7 +34,10 @@ const browser = await chromium.launch();
 try {
   for (const name of names) {
     for (const theme of ["light", "dark"]) {
-      const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, colorScheme: theme });
+      const page = await browser.newPage({
+        viewport: { width: 1400, height: 900 },
+        colorScheme: theme,
+      });
       await page.goto(`http://127.0.0.1:${port}/${name}.html`, { waitUntil: "networkidle" });
       await page.evaluate((t) => {
         document.documentElement.dataset.theme = t;
